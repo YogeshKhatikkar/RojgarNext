@@ -1,5 +1,7 @@
 // lib/features/auth/presentation/screens/verify_otp_page.dart
-// COMPLETELY REDESIGNED - NO WHITE LINE EVER - CUSTOM OTP FIELDS
+// ✅ AI‑BASED MODERN DESIGN (same as other screens)
+// ✅ CUSTOM OTP FIELDS – NO WHITE LINE EVER
+// ✅ ALL ORIGINAL LOGIC PRESERVED (timer, resend, verification)
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -162,57 +164,50 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     super.dispose();
   }
 
+  // ============================================================
+  // BUILD – AI‑BASED MODERN UI
+  // ============================================================
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthController>(context);
     final isLoading = auth.isLoading || _isVerifying;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0F172A), Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-          ),
-        ),
+        decoration: _buildGradientBackground(),
         child: SafeArea(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                children: [
-                  const SizedBox(height: 20),
-                  _buildAnimatedHeader(),
-                  const SizedBox(height: 24),
-                  _buildContactCard(),
-                  const SizedBox(height: 32),
-                  _buildOtpSection(
-                    title: "📧 Email Verification Code",
-                    controllers: _emailOtpControllers,
-                    focusNodes: _emailFocusNodes,
-                    isLoading: isLoading,
-                    hint: "Enter 6-digit code sent to your email",
-                  ),
-                  const SizedBox(height: 28),
-                  _buildOtpSection(
-                    title: "📱 Mobile Verification Code",
-                    controllers: _mobileOtpControllers,
-                    focusNodes: _mobileFocusNodes,
-                    isLoading: isLoading,
-                    hint: "Enter 6-digit code sent to your mobile",
-                  ),
-                  const SizedBox(height: 32),
-                  _buildVerifyButton(isLoading),
-                  const SizedBox(height: 20),
-                  _buildResendSection(),
-                  const SizedBox(height: 24),
-                  _buildHelpText(),
-                  const SizedBox(height: 40),
-                ],
-              ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 24),
+                _buildContactCard(),
+                const SizedBox(height: 24),
+                _buildOtpSection(
+                  title: "📧 Email Verification Code",
+                  controllers: _emailOtpControllers,
+                  focusNodes: _emailFocusNodes,
+                  isLoading: isLoading,
+                  hint: "Enter 6-digit code sent to your email",
+                ),
+                const SizedBox(height: 28),
+                _buildOtpSection(
+                  title: "📱 Mobile Verification Code",
+                  controllers: _mobileOtpControllers,
+                  focusNodes: _mobileFocusNodes,
+                  isLoading: isLoading,
+                  hint: "Enter 6-digit code sent to your mobile",
+                ),
+                const SizedBox(height: 32),
+                _buildVerifyButton(isLoading),
+                const SizedBox(height: 20),
+                _buildResendSection(),
+                const SizedBox(height: 16),
+                _buildHelpText(),
+                const SizedBox(height: 20),
+              ],
             ),
           ),
         ),
@@ -220,93 +215,119 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     );
   }
 
-  Widget _buildAnimatedHeader() {
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 800),
-      builder: (context, value, child) {
-        return Opacity(
-          opacity: value,
-          child: Transform.translate(
-            offset: Offset(0, 50 * (1 - value)),
-            child: child,
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.white.withAlpha(26), Colors.white.withAlpha(13)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: Colors.white.withAlpha(51)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(26),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [Colors.blueAccent, Colors.purpleAccent]),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.blueAccent.withAlpha(77), blurRadius: 20),
-                ],
-              ),
-              child: const Icon(Icons.mark_email_read,
-                  color: Colors.white, size: 32),
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Verify Your Account",
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    "Enter the verification codes sent to your email and mobile",
-                    style: TextStyle(
-                      color: Colors.white.withAlpha(204),
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+  // ============================================================
+  // AI‑BASED DESIGN COMPONENTS
+  // ============================================================
+
+  BoxDecoration _buildGradientBackground() {
+    return const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
       ),
     );
   }
 
-  Widget _buildContactCard() {
+  Widget _buildGlassContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 15,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(13),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withAlpha(26)),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 5,
+          ),
+        ],
       ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.mark_email_read,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Verify Your Account",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  "Enter the verification codes sent to your email and mobile",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // CONTACT CARD
+  // ============================================================
+  Widget _buildContactCard() {
+    return _buildGlassContainer(
       child: Row(
         children: [
           Expanded(
@@ -314,20 +335,20 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
               icon: Icons.email_outlined,
               label: "Email",
               value: widget.email,
-              color: Colors.blueAccent,
+              color: const Color(0xFF6C63FF),
             ),
           ),
           Container(
             width: 1,
             height: 50,
-            color: Colors.white.withAlpha(26),
+            color: Colors.grey.shade300,
           ),
           Expanded(
             child: _buildContactItem(
               icon: Icons.phone_android_outlined,
               label: "Mobile",
               value: "+91${widget.mobile}",
-              color: Colors.greenAccent,
+              color: Colors.green,
             ),
           ),
         ],
@@ -346,7 +367,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withAlpha(26),
+            color: color.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: color, size: 22),
@@ -354,13 +375,20 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
         const SizedBox(height: 8),
         Text(
           label,
-          style: TextStyle(color: Colors.white.withAlpha(179), fontSize: 12),
+          style: const TextStyle(
+            color: Colors.grey,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
           style: const TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+            color: Colors.black87,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -368,6 +396,9 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     );
   }
 
+  // ============================================================
+  // OTP SECTION – CUSTOM FIELDS (NO WHITE LINE EVER)
+  // ============================================================
   Widget _buildOtpSection({
     required String title,
     required List<TextEditingController> controllers,
@@ -378,44 +409,15 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Container(
-              width: 4,
-              height: 20,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [Colors.blueAccent, Colors.purpleAccent]),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        // CUSTOM OTP FIELD - NO WHITE LINE EVER
+        _sectionHeader(title, Icons.pin),
+        const SizedBox(height: 12),
+        // CUSTOM OTP FIELD – NO WHITE LINE
         Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.white.withAlpha(13),
-                Colors.white.withAlpha(26),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withAlpha(51)),
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -435,10 +437,42 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
             }),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           hint,
-          style: TextStyle(color: Colors.white.withAlpha(128), fontSize: 12),
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 18,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+            ),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Icon(icon, color: Colors.grey.shade700, size: 18),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+            letterSpacing: 0.3,
+          ),
         ),
       ],
     );
@@ -451,8 +485,8 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     required bool isLoading,
   }) {
     return SizedBox(
-      width: 50,
-      height: 55,
+      width: 46,
+      height: 58,
       child: TextField(
         controller: controller,
         focusNode: focusNode,
@@ -463,12 +497,14 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
         style: const TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: Colors.black87,
         ),
         decoration: InputDecoration(
           counterText: '',
           filled: true,
-          fillColor: Colors.white.withAlpha(20),
+          fillColor: controller.text.isNotEmpty
+              ? const Color(0xFF6C63FF).withOpacity(0.1)
+              : Colors.grey.shade100,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
@@ -476,15 +512,17 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: Colors.white.withAlpha(51),
-              width: 1,
+              color: focusNode.hasFocus
+                  ? const Color(0xFF6C63FF)
+                  : Colors.grey.shade300,
+              width: focusNode.hasFocus ? 2.5 : 1.5,
             ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(
-              color: Colors.blueAccent,
-              width: 2,
+              color: Color(0xFF6C63FF),
+              width: 2.5,
             ),
           ),
           contentPadding: EdgeInsets.zero,
@@ -494,6 +532,9 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     );
   }
 
+  // ============================================================
+  // VERIFY BUTTON
+  // ============================================================
   Widget _buildVerifyButton(bool isLoading) {
     return SizedBox(
       width: double.infinity,
@@ -504,8 +545,9 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           padding: EdgeInsets.zero,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
         ),
         child: Ink(
           decoration: BoxDecoration(
@@ -517,7 +559,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.green.withAlpha(77),
+                color: Colors.green.withOpacity(0.3),
                 blurRadius: 15,
                 offset: const Offset(0, 5),
               ),
@@ -537,7 +579,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                 : const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.verified, size: 22),
+                      Icon(Icons.verified, size: 22, color: Colors.white),
                       SizedBox(width: 10),
                       Text(
                         "Verify & Complete Registration",
@@ -545,6 +587,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.5,
+                          color: Colors.white,
                         ),
                       ),
                     ],
@@ -555,6 +598,9 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     );
   }
 
+  // ============================================================
+  // RESEND SECTION
+  // ============================================================
   Widget _buildResendSection() {
     return Center(
       child: _canResend
@@ -564,19 +610,30 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(26),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  ),
                   borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.white.withAlpha(51)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF6C63FF).withOpacity(0.3),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.refresh, size: 18),
+                    Icon(Icons.refresh, size: 18, color: Colors.white),
                     SizedBox(width: 8),
                     Text(
                       "Resend OTP",
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
                   ],
                 ),
@@ -585,17 +642,20 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
           : Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha(13),
+                color: Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.timer, size: 18),
+                  Icon(Icons.timer, size: 18, color: Colors.grey.shade600),
                   const SizedBox(width: 8),
                   Text(
                     "Resend in ${_timerSeconds}s",
-                    style: const TextStyle(fontSize: 14),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ],
               ),
@@ -603,22 +663,29 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     );
   }
 
+  // ============================================================
+  // HELP TEXT
+  // ============================================================
   Widget _buildHelpText() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.amber.withAlpha(26),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.amber.withAlpha(51)),
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade200),
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, color: Colors.amber, size: 20),
-          const SizedBox(width: 12),
+          const Icon(Icons.info_outline, color: Colors.orange, size: 18),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               "Development Mode: Use OTP 123456 for testing",
-              style: TextStyle(color: Colors.amber.shade200, fontSize: 13),
+              style: TextStyle(
+                color: Colors.orange.shade800,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],

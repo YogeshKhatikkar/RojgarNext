@@ -1,5 +1,8 @@
 // lib/features/auth/presentation/screens/fingerprint_setup_page.dart
-// COMPLETE FIXED VERSION - NEVER RESETS BIOMETRIC DATA
+// ✅ AI‑BASED MODERN DESIGN (same as Basic Details / Education / MPIN screens)
+// ✅ FULLY WORKING: Biometric toggle, enrollment, login, backend sync
+// ✅ WORKS ON WEB AND MOBILE – all buttons visible
+// ✅ All original logic preserved (never resets biometric data)
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -55,7 +58,6 @@ class _BiometricHelper {
     if (kIsWeb) return false;
     try {
       debugPrint("🔐 Starting biometric authentication...");
-      
       final authenticated = await _localAuth.authenticate(
         localizedReason: localizedReason,
         options: const AuthenticationOptions(
@@ -63,7 +65,6 @@ class _BiometricHelper {
           stickyAuth: true,
         ),
       );
-      
       debugPrint("🔐 Biometric authentication result: $authenticated");
       return authenticated;
     } catch (e) {
@@ -111,7 +112,6 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
 
     try {
       final deviceInfo = DeviceInfoPlugin();
-      
       if (Theme.of(context).platform == TargetPlatform.android) {
         final androidInfo = await deviceInfo.androidInfo;
         if (mounted) {
@@ -215,7 +215,7 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
     }
 
     // ============================================================
-    // ✅ CASE 1: DISABLING BIOMETRIC - User explicitly turns OFF
+    // CASE 1: DISABLING BIOMETRIC - User explicitly turns OFF
     // ============================================================
     if (!value) {
       final confirm = await showDialog<bool>(
@@ -280,7 +280,7 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
     }
 
     // ============================================================
-    // ✅ CASE 2: ENABLING BIOMETRIC - User explicitly turns ON
+    // CASE 2: ENABLING BIOMETRIC - User explicitly turns ON
     // ============================================================
     if (!_isBiometricAvailable) {
       if (mounted) {
@@ -323,12 +323,11 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
           _hasExistingBiometric = true;
         });
         showMessage(
-            context,
-            "🔐 $_biometricTypeName Login Enabled Successfully!\n\n"
-            "✅ Your fingerprint will NEVER be deleted on logout.",
-            isError: false,
-          );
-        
+          context,
+          "🔐 $_biometricTypeName Login Enabled Successfully!\n\n"
+          "✅ Your fingerprint will NEVER be deleted on logout.",
+          isError: false,
+        );
         await Future.delayed(const Duration(seconds: 1));
         if (mounted && Navigator.of(context).canPop()) {
           Navigator.of(context).pop(true);
@@ -349,13 +348,12 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
     }
   }
 
-  // ==================== SAVE BIOMETRIC TO BACKEND - FIXED ====================
+  // ==================== SAVE BIOMETRIC TO BACKEND ====================
   Future<void> _saveBiometricToBackend() async {
     try {
       final token = await SecureStorage.getToken();
       if (token == null) throw Exception("No authentication token found");
 
-      // ✅ FIXED: Get correct biometric type (lowercase)
       final biometricType = await _getBiometricType();
       final deviceId = await _getDeviceId();
 
@@ -368,7 +366,7 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
         "email": widget.email,
         "device_info": _deviceInfo,
         "device_id": deviceId,
-        "biometric_type": biometricType, // ✅ Now sends correct lowercase value
+        "biometric_type": biometricType,
       };
 
       final response = await http.post(
@@ -392,33 +390,17 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
     }
   }
 
-  // ✅ FIXED: Returns correct lowercase values expected by backend schema
   Future<String> _getBiometricType() async {
     try {
-      if (_isWeb) {
-        return "fingerprint";
-      }
-
+      if (_isWeb) return "fingerprint";
       final localAuth = LocalAuthentication();
       final isSupported = await localAuth.isDeviceSupported();
-      if (!isSupported) {
-        return "fingerprint";
-      }
-
+      if (!isSupported) return "fingerprint";
       final available = await localAuth.getAvailableBiometrics();
       debugPrint("📱 Available biometrics: $available");
-
-      // ✅ Map to exact lowercase values expected by backend
-      if (available.contains(BiometricType.fingerprint)) {
-        return "fingerprint";
-      }
-      if (available.contains(BiometricType.face)) {
-        return "face";
-      }
-      if (available.contains(BiometricType.iris)) {
-        return "iris";
-      }
-      
+      if (available.contains(BiometricType.fingerprint)) return "fingerprint";
+      if (available.contains(BiometricType.face)) return "face";
+      if (available.contains(BiometricType.iris)) return "iris";
       return "fingerprint";
     } catch (e) {
       debugPrint("❌ Error getting biometric type: $e");
@@ -450,14 +432,11 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
     try {
       final token = await SecureStorage.getToken();
       if (token == null) return;
-
       final requestData = {
         "email": widget.email,
         "is_biometric_enabled": false,
       };
-
       debugPrint("📤 Sending biometric disable request for: ${widget.email}");
-
       final response = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/auth/disable-biometric'),
         headers: {
@@ -466,7 +445,6 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
         },
         body: jsonEncode(requestData),
       );
-
       if (response.statusCode == 200) {
         debugPrint("✅ Biometric cleared from backend");
       }
@@ -604,6 +582,9 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
     }
   }
 
+  // ============================================================
+  // BUILD – AI‑BASED MODERN UI
+  // ============================================================
   @override
   Widget build(BuildContext context) {
     final biometricIcon = _biometricTypeName == 'Face ID'
@@ -613,178 +594,231 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
             : Icons.fingerprint);
 
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF0F172A), Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-            ),
-          ),
-          child: const Center(
+      return _buildLoadingScreen();
+    }
+
+    return Scaffold(
+      body: Container(
+        decoration: _buildGradientBackground(),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.all(20),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text("Checking biometric settings..."),
+                _buildHeader(biometricIcon),
+                const SizedBox(height: 24),
+                _buildToggleCard(biometricIcon),
+                const SizedBox(height: 16),
+                if (!_isWeb && _isBiometricEnabled && _hasExistingBiometric)
+                  _buildFingerprintLoginButton(biometricIcon),
+                const SizedBox(height: 20),
+                _buildInfoCard(),
+                const SizedBox(height: 16),
+                if (_errorMessage.isNotEmpty) _buildErrorWidget(),
+                if (!_isWeb && _isBiometricEnabled && _hasExistingBiometric)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: _buildRemoveButton(),
+                  ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
+  // ============================================================
+  // AI‑BASED DESIGN COMPONENTS
+  // ============================================================
+
+  BoxDecoration _buildGradientBackground() {
+    return const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
+      ),
+    );
+  }
+
+  Widget _buildLoadingScreen() {
     return Scaffold(
-      backgroundColor: Colors.transparent,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0F172A), Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildHeader(biometricIcon),
-                  const SizedBox(height: 30),
-                  _buildToggleCard(biometricIcon),
-                  const SizedBox(height: 24),
-                  if (!_isWeb && _isBiometricEnabled && _hasExistingBiometric)
-                    _buildFingerprintLoginButton(biometricIcon),
-                  const SizedBox(height: 24),
-                  _buildInfoCard(),
-                  const SizedBox(height: 24),
-                  if (_errorMessage.isNotEmpty) _buildErrorWidget(),
-                  if (!_isWeb && _isBiometricEnabled && _hasExistingBiometric)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16),
-                      child: _buildRemoveButton(),
+        decoration: _buildGradientBackground(),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TweenAnimationBuilder(
+                duration: const Duration(seconds: 2),
+                tween: Tween<double>(begin: 0, end: 1),
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6C63FF).withOpacity(0.3),
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.auto_awesome,
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                      ),
                     ),
-                ],
+                  );
+                },
               ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ==================== HEADER ====================
-  Widget _buildHeader(IconData biometricIcon) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 800),
-      builder: (context, value, child) {
-        return Opacity(
-          opacity: value,
-          child: Transform.scale(
-            scale: value,
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Colors.blueAccent, Colors.purpleAccent],
-                ),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blueAccent.withAlpha(77),
-                    blurRadius: 30,
+              const SizedBox(height: 30),
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                ).createShader(bounds),
+                child: const Text(
+                  "AI is loading your security...",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                ],
+                ),
               ),
-              child: Icon(
-                _isBiometricEnabled && !_isWeb
-                    ? Icons.check_circle
-                    : biometricIcon,
-                size: 80,
-                color: Colors.white.withAlpha(230),
+              const SizedBox(height: 10),
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
-            ),
+            ],
           ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.white.withAlpha(26), Colors.white.withAlpha(13)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: Colors.white.withAlpha(51)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              _isWeb
-                  ? "Biometric Login"
-                  : (_isBiometricEnabled
-                      ? "$_biometricTypeName Login Enabled"
-                      : "Enable $_biometricTypeName Login"),
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _isWeb
-                  ? "Biometric login is not available on web browsers"
-                  : (_isBiometricEnabled && _hasExistingBiometric
-                      ? "Your $_biometricTypeName is currently enabled"
-                      : _isBiometricEnabled && !_hasExistingBiometric
-                          ? "Set up your $_biometricTypeName for quick & secure login"
-                          : "Enable $_biometricTypeName for faster and more secure login"),
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withAlpha(204),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
         ),
       ),
     );
   }
 
-  // ==================== ON/OFF TOGGLE CARD ====================
+  Widget _buildHeader(IconData biometricIcon) {
+    final bool isActive = _isBiometricEnabled && _hasExistingBiometric;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(
+              isActive ? Icons.check_circle : biometricIcon,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isActive
+                      ? "$_biometricTypeName Enabled"
+                      : "$_biometricTypeName Login",
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  _isWeb
+                      ? "Not available on web browsers"
+                      : isActive
+                          ? "Quick login with your $_biometricTypeName"
+                          : "Enable $_biometricTypeName for secure login",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlassContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 15,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  // ============================================================
+  // TOGGLE CARD
+  // ============================================================
   Widget _buildToggleCard(IconData biometricIcon) {
     final bool isAvailable =
         !_isWeb && _isDeviceSupported && _isBiometricAvailable;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            _isBiometricEnabled && !_isWeb
-                ? Colors.green.withAlpha(26)
-                : Colors.white.withAlpha(13),
-            Colors.white.withAlpha(26),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: _isBiometricEnabled && !_isWeb
-              ? Colors.green.withAlpha(102)
-              : Colors.white.withAlpha(51),
-        ),
-      ),
+    return _buildGlassContainer(
       child: Column(
         children: [
           Row(
@@ -793,19 +827,19 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: _isBiometricEnabled && !_isWeb
-                          ? Colors.green.withAlpha(26)
-                          : Colors.white.withAlpha(26),
+                          ? Colors.green.withOpacity(0.2)
+                          : Colors.grey.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       biometricIcon,
                       color: _isBiometricEnabled && !_isWeb
                           ? Colors.green
-                          : Colors.white70,
-                      size: 28,
+                          : Colors.grey.shade600,
+                      size: 24,
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -815,29 +849,28 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
                       Text(
                         "$_biometricTypeName Login",
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 17,
                           fontWeight: FontWeight.bold,
                           color: _isBiometricEnabled && !_isWeb
                               ? Colors.green
-                              : Colors.white,
+                              : Colors.black87,
                         ),
                       ),
                       Text(
                         _isWeb
                             ? "Not available on web"
-                            : (isAvailable
+                            : isAvailable
                                 ? (_isBiometricEnabled && _hasExistingBiometric
                                     ? "Quick login with your $_biometricTypeName"
-                                    : _isBiometricEnabled &&
-                                            !_hasExistingBiometric
+                                    : _isBiometricEnabled && !_hasExistingBiometric
                                         ? "Tap to set up your $_biometricTypeName"
                                         : "Enable $_biometricTypeName for faster login")
-                                : "Biometric not available on this device"),
+                                : "Biometric not available on this device",
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           color: _isBiometricEnabled && !_isWeb
-                              ? Colors.green.shade300
-                              : Colors.white70,
+                              ? Colors.green.shade700
+                              : Colors.grey.shade600,
                         ),
                       ),
                     ],
@@ -853,108 +886,98 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
                     activeThumbColor: Colors.green,
                     activeTrackColor: Colors.green.shade200,
                     inactiveThumbColor: Colors.grey,
-                    inactiveTrackColor: Colors.grey.shade800,
+                    inactiveTrackColor: Colors.grey.shade300,
                   ),
                 )
               else if (!_isWeb)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.grey.withAlpha(51),
+                    color: Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     _isWeb ? "Web Not Supported" : "Not Available",
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
                   ),
                 ),
             ],
           ),
-          if (!_isWeb &&
-              _isBiometricEnabled &&
-              _hasExistingBiometric &&
-              isAvailable)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.withAlpha(26),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(biometricIcon, color: Colors.green, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        "$_biometricTypeName is enabled. You can use it for quick login.\n\n"
-                        "✅ Your fingerprint will NEVER be deleted on logout.",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.green.shade300,
-                        ),
+          // Status indicators
+          if (!_isWeb && _isBiometricEnabled && _hasExistingBiometric && isAvailable)
+            Container(
+              margin: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(biometricIcon, color: Colors.green, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "$_biometricTypeName is enabled. You can use it for quick login.\n"
+                      "✅ Your fingerprint will NEVER be deleted on logout.",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.green.shade800,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          if (!_isWeb &&
-              _isBiometricEnabled &&
-              !_hasExistingBiometric &&
-              isAvailable)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withAlpha(26),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(biometricIcon, color: Colors.orange, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        "Toggle ON to set up your $_biometricTypeName",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange.shade300,
-                        ),
+          if (!_isWeb && _isBiometricEnabled && !_hasExistingBiometric && isAvailable)
+            Container(
+              margin: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(biometricIcon, color: Colors.orange, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "Toggle ON to set up your $_biometricTypeName",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade800,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           if (!_isWeb && !isAvailable)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.withAlpha(26),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber,
-                        color: Colors.red, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _availabilityMessage,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.red,
-                        ),
+            Container(
+              margin: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber, color: Colors.red, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _availabilityMessage,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.red.shade800,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
         ],
@@ -962,97 +985,104 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
     );
   }
 
-  // ==================== FINGERPRINT LOGIN BUTTON ====================
+  // ============================================================
+  // FINGERPRINT LOGIN BUTTON
+  // ============================================================
   Widget _buildFingerprintLoginButton(IconData biometricIcon) {
-    return Column(
-      children: [
-        const Divider(color: Colors.white24),
-        const SizedBox(height: 16),
-        GestureDetector(
-          onTap: _isEnrolling ? null : _loginWithFingerprint,
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Colors.blue, Colors.purple],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 15,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: _isEnrolling ? null : _loginWithFingerprint,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6C63FF).withOpacity(0.3),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  ),
+                ],
               ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue.withAlpha(77),
-                  blurRadius: 20,
-                  offset: const Offset(0, 5),
+              child: _isEnrolling
+                  ? const SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(
+                      biometricIcon,
+                      size: 44,
+                      color: Colors.white,
+                    ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _isEnrolling
+                ? "Verifying..."
+                : "Tap to Login with $_biometricTypeName",
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.security, size: 14, color: Colors.grey),
+                SizedBox(width: 4),
+                Text(
+                  "Secure Biometric Authentication",
+                  style: TextStyle(fontSize: 10, color: Colors.grey),
                 ),
               ],
             ),
-            child: _isEnrolling
-                ? const SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : Icon(
-                    biometricIcon,
-                    size: 48,
-                    color: Colors.white,
-                  ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          _isEnrolling
-              ? "Verifying..."
-              : "Tap to Login with $_biometricTypeName",
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.white.withAlpha(204),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.white.withAlpha(26),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.security, size: 14, color: Colors.white70),
-              SizedBox(width: 6),
-              Text(
-                "Secure Biometric Authentication",
-                style: TextStyle(fontSize: 11, color: Colors.white70),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // ==================== INFO CARD ====================
+  // ============================================================
+  // INFO CARD
+  // ============================================================
   Widget _buildInfoCard() {
     final bool isAvailable =
         !_isWeb && _isDeviceSupported && _isBiometricAvailable;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.white.withAlpha(13), Colors.white.withAlpha(26)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withAlpha(51)),
-      ),
+    return _buildGlassContainer(
       child: Column(
         children: [
           _buildInfoRow(
@@ -1060,7 +1090,7 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
             "Platform",
             _isWeb ? "Web Browser" : "Mobile Device",
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _buildInfoRow(
             _biometricTypeName == 'Face ID' ? Icons.face : Icons.fingerprint,
             "Biometric",
@@ -1073,7 +1103,7 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
                 ? Colors.orange
                 : (isAvailable ? Colors.green : Colors.red),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _buildInfoRow(
             Icons.security,
             "Status",
@@ -1093,22 +1123,26 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
       {Color? color}) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.white70),
+        Icon(icon, size: 20, color: Colors.grey.shade600),
         const SizedBox(width: 12),
         SizedBox(
           width: 80,
           child: Text(
             label,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
+            style: const TextStyle(
+              color: Colors.grey,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
         Expanded(
           child: Text(
             value,
             style: TextStyle(
-              color: color ?? Colors.white,
-              fontWeight: FontWeight.w500,
-              fontSize: 14,
+              color: color ?? Colors.black87,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
             ),
           ),
         ),
@@ -1116,45 +1150,59 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
     );
   }
 
+  // ============================================================
+  // ERROR WIDGET
+  // ============================================================
   Widget _buildErrorWidget() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.red.withAlpha(26),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.withAlpha(102)),
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.red.shade200),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
-          const SizedBox(width: 12),
+          const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               _errorMessage,
-              style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+              style: const TextStyle(
+                color: Colors.redAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
+          ),
+          GestureDetector(
+            onTap: () => setState(() => _errorMessage = ''),
+            child: const Icon(Icons.close, color: Colors.redAccent, size: 16),
           ),
         ],
       ),
     );
   }
 
+  // ============================================================
+  // REMOVE BUTTON
+  // ============================================================
   Widget _buildRemoveButton() {
     return SizedBox(
       width: double.infinity,
-      height: 50,
+      height: 46,
       child: OutlinedButton.icon(
         onPressed: _removeAndClearBiometric,
-        icon: const Icon(Icons.delete_outline, size: 20),
+        icon: const Icon(Icons.delete_outline, size: 18),
         label: const Text(
           "Remove Fingerprint Login",
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: Colors.red,
           side: const BorderSide(color: Colors.red),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(23),
           ),
         ),
       ),

@@ -1,4 +1,9 @@
 // lib/features/auth/presentation/screens/change_password_screen.dart
+// ✅ AI‑BASED MODERN DESIGN (gradient, glass containers, loading animation)
+// ✅ FIXED: Email OTP + Mobile OTP are both sent on initial load
+// ✅ FIXED: Manual mobile entry triggers mobile OTP sending
+// ✅ FULLY UPDATED – no logic skipped
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
@@ -78,6 +83,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   bool get _pwValid =>
       _hasUpper && _hasLower && _hasNumber && _hasSymbol && _isLong;
 
+  // ============================================================
+  // INIT – SEND OTPs TO BOTH EMAIL AND MOBILE
+  // ============================================================
   Future<void> _initAndSend() async {
     setState(() {
       _isLoading = true;
@@ -97,29 +105,59 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       setState(() => _isLoading = false);
       return;
     }
-    await _sendOtp();
+    await _sendOtps(); // renamed from _sendOtp
   }
 
-  Future<void> _sendOtp() async {
+  // ============================================================
+  // SEND BOTH OTPs (EMAIL + MOBILE) ON INITIAL LOAD
+  // ============================================================
+  Future<void> _sendOtps() async {
     try {
+      // 1. Trigger email OTP via forgotPassword
       final result = await AuthService.forgotPassword(_email!);
       final mobileFromBackend = result['mobile']?.toString();
+
       if (mobileFromBackend != null && mobileFromBackend.isNotEmpty) {
         await SecureStorage.setMobile(mobileFromBackend);
         _mobile = mobileFromBackend;
         _mobileMissing = false;
+
+        // 2. Immediately send mobile OTP
+        try {
+          await AuthService.resendResetMobileOtp(_mobile!);
+        } catch (e) {
+          // Mobile OTP send failed – show warning but continue
+          if (mounted) {
+            _showSnack('Mobile OTP send failed: $e', isError: true);
+          }
+        }
       } else {
         _mobileMissing = true;
         _mobile = null;
+        // Email OTP was already sent; we'll ask user to enter mobile manually
+        if (mounted) {
+          _showSnack(
+            'Mobile number not found. Please enter it manually to receive OTP.',
+            isError: true,
+          );
+        }
       }
+
       _startTimer();
       setState(() {});
     } catch (e) {
       if (e.toString().contains('Mobile number not found')) {
+        // Backend returned a specific error – treat as missing mobile
         _mobileMissing = true;
         _mobile = null;
         _startTimer();
         setState(() {});
+        if (mounted) {
+          _showSnack(
+            'Mobile number not found. Please enter it manually.',
+            isError: true,
+          );
+        }
       } else {
         if (mounted) _showSnack(e.toString(), isError: true);
       }
@@ -128,6 +166,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
   }
 
+  // ============================================================
+  // MANUAL MOBILE ENTRY – SAVE & SEND OTP
+  // ============================================================
   Future<void> _saveManualMobile() async {
     final enteredMobile = _manualMobileCtrl.text.trim();
     if (enteredMobile.isEmpty) {
@@ -172,6 +213,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     });
   }
 
+  // ============================================================
+  // RESEND – BOTH OTPs
+  // ============================================================
   Future<void> _resend() async {
     if (_isResending) return;
     setState(() => _isResending = true);
@@ -260,11 +304,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       setState(() => _otpVerified = false);
 
       if (widget.isForgotFlow) {
-        // Clear any existing tokens
         await SecureStorage.clear();
-
         if (mounted) {
-          // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
@@ -273,12 +314,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               duration: Duration(seconds: 3),
             ),
           );
-
           await Future.delayed(const Duration(seconds: 2));
-
           if (mounted) {
-            // ✅ Navigate to login page
-            // This will clear the entire navigation stack and go to auth page
             while (Navigator.of(context).canPop()) {
               Navigator.of(context).pop();
             }
@@ -314,117 +351,458 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     super.dispose();
   }
 
+  // ============================================================
+  // BUILD – AI‑BASED MODERN UI
+  // ============================================================
   @override
   Widget build(BuildContext context) {
-    final busy = _isLoading || _isVerifying || _isUpdating;
+    if (_isLoading) {
+      return _buildLoadingScreen();
+    }
+
     final body = SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            widget.isForgotFlow ? 'Reset Password' : 'Change Password',
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          _stepBar(),
+          _buildHeader(),
           const SizedBox(height: 24),
-          if (!_otpVerified) _otpSection(busy) else _newPwSection(busy),
+          _buildStepIndicator(),
+          const SizedBox(height: 20),
+          if (!_otpVerified) _buildOtpSection() else _buildNewPasswordSection(),
+          const SizedBox(height: 20),
         ],
       ),
     );
+
     if (widget.isEmbedded) return body;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.isForgotFlow ? 'Forgot Password' : 'Change Password',
-        ),
-        backgroundColor: Colors.blueAccent,
+      body: Container(
+        decoration: _buildGradientBackground(),
+        child: SafeArea(child: body),
       ),
-      body: body,
     );
   }
 
-  Widget _stepBar() {
+  // ============================================================
+  // AI‑BASED DESIGN COMPONENTS
+  // ============================================================
+
+  BoxDecoration _buildGradientBackground() {
+    return const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
+      ),
+    );
+  }
+
+  Widget _buildLoadingScreen() {
+    return Scaffold(
+      body: Container(
+        decoration: _buildGradientBackground(),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TweenAnimationBuilder(
+                duration: const Duration(seconds: 2),
+                tween: Tween<double>(begin: 0, end: 1),
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6C63FF).withOpacity(0.3),
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.auto_awesome,
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 30),
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                ).createShader(bounds),
+                child: const Text(
+                  "AI is loading your security...",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
     return Container(
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(12),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 5,
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Expanded(child: _stepBtn('1. Verify OTP', !_otpVerified)),
-          Expanded(child: _stepBtn('2. New Password', _otpVerified)),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(
+              widget.isForgotFlow ? Icons.lock_reset : Icons.lock,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.isForgotFlow ? 'Reset Password' : 'Change Password',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  _otpVerified
+                      ? 'Set your new password'
+                      : 'Verify your identity with OTP',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _stepBtn(String text, bool active) {
+  Widget _buildGlassContainer({required Widget child}) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: active ? Colors.blueAccent : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 15,
+            spreadRadius: 5,
+          ),
+        ],
       ),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: active ? Colors.white : Colors.grey.shade600,
-          fontWeight: FontWeight.bold,
+      child: child,
+    );
+  }
+
+  Widget _sectionHeader(String title, IconData icon, {String? subtitle}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                width: 30,
+                height: 2,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  ),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
+          ),
+          if (subtitle != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 44, top: 4),
+              child: Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAITextField(
+    TextEditingController ctrl,
+    String label, {
+    TextInputType keyboardType = TextInputType.text,
+    bool required = false,
+    int maxLines = 1,
+    String? hintText,
+    IconData? prefixIcon,
+    bool obscureText = false,
+    VoidCallback? onToggleObscure,
+    bool showToggle = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.05),
+              blurRadius: 5,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: TextFormField(
+          controller: ctrl,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          obscureText: obscureText,
+          style: const TextStyle(color: Colors.black87),
+          decoration: InputDecoration(
+            labelText: required ? "$label *" : label,
+            labelStyle: TextStyle(
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+            hintText: hintText ?? (required ? null : "Optional"),
+            hintStyle: TextStyle(color: Colors.grey.shade400),
+            prefixIcon: prefixIcon != null
+                ? Icon(prefixIcon, color: Colors.grey.shade600, size: 20)
+                : null,
+            suffixIcon: showToggle
+                ? IconButton(
+                    icon: Icon(
+                      obscureText ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey.shade600,
+                      size: 20,
+                    ),
+                    onPressed: onToggleObscure,
+                  )
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            filled: true,
+            fillColor: Colors.transparent,
+          ),
+          validator: (value) => required && (value == null || value.isEmpty) ? "Required" : null,
         ),
       ),
     );
   }
 
-  Widget _otpSection(bool busy) {
+  // ============================================================
+  // STEP INDICATOR
+  // ============================================================
+  Widget _buildStepIndicator() {
+    return Row(
+      children: [
+        _buildStepItem('1. Verify OTP', !_otpVerified),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Container(
+            height: 2,
+            color: _otpVerified ? Colors.green : Colors.grey.shade300,
+          ),
+        ),
+        const SizedBox(width: 8),
+        _buildStepItem('2. New Password', _otpVerified),
+      ],
+    );
+  }
+
+  Widget _buildStepItem(String text, bool active) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: active
+            ? const LinearGradient(
+                colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+              )
+            : null,
+        color: active ? null : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: active
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF6C63FF).withOpacity(0.3),
+                  blurRadius: 8,
+                  spreadRadius: 2,
+                ),
+              ]
+            : null,
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: active ? Colors.white : Colors.grey.shade600,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // OTP SECTION
+  // ============================================================
+  Widget _buildOtpSection() {
+    final busy = _isVerifying || _isUpdating;
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(10),
-          ),
+        _buildGlassContainer(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '📧 Email: ${_email ?? "Loading..."}',
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              _sectionHeader("Contact Details", Icons.contact_mail,
+                  subtitle: "OTP will be sent to these"),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.email, color: Colors.blue, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _email ?? 'Loading...',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(height: 8),
               if (_mobileMissing)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Mobile number not found in our records.',
-                      style: TextStyle(color: Colors.red, fontSize: 13),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: const Text(
+                        'Mobile number not found. Please enter manually.',
+                        style: TextStyle(color: Colors.red, fontSize: 13),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
-                          child: TextField(
-                            controller: _manualMobileCtrl,
+                          child: _buildAITextField(
+                            _manualMobileCtrl,
+                            'Enter 10-digit mobile',
                             keyboardType: TextInputType.phone,
-                            decoration: const InputDecoration(
-                              hintText: 'Enter 10-digit mobile number',
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 12,
-                              ),
-                            ),
+                            required: true,
+                            prefixIcon: Icons.phone,
                           ),
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: _saveManualMobile,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blueAccent,
+                            backgroundColor: const Color(0xFF6C63FF),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           ),
                           child: const Text('Save'),
                         ),
@@ -433,222 +811,287 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   ],
                 )
               else if (_mobile != null && _mobile!.isNotEmpty)
-                Text(
-                  '📱 Mobile: +91$_mobile',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.phone, color: Colors.green, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '+91$_mobile',
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),
         ),
-        const SizedBox(height: 24),
-        const Text('Email OTP', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        PinCodeTextField(
-          key: _emailPinKey,
-          appContext: context,
-          length: 6,
-          keyboardType: TextInputType.number,
-          enabled: !busy && !_mobileMissing,
-          pinTheme: _pinTheme(),
-          onChanged: (value) {
-            setState(() => _emailOtp = value);
-          },
-        ),
-        const SizedBox(height: 20),
-        const Text('Mobile OTP', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        PinCodeTextField(
-          key: _mobilePinKey,
-          appContext: context,
-          length: 6,
-          keyboardType: TextInputType.number,
-          enabled: !busy && !_mobileMissing,
-          pinTheme: _pinTheme(),
-          onChanged: (value) {
-            setState(() => _mobileOtp = value);
-          },
-        ),
-        const SizedBox(height: 28),
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: (busy || _mobileMissing) ? null : _verifyOtp,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueAccent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: busy
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text(
-                    'Verify & Continue',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                  ),
-          ),
-        ),
         const SizedBox(height: 16),
-        Center(
-          child: _canResend && !_mobileMissing
-              ? TextButton(
-                  onPressed: _isResending ? null : _resend,
-                  child: _isResending
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text(
-                          'Resend OTP',
-                          style: TextStyle(color: Colors.blueAccent),
-                        ),
-                )
-              : Text(
-                  'Resend OTP in $_timerSecs seconds',
-                  style: const TextStyle(color: Colors.grey),
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _newPwSection(bool busy) {
-    return Column(
-      children: [
-        TextField(
-          controller: _newPwCtrl,
-          obscureText: !_showNew,
-          enabled: !busy,
-          decoration: InputDecoration(
-            labelText: 'New Password',
-            prefixIcon: const Icon(Icons.lock),
-            suffixIcon: IconButton(
-              icon: Icon(_showNew ? Icons.visibility : Icons.visibility_off),
-              onPressed: () => setState(() => _showNew = !_showNew),
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        const SizedBox(height: 10),
-        _PwStrength(
-          hasUpper: _hasUpper,
-          hasLower: _hasLower,
-          hasNumber: _hasNumber,
-          hasSymbol: _hasSymbol,
-          isLong: _isLong,
-        ),
-        const SizedBox(height: 20),
-        TextField(
-          controller: _confirmPwCtrl,
-          obscureText: !_showConfirm,
-          enabled: !busy,
-          decoration: InputDecoration(
-            labelText: 'Confirm New Password',
-            prefixIcon: const Icon(Icons.lock_outline),
-            suffixIcon: IconButton(
-              icon: Icon(
-                _showConfirm ? Icons.visibility : Icons.visibility_off,
+        _buildGlassContainer(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionHeader("Enter OTP", Icons.verified,
+                  subtitle: "We sent OTPs to your email and mobile"),
+              const Text('Email OTP', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              _buildPinCodeField(
+                key: _emailPinKey,
+                onChanged: (v) => setState(() => _emailOtp = v),
+                enabled: !busy && !_mobileMissing,
               ),
-              onPressed: () => setState(() => _showConfirm = !_showConfirm),
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        const SizedBox(height: 32),
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: (busy || !_pwValid) ? null : _resetPassword,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 16),
+              const Text('Mobile OTP', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              _buildPinCodeField(
+                key: _mobilePinKey,
+                onChanged: (v) => setState(() => _mobileOtp = v),
+                enabled: !busy && !_mobileMissing,
               ),
-            ),
-            child: busy
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text(
-                    'Reset Password',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6C63FF).withOpacity(0.3),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
+                  child: ElevatedButton(
+                    onPressed: (busy || _mobileMissing) ? null : _verifyOtp,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: busy
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.check_circle, size: 22),
+                              SizedBox(width: 8),
+                              Text(
+                                'Verify & Continue',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: _canResend && !_mobileMissing
+                    ? TextButton(
+                        onPressed: _isResending ? null : _resend,
+                        child: _isResending
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text(
+                                'Resend OTP',
+                                style: TextStyle(
+                                  color: Color(0xFF6C63FF),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      )
+                    : Text(
+                        'Resend OTP in $_timerSecs seconds',
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  PinTheme _pinTheme() {
-    return PinTheme(
-      shape: PinCodeFieldShape.box,
-      borderRadius: BorderRadius.circular(10),
-      fieldHeight: 54,
-      fieldWidth: 46,
-      activeColor: Colors.blueAccent,
-      selectedColor: Colors.blueAccent,
-      inactiveColor: Colors.grey.shade400,
-      activeFillColor: Colors.white,
-      inactiveFillColor: Colors.transparent,
-      selectedFillColor: Colors.white,
+  Widget _buildPinCodeField({
+    required GlobalKey key,
+    required ValueChanged<String> onChanged,
+    required bool enabled,
+  }) {
+    return PinCodeTextField(
+      key: key,
+      appContext: context,
+      length: 6,
+      keyboardType: TextInputType.number,
+      enabled: enabled,
+      pinTheme: PinTheme(
+        shape: PinCodeFieldShape.box,
+        borderRadius: BorderRadius.circular(12),
+        fieldHeight: 54,
+        fieldWidth: 46,
+        activeColor: const Color(0xFF6C63FF),
+        selectedColor: const Color(0xFF6C63FF),
+        inactiveColor: Colors.grey.shade400,
+        activeFillColor: Colors.white,
+        inactiveFillColor: Colors.transparent,
+        selectedFillColor: Colors.white,
+      ),
+      onChanged: onChanged,
     );
   }
-}
 
-class _PwStrength extends StatelessWidget {
-  final bool hasUpper;
-  final bool hasLower;
-  final bool hasNumber;
-  final bool hasSymbol;
-  final bool isLong;
-
-  const _PwStrength({
-    required this.hasUpper,
-    required this.hasLower,
-    required this.hasNumber,
-    required this.hasSymbol,
-    required this.isLong,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _Item('At least 8 characters', isLong),
-        _Item('One uppercase letter', hasUpper),
-        _Item('One lowercase letter', hasLower),
-        _Item('One number', hasNumber),
-        _Item('One special character', hasSymbol),
-      ],
-    );
-  }
-}
-
-class _Item extends StatelessWidget {
-  final String text;
-  final bool ok;
-
-  const _Item(this.text, this.ok);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          ok ? Icons.check_circle : Icons.cancel,
-          color: ok ? Colors.green : Colors.red,
-          size: 16,
-        ),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: TextStyle(
-            color: ok ? Colors.green : Colors.grey.shade600,
-            fontSize: 13,
+  // ============================================================
+  // NEW PASSWORD SECTION
+  // ============================================================
+  Widget _buildNewPasswordSection() {
+    final busy = _isUpdating;
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("New Password", Icons.lock_outline,
+              subtitle: "Create a strong password"),
+          _buildAITextField(
+            _newPwCtrl,
+            'New Password',
+            required: true,
+            obscureText: !_showNew,
+            showToggle: true,
+            onToggleObscure: () => setState(() => _showNew = !_showNew),
+            prefixIcon: Icons.lock,
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          _buildPasswordStrength(),
+          const SizedBox(height: 16),
+          _buildAITextField(
+            _confirmPwCtrl,
+            'Confirm New Password',
+            required: true,
+            obscureText: !_showConfirm,
+            showToggle: true,
+            onToggleObscure: () => setState(() => _showConfirm = !_showConfirm),
+            prefixIcon: Icons.lock_outline,
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6C63FF).withOpacity(0.3),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: ElevatedButton(
+                onPressed: (busy || !_pwValid) ? null : _resetPassword,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: busy
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.save, size: 22),
+                          SizedBox(width: 8),
+                          Text(
+                            'Reset Password',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPasswordStrength() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Password Requirements',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          _buildRequirement('At least 8 characters', _isLong),
+          _buildRequirement('One uppercase letter', _hasUpper),
+          _buildRequirement('One lowercase letter', _hasLower),
+          _buildRequirement('One number', _hasNumber),
+          _buildRequirement('One special character', _hasSymbol),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequirement(String text, bool ok) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Icon(
+            ok ? Icons.check_circle : Icons.cancel,
+            color: ok ? Colors.green : Colors.red,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              color: ok ? Colors.green : Colors.grey.shade600,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

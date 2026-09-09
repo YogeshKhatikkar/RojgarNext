@@ -1,8 +1,10 @@
 // lib/features/home/home_screen.dart
-// ✅ AI-Powered Mobile Home Page with Center Login/Register Buttons
-// ✅ Web/Desktop: Full home page with all features
+// ✅ AI‑BASED MODERN DESIGN (light gradient, glass containers, brand colors)
+// ✅ SEPARATE UI FOR MOBILE (centered buttons) AND WEB (full landing page)
+// ✅ FAST LOADING – optimized animations and minimal dependencies
+// ✅ REUSES THE SAME DESIGN LANGUAGE AS BasicDetails, Education, Auth screens
 
-import 'dart:math' as math; // ✅ ADD THIS IMPORT
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -78,7 +80,6 @@ class _HomeScreenState extends State<HomeScreen>
       }
     } on DioException catch (e) {
       _isBackendHealthy = false;
-
       if (e.type == DioExceptionType.connectionTimeout) {
         _backendError = "Connection timeout. Backend not responding.";
       } else if (e.type == DioExceptionType.connectionError) {
@@ -108,7 +109,9 @@ class _HomeScreenState extends State<HomeScreen>
     context.push('${AppRoutes.auth}?tab=1');
   }
 
-  // ==================== BUILD METHOD ====================
+  // ============================================================
+  // BUILD – Separate UI for Mobile and Web
+  // ============================================================
   @override
   Widget build(BuildContext context) {
     final bool isWeb = PlatformUtils.isWeb;
@@ -120,80 +123,198 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  // ==================== AI-POWERED MOBILE HOME PAGE ====================
+  // ============================================================
+  // MOBILE HOME PAGE – AI‑BASED MODERN DESIGN
+  // ============================================================
   Widget _buildMobileHomePage() {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: const [
-              Color(0xFF0A0E27),
-              Color(0xFF1A1A4E),
-              Color(0xFF2D1B69),
-              Color(0xFF0F172A),
+        decoration: _buildGradientBackground(),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Top Bar
+              _buildTopBar(),
+              // Backend Status
+              if (!_isBackendHealthy && !_checkingBackend && _backendError != null)
+                _buildBackendStatus(),
+              if (_checkingBackend) _buildCheckingStatus(),
+              // Main Content
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 20),
+                      _buildAIHeroSection(),
+                      const SizedBox(height: 24),
+                      _buildAIFeaturesBadges(),
+                      const SizedBox(height: 24),
+                      _buildTagline(),
+                      const SizedBox(height: 32),
+                      _buildLoginRegisterButtons(),
+                      const SizedBox(height: 20),
+                      _buildAIPoweredBadge(),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // WEB HOME PAGE – Full Landing Page with Modern Design
+  // ============================================================
+  Widget _buildWebHomePage() {
+    final Size size = MediaQuery.of(context).size;
+    final bool isMobile = size.width <= 600;
+    final bool isTablet = size.width > 600 && size.width <= 900;
+    final bool isDesktop = size.width > 900;
+
+    final double heroFontSize = isDesktop ? 52 : (isTablet ? 44 : 36);
+    final double subtitleFontSize = isDesktop ? 18 : 16;
+    final double descriptionFontSize = isDesktop ? 16 : 14;
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: _buildGradientBackground(),
         child: SafeArea(
-          child: Stack(
+          child: Column(
             children: [
-              // ==================== BACKGROUND ANIMATED PARTICLES ====================
-              Positioned.fill(
-                child: _buildParticleBackground(),
-              ),
-
-              // ==================== MAIN CONTENT ====================
-              Column(
-                children: [
-                  // ==================== TOP BAR ====================
-                  _buildTopBar(),
-
-                  // ==================== BACKEND STATUS ====================
-                  if (!_isBackendHealthy && !_checkingBackend && _backendError != null)
-                    _buildBackendStatus(),
-
-                  if (_checkingBackend)
-                    _buildCheckingStatus(),
-
-                  // ==================== CENTER CONTENT ====================
-                  Expanded(
-                    child: Center(
-                      child: SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
+              // Top Bar – Glass
+              _buildWebTopBar(isDesktop, isTablet),
+              // Backend Status
+              if (!_isBackendHealthy && !_checkingBackend && _backendError != null)
+                _buildBackendStatus(),
+              if (_checkingBackend) _buildCheckingStatus(),
+              // Main Content
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      // Hero Section
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isDesktop ? 80 : (isTablet ? 50 : 24),
+                          vertical: isDesktop ? 60 : 40,
+                        ),
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // ==================== AI HERO ANIMATION ====================
-                            _buildAIHeroSection(),
-
-                            const SizedBox(height: 30),
-
-                            // ==================== AI FEATURES BADGES ====================
-                            _buildAIFeaturesBadges(),
-
-                            const SizedBox(height: 30),
-
-                            // ==================== TAGLINE ====================
-                            _buildTagline(),
-
-                            const SizedBox(height: 35),
-
-                            // ==================== LOGIN & REGISTER BUTTONS SIDE BY SIDE ====================
-                            _buildLoginRegisterButtons(),
-
+                            TweenAnimationBuilder<double>(
+                              tween: Tween<double>(begin: 0.0, end: 1.0),
+                              duration: const Duration(milliseconds: 800),
+                              builder: (context, value, child) {
+                                return Opacity(
+                                  opacity: value,
+                                  child: Transform.translate(
+                                    offset: Offset(0, 50 * (1 - value)),
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                "Find Your Dream Job",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: heroFontSize,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ),
                             const SizedBox(height: 20),
-
-                            // ==================== AI POWERED BADGE ====================
-                            _buildAIPoweredBadge(),
+                            Text(
+                              "AI-Powered Job Portal with Smart Matching",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: subtitleFontSize,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              "Thousands of jobs from top companies waiting for you",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: descriptionFontSize,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 48),
+                            if (!isMobile)
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _buildWebGradientButton(
+                                    text: "Get Started",
+                                    icon: Icons.arrow_forward,
+                                    onTap: _navigateToRegisterTab,
+                                    width: 200,
+                                  ),
+                                  const SizedBox(width: 20),
+                                  OutlinedButton.icon(
+                                    onPressed: _navigateToLoginTab,
+                                    icon: const Icon(Icons.login),
+                                    label: const Text("Login"),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: const Color(0xFF6C63FF),
+                                      side: const BorderSide(
+                                        color: Color(0xFF6C63FF),
+                                        width: 1.5,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 32,
+                                        vertical: 16,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(30),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
                       ),
-                    ),
+                      // Stats Cards
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                        child: Wrap(
+                          spacing: 20,
+                          runSpacing: 20,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            _buildWebStatCard("10K+", "Active Jobs", Icons.work, Colors.blue),
+                            _buildWebStatCard("5K+", "Companies", Icons.business, Colors.green),
+                            _buildWebStatCard("50K+", "Users", Icons.people, Colors.purple),
+                            _buildWebStatCard("1K+", "Placements", Icons.celebration, Colors.orange),
+                          ],
+                        ),
+                      ),
+                      // AI Features
+                      _buildWebAIFeaturesSection(),
+                      // How It Works
+                      _buildWebStepsSection(),
+                      // Testimonial
+                      _buildWebTestimonial(),
+                      // CTA
+                      _buildWebCTA(),
+                      // Footer
+                      _buildWebFooter(),
+                    ],
                   ),
-                ],
+                ),
               ),
             ],
           ),
@@ -202,434 +323,50 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ==================== AI HERO SECTION ====================
-  Widget _buildAIHeroSection() {
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        return Opacity(
-          opacity: _fadeAnimation.value,
-          child: Transform.scale(
-            scale: _scaleAnimation.value,
-            child: Column(
-              children: [
-                // ==================== AI GLOWING CIRCLE WITH ICON ====================
-                Container(
-                  width: 160,
-                  height: 160,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        Colors.blue.shade300.withValues(alpha: 0.4),
-                        Colors.purple.shade400.withValues(alpha: 0.2),
-                        Colors.transparent,
-                      ],
-                      radius: 1.2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withValues(alpha: 0.3),
-                        blurRadius: 50,
-                        spreadRadius: 10,
-                      ),
-                      BoxShadow(
-                        color: Colors.purple.withValues(alpha: 0.2),
-                        blurRadius: 80,
-                        spreadRadius: 20,
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Glowing ring
-                      Container(
-                        width: 150,
-                        height: 150,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.blue.withValues(alpha: 0.3),
-                            width: 2,
-                          ),
-                          gradient: SweepGradient(
-                            colors: [
-                              Colors.blue.withValues(alpha: 0.5),
-                              Colors.purple.withValues(alpha: 0.5),
-                              Colors.cyan.withValues(alpha: 0.5),
-                              Colors.blue.withValues(alpha: 0.5),
-                            ],
-                          ),
-                        ),
-                        child: Container(
-                          margin: const EdgeInsets.all(10),
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Color(0xFF0A0E27),
-                          ),
-                        ),
-                      ),
-                      // AI Icon
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.blue.shade400,
-                              Colors.purple.shade400,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.auto_awesome,
-                          size: 45,
-                          color: Colors.white,
-                        ),
-                      ),
-                      // Pulsing dots
-                      ...List.generate(12, (index) {
-                        final angle = index * 30 * 3.14159 / 180;
-                        final radius = 80.0;
-                        return Positioned(
-                          left: 80 + radius * 0.7 * math.cos(angle) - 4,
-                          top: 80 + radius * 0.7 * math.sin(angle) - 4,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.blue.withValues(alpha: 0.6 + 0.4 * (index / 12)),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.blue.withValues(alpha: 0.5),
-                                  blurRadius: 10,
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
+  // ============================================================
+  // DESIGN HELPERS – Shared across Mobile and Web
+  // ============================================================
 
-                const SizedBox(height: 20),
-
-                // ==================== AI TITLE ====================
-                const Text(
-                  "AI-Powered Career",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-
-                const SizedBox(height: 6),
-
-                // ==================== AI SUBTITLE ====================
-                Text(
-                  "Find Your Dream Job with",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white.withValues(alpha: 0.7),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-
-                const SizedBox(height: 4),
-
-                // ==================== AI HIGHLIGHT ====================
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.blue.shade400.withValues(alpha: 0.3),
-                        Colors.purple.shade400.withValues(alpha: 0.3),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.blue.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    "RojgarNext AI",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.cyan.shade300,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+  BoxDecoration _buildGradientBackground() {
+    return const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
+      ),
     );
   }
 
-  // ==================== AI FEATURES BADGES ====================
-  Widget _buildAIFeaturesBadges() {
-    return AnimatedBuilder(
-      animation: _slideAnimation,
-      builder: (context, child) {
-        return Opacity(
-          opacity: _slideAnimation.value,
-          child: Transform.translate(
-            offset: Offset(0, 20 * (1 - _slideAnimation.value)),
-            child: Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              alignment: WrapAlignment.center,
-              children: [
-                _buildAIBadge(Icons.auto_awesome, "AI Matching", Colors.blue),
-                _buildAIBadge(Icons.analytics, "Smart Insights", Colors.purple),
-                _buildAIBadge(Icons.trending_up, "Career Growth", Colors.cyan),
-                _buildAIBadge(Icons.security, "Secure", Colors.green),
-              ],
-            ),
-          ),
-        );
-      },
+  BoxDecoration _buildGlassContainerDecoration() {
+    return BoxDecoration(
+      color: Colors.white.withOpacity(0.85),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(
+        color: Colors.white.withOpacity(0.5),
+        width: 1,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.1),
+          blurRadius: 15,
+          spreadRadius: 5,
+        ),
+      ],
     );
   }
 
-  Widget _buildAIBadge(IconData icon, String label, Color color) {
+  Widget _buildGlassContainer({required Widget child}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color.withValues(alpha: 0.2),
-            color.withValues(alpha: 0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.white.withValues(alpha: 0.8),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(16),
+      decoration: _buildGlassContainerDecoration(),
+      child: child,
     );
   }
 
-  // ==================== TAGLINE ====================
-  Widget _buildTagline() {
-    return AnimatedBuilder(
-      animation: _fadeAnimation,
-      builder: (context, child) {
-        return Opacity(
-          opacity: _fadeAnimation.value,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            margin: const EdgeInsets.symmetric(horizontal: 30),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white.withValues(alpha: 0.05),
-                  Colors.white.withValues(alpha: 0.02),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.05),
-                width: 1,
-              ),
-            ),
-            child: Text(
-              "🚀 Join 50,000+ professionals\nusing AI to find their dream jobs",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.white.withValues(alpha: 0.6),
-                height: 1.6,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
+  // ============================================================
+  // MOBILE COMPONENTS
+  // ============================================================
 
-  // ==================== LOGIN & REGISTER BUTTONS (SIDE BY SIDE) ====================
-  Widget _buildLoginRegisterButtons() {
-    return AnimatedBuilder(
-      animation: _fadeAnimation,
-      builder: (context, child) {
-        return Opacity(
-          opacity: _fadeAnimation.value,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              children: [
-                // ==================== LOGIN BUTTON ====================
-                Expanded(
-                  child: SizedBox(
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _navigateToLoginTab,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF1E3A8A),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        elevation: 8,
-                        shadowColor: Colors.blue.withValues(alpha: 0.3),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.login, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            "Login",
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: 14),
-
-                // ==================== REGISTER BUTTON ====================
-                Expanded(
-                  child: SizedBox(
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _navigateToRegisterTab,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        side: const BorderSide(
-                          color: Colors.white,
-                          width: 1.5,
-                        ),
-                        elevation: 4,
-                        shadowColor: Colors.purple.withValues(alpha: 0.3),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.app_registration, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            "Register",
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ==================== AI POWERED BADGE ====================
-  Widget _buildAIPoweredBadge() {
-    return AnimatedBuilder(
-      animation: _fadeAnimation,
-      builder: (context, child) {
-        return Opacity(
-          opacity: _fadeAnimation.value * 0.7,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.blue.withValues(alpha: 0.1),
-                  Colors.purple.withValues(alpha: 0.1),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.cyan.shade300,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.cyan.withValues(alpha: 0.5),
-                        blurRadius: 8,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  "⚡ AI-Powered • Smart Matching • Secure",
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.white.withValues(alpha: 0.4),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ==================== TOP BAR ====================
   Widget _buildTopBar() {
     return AnimatedBuilder(
       animation: _fadeAnimation,
@@ -645,32 +382,37 @@ class _HomeScreenState extends State<HomeScreen>
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Colors.white, Colors.white70],
+                      colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
                     ),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
                     Icons.work_outline,
-                    color: Color(0xFF1E3A8A),
+                    color: Colors.white,
                     size: 20,
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Text(
-                  "RojgarNext",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 0.5,
+                ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  ).createShader(bounds),
+                  child: const Text(
+                    "RojgarNext",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
                 Container(
                   margin: const EdgeInsets.only(left: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.blue.shade400, Colors.purple.shade400],
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
                     ),
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -691,25 +433,431 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ==================== BACKGROUND PARTICLES ====================
-  Widget _buildParticleBackground() {
-    return CustomPaint(
-      painter: _ParticlePainter(),
-      size: Size.infinite,
+  Widget _buildAIHeroSection() {
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _fadeAnimation.value,
+          child: Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Column(
+              children: [
+                // AI Glowing Circle
+                Container(
+                  width: 140,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        const Color(0xFF6C63FF).withOpacity(0.3),
+                        const Color(0xFFFF6588).withOpacity(0.2),
+                        Colors.transparent,
+                      ],
+                      radius: 1.2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6C63FF).withOpacity(0.3),
+                        blurRadius: 50,
+                        spreadRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 130,
+                        height: 130,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFF6C63FF).withOpacity(0.3),
+                            width: 2,
+                          ),
+                          gradient: SweepGradient(
+                            colors: [
+                              const Color(0xFF6C63FF).withOpacity(0.5),
+                              const Color(0xFFFF6588).withOpacity(0.5),
+                              const Color(0xFF6C63FF).withOpacity(0.5),
+                            ],
+                          ),
+                        ),
+                        child: Container(
+                          margin: const EdgeInsets.all(10),
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFFF5F7FA),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 70,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome,
+                          size: 38,
+                          color: Colors.white,
+                        ),
+                      ),
+                      ...List.generate(12, (index) {
+                        final angle = index * 30 * math.pi / 180;
+                        final radius = 70.0;
+                        return Positioned(
+                          left: 70 + radius * 0.7 * math.cos(angle) - 4,
+                          top: 70 + radius * 0.7 * math.sin(angle) - 4,
+                          child: Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF6C63FF).withOpacity(0.6 + 0.4 * (index / 12)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF6C63FF).withOpacity(0.5),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "AI-Powered Career",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Find Your Dream Job with",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF6C63FF).withOpacity(0.2),
+                        const Color(0xFFFF6588).withOpacity(0.2),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFF6C63FF).withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                    ).createShader(bounds),
+                    child: const Text(
+                      "RojgarNext AI",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  // ==================== BACKEND STATUS WIDGETS ====================
+  Widget _buildAIFeaturesBadges() {
+    return AnimatedBuilder(
+      animation: _slideAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _slideAnimation.value,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - _slideAnimation.value)),
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              alignment: WrapAlignment.center,
+              children: [
+                _buildAIBadge(Icons.auto_awesome, "AI Matching", const Color(0xFF6C63FF)),
+                _buildAIBadge(Icons.analytics, "Smart Insights", const Color(0xFFFF6588)),
+                _buildAIBadge(Icons.trending_up, "Career Growth", Colors.cyan),
+                _buildAIBadge(Icons.security, "Secure", Colors.green),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAIBadge(IconData icon, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            color.withOpacity(0.15),
+            color.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTagline() {
+    return AnimatedBuilder(
+      animation: _fadeAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _fadeAnimation.value,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            margin: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.grey.shade100.withOpacity(0.5),
+                  Colors.white.withOpacity(0.3),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.grey.shade300.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              "🚀 Join 50,000+ professionals\nusing AI to find their dream jobs",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade700,
+                height: 1.6,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoginRegisterButtons() {
+    return AnimatedBuilder(
+      animation: _fadeAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _fadeAnimation.value,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildGradientButton(
+                    text: "Login",
+                    icon: Icons.login,
+                    onTap: _navigateToLoginTab,
+                    isOutlined: false,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _buildGradientButton(
+                    text: "Register",
+                    icon: Icons.app_registration,
+                    onTap: _navigateToRegisterTab,
+                    isOutlined: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGradientButton({
+    required String text,
+    required IconData icon,
+    required VoidCallback onTap,
+    bool isOutlined = false,
+  }) {
+    return SizedBox(
+      height: 52,
+      child: ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: isOutlined
+                ? null
+                : const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  ),
+            color: isOutlined ? Colors.transparent : null,
+            borderRadius: BorderRadius.circular(30),
+            border: isOutlined
+                ? Border.all(color: const Color(0xFF6C63FF), width: 1.5)
+                : null,
+            boxShadow: isOutlined
+                ? null
+                : [
+                    BoxShadow(
+                      color: const Color(0xFF6C63FF).withOpacity(0.3),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
+          ),
+          child: Container(
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isOutlined ? const Color(0xFF6C63FF) : Colors.white,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: isOutlined ? const Color(0xFF6C63FF) : Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAIPoweredBadge() {
+    return AnimatedBuilder(
+      animation: _fadeAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _fadeAnimation.value * 0.7,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF6C63FF).withOpacity(0.1),
+                  const Color(0xFFFF6588).withOpacity(0.1),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF6C63FF),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6C63FF).withOpacity(0.5),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "⚡ AI-Powered • Smart Matching • Secure",
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildBackendStatus() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: GestureDetector(
         onTap: _checkBackendHealth,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: 0.5),
+            color: Colors.red.shade50,
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.red.shade200),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -741,11 +889,11 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildCheckingStatus() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.1),
+          color: Colors.grey.shade200,
           borderRadius: BorderRadius.circular(20),
         ),
         child: const Row(
@@ -756,13 +904,13 @@ class _HomeScreenState extends State<HomeScreen>
               height: 14,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: Colors.white,
+                color: Color(0xFF6C63FF),
               ),
             ),
             SizedBox(width: 8),
             Text(
               "Connecting...",
-              style: TextStyle(fontSize: 11, color: Colors.white70),
+              style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ],
         ),
@@ -770,574 +918,102 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ==================== WEB HOME PAGE (Full) ====================
-  Widget _buildWebHomePage() {
-    final Size size = MediaQuery.of(context).size;
-    final bool isMobile = size.width <= 600;
-    final bool isTablet = size.width > 600 && size.width <= 900;
-    final bool isDesktop = size.width > 900;
+  // ============================================================
+  // WEB COMPONENTS
+  // ============================================================
 
-    final double heroFontSize = isDesktop ? 52 : (isTablet ? 44 : 36);
-    final double subtitleFontSize = isDesktop ? 18 : 16;
-    final double descriptionFontSize = isDesktop ? 16 : 14;
-
-    final platformColor = PlatformAware.platformColor;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF0F172A),
-              const Color(0xFF1E3A8A),
-              const Color(0xFF3B82F6),
-              platformColor,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Top Bar
-              AnimatedBuilder(
-                animation: _fadeAnimation,
-                builder: (context, child) {
-                  return Opacity(
-                    opacity: _fadeAnimation.value,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isDesktop ? 60 : (isTablet ? 40 : 20),
-                        vertical: 20,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Colors.white, Colors.white70],
-                                  ),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: const Icon(
-                                  Icons.work_outline,
-                                  color: Color(0xFF1E3A8A),
-                                  size: 28,
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              const Text(
-                                "RojgarNext",
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              if (kIsWeb)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  margin: const EdgeInsets.only(left: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Text(
-                                    "🌐 Web",
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.white70,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          if (isDesktop || isTablet)
-                            Row(
-                              children: [
-                                _buildWebGlassButton(
-                                  text: "Login",
-                                  icon: Icons.login,
-                                  isOutlined: true,
-                                  onTap: _navigateToLoginTab,
-                                ),
-                                const SizedBox(width: 12),
-                                _buildWebGlassButton(
-                                  text: "Register",
-                                  icon: Icons.app_registration,
-                                  isOutlined: false,
-                                  onTap: _navigateToRegisterTab,
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-
-              if (!_isBackendHealthy && !_checkingBackend && _backendError != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: GestureDetector(
-                    onTap: _checkBackendHealth,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  Widget _buildWebTopBar(bool isDesktop, bool isTablet) {
+    return AnimatedBuilder(
+      animation: _fadeAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _fadeAnimation.value,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isDesktop ? 60 : (isTablet ? 40 : 20),
+              vertical: 20,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(20),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.red,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              "⚠️ $_backendError",
-                              style: const TextStyle(fontSize: 12, color: Colors.red),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Icon(Icons.refresh, size: 14, color: Colors.red.shade200),
-                        ],
+                      child: const Icon(
+                        Icons.work_outline,
+                        color: Colors.white,
+                        size: 28,
                       ),
                     ),
-                  ),
-                ),
-
-              if (_checkingBackend)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.26),
-                      borderRadius: BorderRadius.circular(20),
+                    const SizedBox(width: 14),
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                      ).createShader(bounds),
+                      child: const Text(
+                        "RojgarNext",
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 1,
+                        ),
+                      ),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                    if (kIsWeb)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        margin: const EdgeInsets.only(left: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          "🌐 Web",
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
                           ),
                         ),
-                        SizedBox(width: 8),
-                        Text(
-                          "Connecting...",
-                          style: TextStyle(fontSize: 12, color: Colors.white70),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
+                  ],
                 ),
-
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
+                if (isDesktop || isTablet)
+                  Row(
                     children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isDesktop ? 80 : (isTablet ? 50 : 24),
-                          vertical: isDesktop ? 60 : 40,
-                        ),
-                        child: Column(
-                          children: [
-                            TweenAnimationBuilder<double>(
-                              tween: Tween<double>(begin: 0.0, end: 1.0),
-                              duration: const Duration(milliseconds: 800),
-                              builder: (context, value, child) {
-                                return Opacity(
-                                  opacity: value,
-                                  child: Transform.translate(
-                                    offset: Offset(0, 50 * (1 - value)),
-                                    child: child,
-                                  ),
-                                );
-                              },
-                              child: Text(
-                                "Find Your Dream Job",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: heroFontSize,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Text(
-                              "AI-Powered Job Portal with Smart Matching",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: subtitleFontSize,
-                                color: Colors.white.withValues(alpha: 0.9),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              "Thousands of jobs from top companies waiting for you",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: descriptionFontSize,
-                                color: Colors.white.withValues(alpha: 0.7),
-                              ),
-                            ),
-                            const SizedBox(height: 48),
-
-                            if (!isMobile)
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _buildWebGradientButton(
-                                    text: "Get Started",
-                                    icon: Icons.arrow_forward,
-                                    onTap: _navigateToRegisterTab,
-                                    width: 200,
-                                  ),
-                                  const SizedBox(width: 20),
-                                  OutlinedButton.icon(
-                                    onPressed: _navigateToLoginTab,
-                                    icon: const Icon(Icons.login),
-                                    label: const Text("Login"),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.white,
-                                      side: const BorderSide(
-                                        color: Colors.white,
-                                        width: 1.5,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 32,
-                                        vertical: 16,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(30),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
+                      _buildWebGlassButton(
+                        text: "Login",
+                        icon: Icons.login,
+                        isOutlined: true,
+                        onTap: _navigateToLoginTab,
                       ),
-
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                        child: Wrap(
-                          spacing: 20,
-                          runSpacing: 20,
-                          alignment: WrapAlignment.center,
-                          children: [
-                            _buildWebStatCard("10K+", "Active Jobs", Icons.work, Colors.blue),
-                            _buildWebStatCard("5K+", "Companies", Icons.business, Colors.green),
-                            _buildWebStatCard("50K+", "Users", Icons.people, Colors.purple),
-                            _buildWebStatCard("1K+", "Placements", Icons.celebration, Colors.orange),
-                          ],
-                        ),
-                      ),
-
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-                        child: Column(
-                          children: [
-                            const Text(
-                              "Powered by Advanced AI",
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              "Revolutionary features to accelerate your career",
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white.withValues(alpha: 0.8),
-                              ),
-                            ),
-                            const SizedBox(height: 48),
-                            Wrap(
-                              spacing: 24,
-                              runSpacing: 24,
-                              alignment: WrapAlignment.center,
-                              children: [
-                                _buildWebAIFeatureCard(
-                                  icon: Icons.auto_awesome,
-                                  title: "AI Career Analysis",
-                                  description: "Get personalized career insights",
-                                  color: Colors.purple,
-                                  gradientColors: [Colors.purple, Colors.pink],
-                                ),
-                                _buildWebAIFeatureCard(
-                                  icon: Icons.search,
-                                  title: "Smart Job Matching",
-                                  description: "AI-powered job recommendations",
-                                  color: Colors.blue,
-                                  gradientColors: [Colors.blue, Colors.cyan],
-                                ),
-                                _buildWebAIFeatureCard(
-                                  icon: Icons.assignment_turned_in,
-                                  title: "Resume Scoring",
-                                  description: "AI evaluates your resume",
-                                  color: Colors.teal,
-                                  gradientColors: [Colors.teal, Colors.green],
-                                ),
-                                _buildWebAIFeatureCard(
-                                  icon: Icons.insights,
-                                  title: "Career Growth",
-                                  description: "Predict your career trajectory",
-                                  color: Colors.orange,
-                                  gradientColors: [Colors.orange, Colors.red],
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-                        child: Column(
-                          children: [
-                            const Text(
-                              "How RojgarNext Works",
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              "Your journey to the perfect job in 4 simple steps",
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white.withValues(alpha: 0.8),
-                              ),
-                            ),
-                            const SizedBox(height: 48),
-                            Wrap(
-                              spacing: 30,
-                              runSpacing: 30,
-                              alignment: WrapAlignment.center,
-                              children: [
-                                _buildWebStepCard("1", "Create Profile", Icons.person_add),
-                                _buildWebStepCard("2", "AI Analysis", Icons.auto_awesome),
-                                _buildWebStepCard("3", "Smart Matching", Icons.sync),
-                                _buildWebStepCard("4", "Apply & Grow", Icons.trending_up),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      Container(
-                        margin: const EdgeInsets.all(20),
-                        padding: const EdgeInsets.all(40),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.white.withValues(alpha: 0.25),
-                              Colors.white.withValues(alpha: 0.13),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-                        ),
-                        child: Column(
-                          children: [
-                            const Icon(Icons.format_quote, size: 50, color: Colors.white70),
-                            const SizedBox(height: 20),
-                            const Text(
-                              "RojgarNext helped me find my dream job in just 2 weeks!",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 18, color: Colors.white, height: 1.5),
-                            ),
-                            const SizedBox(height: 20),
-                            const Text(
-                              "- Rahul Sharma",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white70,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              "Software Engineer at Google",
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.white.withValues(alpha: 0.7),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(
-                                5,
-                                (index) => const Icon(Icons.star, color: Colors.amber, size: 20),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      Container(
-                        margin: const EdgeInsets.all(20),
-                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 50),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.purple.withValues(alpha: 0.5),
-                              blurRadius: 30,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            const Text(
-                              "Ready to Start Your Career Journey?",
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              "Join thousands of successful job seekers",
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white.withValues(alpha: 0.9),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 32),
-                            _buildWebGradientButton(
-                              text: "Get Started Now",
-                              icon: Icons.rocket_launch,
-                              onTap: _navigateToRegisterTab,
-                              width: 250,
-                              fontSize: 16,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      Container(
-                        margin: const EdgeInsets.only(top: 40),
-                        padding: const EdgeInsets.all(30),
-                        color: Colors.black.withValues(alpha: 0.5),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.26),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(Icons.work_outline, color: Colors.white, size: 24),
-                                ),
-                                const SizedBox(width: 10),
-                                const Text(
-                                  "RojgarNext",
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                if (kIsWeb)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    margin: const EdgeInsets.only(left: 8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Text(
-                                      "🌐 Web App",
-                                      style: TextStyle(fontSize: 10, color: Colors.white70),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            Wrap(
-                              spacing: 20,
-                              alignment: WrapAlignment.center,
-                              children: [
-                                _buildWebFooterLink("About Us"),
-                                _buildWebFooterLink("Contact"),
-                                _buildWebFooterLink("Privacy Policy"),
-                                _buildWebFooterLink("Terms of Service"),
-                                _buildWebFooterLink("Help Center"),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            const Text(
-                              "© 2025 RojgarNext. All rights reserved.",
-                              style: TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              "Find Your Dream Job with AI-Powered Career Guidance",
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11),
-                            ),
-                          ],
-                        ),
+                      const SizedBox(width: 12),
+                      _buildWebGlassButton(
+                        text: "Register",
+                        icon: Icons.app_registration,
+                        isOutlined: false,
+                        onTap: _navigateToRegisterTab,
                       ),
                     ],
                   ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  // ==================== WEB UI COMPONENTS ====================
   Widget _buildWebGlassButton({
     required String text,
     required IconData icon,
@@ -1347,28 +1023,47 @@ class _HomeScreenState extends State<HomeScreen>
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(30),
-        gradient: isOutlined ? null : const LinearGradient(
-          colors: [Colors.white, Colors.white70],
-        ),
-        border: isOutlined ? Border.all(color: Colors.white, width: 1.5) : null,
+        gradient: isOutlined
+            ? null
+            : const LinearGradient(
+                colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+              ),
+        border: isOutlined
+            ? Border.all(color: const Color(0xFF6C63FF), width: 1.5)
+            : null,
+        boxShadow: isOutlined
+            ? null
+            : [
+                BoxShadow(
+                  color: const Color(0xFF6C63FF).withOpacity(0.3),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
       ),
       child: ElevatedButton.icon(
         onPressed: onTap,
-        icon: Icon(icon, size: 18, color: isOutlined ? Colors.white : const Color(0xFF1E3A8A)),
+        icon: Icon(
+          icon,
+          size: 18,
+          color: isOutlined ? const Color(0xFF6C63FF) : Colors.white,
+        ),
         label: Text(
           text,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: isOutlined ? Colors.white : const Color(0xFF1E3A8A),
+            color: isOutlined ? const Color(0xFF6C63FF) : Colors.white,
           ),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: isOutlined ? Colors.transparent : Colors.white,
-          foregroundColor: isOutlined ? Colors.white : const Color(0xFF1E3A8A),
-          elevation: isOutlined ? 0 : 2,
+          backgroundColor: isOutlined ? Colors.transparent : Colors.transparent,
+          foregroundColor: isOutlined ? const Color(0xFF6C63FF) : Colors.white,
+          elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
         ),
       ),
     );
@@ -1385,14 +1080,14 @@ class _HomeScreenState extends State<HomeScreen>
       width: width,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Colors.white, Colors.white70],
+          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.white.withValues(alpha: 0.3),
+            color: const Color(0xFF6C63FF).withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 5),
           ),
@@ -1400,17 +1095,23 @@ class _HomeScreenState extends State<HomeScreen>
       ),
       child: ElevatedButton.icon(
         onPressed: onTap,
-        icon: Icon(icon, size: 20, color: const Color(0xFF1E3A8A)),
+        icon: Icon(icon, size: 20, color: Colors.white),
         label: Text(
           text,
-          style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold, color: const Color(0xFF1E3A8A)),
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
-          foregroundColor: const Color(0xFF1E3A8A),
+          foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
         ),
       ),
     );
@@ -1421,12 +1122,15 @@ class _HomeScreenState extends State<HomeScreen>
       width: 180,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.25),
+        color: Colors.white.withOpacity(0.85),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: Colors.grey.shade300.withOpacity(0.5),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.26),
+            color: color.withOpacity(0.1),
             blurRadius: 20,
             offset: const Offset(0, 5),
           ),
@@ -1437,7 +1141,9 @@ class _HomeScreenState extends State<HomeScreen>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.26),
+              gradient: LinearGradient(
+                colors: [color.withOpacity(0.2), color.withOpacity(0.05)],
+              ),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, size: 30, color: color),
@@ -1445,12 +1151,77 @@ class _HomeScreenState extends State<HomeScreen>
           const SizedBox(height: 12),
           Text(
             value,
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
           Text(
             label,
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13),
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 13,
+            ),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebAIFeaturesSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      child: Column(
+        children: [
+          const Text(
+            "Powered by Advanced AI",
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            "Revolutionary features to accelerate your career",
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 48),
+          Wrap(
+            spacing: 24,
+            runSpacing: 24,
+            alignment: WrapAlignment.center,
+            children: [
+              _buildWebAIFeatureCard(
+                icon: Icons.auto_awesome,
+                title: "AI Career Analysis",
+                description: "Get personalized career insights",
+                gradientColors: const [Color(0xFF6C63FF), Color(0xFFFF6588)],
+              ),
+              _buildWebAIFeatureCard(
+                icon: Icons.search,
+                title: "Smart Job Matching",
+                description: "AI-powered job recommendations",
+                gradientColors: const [Colors.blue, Colors.cyan],
+              ),
+              _buildWebAIFeatureCard(
+                icon: Icons.assignment_turned_in,
+                title: "Resume Scoring",
+                description: "AI evaluates your resume",
+                gradientColors: const [Colors.teal, Colors.green],
+              ),
+              _buildWebAIFeatureCard(
+                icon: Icons.insights,
+                title: "Career Growth",
+                description: "Predict your career trajectory",
+                gradientColors: const [Colors.orange, Colors.red],
+              ),
+            ],
           ),
         ],
       ),
@@ -1461,20 +1232,25 @@ class _HomeScreenState extends State<HomeScreen>
     required IconData icon,
     required String title,
     required String description,
-    required Color color,
     required List<Color> gradientColors,
   }) {
     return Container(
-      width: 300,
+      width: 280,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.white.withValues(alpha: 0.25), Colors.white.withValues(alpha: 0.13)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white.withOpacity(0.85),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: Colors.grey.shade300.withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.05),
+            blurRadius: 15,
+            spreadRadius: 5,
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -1493,14 +1269,18 @@ class _HomeScreenState extends State<HomeScreen>
           const SizedBox(height: 16),
           Text(
             title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             description,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
+              color: Colors.grey.shade600,
               fontSize: 13,
               height: 1.4,
             ),
@@ -1510,14 +1290,62 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  Widget _buildWebStepsSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      child: Column(
+        children: [
+          const Text(
+            "How RojgarNext Works",
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            "Your journey to the perfect job in 4 simple steps",
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 48),
+          Wrap(
+            spacing: 30,
+            runSpacing: 30,
+            alignment: WrapAlignment.center,
+            children: [
+              _buildWebStepCard("1", "Create Profile", Icons.person_add),
+              _buildWebStepCard("2", "AI Analysis", Icons.auto_awesome),
+              _buildWebStepCard("3", "Smart Matching", Icons.sync),
+              _buildWebStepCard("4", "Apply & Grow", Icons.trending_up),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildWebStepCard(String step, String title, IconData icon) {
     return Container(
-      width: 220,
+      width: 200,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.25),
+        color: Colors.white.withOpacity(0.85),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: Colors.grey.shade300.withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.05),
+            blurRadius: 15,
+            spreadRadius: 5,
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -1526,23 +1354,248 @@ class _HomeScreenState extends State<HomeScreen>
             height: 50,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF3B82F6), Color(0xFF6366F1)],
+                colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
               ),
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
                 step,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 16),
-          Icon(icon, size: 32, color: Colors.white70),
+          Icon(icon, size: 32, color: const Color(0xFF6C63FF)),
           const SizedBox(height: 12),
           Text(
             title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebTestimonial() {
+    return Container(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(40),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: Colors.grey.shade300.withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.05),
+            blurRadius: 20,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.format_quote, size: 50, color: Color(0xFF6C63FF)),
+          const SizedBox(height: 20),
+          const Text(
+            "RojgarNext helped me find my dream job in just 2 weeks!",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.black87,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            "- Rahul Sharma",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Software Engineer at Google",
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              5,
+              (index) => const Icon(Icons.star, color: Colors.amber, size: 20),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebCTA() {
+    return Container(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 50),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withOpacity(0.3),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Text(
+            "Ready to Start Your Career Journey?",
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "Join thousands of successful job seekers",
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white.withOpacity(0.9),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: ElevatedButton.icon(
+              onPressed: _navigateToRegisterTab,
+              icon: const Icon(Icons.rocket_launch, color: Color(0xFF6C63FF)),
+              label: const Text(
+                "Get Started Now",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF6C63FF),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF6C63FF),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebFooter() {
+    return Container(
+      margin: const EdgeInsets.only(top: 40),
+      padding: const EdgeInsets.all(30),
+      color: Colors.grey.shade100,
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.work_outline, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 10),
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                ).createShader(bounds),
+                child: const Text(
+                  "RojgarNext",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              if (kIsWeb)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  margin: const EdgeInsets.only(left: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    "🌐 Web App",
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 20,
+            alignment: WrapAlignment.center,
+            children: [
+              _buildWebFooterLink("About Us"),
+              _buildWebFooterLink("Contact"),
+              _buildWebFooterLink("Privacy Policy"),
+              _buildWebFooterLink("Terms of Service"),
+              _buildWebFooterLink("Help Center"),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            "© 2025 RojgarNext. All rights reserved.",
+            style: TextStyle(color: Colors.grey, fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            "Find Your Dream Job with AI-Powered Career Guidance",
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
           ),
         ],
       ),
@@ -1553,33 +1606,10 @@ class _HomeScreenState extends State<HomeScreen>
     return TextButton(
       onPressed: () {},
       style: TextButton.styleFrom(
-        foregroundColor: Colors.white70,
+        foregroundColor: Colors.grey.shade600,
         padding: const EdgeInsets.symmetric(horizontal: 8),
       ),
       child: Text(text, style: const TextStyle(fontSize: 12)),
     );
   }
-}
-
-// ==================== PARTICLE BACKGROUND PAINTER ====================
-class _ParticlePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.05)
-      ..style = PaintingStyle.fill;
-
-    final random = math.Random(42);
-    for (int i = 0; i < 50; i++) {
-      final x = random.nextDouble() * size.width;
-      final y = random.nextDouble() * size.height;
-      final radius = random.nextDouble() * 2 + 1;
-      final opacity = random.nextDouble() * 0.3 + 0.1;
-      paint.color = Colors.white.withValues(alpha: opacity);
-      canvas.drawCircle(Offset(x, y), radius, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

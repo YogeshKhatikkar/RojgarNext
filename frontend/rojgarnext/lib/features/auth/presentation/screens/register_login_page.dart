@@ -1,5 +1,7 @@
 // lib/features/auth/presentation/screens/register_login_page.dart
-// ✅ COMPLETE FIXED VERSION - MPIN Login Button Always Visible
+// ✅ AI‑BASED MODERN DESIGN (light gradient, glass containers, consistent with other screens)
+// ✅ MPIN Login Button Always Visible (fixed)
+// ✅ All original logic preserved (login, register, MPIN, biometric, password strength)
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -111,6 +113,9 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     super.dispose();
   }
 
+  // ============================================================
+  // BUILD – AI‑BASED MODERN UI
+  // ============================================================
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthController>(context);
@@ -121,16 +126,11 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
       body: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF0F172A), Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-              ),
-            ),
+            decoration: _buildGradientBackground(),
             child: SafeArea(
               child: Center(
                 child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
                   padding: EdgeInsets.symmetric(
                     horizontal: isMobile ? 16 : 32,
                     vertical: 20,
@@ -138,18 +138,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                   child: Container(
                     width: isMobile ? double.infinity : 440,
                     padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white.withAlpha(26),
-                          Colors.white.withAlpha(13)
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: Colors.white.withAlpha(51)),
-                    ),
+                    decoration: _buildGlassContainerDecoration(),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -175,7 +164,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
               ),
             ),
           ),
-          // ✅ Internet Connection Checker - Shows Offline Message
+          // Internet Connection Checker
           Positioned(
             top: 0,
             left: 0,
@@ -187,6 +176,37 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     );
   }
 
+  // ============================================================
+  // DESIGN HELPERS
+  // ============================================================
+  BoxDecoration _buildGradientBackground() {
+    return const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
+      ),
+    );
+  }
+
+  BoxDecoration _buildGlassContainerDecoration() {
+    return BoxDecoration(
+      color: Colors.white.withOpacity(0.85),
+      borderRadius: BorderRadius.circular(30),
+      border: Border.all(
+        color: Colors.white.withOpacity(0.5),
+        width: 1,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.1),
+          blurRadius: 20,
+          spreadRadius: 5,
+        ),
+      ],
+    );
+  }
+
   Widget _buildHeader() {
     return Column(
       children: [
@@ -194,9 +214,16 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Colors.blueAccent, Colors.purpleAccent],
+              colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
             ),
             shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6C63FF).withOpacity(0.3),
+                blurRadius: 20,
+                spreadRadius: 5,
+              ),
+            ],
           ),
           child: const Icon(
             Icons.work_outline,
@@ -205,13 +232,18 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           ),
         ),
         const SizedBox(height: 12),
-        const Text(
-          "RojgarNext",
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            letterSpacing: 1,
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+          ).createShader(bounds),
+          child: const Text(
+            "RojgarNext",
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 1,
+            ),
           ),
         ),
         const SizedBox(height: 4),
@@ -219,29 +251,34 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           "Find Your Dream Job",
           style: TextStyle(
             fontSize: 14,
-            color: Colors.white.withAlpha(179),
+            color: Colors.grey.shade600,
           ),
         ),
       ],
     );
   }
 
+  // ============================================================
+  // TAB BAR
+  // ============================================================
   Widget _buildTabBar() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(26),
+        color: Colors.grey.shade200,
         borderRadius: BorderRadius.circular(16),
       ),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
-          color: Colors.white.withAlpha(51),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+          ),
           borderRadius: BorderRadius.circular(12),
         ),
         indicatorSize: TabBarIndicatorSize.tab,
         dividerColor: Colors.transparent,
         labelColor: Colors.white,
-        unselectedLabelColor: Colors.white70,
+        unselectedLabelColor: Colors.grey.shade700,
         labelStyle: const TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 14,
@@ -258,14 +295,17 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     );
   }
 
-  // ================= LOGIN TAB =================
+  // ============================================================
+  // LOGIN TAB
+  // ============================================================
   Widget _buildLoginTab(AuthController auth) {
     return Column(
       children: [
+        // Login method chips
         Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: Colors.white.withAlpha(26),
+            color: Colors.grey.shade200,
             borderRadius: BorderRadius.circular(40),
           ),
           child: Row(
@@ -297,6 +337,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
         const SizedBox(height: 24),
         Expanded(
           child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             child: _getLoginContent(auth),
           ),
         ),
@@ -318,7 +359,12 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white.withAlpha(51) : Colors.transparent,
+            gradient: isSelected
+                ? const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  )
+                : null,
+            color: isSelected ? null : Colors.transparent,
             borderRadius: BorderRadius.circular(36),
           ),
           child: Row(
@@ -327,13 +373,13 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
               Icon(
                 icon,
                 size: 16,
-                color: isSelected ? Colors.white : Colors.white70,
+                color: isSelected ? Colors.white : Colors.grey.shade600,
               ),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white70,
+                  color: isSelected ? Colors.white : Colors.grey.shade700,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                   fontSize: 12,
                 ),
@@ -351,7 +397,9 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     return _buildBiometricLogin(auth);
   }
 
-  // ==================== EMAIL PASSWORD LOGIN SECTION ====================
+  // ============================================================
+  // EMAIL / PASSWORD LOGIN
+  // ============================================================
   Widget _buildEmailPasswordLogin(AuthController auth) {
     return Column(
       children: [
@@ -378,9 +426,13 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                 ),
               );
             },
-            child: const Text(
+            child: Text(
               "Forgot Password?",
-              style: TextStyle(color: Colors.white70, fontSize: 12),
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),
@@ -416,14 +468,15 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     );
   }
 
-  // ==================== MPIN LOGIN SECTION - FIXED ====================
+  // ============================================================
+  // MPIN LOGIN (Button Always Visible)
+  // ============================================================
   Widget _buildMpinLogin(AuthController auth) {
     final TextEditingController localPinCtrl = TextEditingController();
     bool obscurePin = true;
 
     return StatefulBuilder(
       builder: (context, setMpinState) {
-        // ✅ FIXED: Button is ALWAYS visible, enabled when pin is complete
         final bool isPinComplete = localPinCtrl.text.length == 6;
 
         return Column(
@@ -433,18 +486,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.white.withAlpha(13),
-                    Colors.white.withAlpha(26)
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withAlpha(51)),
-              ),
+              decoration: _buildGlassContainerDecoration(),
               child: Column(
                 children: [
                   Row(
@@ -452,19 +494,19 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                     children: [
                       Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.blueAccent, Colors.purpleAccent],
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
                           ),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.pin, color: Colors.white, size: 18),
                       ),
                       const SizedBox(width: 10),
-                      const Text(
+                      Text(
                         "Enter 6-Digit MPIN",
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Colors.grey.shade800,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -492,7 +534,9 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                                   style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.bold,
-                                    color: isFilled ? Colors.white : Colors.transparent,
+                                    color: isFilled
+                                        ? Colors.grey.shade800
+                                        : Colors.transparent,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -500,11 +544,10 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                                 Container(
                                   height: 2,
                                   decoration: BoxDecoration(
-                                    gradient: LinearGradient(
+                                    gradient: const LinearGradient(
                                       colors: [
-                                        Colors.blueAccent.withAlpha(128),
-                                        Colors.blueAccent,
-                                        Colors.blueAccent.withAlpha(128),
+                                        Color(0xFF6C63FF),
+                                        Color(0xFFFF6588),
                                       ],
                                     ),
                                     borderRadius: BorderRadius.circular(1),
@@ -554,17 +597,24 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.blueAccent.withAlpha(26),
+                          color: const Color(0xFF6C63FF).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.security, size: 14, color: Colors.blueAccent),
-                            SizedBox(width: 6),
+                            const Icon(
+                              Icons.security,
+                              size: 14,
+                              color: Color(0xFF6C63FF),
+                            ),
+                            const SizedBox(width: 6),
                             Text(
                               "Secure MPIN Login",
-                              style: TextStyle(fontSize: 11, color: Colors.blueAccent),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: const Color(0xFF6C63FF),
+                              ),
                             ),
                           ],
                         ),
@@ -575,11 +625,10 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
               ),
             ),
             const SizedBox(height: 24),
-            // ✅ FIXED: Login button ALWAYS visible, enabled when pin is complete
+            // ✅ MPIN Login Button - Always Visible, enabled when pin complete
             _ModernButton(
               text: "Login with MPIN",
               isLoading: auth.isLoading,
-              // ✅ FIXED: Button is enabled when email is filled AND pin is complete
               onTap: () {
                 final email = mpinEmailCtrl.text.trim();
                 final pin = localPinCtrl.text.trim();
@@ -597,7 +646,9 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     );
   }
 
-  // ==================== NUMBER PAD WIDGET ====================
+  // ============================================================
+  // NUMBER PAD
+  // ============================================================
   Widget _buildNumberPad({
     required Function(String) onNumberPressed,
     required VoidCallback onDeletePressed,
@@ -656,7 +707,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           child: TextButton(
             onPressed: onClearPressed,
             style: TextButton.styleFrom(
-              foregroundColor: Colors.redAccent,
+              foregroundColor: Colors.red,
               padding: const EdgeInsets.symmetric(vertical: 8),
             ),
             child: const Text("CLEAR ALL"),
@@ -671,7 +722,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
       width: 60,
       height: 50,
       child: Material(
-        color: Colors.white.withAlpha(26),
+        color: Colors.grey.shade200,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: () => onPressed(number),
@@ -682,7 +733,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: Colors.black87,
               ),
             ),
           ),
@@ -700,7 +751,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
       width: 60,
       height: 50,
       child: Material(
-        color: Colors.white.withAlpha(26),
+        color: Colors.grey.shade200,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onPressed,
@@ -708,13 +759,13 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.white70, size: 24),
+              Icon(icon, color: Colors.grey.shade700, size: 24),
               if (label != null)
                 Text(
                   label,
                   style: const TextStyle(
                     fontSize: 10,
-                    color: Colors.white70,
+                    color: Colors.grey,
                   ),
                 ),
             ],
@@ -724,19 +775,26 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     );
   }
 
-  // ==================== BIOMETRIC LOGIN SECTION ====================
+  // ============================================================
+  // BIOMETRIC LOGIN
+  // ============================================================
   Widget _buildBiometricLogin(AuthController auth) {
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.white.withAlpha(26), Colors.white.withAlpha(13)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
             ),
             shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6C63FF).withOpacity(0.3),
+                blurRadius: 20,
+                spreadRadius: 5,
+              ),
+            ],
           ),
           child: const Icon(
             Icons.fingerprint,
@@ -750,13 +808,13 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: Colors.black87,
           ),
         ),
         const SizedBox(height: 6),
         Text(
           "Touch sensor to login instantly",
-          style: TextStyle(color: Colors.white.withAlpha(179), fontSize: 13),
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
         ),
         const SizedBox(height: 16),
         _buildBiometricStatusInfo(),
@@ -815,7 +873,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                   child: Text(
                     buttonText,
                     style: TextStyle(
-                      color: !hasEmail ? Colors.grey : Colors.blueAccent,
+                      color: !hasEmail ? Colors.grey.shade600 : const Color(0xFF6C63FF),
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
@@ -861,7 +919,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
             return Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: statusColor.withAlpha(26),
+                color: statusColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: statusColor,
@@ -894,7 +952,9 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     );
   }
 
-  // ==================== REGISTER TAB ====================
+  // ============================================================
+  // REGISTER TAB
+  // ============================================================
   Widget _buildRegisterTab(AuthController auth) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -973,7 +1033,9 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     );
   }
 
-  // ==================== HELPER WIDGETS ====================
+  // ============================================================
+  // COMMON WIDGETS
+  // ============================================================
   Widget _buildTextField(
     TextEditingController ctrl,
     String hint,
@@ -982,24 +1044,24 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
   }) {
     return TextField(
       controller: ctrl,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
+      style: const TextStyle(color: Colors.black87, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.white.withAlpha(128), fontSize: 13),
-        prefixIcon: Icon(icon, color: Colors.white70, size: 20),
+        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+        prefixIcon: Icon(icon, color: Colors.grey.shade600, size: 20),
         filled: true,
-        fillColor: Colors.white.withAlpha(26),
+        fillColor: Colors.grey.shade100,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.white.withAlpha(51)),
+          borderSide: BorderSide(color: Colors.grey.shade300),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Colors.blueAccent, width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -1020,15 +1082,15 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
         return TextField(
           controller: ctrl,
           obscureText: obscure,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: const TextStyle(color: Colors.black87, fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.white.withAlpha(128), fontSize: 13),
-            prefixIcon: Icon(icon, color: Colors.white70, size: 20),
+            hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+            prefixIcon: Icon(icon, color: Colors.grey.shade600, size: 20),
             suffixIcon: IconButton(
               icon: Icon(
                 obscure ? Icons.visibility_off : Icons.visibility,
-                color: Colors.white70,
+                color: Colors.grey.shade600,
                 size: 18,
               ),
               onPressed: () {
@@ -1042,18 +1104,18 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
               },
             ),
             filled: true,
-            fillColor: Colors.white.withAlpha(26),
+            fillColor: Colors.grey.shade100,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.white.withAlpha(51)),
+              borderSide: BorderSide(color: Colors.grey.shade300),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Colors.blueAccent, width: 1.5),
+              borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
             ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -1064,7 +1126,9 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
   }
 }
 
-// ==================== PASSWORD STRENGTH WIDGET ====================
+// ============================================================
+// PASSWORD STRENGTH WIDGET
+// ============================================================
 class _PasswordStrengthRow extends StatelessWidget {
   final bool hasUpper, hasLower, hasNumber, hasSymbol, isLongEnough;
   const _PasswordStrengthRow({
@@ -1080,7 +1144,7 @@ class _PasswordStrengthRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(13),
+        color: Colors.grey.shade100,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -1112,14 +1176,14 @@ class _StrengthItem extends StatelessWidget {
       children: [
         Icon(
           valid ? Icons.check_circle : Icons.cancel,
-          color: valid ? Colors.greenAccent : Colors.redAccent,
+          color: valid ? Colors.green : Colors.red,
           size: 14,
         ),
         const SizedBox(width: 6),
         Text(
           text,
           style: TextStyle(
-            color: valid ? Colors.greenAccent : Colors.white70,
+            color: valid ? Colors.green : Colors.grey.shade600,
             fontSize: 11,
           ),
         ),
@@ -1128,7 +1192,9 @@ class _StrengthItem extends StatelessWidget {
   }
 }
 
-// ==================== MODERN BUTTON - FIXED ====================
+// ============================================================
+// MODERN BUTTON
+// ============================================================
 class _ModernButton extends StatelessWidget {
   final String text;
   final VoidCallback onTap;
@@ -1158,11 +1224,18 @@ class _ModernButton extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Colors.white, Colors.white70],
+              colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6C63FF).withOpacity(0.3),
+                blurRadius: 10,
+                spreadRadius: 2,
+              ),
+            ],
           ),
           child: Container(
             alignment: Alignment.center,
@@ -1172,7 +1245,7 @@ class _ModernButton extends StatelessWidget {
                     height: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
-                      color: Color(0xFF1E3A8A),
+                      color: Colors.white,
                     ),
                   )
                 : Text(
@@ -1180,7 +1253,7 @@ class _ModernButton extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E3A8A),
+                      color: Colors.white,
                     ),
                   ),
           ),

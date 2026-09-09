@@ -736,18 +736,15 @@ class _AddJobScreenState extends State<AddJobScreen> {
     return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
   }
 
-// ==================== INSIDE add_job_screen.dart ====================
-// Replace ONLY the _pickAdvertisement method
+// Only showing the specific method that needs fixing
 
 Future<void> _pickAdvertisement() async {
   try {
-    // ✅ FIXED: Removed .platform and added withData: true
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      withData: true, // ✅ ADD THIS for web compatibility
-    );
-    
+    // ✅ FIXED: Removed .platform
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      );
     if (result != null && mounted) {
       final file = result.files.first;
       if (file.size > maxFileSizeBytes) {

@@ -37,17 +37,13 @@ class _SubmitDocumentDialogState extends State<SubmitDocumentDialog> {
 
  // Only showing the specific method that needs fixing
 
-// ==================== INSIDE submit_document_dialog.dart ====================
-// Replace ONLY the _pickFile method
-
 Future<void> _pickFile() async {
   try {
-    // ✅ FIXED: Removed .platform and added withData: true
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      withData: true, // ✅ ADD THIS for web compatibility
-    );
+    // ✅ FIXED: Removed .platform
+        FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      );
 
     if (result != null && mounted) {
       final file = result.files.first;

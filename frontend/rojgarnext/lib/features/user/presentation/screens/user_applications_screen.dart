@@ -1,11 +1,16 @@
 // lib/features/user/presentation/screens/user_applications_screen.dart
-// COMPLETE FIXED VERSION
+// ✅ AI‑BASED MODERN DESIGN – Back button removed from detail header
+// ✅ FULLY FUNCTIONAL: List, Detail, Confirm, Update, Document viewing
+// ✅ AI LOADING ANIMATION on all loading states
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/core/widgets/file_viewer_screen.dart';
 
+// ============================================================
+// MAIN APPLICATIONS LIST SCREEN
+// ============================================================
 class UserApplicationsScreen extends StatefulWidget {
   final Function(Map<String, dynamic>) onApplicationSelected;
   final bool showAppBar;
@@ -20,14 +25,31 @@ class UserApplicationsScreen extends StatefulWidget {
   State<UserApplicationsScreen> createState() => _UserApplicationsScreenState();
 }
 
-class _UserApplicationsScreenState extends State<UserApplicationsScreen> {
+class _UserApplicationsScreenState extends State<UserApplicationsScreen>
+    with SingleTickerProviderStateMixin {
   List<dynamic> applications = [];
   bool isLoading = true;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _animationController.forward();
     _fetchApplications();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchApplications() async {
@@ -65,67 +87,271 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: widget.showAppBar
-          ? AppBar(
-              title: const Text("My Applications"),
-              backgroundColor: Colors.blueAccent,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: _refresh,
+      body: Container(
+        decoration: _buildGradientBackground(),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header
+              if (widget.showAppBar) _buildHeader(),
+              // Body
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refresh,
+                  color: const Color(0xFF6C63FF),
+                  child: isLoading
+                      ? _buildLoadingScreen()
+                      : applications.isEmpty
+                          ? _buildEmptyState()
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: applications.length,
+                              itemBuilder: (context, index) {
+                                final app = applications[index];
+                                return _buildApplicationCard(app);
+                              },
+                            ),
                 ),
-              ],
-            )
-          : null,
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : applications.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: applications.length,
-                    itemBuilder: (context, index) {
-                      final app = applications[index];
-                      return _buildApplicationCard(app);
-                    },
-                  ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.assignment_turned_in,
-            size: 80,
-            color: Colors.grey,
+  // ============================================================
+  // DESIGN HELPERS
+  // ============================================================
+
+  BoxDecoration _buildGradientBackground() {
+    return const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
+      ),
+    );
+  }
+
+  BoxDecoration _buildGlassContainerDecoration() {
+    return BoxDecoration(
+      color: Colors.white.withOpacity(0.85),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(
+        color: Colors.white.withOpacity(0.5),
+        width: 1,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.1),
+          blurRadius: 15,
+          spreadRadius: 5,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGlassContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _buildGlassContainerDecoration(),
+      child: child,
+    );
+  }
+
+  // ============================================================
+  // HEADER
+  // ============================================================
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 5,
           ),
-          SizedBox(height: 16),
-          Text(
-            "No applications yet",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.assignment_turned_in,
+              color: Colors.white,
+              size: 24,
             ),
           ),
-          SizedBox(height: 8),
-          Text(
-            "Applications you submit will appear here",
-            style: TextStyle(color: Colors.grey),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "My Applications",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  "${applications.length} applications submitted",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
         ],
       ),
     );
   }
 
+  // ============================================================
+  // LOADING SCREEN – AI Animation
+  // ============================================================
+  Widget _buildLoadingScreen() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          TweenAnimationBuilder(
+            duration: const Duration(seconds: 2),
+            tween: Tween<double>(begin: 0, end: 1),
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: value,
+                child: Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6C63FF).withOpacity(0.3),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.auto_awesome,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+            ).createShader(bounds),
+            child: const Text(
+              "AI is loading your applications...",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C63FF)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // EMPTY STATE
+  // ============================================================
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.grey.shade200,
+                  Colors.grey.shade100,
+                ],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.assignment_turned_in,
+              size: 64,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            "No applications yet",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Applications you submit will appear here",
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION CARD
+  // ============================================================
   Widget _buildApplicationCard(Map<String, dynamic> app) {
     final status = app['status'] ?? 'pending';
     final statusColor = _getStatusColor(status);
@@ -137,122 +363,166 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen> {
         app['submitted_document_url'].toString().isNotEmpty &&
         app['submitted_document_url'] != 'null';
 
-    // ✅ FIXED: Wrap ListTile in Material widget
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: () => widget.onApplicationSelected(app),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: statusColor.withAlpha(25),
-                      child: Icon(_getStatusIcon(status), color: statusColor),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+    return AnimatedBuilder(
+      animation: _fadeAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _fadeAnimation.value,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: _buildGlassContainerDecoration(),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+              child: InkWell(
+                onTap: () => widget.onApplicationSelected(app),
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Text(
-                            jobTitle,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  statusColor.withOpacity(0.2),
+                                  statusColor.withOpacity(0.05),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            child: Icon(
+                              _getStatusIcon(status),
+                              color: statusColor,
+                              size: 22,
+                            ),
                           ),
-                          Text(
-                            organization,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  jobTitle,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  organization,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  statusColor.withOpacity(0.2),
+                                  statusColor.withOpacity(0.05),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: statusColor.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Text(
+                              _getStatusDisplay(status),
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: statusColor,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildInfoChip(
+                            Icons.calendar_today,
+                            "Applied",
+                            appliedDate,
+                            Colors.blue,
+                          ),
+                          if (app['match_score'] != null)
+                            _buildInfoChip(
+                              Icons.auto_awesome,
+                              "Match",
+                              "${app['match_score']}%",
+                              const Color(0xFF6C63FF),
+                            ),
+                          if (hasSubmittedDocument)
+                            _buildInfoChip(
+                              Icons.upload_file,
+                              "Doc",
+                              "Uploaded",
+                              Colors.teal,
+                            ),
+                        ],
                       ),
-                      decoration: BoxDecoration(
-                        color: statusColor.withAlpha(25),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        _getStatusDisplay(status),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: statusColor,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _buildInfoChip(Icons.calendar_today, "Applied", appliedDate),
-                    if (app['match_score'] != null)
-                      _buildInfoChip(
-                        Icons.auto_awesome,
-                        "Match",
-                        "${app['match_score']}%",
-                      ),
-                    if (hasSubmittedDocument)
-                      _buildInfoChip(
-                        Icons.upload_file,
-                        "Doc",
-                        "Uploaded",
-                        color: Colors.teal,
-                      ),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String label, String value,
-      {Color? color}) {
+  Widget _buildInfoChip(IconData icon, String label, String value, Color color) {
     return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: (color ?? Colors.grey).withAlpha(25),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color ?? Colors.grey.shade600),
+          Icon(icon, size: 13, color: color),
           const SizedBox(width: 4),
-          Text("$label: $value",
-              style: TextStyle(fontSize: 12, color: color ?? Colors.grey)),
+          Text(
+            "$label: $value",
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
   }
 
+  // ============================================================
+  // STATUS HELPERS
+  // ============================================================
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'submitted':
@@ -347,8 +617,9 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen> {
   }
 }
 
-// ==================== APPLICATION DETAIL SCREEN ====================
-
+// ============================================================
+// APPLICATION DETAIL SCREEN – No Back Button in Header
+// ============================================================
 class ApplicationDetailScreen extends StatefulWidget {
   final Map<String, dynamic> application;
   final VoidCallback onBack;
@@ -366,15 +637,32 @@ class ApplicationDetailScreen extends StatefulWidget {
       _ApplicationDetailScreenState();
 }
 
-class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
+class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
+    with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   Map<String, dynamic>? _jobDetails;
   bool _isUpdating = false;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _animationController.forward();
     _fetchJobDetails();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchJobDetails() async {
@@ -393,6 +681,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     }
   }
 
+  // ============================================================
+  // STATUS HELPERS (same as above)
+  // ============================================================
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'submitted':
@@ -483,6 +774,19 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     return Colors.red;
   }
 
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return 'N/A';
+    try {
+      final date = DateTime.parse(dateStr);
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  // ============================================================
+  // DOCUMENT HANDLERS
+  // ============================================================
   String? _getSubmittedDocumentUrl() {
     final url = widget.application['submitted_document_url'] ??
         widget.application['submittedDocumentUrl'] ??
@@ -490,7 +794,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
         widget.application['documentUrl'];
 
     if (url != null && url.toString().isNotEmpty && url.toString() != 'null') {
-      debugPrint("✅ Found submitted document URL: $url");
       return url.toString();
     }
     return null;
@@ -502,85 +805,10 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
         widget.application['document_name'] ??
         widget.application['documentName'];
 
-    if (name != null &&
-        name.toString().isNotEmpty &&
-        name.toString() != 'null') {
+    if (name != null && name.toString().isNotEmpty && name.toString() != 'null') {
       return name.toString();
     }
     return 'Application Document';
-  }
-
-  void _showPaymentReceiptDialog(String? receiptUrl) {
-    if (receiptUrl == null || receiptUrl.isEmpty) {
-      showMessage(context, "No payment receipt available", isError: true);
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        insetPadding: const EdgeInsets.all(16),
-        child: Container(
-          width: MediaQuery.of(dialogContext).size.width * 0.9,
-          height: MediaQuery.of(dialogContext).size.height * 0.8,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: Colors.white,
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.orange,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.receipt,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        "Payment Receipt",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.orange),
-                      onPressed: () => Navigator.pop(dialogContext),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: FileViewerScreen(
-                  url: receiptUrl,
-                  title: "Payment Receipt",
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   void _viewApplicationDocument() {
@@ -639,6 +867,84 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     return 'unknown';
   }
 
+  void _showPaymentReceiptDialog(String? receiptUrl) {
+    if (receiptUrl == null || receiptUrl.isEmpty) {
+      showMessage(context, "No payment receipt available", isError: true);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: Container(
+          width: MediaQuery.of(dialogContext).size.width * 0.9,
+          height: MediaQuery.of(dialogContext).size.height * 0.8,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: Colors.white,
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Colors.orange, Colors.orangeAccent],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.receipt,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        "Payment Receipt",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.orange),
+                      onPressed: () => Navigator.pop(dialogContext),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: FileViewerScreen(
+                  url: receiptUrl,
+                  title: "Payment Receipt",
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // CONFIRM / UPDATE ACTIONS
+  // ============================================================
   Future<void> _confirmApplication() async {
     final applicationId = widget.application['_id'];
     final status = widget.application['status'];
@@ -734,6 +1040,266 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     }
   }
 
+  // ============================================================
+  // BUILD
+  // ============================================================
+  @override
+  Widget build(BuildContext context) {
+    final app = widget.application;
+    final status = app['status'] ?? 'pending';
+    final statusColor = _getStatusColor(status);
+    final transactionId = app['transaction_id'] ?? 'Not provided';
+    final transactionDate = app['transaction_date'] != null
+        ? _formatDate(app['transaction_date'])
+        : 'Not provided';
+    final paymentReceiptUrl = app['payment_receipt_url'];
+    final paymentAmount = app['payment_amount'];
+    final paymentCategory = app['payment_category_used'];
+
+    return Scaffold(
+      body: Container(
+        decoration: _buildGradientBackground(),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildDetailHeader(), // ✅ No back button here
+              Expanded(
+                child: _isLoading
+                    ? _buildLoadingScreen()
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildStatusCard(status, statusColor),
+                            const SizedBox(height: 16),
+                            if (status.toLowerCase() == 'review_application')
+                              _buildUnderReviewSection(),
+                            if (status.toLowerCase() == 'review_application')
+                              const SizedBox(height: 16),
+                            if (status.toLowerCase() == 'final_submit')
+                              _buildFinalSubmitSection(),
+                            if (status.toLowerCase() == 'final_submit')
+                              const SizedBox(height: 16),
+                            _buildJobInfoCard(),
+                            const SizedBox(height: 16),
+                            _buildApplicationDetailsCard(),
+                            const SizedBox(height: 16),
+                            _buildPaymentInformationCard(
+                              transactionId,
+                              transactionDate,
+                              paymentReceiptUrl,
+                              paymentAmount,
+                              paymentCategory,
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: _buildGradientButton(
+                                text: "View Full Job Details",
+                                icon: Icons.visibility,
+                                onTap: () => widget.onViewJob(_jobDetails!),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // DESIGN HELPERS
+  // ============================================================
+  BoxDecoration _buildGradientBackground() {
+    return const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
+      ),
+    );
+  }
+
+  BoxDecoration _buildGlassContainerDecoration() {
+    return BoxDecoration(
+      color: Colors.white.withOpacity(0.85),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(
+        color: Colors.white.withOpacity(0.5),
+        width: 1,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.1),
+          blurRadius: 15,
+          spreadRadius: 5,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGlassContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _buildGlassContainerDecoration(),
+      child: child,
+    );
+  }
+
+  // ============================================================
+  // DETAIL HEADER – ✅ No Back Button
+  // ============================================================
+  Widget _buildDetailHeader() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.assignment_turned_in,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Application Details",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  widget.application['job_title'] ?? 'Job Application',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // LOADING SCREEN – AI Animation
+  // ============================================================
+  Widget _buildLoadingScreen() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          TweenAnimationBuilder(
+            duration: const Duration(seconds: 2),
+            tween: Tween<double>(begin: 0, end: 1),
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: value,
+                child: Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6C63FF).withOpacity(0.3),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.auto_awesome,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+            ).createShader(bounds),
+            child: const Text(
+              "AI is loading application details...",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C63FF)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // STATUS CARD
+  // ============================================================
   Widget _buildStatusCard(String status, Color statusColor) {
     String statusSubtitle = "";
 
@@ -742,8 +1308,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
         statusSubtitle = "Your payment is being verified by admin";
         break;
       case 'verification_successful':
-        statusSubtitle =
-            "Your payment has been verified. Application submitted!";
+        statusSubtitle = "Your payment has been verified. Application submitted!";
         break;
       case 'verification_rejected':
         statusSubtitle = "Your payment verification failed. You can re-apply.";
@@ -761,8 +1326,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
         statusSubtitle = "Your update has been submitted for admin review";
         break;
       case 'final_submit':
-        statusSubtitle =
-            "Final submission completed! Your application is now complete.";
+        statusSubtitle = "Final submission completed! Your application is now complete.";
         break;
       case 'shortlisted':
         statusSubtitle = "Congratulations! You've been shortlisted";
@@ -784,16 +1348,16 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [statusColor, statusColor.withAlpha(179)],
+          colors: [statusColor, statusColor.withOpacity(0.7)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withAlpha(51),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: statusColor.withOpacity(0.3),
+            blurRadius: 15,
+            spreadRadius: 5,
           ),
         ],
       ),
@@ -815,7 +1379,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                       _getStatusDisplay(status),
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -837,11 +1401,16 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
               padding: const EdgeInsets.only(top: 16),
               child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
+                child: _buildGradientButton(
+                  text: "Re-apply for this Job",
+                  icon: Icons.refresh,
+                  onTap: () {
                     showDialog(
                       context: context,
                       builder: (dialogContext) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                         title: const Text("Re-apply for this Job"),
                         content: const Text(
                             "Your payment verification was rejected. You can re-apply for this job with correct payment details.\n\nNote: You will need to make a new payment."),
@@ -859,6 +1428,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.orange,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                             child: const Text("Re-apply Now"),
                           ),
@@ -866,15 +1438,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.refresh, color: Colors.white),
-                  label: const Text("Re-apply for this Job"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
                 ),
               ),
             ),
@@ -883,6 +1446,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     );
   }
 
+  // ============================================================
+  // UNDER REVIEW SECTION
+  // ============================================================
   Widget _buildUnderReviewSection() {
     final documentUrl = _getSubmittedDocumentUrl();
     final hasDocument = documentUrl != null && documentUrl.isNotEmpty;
@@ -891,7 +1457,14 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50,
+        gradient: LinearGradient(
+          colors: [
+            Colors.orange.shade50,
+            Colors.orange.shade100.withOpacity(0.3),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.orange.shade200),
       ),
@@ -903,7 +1476,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.orange,
+                  gradient: const LinearGradient(
+                    colors: [Colors.orange, Colors.orangeAccent],
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -929,13 +1504,11 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
           const SizedBox(height: 20),
-
-          // View Document Button - Wrapped in Material
           SizedBox(
             width: double.infinity,
             child: Material(
               borderRadius: BorderRadius.circular(12),
-              color: hasDocument ? Colors.teal : Colors.grey,
+              color: hasDocument ? Colors.teal : Colors.grey.shade400,
               child: InkWell(
                 onTap: hasDocument ? _viewApplicationDocument : null,
                 borderRadius: BorderRadius.circular(12),
@@ -962,7 +1535,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
               ),
             ),
           ),
-
           if (hasDocument && documentName != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -972,7 +1544,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                 textAlign: TextAlign.center,
               ),
             ),
-
           if (!hasDocument)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -984,25 +1555,24 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber,
-                        size: 16, color: Colors.orange),
+                    const Icon(Icons.warning_amber, size: 16, color: Colors.orange),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         "No document attached to this application.",
                         style: TextStyle(
-                            fontSize: 12, color: Colors.orange.shade800),
+                          fontSize: 12,
+                          color: Colors.orange.shade800,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-
           const SizedBox(height: 20),
           const Divider(),
           const SizedBox(height: 16),
-
           const Text(
             "Take Action:",
             style: TextStyle(
@@ -1012,7 +1582,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
             ),
           ),
           const SizedBox(height: 12),
-
           Row(
             children: [
               Expanded(
@@ -1032,7 +1601,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
                                 )
                               : const Icon(Icons.check_circle,
                                   size: 20, color: Colors.white),
@@ -1040,7 +1611,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                           const Text(
                             "CONFIRM APPLICATION",
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
@@ -1055,7 +1626,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
               Expanded(
                 child: Material(
                   borderRadius: BorderRadius.circular(12),
-                  color: Colors.blue,
+                  color: const Color(0xFF6C63FF),
                   child: InkWell(
                     onTap: _isUpdating ? null : _showUpdateApplicationDialog,
                     borderRadius: BorderRadius.circular(12),
@@ -1069,7 +1640,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
                                 )
                               : const Icon(Icons.edit_note,
                                   size: 20, color: Colors.white),
@@ -1077,7 +1650,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                           const Text(
                             "UPDATE APPLICATION",
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
@@ -1092,7 +1665,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
           ),
           const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: Colors.orange.shade100,
               borderRadius: BorderRadius.circular(8),
@@ -1105,8 +1678,10 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                   child: Text(
                     "✅ CONFIRM: Accept the application as is\n"
                     "✏️ UPDATE: Provide additional information or corrections",
-                    style:
-                        TextStyle(fontSize: 11, color: Colors.orange.shade800),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.orange.shade800,
+                    ),
                   ),
                 ),
               ],
@@ -1117,6 +1692,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     );
   }
 
+  // ============================================================
+  // FINAL SUBMIT SECTION
+  // ============================================================
   Widget _buildFinalSubmitSection() {
     final documentUrl = _getSubmittedDocumentUrl();
     final hasDocument = documentUrl != null && documentUrl.isNotEmpty;
@@ -1125,7 +1703,14 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.deepPurple.shade50,
+        gradient: LinearGradient(
+          colors: [
+            Colors.deepPurple.shade50,
+            Colors.deepPurple.shade100.withOpacity(0.3),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.deepPurple.shade200),
       ),
@@ -1137,7 +1722,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.deepPurple,
+                  gradient: const LinearGradient(
+                    colors: [Colors.deepPurple, Colors.deepPurpleAccent],
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -1163,13 +1750,11 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
           const SizedBox(height: 20),
-
-          // View Document Button - Wrapped in Material
           SizedBox(
             width: double.infinity,
             child: Material(
               borderRadius: BorderRadius.circular(12),
-              color: hasDocument ? Colors.deepPurple : Colors.grey,
+              color: hasDocument ? Colors.deepPurple : Colors.grey.shade400,
               child: InkWell(
                 onTap: hasDocument ? _viewApplicationDocument : null,
                 borderRadius: BorderRadius.circular(12),
@@ -1196,7 +1781,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
               ),
             ),
           ),
-
           if (hasDocument && documentName != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -1206,7 +1790,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                 textAlign: TextAlign.center,
               ),
             ),
-
           if (!hasDocument)
             Padding(
               padding: const EdgeInsets.only(top: 12),
@@ -1218,14 +1801,15 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber,
-                        size: 16, color: Colors.orange),
+                    const Icon(Icons.warning_amber, size: 16, color: Colors.orange),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         "No document attached to this application.",
                         style: TextStyle(
-                            fontSize: 12, color: Colors.orange.shade800),
+                          fontSize: 12,
+                          color: Colors.orange.shade800,
+                        ),
                       ),
                     ),
                   ],
@@ -1237,103 +1821,81 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
     );
   }
 
-  Widget _buildJobInfoCard(
-      Map<String, dynamic> app,
-      Map<String, dynamic>? job,
-    ) {
-      final jobTitle = app['job_title'] ?? job?['post_name'] ?? 'Job Title';
-      final organization =
-          app['organization'] ?? job?['organization'] ?? 'Company';
-      final appliedDate = _formatDate(app['applied_at']);
-      final matchScore = app['match_score'];
+  // ============================================================
+  // JOB INFO CARD
+  // ============================================================
+  Widget _buildJobInfoCard() {
+    final app = widget.application;
+    final jobTitle = app['job_title'] ?? _jobDetails?['post_name'] ?? 'Job Title';
+    final organization = app['organization'] ?? _jobDetails?['organization'] ?? 'Company';
+    final appliedDate = _formatDate(app['applied_at']);
+    final matchScore = app['match_score'];
 
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 4)],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Job Information",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            _buildInfoRow(Icons.work, "Job Title", jobTitle),
-            const Divider(height: 24),
-            _buildInfoRow(Icons.business, "Organization", organization),
-            const Divider(height: 24),
-            _buildInfoRow(Icons.calendar_today, "Applied On", appliedDate),
-            if (matchScore != null) ...[
-              const Divider(height: 24),
-              _buildInfoRow(
-                Icons.auto_awesome,
-                "AI Match Score",
-                "$matchScore%",
-                color: _getScoreColor(matchScore),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    Widget _buildApplicationDetailsCard(
-      Map<String, dynamic> app,
-      String? submittedDocumentUrl,
-      String? submittedDocumentName,
-      String? submittedAt,
-    ) {
-      final applicantName = app['applicant_name'] ?? 'N/A';
-      final applicantEmail = app['applicant_email'] ?? 'N/A';
-      final coverLetter = app['cover_letter'] ?? 'No cover letter provided';
-
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 4)],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Application Details",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            _buildInfoRow(Icons.person, "Applicant Name", applicantName),
-            const Divider(height: 24),
-            _buildInfoRow(Icons.email, "Email", applicantEmail),
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("Job Information", Icons.work_outline),
+          const SizedBox(height: 16),
+          _buildInfoRow(Icons.work, "Job Title", jobTitle),
+          const Divider(height: 24),
+          _buildInfoRow(Icons.business, "Organization", organization),
+          const Divider(height: 24),
+          _buildInfoRow(Icons.calendar_today, "Applied On", appliedDate),
+          if (matchScore != null) ...[
             const Divider(height: 24),
             _buildInfoRow(
-              Icons.description,
-              "Cover Letter",
-              coverLetter,
-              isLongText: true,
+              Icons.auto_awesome,
+              "AI Match Score",
+              "$matchScore%",
+              color: _getScoreColor(matchScore),
             ),
-            if (submittedDocumentUrl != null &&
-                submittedDocumentUrl.isNotEmpty) ...[
-              const Divider(height: 24),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.teal.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.teal.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION DETAILS CARD
+  // ============================================================
+  Widget _buildApplicationDetailsCard() {
+    final app = widget.application;
+    final applicantName = app['applicant_name'] ?? 'N/A';
+    final applicantEmail = app['applicant_email'] ?? 'N/A';
+    final coverLetter = app['cover_letter'] ?? 'No cover letter provided';
+    final documentUrl = _getSubmittedDocumentUrl();
+    final documentName = _getSubmittedDocumentName();
+
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("Application Details", Icons.description_outlined),
+          const SizedBox(height: 16),
+          _buildInfoRow(Icons.person, "Applicant Name", applicantName),
+          const Divider(height: 24),
+          _buildInfoRow(Icons.email, "Email", applicantEmail),
+          const Divider(height: 24),
+          _buildInfoRow(Icons.description, "Cover Letter", coverLetter,
+              isLongText: true),
+          if (documentUrl != null && documentUrl.isNotEmpty) ...[
+            const Divider(height: 24),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.teal.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.teal.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.upload_file, color: Colors.teal, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.upload_file,
-                            color: Colors.teal, size: 20),
-                        const SizedBox(width: 8),
                         const Text(
                           "Submitted Document",
                           style: TextStyle(
@@ -1342,133 +1904,22 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                             color: Colors.teal,
                           ),
                         ),
-                        const Spacer(),
-                        Material(
-                          borderRadius: BorderRadius.circular(20),
-                          color: Colors.teal,
-                          child: InkWell(
-                            onTap: _viewApplicationDocument,
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              child: const Row(
-                                children: [
-                                  Icon(Icons.visibility,
-                                      size: 18, color: Colors.white),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    "View Document",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                        if (documentName != null)
+                          Text(
+                            documentName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
                             ),
                           ),
-                        ),
                       ],
                     ),
-                    if (submittedDocumentName != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        "File: $submittedDocumentName",
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                    if (submittedAt != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        "Submitted: ${_formatDate(submittedAt)}",
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    Widget _buildPaymentInformationCard(
-      String transactionId,
-      String transactionDate,
-      String? paymentReceiptUrl,
-      int? paymentAmount,
-      String? paymentCategory,
-    ) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.teal.shade50,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.teal.shade200),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.payment, color: Colors.teal),
-                const SizedBox(width: 8),
-                const Text(
-                  "Payment Information",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.teal,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildInfoRow(Icons.receipt, "Transaction ID", transactionId),
-            const Divider(height: 24),
-            _buildInfoRow(
-                Icons.calendar_today, "Transaction Date", transactionDate),
-            if (paymentAmount != null) ...[
-              const Divider(height: 24),
-              _buildInfoRow(
-                Icons.currency_rupee,
-                "Amount Paid",
-                "₹$paymentAmount",
-                color: Colors.green,
-              ),
-            ],
-            if (paymentCategory != null && paymentCategory.isNotEmpty) ...[
-              const Divider(height: 24),
-              _buildInfoRow(
-                Icons.category,
-                "Category",
-                paymentCategory.toUpperCase(),
-                color: Colors.blue,
-              ),
-            ],
-            if (paymentReceiptUrl != null && paymentReceiptUrl.isNotEmpty) ...[
-              const Divider(height: 24),
-              Row(
-                children: [
-                  const Icon(Icons.receipt, color: Colors.orange, size: 20),
-                  const SizedBox(width: 8),
-                  const Text(
-                    "Payment Receipt",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const Spacer(),
                   Material(
                     borderRadius: BorderRadius.circular(20),
-                    color: Colors.orange,
+                    color: Colors.teal,
                     child: InkWell(
-                      onTap: () => _showPaymentReceiptDialog(paymentReceiptUrl),
+                      onTap: _viewApplicationDocument,
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -1477,11 +1928,10 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.visibility,
-                                size: 18, color: Colors.white),
+                            Icon(Icons.visibility, size: 18, color: Colors.white),
                             SizedBox(width: 4),
                             Text(
-                              "View Receipt",
+                              "View",
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -1494,160 +1944,289 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // PAYMENT INFORMATION CARD
+  // ============================================================
+  Widget _buildPaymentInformationCard(
+    String transactionId,
+    String transactionDate,
+    String? paymentReceiptUrl,
+    int? paymentAmount,
+    String? paymentCategory,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.teal.shade50,
+            Colors.teal.shade100.withOpacity(0.3),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.teal.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade100,
-                  borderRadius: BorderRadius.circular(8),
+                  gradient: const LinearGradient(
+                    colors: [Colors.teal, Colors.tealAccent],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline,
-                        size: 16, color: Colors.orange),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        "Click 'View Receipt' to see your payment screenshot",
-                        style: TextStyle(
-                            fontSize: 12, color: Colors.orange.shade800),
-                      ),
-                    ),
-                  ],
+                child: const Icon(Icons.payment, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                "Payment Information",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.teal,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          _buildInfoRow(Icons.receipt, "Transaction ID", transactionId),
+          const Divider(height: 24),
+          _buildInfoRow(Icons.calendar_today, "Transaction Date", transactionDate),
+          if (paymentAmount != null) ...[
+            const Divider(height: 24),
+            _buildInfoRow(
+              Icons.currency_rupee,
+              "Amount Paid",
+              "₹$paymentAmount",
+              color: Colors.green,
+            ),
           ],
-        ),
-      );
-    }
-
-    Widget _buildInfoRow(
-      IconData icon,
-      String label,
-      String value, {
-      Color? color,
-      bool isLongText = false,
-    }) {
-      if (value.isEmpty || value == 'Not provided') return const SizedBox();
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 20, color: color ?? Colors.blueGrey),
-            const SizedBox(width: 12),
-            SizedBox(
-              width: 110,
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey,
+          if (paymentCategory != null && paymentCategory.isNotEmpty) ...[
+            const Divider(height: 24),
+            _buildInfoRow(
+              Icons.category,
+              "Category",
+              paymentCategory.toUpperCase(),
+              color: const Color(0xFF6C63FF),
+            ),
+          ],
+          if (paymentReceiptUrl != null && paymentReceiptUrl.isNotEmpty) ...[
+            const Divider(height: 24),
+            Row(
+              children: [
+                const Icon(Icons.receipt, color: Colors.orange, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    "Payment Receipt",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                value,
-                style: TextStyle(color: color, height: isLongText ? 1.5 : 1.2),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    String _formatDate(String? dateStr) {
-      if (dateStr == null) return 'N/A';
-      try {
-        final date = DateTime.parse(dateStr);
-        return '${date.day}/${date.month}/${date.year}';
-      } catch (e) {
-        return dateStr;
-      }
-    }
-
-    @override
-    Widget build(BuildContext context) {
-      final app = widget.application;
-      final status = app['status'] ?? 'pending';
-      final statusColor = _getStatusColor(status);
-      final transactionId = app['transaction_id'] ?? 'Not provided';
-      final transactionDate = app['transaction_date'] != null
-          ? _formatDate(app['transaction_date'])
-          : 'Not provided';
-      final paymentReceiptUrl = app['payment_receipt_url'];
-      final paymentAmount = app['payment_amount'];
-      final paymentCategory = app['payment_category_used'];
-
-      return Scaffold(
-        backgroundColor: Colors.grey.shade50,
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildStatusCard(status, statusColor),
-                    const SizedBox(height: 16),
-
-                    if (status.toLowerCase() == 'review_application')
-                      _buildUnderReviewSection(),
-                    if (status.toLowerCase() == 'review_application')
-                      const SizedBox(height: 16),
-
-                    if (status.toLowerCase() == 'final_submit')
-                      _buildFinalSubmitSection(),
-                    if (status.toLowerCase() == 'final_submit')
-                      const SizedBox(height: 16),
-
-                    _buildJobInfoCard(app, _jobDetails),
-                    const SizedBox(height: 16),
-
-                    _buildApplicationDetailsCard(
-                      app,
-                      app['submitted_document_url'],
-                      app['submitted_document_name'],
-                      app['submitted_at'],
-                    ),
-                    const SizedBox(height: 16),
-
-                    _buildPaymentInformationCard(
-                      transactionId,
-                      transactionDate,
-                      paymentReceiptUrl,
-                      paymentAmount,
-                      paymentCategory,
-                    ),
-                    const SizedBox(height: 16),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: () => widget.onViewJob(_jobDetails!),
-                        icon: const Icon(Icons.visibility),
-                        label: const Text("View Full Job Details"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                Material(
+                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.orange,
+                  child: InkWell(
+                    onTap: () => _showPaymentReceiptDialog(paymentReceiptUrl),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.visibility, size: 18, color: Colors.white),
+                          SizedBox(width: 4),
+                          Text(
+                            "View Receipt",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-                  ],
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade100,
+                borderRadius: BorderRadius.circular(8),
               ),
-      );
-    }
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 16, color: Colors.orange),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Click 'View Receipt' to see your payment screenshot",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
-// ==================== UPDATE APPLICATION DIALOG ====================
+  // ============================================================
+  // COMMON WIDGETS
+  // ============================================================
+  Widget _sectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 18,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+            ),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Icon(icon, color: const Color(0xFF6C63FF), size: 18),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(
+    IconData icon,
+    String label,
+    String value, {
+    Color? color,
+    bool isLongText = false,
+  }) {
+    if (value.isEmpty || value == 'Not provided') return const SizedBox();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: color ?? Colors.blueGrey),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: color ?? Colors.black87,
+                fontSize: 13,
+                height: isLongText ? 1.5 : 1.2,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGradientButton({
+    required String text,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        padding: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6C63FF).withOpacity(0.3),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Container(
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: Colors.white),
+              const SizedBox(width: 8),
+              Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// UPDATE APPLICATION DIALOG
+// ============================================================
 class _UpdateApplicationDialog extends StatefulWidget {
   const _UpdateApplicationDialog();
 
@@ -1742,11 +2321,12 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                    ),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child:
-                      const Icon(Icons.edit_note, color: Colors.blue, size: 28),
+                  child: const Icon(Icons.edit_note, color: Colors.white, size: 28),
                 ),
                 const SizedBox(width: 14),
                 const Expanded(
@@ -1755,6 +2335,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                   ),
                 ),
@@ -1765,30 +2346,32 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
               ],
             ),
             const Divider(height: 24),
-
             Container(
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: const Color(0xFF6C63FF).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.shade200),
+                border: Border.all(
+                  color: const Color(0xFF6C63FF).withOpacity(0.2),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, color: Colors.blue, size: 18),
+                  const Icon(Icons.info_outline, color: Color(0xFF6C63FF), size: 18),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       "Add the information you want to update. Click + to add multiple fields.",
-                      style:
-                          TextStyle(fontSize: 12, color: Colors.blue.shade700),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: const Color(0xFF6C63FF),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
@@ -1798,10 +2381,10 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 6),
@@ -1815,7 +2398,10 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                             flex: 2,
                             child: Text(
                               "Field Name",
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
                             ),
                           ),
                           SizedBox(width: 12),
@@ -1823,7 +2409,10 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                             flex: 3,
                             child: Text(
                               "Value",
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
                             ),
                           ),
                           SizedBox(width: 40),
@@ -1831,7 +2420,6 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     ..._fields.asMap().entries.map((entry) {
                       final index = entry.key;
                       final field = entry.value;
@@ -1844,39 +2432,49 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                           children: [
                             Expanded(
                               flex: 2,
-                              child: TextFormField(
-                                initialValue: field['name'],
-                                decoration: InputDecoration(
-                                  hintText: "e.g., Enter Field Name",
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 12,
-                                  ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.grey.shade300),
                                 ),
-                                onChanged: (value) =>
-                                    _updateField(fieldId, 'name', value),
+                                child: TextFormField(
+                                  initialValue: field['name'],
+                                  decoration: const InputDecoration(
+                                    hintText: "e.g., Enter Field Name",
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  onChanged: (value) =>
+                                      _updateField(fieldId, 'name', value),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               flex: 3,
-                              child: TextFormField(
-                                initialValue: field['value'],
-                                decoration: InputDecoration(
-                                  hintText: "Enter Correct Value",
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 12,
-                                  ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.grey.shade300),
                                 ),
-                                onChanged: (value) =>
-                                    _updateField(fieldId, 'value', value),
+                                child: TextFormField(
+                                  initialValue: field['value'],
+                                  decoration: const InputDecoration(
+                                    hintText: "Enter Correct Value",
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  onChanged: (value) =>
+                                      _updateField(fieldId, 'value', value),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -1885,6 +2483,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                                 if (index == _fields.length - 1)
                                   InkWell(
                                     onTap: _addNewField,
+                                    borderRadius: BorderRadius.circular(8),
                                     child: Container(
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
@@ -1899,6 +2498,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                                 if (_fields.length > 1)
                                   InkWell(
                                     onTap: () => _removeField(fieldId),
+                                    borderRadius: BorderRadius.circular(8),
                                     child: Container(
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
@@ -1915,42 +2515,45 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                         ),
                       );
                     }),
-
                     const SizedBox(height: 16),
-
                     const Text(
                       "Additional Notes (Optional)",
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: _notesController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        hintText:
-                            "Add any additional information or comments...",
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: TextField(
+                        controller: _notesController,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          hintText: "Add any additional information or comments...",
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.all(12),
                         ),
-                        contentPadding: const EdgeInsets.all(12),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
-
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF6C63FF),
+                      side: const BorderSide(color: Color(0xFF6C63FF)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -1961,28 +2564,61 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.send, size: 18),
-                        SizedBox(width: 8),
-                        Text("Submit Update"),
-                      ],
-                    ),
-                  ),
+                  child: _buildSubmitButton(),
                 ),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return ElevatedButton(
+      onPressed: _submit,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        padding: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6C63FF).withOpacity(0.3),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          alignment: Alignment.center,
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.send, size: 18, color: Colors.white),
+              SizedBox(width: 8),
+              Text(
+                "Submit Update",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

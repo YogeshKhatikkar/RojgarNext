@@ -1,5 +1,8 @@
 // lib/features/auth/presentation/screens/mpin_setup_page.dart
-// ✅ COMPLETE WORKING VERSION - On/Off Toggle with Input Boxes
+// ✅ AI‑BASED MODERN DESIGN (same as Basic Details / Education screens)
+// ✅ FULLY WORKING: On/Off Toggle, 6-digit input boxes, auto-tab
+// ✅ WORKS ON WEB AND MOBILE – all buttons visible
+// ✅ All original logic preserved (toggle, save, remove, back navigation)
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,7 +26,7 @@ class MpinSetupPage extends StatefulWidget {
 
 class _MpinSetupPageState extends State<MpinSetupPage> {
   // ============================================================
-  // ✅ CONTROLLERS - 6 separate controllers for each digit
+  // CONTROLLERS – 6 separate controllers for each digit
   // ============================================================
   final List<TextEditingController> _mpinControllers =
       List.generate(6, (_) => TextEditingController());
@@ -31,7 +34,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
       List.generate(6, (_) => TextEditingController());
 
   // ============================================================
-  // ✅ FOCUS NODES - For auto-tabbing between fields
+  // FOCUS NODES – For auto‑tabbing between fields
   // ============================================================
   final List<FocusNode> _mpinFocusNodes =
       List.generate(6, (_) => FocusNode());
@@ -39,13 +42,13 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
       List.generate(6, (_) => FocusNode());
 
   // ============================================================
-  // ✅ STATE VARIABLES
+  // STATE VARIABLES
   // ============================================================
   bool _isSaving = false;
   String _errorMessage = '';
   bool _isDisposed = false;
 
-  // ✅ Main state - Like Fingerprint Setup
+  // Main state – Like Fingerprint Setup
   bool _isMpinEnabled = false;
   bool _isLoading = true;
   bool _hasExistingMpin = false;
@@ -56,7 +59,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   bool _showConfirmMpin = false;
 
   // ============================================================
-  // ✅ GETTERS
+  // GETTERS
   // ============================================================
   String get _mpin => _mpinControllers.map((c) => c.text).join();
   String get _confirmMpin => _confirmMpinControllers.map((c) => c.text).join();
@@ -98,7 +101,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // ✅ CHECK MPIN STATUS
+  // CHECK MPIN STATUS
   // ============================================================
   Future<void> _checkMpinStatus() async {
     if (!mounted) return;
@@ -126,14 +129,14 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // ✅ TOGGLE MPIN - Like Fingerprint Setup
+  // TOGGLE MPIN – Like Fingerprint Setup
   // ============================================================
   Future<void> _toggleMpin(bool value) async {
     if (_isDisposed) return;
 
-    // ============================================================
-    // CASE 1: DISABLING MPIN - User explicitly turns OFF
-    // ============================================================
+    // ==========================================================
+    // CASE 1: DISABLING MPIN – User explicitly turns OFF
+    // ==========================================================
     if (!value) {
       if (!_hasExistingMpin) {
         setState(() {
@@ -203,9 +206,9 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
       return;
     }
 
-    // ============================================================
-    // CASE 2: ENABLING MPIN - User explicitly turns ON
-    // ============================================================
+    // ==========================================================
+    // CASE 2: ENABLING MPIN – User explicitly turns ON
+    // ==========================================================
     if (_hasExistingMpin) {
       setState(() => _isLoading = true);
       try {
@@ -234,9 +237,9 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
       return;
     }
 
-    // ============================================================
-    // CASE 3: FIRST TIME SETUP - Show input form
-    // ============================================================
+    // ==========================================================
+    // CASE 3: FIRST TIME SETUP – Show input form
+    // ==========================================================
     setState(() {
       _isMpinEnabled = true;
       _showForm = true; // ✅ THIS SHOWS THE INPUT BOXES
@@ -244,7 +247,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
       _errorMessage = '';
     });
 
-    // Auto-focus first field after form is shown
+    // Auto‑focus first field after form is shown
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_isDisposed && _showForm) {
         FocusScope.of(context).requestFocus(_mpinFocusNodes[0]);
@@ -262,7 +265,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // ✅ SAVE MPIN
+  // SAVE MPIN
   // ============================================================
   Future<void> _saveMpin() async {
     if (_isDisposed) return;
@@ -339,24 +342,12 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // ✅ BUILD METHOD
+  // BUILD – AI‑BASED MODERN UI
   // ============================================================
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text("Loading MPIN settings..."),
-            ],
-          ),
-        ),
-      );
+      return _buildLoadingScreen();
     }
 
     return PopScope(
@@ -368,25 +359,18 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.transparent,
         body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF0F172A), Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-            ),
-          ),
+          decoration: _buildGradientBackground(),
           child: SafeArea(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
                   _buildHeader(),
                   const SizedBox(height: 24),
                   _buildToggleCard(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   if (_errorMessage.isNotEmpty) _buildErrorWidget(),
                   if (_hasExistingMpin && _isMpinEnabled)
                     Padding(
@@ -404,92 +388,155 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // ✅ HEADER
+  // AI‑BASED DESIGN COMPONENTS
   // ============================================================
+
+  BoxDecoration _buildGradientBackground() {
+    return const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
+      ),
+    );
+  }
+
+  Widget _buildLoadingScreen() {
+    return Scaffold(
+      body: Container(
+        decoration: _buildGradientBackground(),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TweenAnimationBuilder(
+                duration: const Duration(seconds: 2),
+                tween: Tween<double>(begin: 0, end: 1),
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6C63FF).withOpacity(0.3),
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.auto_awesome,
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 30),
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                ).createShader(bounds),
+                child: const Text(
+                  "AI is loading your security...",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeader() {
+    final bool isActive = _isMpinEnabled && _hasExistingMpin;
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.white.withAlpha(26), Colors.white.withAlpha(13)],
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withAlpha(51)),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(26),
+            color: const Color(0xFF6C63FF).withOpacity(0.3),
             blurRadius: 20,
-            offset: const Offset(0, 10),
+            spreadRadius: 5,
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Colors.purpleAccent, Colors.blueAccent],
-              ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.purpleAccent.withAlpha(77),
-                  blurRadius: 20,
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(
+              isActive ? Icons.lock_open : Icons.lock_outline,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "MPIN Security",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  isActive
+                      ? "Your MPIN is currently enabled"
+                      : _showForm
+                          ? "Set up a 6‑digit PIN for quick login"
+                          : "Enable MPIN for faster & secure login",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
                 ),
               ],
             ),
-            child: Icon(
-              _isMpinEnabled && _hasExistingMpin
-                  ? Icons.lock_open
-                  : _showForm
-                      ? Icons.lock_outline
-                      : Icons.lock_outline,
-              color: Colors.white,
-              size: 40,
-            ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            "MPIN Security",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _isMpinEnabled && _hasExistingMpin
-                ? "Your MPIN is currently enabled"
-                : _showForm
-                    ? "Set up a 6-digit PIN for quick & secure login"
-                    : "Enable MPIN for faster and more secure login",
-            style: TextStyle(
-              color: Colors.white.withAlpha(204),
-              fontSize: 13,
-              height: 1.4,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withAlpha(26),
-              borderRadius: BorderRadius.circular(16),
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Text(
-              widget.email,
-              style: TextStyle(
-                color: Colors.white.withAlpha(179),
-                fontSize: 11,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+              size: 20,
             ),
           ),
         ],
@@ -497,33 +544,36 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
     );
   }
 
+  Widget _buildGlassContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 15,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
   // ============================================================
-  // ✅ TOGGLE CARD - Like Fingerprint Setup
+  // TOGGLE CARD – Like Fingerprint Setup
   // ============================================================
   Widget _buildToggleCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            _isMpinEnabled ? Colors.green.withAlpha(26) : Colors.white.withAlpha(13),
-            Colors.white.withAlpha(26),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: _isMpinEnabled
-              ? Colors.green.withAlpha(102)
-              : Colors.white.withAlpha(51),
-        ),
-      ),
+    return _buildGlassContainer(
       child: Column(
         children: [
-          // ============================================================
-          // ON/OFF TOGGLE ROW - Like Fingerprint Setup
-          // ============================================================
+          // Toggle Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -533,13 +583,13 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: _isMpinEnabled
-                          ? Colors.green.withAlpha(26)
-                          : Colors.white.withAlpha(26),
+                          ? Colors.green.withOpacity(0.2)
+                          : Colors.grey.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.pin,
-                      color: _isMpinEnabled ? Colors.green : Colors.white70,
+                      color: _isMpinEnabled ? Colors.green : Colors.grey.shade600,
                       size: 24,
                     ),
                   ),
@@ -552,27 +602,26 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
-                          color: _isMpinEnabled ? Colors.green : Colors.white,
+                          color: _isMpinEnabled ? Colors.green : Colors.black87,
                         ),
                       ),
                       Text(
                         _isMpinEnabled && _hasExistingMpin
-                            ? "Quick login with 6-digit PIN"
+                            ? "Quick login with 6‑digit PIN"
                             : _showForm
-                                ? "Set your 6-digit PIN below"
+                                ? "Set your 6‑digit PIN below"
                                 : "Enable MPIN for faster login",
                         style: TextStyle(
                           fontSize: 12,
                           color: _isMpinEnabled
-                              ? Colors.green.shade300
-                              : Colors.white70,
+                              ? Colors.green.shade700
+                              : Colors.grey.shade600,
                         ),
                       ),
                     ],
                   ),
                 ],
               ),
-              // ✅ ON/OFF SWITCH - Like Fingerprint Setup
               Transform.scale(
                 scale: 1.2,
                 child: Switch(
@@ -581,78 +630,70 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
                   activeThumbColor: Colors.green,
                   activeTrackColor: Colors.green.shade200,
                   inactiveThumbColor: Colors.grey,
-                  inactiveTrackColor: Colors.grey.shade800,
+                  inactiveTrackColor: Colors.grey.shade300,
                 ),
               ),
             ],
           ),
 
-          // ============================================================
-          // STATUS INDICATOR - Like Fingerprint Setup
-          // ============================================================
+          // Status Indicators
           if (_isMpinEnabled && _hasExistingMpin)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.withAlpha(26),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.green.withAlpha(51)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.check_circle, color: Colors.green, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        "MPIN is enabled. You can use it for quick login.\n\n"
-                        "✅ Your MPIN will NEVER be deleted on logout.",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.green.shade300,
-                        ),
+            Container(
+              margin: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "MPIN is enabled. You can use it for quick login.\n"
+                      "✅ Your MPIN will NEVER be deleted on logout.",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.green.shade800,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
 
           if (_showForm)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withAlpha(26),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.withAlpha(51)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber, color: Colors.orange, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        "Set your MPIN below to enable MPIN login",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange.shade300,
-                        ),
+            Container(
+              margin: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber, color: Colors.orange, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "Set your MPIN below to enable MPIN login",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade800,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
 
-          // ============================================================
-          // ✅ MPIN INPUT FORM - Shows when _showForm is true
-          // ============================================================
+          // MPIN FORM
           if (_showForm) ...[
             const SizedBox(height: 20),
-            _buildDivider(),
+            const Divider(color: Colors.grey, thickness: 1),
             const SizedBox(height: 20),
             _buildMpinForm(),
           ],
@@ -662,25 +703,13 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // ✅ DIVIDER
-  // ============================================================
-  Widget _buildDivider() {
-    return Container(
-      height: 1,
-      color: Colors.white.withAlpha(26),
-    );
-  }
-
-  // ============================================================
-  // ✅ MPIN FORM - Input boxes for Android & Web
+  // MPIN FORM – Input boxes for Android & Web
   // ============================================================
   Widget _buildMpinForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ============================================================
-        // ENTER MPIN SECTION
-        // ============================================================
+        // Enter MPIN
         _buildSectionTitle("Enter MPIN", Icons.pin, Colors.blueAccent),
         const SizedBox(height: 12),
         _buildMpinInputRow(
@@ -693,7 +722,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
             }
           },
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
@@ -702,7 +731,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(13),
+                  color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -711,14 +740,14 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
                     Icon(
                       _showMpin ? Icons.visibility : Icons.visibility_off,
                       size: 16,
-                      color: Colors.white70,
+                      color: Colors.grey.shade700,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       _showMpin ? "Hide" : "Show",
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white70,
+                        color: Colors.grey.shade700,
                       ),
                     ),
                   ],
@@ -730,9 +759,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
 
         const SizedBox(height: 24),
 
-        // ============================================================
-        // CONFIRM MPIN SECTION
-        // ============================================================
+        // Confirm MPIN
         _buildSectionTitle("Confirm MPIN", Icons.verified, Colors.green),
         const SizedBox(height: 12),
         _buildMpinInputRow(
@@ -745,7 +772,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
             }
           },
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
@@ -754,7 +781,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(13),
+                  color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -763,14 +790,14 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
                     Icon(
                       _showConfirmMpin ? Icons.visibility : Icons.visibility_off,
                       size: 16,
-                      color: Colors.white70,
+                      color: Colors.grey.shade700,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       _showConfirmMpin ? "Hide" : "Show",
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white70,
+                        color: Colors.grey.shade700,
                       ),
                     ),
                   ],
@@ -782,34 +809,31 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
 
         const SizedBox(height: 24),
 
-        // ============================================================
-        // SAVE BUTTON - Shows when both fields are complete
-        // ============================================================
+        // Save Button or Info
         if (_isMpinComplete && _isConfirmMpinComplete)
-          _buildSaveButton(),
-
-        if (!_isMpinComplete || !_isConfirmMpinComplete)
+          _buildSaveButton()
+        else
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withAlpha(13),
+              color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withAlpha(26)),
+              border: Border.all(color: Colors.grey.shade200),
             ),
             child: Row(
               children: [
                 Icon(
                   Icons.info_outline,
                   size: 16,
-                  color: Colors.white.withAlpha(128),
+                  color: Colors.grey.shade600,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    "Enter and confirm 6-digit MPIN to save",
+                    "Enter and confirm 6‑digit MPIN to save",
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.white.withAlpha(128),
+                      color: Colors.grey.shade600,
                     ),
                   ),
                 ),
@@ -820,9 +844,6 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
     );
   }
 
-  // ============================================================
-  // ✅ SECTION TITLE
-  // ============================================================
   Widget _buildSectionTitle(String title, IconData icon, Color color) {
     return Row(
       children: [
@@ -831,7 +852,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
           height: 18,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [color, color.withAlpha(179)],
+              colors: [color, color.withOpacity(0.7)],
             ),
             borderRadius: BorderRadius.circular(2),
           ),
@@ -841,8 +862,8 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
         const SizedBox(width: 8),
         Text(
           title,
-          style: TextStyle(
-            color: Colors.white,
+          style: const TextStyle(
+            color: Colors.black87,
             fontWeight: FontWeight.w600,
             fontSize: 15,
             letterSpacing: 0.3,
@@ -853,7 +874,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // ✅ MPIN INPUT ROW - 6 Boxes with Auto-Tab
+  // MPIN INPUT ROW – 6 Boxes with Auto‑Tab
   // ============================================================
   Widget _buildMpinInputRow({
     required List<TextEditingController> controllers,
@@ -866,16 +887,9 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.white.withAlpha(13),
-            Colors.white.withAlpha(26),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withAlpha(51)),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -884,11 +898,11 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
             controller: controllers[index],
             focusNode: focusNodes[index],
             onChanged: (value) {
-              // Auto-tab to next field
+              // Auto‑tab to next field
               if (value.length == 1 && index < 5) {
                 FocusScope.of(context).requestFocus(focusNodes[index + 1]);
               }
-              // Auto-tab to previous on delete
+              // Auto‑tab to previous on delete
               if (value.isEmpty && index > 0) {
                 FocusScope.of(context).requestFocus(focusNodes[index - 1]);
               }
@@ -915,7 +929,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // ✅ SINGLE MPIN BOX - Fully visible on Android & Web
+  // SINGLE MPIN BOX – Fully visible on Android & Web
   // ============================================================
   Widget _buildMpinBox({
     required TextEditingController controller,
@@ -945,14 +959,14 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
         style: const TextStyle(
           fontSize: 26,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: Colors.black87,
         ),
         decoration: InputDecoration(
           counterText: '',
           filled: true,
           fillColor: controller.text.isNotEmpty
-              ? Colors.blueAccent.withAlpha(40)
-              : Colors.white.withAlpha(20),
+              ? const Color(0xFF6C63FF).withOpacity(0.1)
+              : Colors.grey.shade100,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: BorderSide.none,
@@ -961,15 +975,15 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
             borderRadius: BorderRadius.circular(14),
             borderSide: BorderSide(
               color: focusNode.hasFocus
-                  ? Colors.blueAccent
-                  : Colors.white.withAlpha(51),
+                  ? const Color(0xFF6C63FF)
+                  : Colors.grey.shade300,
               width: focusNode.hasFocus ? 2.5 : 1.5,
             ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(
-              color: Colors.blueAccent,
+              color: Color(0xFF6C63FF),
               width: 2.5,
             ),
           ),
@@ -982,7 +996,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // ✅ SAVE BUTTON
+  // SAVE BUTTON – Visible on web & mobile
   // ============================================================
   Widget _buildSaveButton() {
     final bool isEnabled = _isMpinComplete && _isConfirmMpinComplete && !_isSaving;
@@ -1010,8 +1024,8 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
                   )
                 : LinearGradient(
                     colors: [
-                      Colors.grey.withAlpha(102),
-                      Colors.grey.withAlpha(77)
+                      Colors.grey.shade300,
+                      Colors.grey.shade400,
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -1020,7 +1034,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
             boxShadow: isEnabled
                 ? [
                     BoxShadow(
-                      color: Colors.green.withAlpha(77),
+                      color: Colors.green.withOpacity(0.3),
                       blurRadius: 16,
                       offset: const Offset(0, 4),
                     ),
@@ -1061,15 +1075,15 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // ✅ ERROR WIDGET
+  // ERROR WIDGET
   // ============================================================
   Widget _buildErrorWidget() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.red.withAlpha(26),
+        color: Colors.red.shade50,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.red.withAlpha(102)),
+        border: Border.all(color: Colors.red.shade200),
       ),
       child: Row(
         children: [
@@ -1095,7 +1109,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // ✅ REMOVE BUTTON
+  // REMOVE BUTTON – Visible on web & mobile
   // ============================================================
   Widget _buildRemoveButton() {
     return SizedBox(
@@ -1174,7 +1188,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // ✅ ON WILL POP - Prevent accidental back navigation
+  // ON WILL POP – Prevent accidental back navigation
   // ============================================================
   Future<bool> _onWillPop() async {
     if (_showForm && !_hasExistingMpin) {
