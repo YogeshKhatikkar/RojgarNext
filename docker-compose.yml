@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: rojgarnext_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - rojgarnext_network
+    command: mongod --bind_ip_all
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: rojgarnext_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - rojgarnext_network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend/rojgarnext
+      dockerfile: Dockerfile
+    container_name: rojgarnext_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/rojgarnext/.env
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_secure:/app/secure
+      - backend_models:/app/models
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rojgarnext_network
+    environment:
+      - MONGO_URI=${MONGO_URI:-mongodb://mongodb:27017/rojgarnext}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - PYTHONUNBUFFERED=1
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  flutter_builder:
+    image: ghcr.io/cirruslabs/flutter:stable
+    container_name: rojgarnext_flutter_builder
+    volumes:
+      - ./frontend/rojgarnext:/app
+      - flutter_build_output:/build_output
+    working_dir: /app
+    command: >
+      sh -c "
+        flutter clean &&
+        flutter pub get &&
+        flutter build web --release --base-href=/ &&
+        mkdir -p /build_output &&
+        cp -r build/web/* /build_output/
+      "
+    networks:
+      - rojgarnext_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: rojgarnext_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - flutter_build_output:/usr/share/nginx/html:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      backend:
+        condition: service_healthy
+      flutter_builder:
+        condition: service_completed_successfully
+    networks:
+      - rojgarnext_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  rojgarnext_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_uploads:
+    driver: local
+  backend_secure:
+    driver: local
+  backend_models:
+    driver: local
+  nginx_logs:
+    driver: local
+  flutter_build_output:
+    driver: local

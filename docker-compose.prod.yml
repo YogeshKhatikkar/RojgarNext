@@ -1,0 +1,380 @@
+version: '3.8'
+
+services:
+  # ==================== LOAD BALANCER ====================
+  nginx-lb:
+    image: nginx:alpine
+    container_name: rojgarnext_lb
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - backend1
+      - backend2
+    networks:
+      - rojgarnext_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # ==================== BACKEND (MULTI-INSTANCE) ====================
+  backend1:
+    build: ./backend/rojgarnext
+    container_name: rojgarnext_backend1
+    restart: always
+    expose:
+      - "8000"
+    env_file: ./backend/rojgarnext/.env.prod
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_secure:/app/secure
+      - backend_models:/app/models
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - rojgarnext_net
+    environment:
+      - INSTANCE_ID=1
+      - WORKERS=4
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  backend2:
+    build: ./backend/rojgarnext
+    container_name: rojgarnext_backend2
+    restart: always
+    expose:
+      - "8000"
+    env_file: ./backend/rojgarnext/.env.prod
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_secure:/app/secure
+      - backend_models:/app/models
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - rojgarnext_net
+    environment:
+      - INSTANCE_ID=2
+      - WORKERS=4
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ==================== FLUTTER WEB BUILDER ====================
+  flutter_builder:
+    image: cirrusci/flutter:stable
+    container_name: rojgarnext_flutter_builder
+    volumes:
+      - ./frontend/rojgarnext:/app
+      - flutter_build_output:/build_output
+    working_dir: /app
+    command: >
+      sh -c "
+        flutter clean &&
+        flutter pub get &&
+        flutter build web --release --web-renderer canvaskit --base-href=/ &&
+        mkdir -p /build_output &&
+        cp -r build/web/* /build_output/
+      "
+    networks:
+      - rojgarnext_net
+
+  # ==================== NGINX REVERSE PROXY ====================
+  nginx:
+    image: nginx:alpine
+    container_name: rojgarnext_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - flutter_build_output:/usr/share/nginx/html:ro
+      - nginx_logs:/var/log/nginx
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      backend1:
+        condition: service_started
+      backend2:
+        condition: service_started
+      flutter_builder:
+        condition: service_completed_successfully
+    networks:
+      - rojgarnext_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==================== DATABASES ====================
+  mongodb:
+    image: mongo:7.0
+    container_name: rojgarnext_mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+      - ./backups:/backups
+    networks:
+      - rojgarnext_net
+    command: mongod --replSet rs0 --bind_ip_all --auth
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME_FILE=/run/secrets/mongo_root_user
+      - MONGO_INITDB_ROOT_PASSWORD_FILE=/run/secrets/mongo_root_password
+    secrets:
+      - mongo_root_user
+      - mongo_root_password
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: rojgarnext_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - rojgarnext_net
+    command: redis-server /usr/local/etc/redis/redis.conf --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== ELASTICSEARCH (SEARCH) ====================
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: rojgarnext_elasticsearch
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - rojgarnext_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ==================== POSTGRESQL (ANALYTICS) ====================
+  postgres:
+    image: postgres:15-alpine
+    container_name: rojgarnext_postgres
+    restart: always
+    environment:
+      - POSTGRES_DB=rojgarnext_analytics
+      - POSTGRES_USER_FILE=/run/secrets/postgres_user
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - rojgarnext_net
+    secrets:
+      - postgres_user
+      - postgres_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== MINIO (OBJECT STORAGE) ====================
+  minio:
+    image: minio/minio:latest
+    container_name: rojgarnext_minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER_FILE=/run/secrets/minio_root_user
+      - MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio_root_password
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - rojgarnext_net
+    secrets:
+      - minio_root_user
+      - minio_root_password
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # ==================== PROMETHEUS (MONITORING) ====================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: rojgarnext_prometheus
+    restart: always
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    networks:
+      - rojgarnext_net
+
+  # ==================== GRAFANA (DASHBOARD) ====================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: rojgarnext_grafana
+    restart: always
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    ports:
+      - "3000:3000"
+    networks:
+      - rojgarnext_net
+    depends_on:
+      - prometheus
+
+  # ==================== LOGSTASH (LOG AGGREGATION) ====================
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: rojgarnext_logstash
+    restart: always
+    volumes:
+      - ./monitoring/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      - backend_logs:/var/log/backend
+    ports:
+      - "5000:5000"
+    networks:
+      - rojgarnext_net
+    depends_on:
+      - elasticsearch
+
+  # ==================== CADVISOR (CONTAINER MONITORING) ====================
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: rojgarnext_cadvisor
+    restart: always
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - rojgarnext_net
+
+  # ==================== WATCHTOWER (AUTO-UPDATES) ====================
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: rojgarnext_watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_SCHEDULE=0 0 4 * * *
+    command: --interval 3600
+
+networks:
+  rojgarnext_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  redis_data:
+    driver: local
+  backend_uploads:
+    driver: local
+  backend_secure:
+    driver: local
+  backend_models:
+    driver: local
+  nginx_logs:
+    driver: local
+  flutter_build_output:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  postgres_data:
+    driver: local
+  minio_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  backend_logs:
+    driver: local
+
+secrets:
+  mongo_root_user:
+    file: ./secrets/mongo_root_user.txt
+  mongo_root_password:
+    file: ./secrets/mongo_root_password.txt
+  postgres_user:
+    file: ./secrets/postgres_user.txt
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  minio_root_user:
+    file: ./secrets/minio_root_user.txt
+  minio_root_password:
+    file: ./secrets/minio_root_password.txt

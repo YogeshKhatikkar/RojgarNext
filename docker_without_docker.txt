@@ -1,0 +1,52 @@
+ WITHOUT DOCKER (Local Development)
+# Terminal 1 - Start MongoDB (if not running)
+# Ubuntu: sudo systemctl start mongod
+# macOS: brew services start mongodb-community
+# Windows: net start MongoDB
+
+# Terminal 2 - Start Redis (if not running)
+# Ubuntu: sudo systemctl start redis-server
+# macOS: brew services start redis
+# Windows: redis-server
+
+# Terminal 3 - Start Backend
+cd backend/rojgarnext
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Terminal 4 - Start Flutter
+cd frontend/rojgarnext
+flutter pub get
+flutter run -d chrome --web-port 5173
+
+
+
+WITH DOCKER (Containerized)
+# Simple Docker Run (Fast)
+docker-compose -f docker-compose.simple.yml up -d
+
+# Production Docker Run (Full features)
+docker-compose up -d
+
+# With rebuild
+./rebuild.sh
+
+# Or using start script
+./start.sh
+
+
+# Web (Development)
+flutter run -d chrome --web-port 3000
+
+# Android Emulator
+flutter run -d android
+
+# iOS Simulator  
+flutter run -d ios
+
+# Desktop (Windows/macOS/Linux)
+flutter run -d windows
+flutter run -d macos
+flutter run -d linux

@@ -1,0 +1,4 @@
+# app/modules/market/AI/__init__.py
+from .ai_routes import router as ai_router
+
+__all__ = ['ai_router']

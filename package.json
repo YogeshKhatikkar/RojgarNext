@@ -1,0 +1,11 @@
+{
+  "name": "rojgarnext-deployment",
+  "version": "1.0.0",
+  "scripts": {
+    "deploy": "bash deploy.sh deploy",
+    "health": "bash deploy.sh health",
+    "build-web": "cd frontend/rojgarnext && flutter build web --release",
+    "build-android": "cd frontend/rojgarnext && flutter build apk --release",
+    "build-all": "npm run build-web && npm run build-android"
+  }
+}
