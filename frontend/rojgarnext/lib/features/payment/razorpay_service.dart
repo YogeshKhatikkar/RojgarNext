@@ -1,17 +1,15 @@
 // lib/features/payment/razorpay_service.dart
-// ✅ PLATFORM-AWARE - Android me web service import nahi hoga
+// ✅ Correct conditional import — Android uses stub, web uses real service.
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-// Web implementation - Sirf Web par import hoga
-import 'razorpay_web_service.dart'
-    if (dart.library.js) 'razorpay_web_service.dart'
-    as web;
+// ⬇️ On Android/iOS/Desktop  → uses razorpay_web_stub.dart
+//    On Web                  → uses razorpay_web_service.dart
+// dart.library.js_interop is true ONLY on web.
+import 'razorpay_web_stub.dart'
+    if (dart.library.js_interop) 'razorpay_web_service.dart' as web;
 
-// Mobile implementation - Mobile par import hoga
-import 'razorpay_mobile_service.dart'
-    if (dart.library.html) 'razorpay_mobile_service.dart'
-    as mobile;
+import 'razorpay_mobile_service.dart' as mobile;
 
 class RazorpayService {
   static RazorpayService? _instance;
@@ -35,7 +33,6 @@ class RazorpayService {
     required Function() onExternalWallet,
   }) async {
     if (kIsWeb) {
-      // ✅ Web platform ke liye web service
       await web.RazorpayWebService.instance.initiatePayment(
         amount: amount,
         orderId: orderId,
@@ -50,7 +47,6 @@ class RazorpayService {
       return;
     }
 
-    // ✅ Mobile platform ke liye mobile service
     await mobile.RazorpayMobileService.instance.initiatePayment(
       amount: amount,
       orderId: orderId,
@@ -66,11 +62,7 @@ class RazorpayService {
 
   void dispose() {
     if (kIsWeb) {
-      try {
-        web.RazorpayWebService.instance.dispose();
-      } catch (e) {
-        // ignore
-      }
+      web.RazorpayWebService.instance.dispose();
     } else {
       mobile.RazorpayMobileService.instance.dispose();
     }

@@ -1,11 +1,10 @@
 // lib/features/resume/presentation/screens/format/resume_format_popup.dart
-// ✅ COMPLETE FIX – Works on Web and Mobile
+// ✅ Android-safe — no webview_flutter_web import.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_flutter_web/webview_flutter_web.dart';
 import 'resume_format_base.dart';
 
 class ResumeFormatPopup extends StatefulWidget {
@@ -25,7 +24,7 @@ class ResumeFormatPopup extends StatefulWidget {
 }
 
 class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
-  late WebViewController _controller;
+  WebViewController? _controller;
   bool _isLoading = true;
   String? _htmlContent;
   String? _errorMessage;
@@ -33,15 +32,6 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
   @override
   void initState() {
     super.initState();
-    // ✅ Register WebView platform for Web (must be done before creating a WebView)
-    if (kIsWeb) {
-      try {
-        WebViewPlatform.instance ??= WebWebViewPlatform();
-        debugPrint('✅ WebView platform registered for web');
-      } catch (e) {
-        debugPrint('⚠️ WebView platform registration error: $e');
-      }
-    }
     _htmlContent = widget.format.generateHtml(widget.resumeData);
     _initWebView();
   }
@@ -55,53 +45,44 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
       return;
     }
 
-    // Build the controller
-    final controller = WebViewController();
+    // On web, webview_flutter doesn't support WebView widget.
+    // Show a friendly message instead (web build handles this separately).
+    if (kIsWeb) {
+      setState(() {
+        _errorMessage = 'Resume preview is available in the mobile app.';
+        _isLoading = false;
+      });
+      return;
+    }
 
-    // ============================================================
-    // ✅ ONLY set platform-specific features on non‑web platforms
-    // ============================================================
-    if (!kIsWeb) {
-      try {
-        controller.setJavaScriptMode(JavaScriptMode.unrestricted);
-        controller.setBackgroundColor(const Color(0xFFFFFFFF));
-        controller.setNavigationDelegate(
+    try {
+      _controller = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setBackgroundColor(const Color(0xFFFFFFFF))
+        ..setNavigationDelegate(
           NavigationDelegate(
-            onPageFinished: (String url) {
+            onPageFinished: (_) {
               if (mounted) setState(() => _isLoading = false);
             },
-            onPageStarted: (String url) {
+            onPageStarted: (_) {
               if (mounted) setState(() => _isLoading = true);
             },
-            onWebResourceError: (WebResourceError error) {
+            onWebResourceError: (error) {
               debugPrint('❌ WebView error: ${error.description}');
               if (mounted) {
                 setState(() {
-                  _errorMessage = 'Failed to load resume: ${error.description}';
+                  _errorMessage = 'Failed to load: ${error.description}';
                   _isLoading = false;
                 });
               }
             },
           ),
-        );
-      } catch (e) {
-        debugPrint('⚠️ WebView mobile setup error: $e');
-      }
-    } else {
-      // On web, we intentionally avoid setting any of the above
-      // to prevent "not implemented" exceptions.
-      debugPrint('🌐 Running on web – using minimal WebView configuration');
-    }
-
-    _controller = controller;
-
-    // Load HTML content
-    try {
-      _controller.loadHtmlString(_htmlContent!);
+        )
+        ..loadHtmlString(_htmlContent!);
     } catch (e) {
-      debugPrint('❌ WebView load error: $e');
+      debugPrint('❌ WebView init error: $e');
       setState(() {
-        _errorMessage = 'Error loading HTML content.';
+        _errorMessage = 'Error loading preview: $e';
         _isLoading = false;
       });
     }
@@ -139,7 +120,8 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
                 ),
                 child: Stack(
                   children: [
-                    WebViewWidget(controller: _controller),
+                    if (_controller != null)
+                      WebViewWidget(controller: _controller!),
                     if (_isLoading)
                       const Center(
                         child: Column(
@@ -156,14 +138,17 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.error_outline, size: 60, color: Colors.red),
+                            const Icon(Icons.error_outline,
+                                size: 60, color: Colors.red),
                             const SizedBox(height: 16),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
                               child: Text(
                                 _errorMessage!,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                                style: const TextStyle(
+                                    fontSize: 14, color: Colors.grey),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -210,7 +195,8 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Text(widget.format.icon, style: const TextStyle(fontSize: 28)),
+            child:
+                Text(widget.format.icon, style: const TextStyle(fontSize: 28)),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -241,7 +227,10 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
               ),
               child: Text(
                 widget.format.badgeText,
-                style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold),
               ),
             ),
           const SizedBox(width: 8),
@@ -277,7 +266,6 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
           Expanded(
             child: ElevatedButton.icon(
               onPressed: () {
-                // TODO: Implement PDF download
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('PDF download coming soon!'),
@@ -286,12 +274,16 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
                 );
               },
               icon: const Icon(Icons.picture_as_pdf, size: 20),
-              label: const Text('Download PDF', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              label: const Text(
+                'Download PDF',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.redAccent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ),
@@ -310,12 +302,16 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
                 }
               },
               icon: const Icon(Icons.copy, size: 20),
-              label: const Text('Copy HTML', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              label: const Text(
+                'Copy HTML',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF6C63FF),
                 side: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ),

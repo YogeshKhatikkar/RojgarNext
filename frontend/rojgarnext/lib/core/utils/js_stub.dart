@@ -1,21 +1,19 @@
 // lib/core/utils/js_stub.dart
-// ✅ COMPLETE FIXED VERSION - Safe for both Web and Android builds
-// ✅ NO CONFLICT with the 'web' package (we don't import it)
+// ✅ SAFE FOR ANDROID / iOS / DESKTOP
+// This file NO LONGER imports dart:js or dart:js_util
+// (both were removed from modern Dart SDK).
 
-// Conditional imports. These are only available in a web context.
-import 'dart:js' if (dart.library.js) 'dart:js' as js;
-import 'dart:js_util' if (dart.library.js) 'dart:js_util' as js_util;
-
-/// ✅ Safe wrapper for JsObject
-/// On web: actual JsObject from dart:js
-/// On mobile: a stub that mimics the necessary behavior.
+/// Safe JS-object wrapper — only a stub on native platforms.
 class JsObjectStub {
   final dynamic _obj;
   JsObjectStub(this._obj);
 
-  // Allow dynamic access to properties.
   dynamic operator [](String key) => _obj?[key];
-  void operator []=(String key, dynamic value) { if (_obj != null) _obj[key] = value; }
+
+  void operator []=(String key, dynamic value) {
+    if (_obj != null) _obj[key] = value;
+  }
+
   dynamic callMethod(String methodName, [List<dynamic>? args]) {
     if (_obj == null) return null;
     final method = _obj[methodName];
@@ -26,51 +24,16 @@ class JsObjectStub {
   }
 }
 
-/// ✅ Safe way to get the window object
-/// Returns a JsObjectStub on web, null on other platforms.
-dynamic getWindow() {
-  if (dart.library.js) {
-    try {
-      return JsObjectStub(js.context['window']);
-    } catch (e) {
-      return null;
-    }
-  }
-  return null;
-}
+/// Always null on native.
+dynamic getWindow() => null;
 
-/// ✅ Safe way to call js.allowInterop
-/// Returns a wrapper that behaves like js.allowInterop on web,
-/// or just returns the callback on non-web platforms.
-dynamic allowInterop(dynamic callback) {
-  if (dart.library.js) {
-    try {
-      return js.allowInterop(callback);
-    } catch (e) {
-      return callback;
-    }
-  }
-  return callback;
-}
+/// Returns callback unchanged on native.
+dynamic allowInterop(dynamic callback) => callback;
 
-/// ✅ Safe type aliases for JS types
-/// On web: actual types from dart:js
-/// On mobile: dynamic (stub)
-
-/// JsObject - Safe type alias
+/// Type aliases so legacy code keeps compiling.
 typedef JsObject = dynamic;
-
-/// JsFunction - Safe type alias
 typedef JsFunction = dynamic;
-
-/// JsArray - Safe type alias  
 typedef JsArray = dynamic;
-
-/// JsNumber - Safe type alias
 typedef JsNumber = dynamic;
-
-/// JsArrayBuffer - Safe type alias
 typedef JsArrayBuffer = dynamic;
-
-/// JSAny - Safe type alias
 typedef JSAny = dynamic;
