@@ -1,7 +1,8 @@
 // lib/features/user/presentation/screens/basic_details_screen.dart
 // ✅ ULTRA-FAST - CACHE FIRST, INSTANT LOAD
 // ✅ AI-BASED MODERN DESIGN WITH LARGER TABS
-// ✅ ADDED: birth_place, hobbies, interests, all social links (twitter, facebook, instagram, youtube, personal_website)
+// ✅ FIXED: Save → auto-jump to next tab (no crash) + All tabs always visible
+// ✅ ADDED: birth_place, hobbies, interests, all social links
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/core/master_date/locations.dart';
@@ -41,7 +42,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
   String _nationality = 'Indian';
   String _religion = 'Hindu';
 
-  // ✅ NEW: Hobbies & Interests
+  // ✅ Hobbies & Interests
   List<String> _hobbies = [];
   List<String> _interests = [];
 
@@ -111,7 +112,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
   final TextEditingController _summary = TextEditingController();
   final TextEditingController _careerObjective = TextEditingController();
 
-  // ✅ UPDATED: All social links
+  // ✅ All social links
   final TextEditingController _linkedinUrl = TextEditingController();
   final TextEditingController _githubUrl = TextEditingController();
   final TextEditingController _portfolioUrl = TextEditingController();
@@ -152,8 +153,10 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     'Movies', 'Entrepreneurship', 'AI/ML', 'Startups', 'Research',
   ];
 
-  // ==================== TAB ICONS ====================
-  final List<IconData> _tabIcons = [
+  // ==================== TAB ICONS / LABELS ====================
+  static const int _tabCount = 6;
+
+  final List<IconData> _tabIcons = const [
     Icons.person,
     Icons.category,
     Icons.family_restroom,
@@ -162,25 +165,38 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     Icons.business_center,
   ];
 
-  final List<String> _tabLabels = [
+  final List<String> _tabLabels = const [
     'Basic',
     'Category',
     'Family',
     'Address',
-    'Professional',
+    'Profile',
     'Job',
   ];
+
+  /// ✅ Safety net — never crash even if index goes out of range
+  String get _safeTabLabel {
+    final idx = _currentTabIndex.clamp(0, _tabLabels.length - 1);
+    return _tabLabels[idx];
+  }
+
+  IconData get _safeTabIcon {
+    final idx = _currentTabIndex.clamp(0, _tabIcons.length - 1);
+    return _tabIcons[idx];
+  }
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: _tabCount, vsync: this);
     _loadCountries();
     _loadData();
     _dob.addListener(_calculateAge);
 
+    // ✅ SINGLE source of truth — only sync from controller
     _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
+      if (!mounted) return;
+      if (_currentTabIndex != _tabController.index) {
         setState(() {
           _currentTabIndex = _tabController.index;
         });
@@ -312,9 +328,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
   }
 
   void _onDistrictChanged(String? district) {
-    setState(() {
-      _selectedDistrict = district;
-    });
+    setState(() => _selectedDistrict = district);
   }
 
   void _onPermCountryChanged(String? country) {
@@ -336,9 +350,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
   }
 
   void _onPermDistrictChanged(String? district) {
-    setState(() {
-      _permSelectedDistrict = district;
-    });
+    setState(() => _permSelectedDistrict = district);
   }
 
   void _calculateAge() {
@@ -384,7 +396,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         _religion = _normalizeReligion(_safeString(profile, 'religion', 'Hindu'));
         _category = _safeString(profile, 'category', 'General/UR');
 
-        // ✅ Hobbies & Interests
         final hobbies = profile['hobbies'];
         if (hobbies is List) {
           _hobbies = List<String>.from(hobbies.map((e) => e.toString()));
@@ -481,7 +492,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         _githubUrl.text = _safeString(profile, 'github_url');
         _portfolioUrl.text = _safeString(profile, 'portfolio_url');
 
-        // ✅ Load all social links
         final socialLinks = _safeMap(profile, 'social_links');
         if (socialLinks.isNotEmpty) {
           _linkedinUrl.text = _safeString(socialLinks, 'linkedin', _linkedinUrl.text);
@@ -590,8 +600,12 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     return 'LD (Learning Disability)';
   }
 
+  /// ✅ SAVE → auto-jump to next tab (safe, no double increment)
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      showMessage(context, "Please fill all required fields", isError: true);
+      return;
+    }
 
     setState(() => _isSaving = true);
 
@@ -689,7 +703,11 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         },
         'height': double.tryParse(_height.text.trim()),
         'weight': double.tryParse(_weight.text.trim()),
-        'languages_known': _languagesKnown.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
+        'languages_known': _languagesKnown.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList(),
         'disability': {
           'is_disabled': _isDisable,
           'disability_category': _isDisable ? _disabilityCategory : '',
@@ -700,10 +718,15 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
 
       await UserService.saveProfile(data);
 
-      if (mounted) {
-        await _showAISuccessDialog();
-        _goToNextTab();
-      }
+      if (!mounted) return;
+
+      // ✅ Show success dialog
+      await _showAISuccessDialog();
+
+      if (!mounted) return;
+
+      // ✅ After dialog closes, jump to next tab SAFELY
+      _goToNextTabSafe();
     } catch (e) {
       if (mounted) {
         showMessage(context, "Save failed: $e", isError: true);
@@ -712,6 +735,27 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
       if (mounted) {
         setState(() => _isSaving = false);
       }
+    }
+  }
+
+  /// ✅ SAFE next-tab navigation — never manually increments _currentTabIndex
+  void _goToNextTabSafe() {
+    final current = _tabController.index;
+    if (current < _tabCount - 1) {
+      _tabController.animateTo(current + 1);
+      // Do NOT touch _currentTabIndex — listener handles it
+    } else {
+      // Last tab → just show message, no jump
+      showMessage(context, "All sections completed! ✅", isError: false);
+    }
+  }
+
+  /// ✅ SAFE previous-tab navigation
+  void _goToPreviousTabSafe() {
+    final current = _tabController.index;
+    if (current > 0) {
+      _tabController.animateTo(current - 1);
+      // Do NOT touch _currentTabIndex — listener handles it
     }
   }
 
@@ -779,17 +823,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     );
   }
 
-  void _goToNextTab() {
-    if (_currentTabIndex < 5) {
-      _tabController.animateTo(_currentTabIndex + 1);
-      setState(() {
-        _currentTabIndex = _currentTabIndex + 1;
-      });
-    } else {
-      showMessage(context, "All sections completed! ✅", isError: false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -809,6 +842,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                   key: _formKey,
                   child: TabBarView(
                     controller: _tabController,
+                    physics: const NeverScrollableScrollPhysics(),
                     children: [
                       _buildBasicInfoTab(),
                       _buildCategoryDisabilityTab(),
@@ -828,6 +862,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     );
   }
 
+  /// ✅ NON-SCROLLABLE TAB BAR — all 6 tabs always visible
   Widget _buildTabBar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -841,7 +876,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
       ),
       child: TabBar(
         controller: _tabController,
-        isScrollable: true,
+        isScrollable: false, // ✅ All tabs visible
         labelColor: Colors.white,
         unselectedLabelColor: Colors.grey.shade700,
         indicator: BoxDecoration(
@@ -849,136 +884,140 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
           borderRadius: BorderRadius.circular(12),
         ),
         indicatorSize: TabBarIndicatorSize.tab,
-        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-        unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-        labelPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        tabs: List.generate(6, (index) {
+        labelPadding: EdgeInsets.zero,
+        dividerColor: Colors.transparent,
+        splashBorderRadius: BorderRadius.circular(12),
+        tabs: List.generate(_tabCount, (index) {
           final isSelected = _currentTabIndex == index;
           return Tab(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _tabIcons[index],
-                    size: isSelected ? 20 : 18,
-                    color: isSelected ? Colors.white : Colors.grey.shade600,
+            height: 58,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _tabIcons[index],
+                  size: 18,
+                  color: isSelected ? Colors.white : Colors.grey.shade600,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _tabLabels[index],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected ? Colors.white : Colors.grey.shade700,
                   ),
-                  const SizedBox(width: 6),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _tabLabels[index],
-                        style: TextStyle(
-                          fontSize: isSelected ? 14 : 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? Colors.white : Colors.grey.shade700,
-                        ),
-                      ),
-                      if (isSelected)
-                        Container(
-                          width: 20,
-                          height: 2,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                    ],
-                  ),
-                  if (isSelected)
-                    Container(
-                      margin: const EdgeInsets.only(left: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        "${index + 1}",
-                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                    ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         }),
         onTap: (index) {
-          setState(() {
-            _currentTabIndex = index;
-          });
+          // Listener will sync _currentTabIndex — no setState needed
         },
       ),
     );
   }
 
+  /// ✅ Bottom bar — Save (auto next) + Prev/Next buttons
   Widget _buildBottomBar() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.95),
         boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 10, spreadRadius: 5)],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: List.generate(6, (index) {
-                    return Expanded(
-                      child: Container(
-                        height: 4,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        decoration: BoxDecoration(
-                          color: _currentTabIndex >= index ? const Color(0xFF6C63FF) : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    );
-                  }),
+          // Progress bar
+          Row(
+            children: List.generate(_tabCount, (index) {
+              return Expanded(
+                child: Container(
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: _currentTabIndex >= index ? const Color(0xFF6C63FF) : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  "Step ${_currentTabIndex + 1} of 6 • ${_tabLabels[_currentTabIndex]}",
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
+              );
+            }),
           ),
-          const SizedBox(width: 12),
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 10, spreadRadius: 2)],
-            ),
-            child: ElevatedButton(
-              onPressed: _isSaving ? null : _saveProfile,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Text(
+                "Step ${_currentTabIndex + 1} of $_tabCount • $_safeTabLabel",
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
               ),
-              child: _isSaving
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Row(
-                      children: [
-                        Icon(Icons.save, size: 18),
-                        SizedBox(width: 6),
-                        Text("Save", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-            ),
+              const Spacer(),
+              // Prev button
+              if (_currentTabIndex > 0)
+                IconButton(
+                  onPressed: _goToPreviousTabSafe,
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 16, color: Color(0xFF6C63FF)),
+                  tooltip: "Previous",
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.grey.shade100,
+                    padding: const EdgeInsets.all(8),
+                  ),
+                ),
+              if (_currentTabIndex > 0) const SizedBox(width: 8),
+              // Save button — auto jumps to next tab after save
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 10, spreadRadius: 2),
+                  ],
+                ),
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _saveProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.save, size: 18),
+                            const SizedBox(width: 6),
+                            Text(
+                              _currentTabIndex < _tabCount - 1 ? "Save & Next" : "Save",
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Next button — manual serial navigation
+              if (_currentTabIndex < _tabCount - 1)
+                IconButton(
+                  onPressed: _goToNextTabSafe,
+                  icon: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white),
+                  tooltip: "Next",
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFF6C63FF),
+                    padding: const EdgeInsets.all(10),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -1005,7 +1044,9 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 20, spreadRadius: 5)],
+                        boxShadow: [
+                          BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 20, spreadRadius: 5),
+                        ],
                       ),
                       child: const Center(child: Icon(Icons.auto_awesome, color: Colors.white, size: 40)),
                     ),
@@ -1014,7 +1055,9 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
               ),
               const SizedBox(height: 30),
               ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]).createShader(bounds),
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                ).createShader(bounds),
                 child: const Text(
                   "AI is loading your profile...",
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
@@ -1048,24 +1091,32 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
-        boxShadow: [BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 20, spreadRadius: 5)],
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 20, spreadRadius: 5),
+        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-            child: const Icon(Icons.person_outline, color: Colors.white, size: 24),
+            child: Icon(_safeTabIcon, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Complete Your Profile", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                const Text(
+                  "Complete Your Profile",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
                 Text(
-                  "Step ${_currentTabIndex + 1} of 6 • ${_tabLabels[_currentTabIndex]}",
+                  "Step ${_currentTabIndex + 1} of $_tabCount • $_safeTabLabel",
                   style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.8)),
                 ),
               ],
@@ -1075,7 +1126,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
             child: Text(
-              "${_currentTabIndex + 1}/6",
+              "${_currentTabIndex + 1}/$_tabCount",
               style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
@@ -1247,7 +1298,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
               lastDate: DateTime.now(),
             );
             if (picked != null && mounted) {
-              ctrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+              ctrl.text =
+                  "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
               _calculateAge();
             }
           },
@@ -1348,7 +1400,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                   children: [
                     const Icon(Icons.cake, color: Colors.white, size: 18),
                     const SizedBox(width: 8),
-                    Text("Age: $_age years", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                    Text("Age: $_age years",
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
                   ],
                 ),
               ),
@@ -1412,7 +1465,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Disability Information", Icons.accessible, subtitle: "Toggle if you have any disability"),
+                _sectionHeader("Disability Information", Icons.accessible,
+                    subtitle: "Toggle if you have any disability"),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -1622,7 +1676,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                     children: [
                       Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
                       const SizedBox(width: 10),
-                      const Text("Emergency Contact", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
+                      const Text("Emergency Contact",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
                     ],
                   ),
                 ),
@@ -1663,7 +1718,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                 _buildAIDropdown<String>(_selectedCountry, _countries, "Country", onChanged: _onCountryChanged),
                 _buildAIDropdown<String>(_selectedState, _states, "State", onChanged: _onStateChanged),
                 _buildAIDropdown<String>(_selectedDistrict, _districts, "District", onChanged: _onDistrictChanged),
-                _buildAITextField(_currPincode, "Pincode", keyboardType: TextInputType.number, prefixIcon: Icons.pin_drop),
+                _buildAITextField(_currPincode, "Pincode",
+                    keyboardType: TextInputType.number, prefixIcon: Icons.pin_drop),
                 _buildAITextField(_currLandmark, "Landmark", prefixIcon: Icons.place),
               ],
             ),
@@ -1673,7 +1729,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Permanent Address", Icons.location_city, subtitle: "Your permanent residential address"),
+                _sectionHeader("Permanent Address", Icons.location_city,
+                    subtitle: "Your permanent residential address"),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -1688,13 +1745,18 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                         onChanged: (value) => setState(() => _sameAsCurrent = value ?? false),
                         activeColor: const Color(0xFF6C63FF),
                       ),
-                      const Text("Same as Current Address", style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87)),
+                      const Text("Same as Current Address",
+                          style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87)),
                       const Spacer(),
                       if (_sameAsCurrent)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                          child: const Text("✓ Auto-filled", style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text("✓ Auto-filled",
+                              style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
                         ),
                     ],
                   ),
@@ -1706,12 +1768,17 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                   _buildAITextField(_permPostOffice, "Post Office", prefixIcon: Icons.markunread_mailbox),
                   _buildAITextField(_permTehsil, "Tehsil/Taluka", prefixIcon: Icons.map),
                   const SizedBox(height: 8),
-                  const Text("Select Location", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
+                  const Text("Select Location",
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
                   const SizedBox(height: 8),
-                  _buildAIDropdown<String>(_permSelectedCountry, _countries, "Country", onChanged: _onPermCountryChanged),
-                  _buildAIDropdown<String>(_permSelectedState, _permStates, "State", onChanged: _onPermStateChanged),
-                  _buildAIDropdown<String>(_permSelectedDistrict, _permDistricts, "District", onChanged: _onPermDistrictChanged),
-                  _buildAITextField(_permPincode, "Pincode", keyboardType: TextInputType.number, prefixIcon: Icons.pin_drop),
+                  _buildAIDropdown<String>(_permSelectedCountry, _countries, "Country",
+                      onChanged: _onPermCountryChanged),
+                  _buildAIDropdown<String>(_permSelectedState, _permStates, "State",
+                      onChanged: _onPermStateChanged),
+                  _buildAIDropdown<String>(_permSelectedDistrict, _permDistricts, "District",
+                      onChanged: _onPermDistrictChanged),
+                  _buildAITextField(_permPincode, "Pincode",
+                      keyboardType: TextInputType.number, prefixIcon: Icons.pin_drop),
                   _buildAITextField(_permLandmark, "Landmark", prefixIcon: Icons.place),
                 ],
               ],
@@ -1731,7 +1798,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Professional Summary", Icons.description, subtitle: "Tell about your professional background"),
+                _sectionHeader("Professional Summary", Icons.description,
+                    subtitle: "Tell about your professional background"),
                 _buildAITextField(_summary, "Short Summary/Bio", maxLines: 3, prefixIcon: Icons.description),
                 _buildAITextField(_careerObjective, "Career Objective", maxLines: 3, prefixIcon: Icons.flag),
               ],
@@ -1742,15 +1810,24 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Social & Professional Links", Icons.link, subtitle: "Connect your professional profiles"),
-                _buildAITextField(_linkedinUrl, "LinkedIn URL", hintText: "https://linkedin.com/in/your-profile", prefixIcon: Icons.link),
-                _buildAITextField(_githubUrl, "GitHub URL", hintText: "https://github.com/your-username", prefixIcon: Icons.code),
-                _buildAITextField(_portfolioUrl, "Portfolio Website", hintText: "https://your-portfolio.com", prefixIcon: Icons.web),
-                _buildAITextField(_twitterUrl, "Twitter / X URL", hintText: "https://twitter.com/username", prefixIcon: Icons.alternate_email),
-                _buildAITextField(_facebookUrl, "Facebook URL", hintText: "https://facebook.com/username", prefixIcon: Icons.facebook),
-                _buildAITextField(_instagramUrl, "Instagram URL", hintText: "https://instagram.com/username", prefixIcon: Icons.camera_alt),
-                _buildAITextField(_youtubeUrl, "YouTube Channel", hintText: "https://youtube.com/@channel", prefixIcon: Icons.play_circle),
-                _buildAITextField(_personalWebsiteUrl, "Personal Website", hintText: "https://yourwebsite.com", prefixIcon: Icons.public),
+                _sectionHeader("Social & Professional Links", Icons.link,
+                    subtitle: "Connect your professional profiles"),
+                _buildAITextField(_linkedinUrl, "LinkedIn URL",
+                    hintText: "https://linkedin.com/in/your-profile", prefixIcon: Icons.link),
+                _buildAITextField(_githubUrl, "GitHub URL",
+                    hintText: "https://github.com/your-username", prefixIcon: Icons.code),
+                _buildAITextField(_portfolioUrl, "Portfolio Website",
+                    hintText: "https://your-portfolio.com", prefixIcon: Icons.web),
+                _buildAITextField(_twitterUrl, "Twitter / X URL",
+                    hintText: "https://twitter.com/username", prefixIcon: Icons.alternate_email),
+                _buildAITextField(_facebookUrl, "Facebook URL",
+                    hintText: "https://facebook.com/username", prefixIcon: Icons.facebook),
+                _buildAITextField(_instagramUrl, "Instagram URL",
+                    hintText: "https://instagram.com/username", prefixIcon: Icons.camera_alt),
+                _buildAITextField(_youtubeUrl, "YouTube Channel",
+                    hintText: "https://youtube.com/@channel", prefixIcon: Icons.play_circle),
+                _buildAITextField(_personalWebsiteUrl, "Personal Website",
+                    hintText: "https://yourwebsite.com", prefixIcon: Icons.public),
               ],
             ),
           ),
@@ -1760,8 +1837,10 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _sectionHeader("Physical Attributes", Icons.fitness_center, subtitle: "Your physical measurements"),
-                _buildAITextField(_height, "Height (cm)", keyboardType: TextInputType.number, prefixIcon: Icons.height),
-                _buildAITextField(_weight, "Weight (kg)", keyboardType: TextInputType.number, prefixIcon: Icons.monitor_weight),
+                _buildAITextField(_height, "Height (cm)",
+                    keyboardType: TextInputType.number, prefixIcon: Icons.height),
+                _buildAITextField(_weight, "Weight (kg)",
+                    keyboardType: TextInputType.number, prefixIcon: Icons.monitor_weight),
               ],
             ),
           ),
@@ -1781,6 +1860,35 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// ✅ CheckboxListTile wrapped in Material to fix ink splash warning
+  Widget _buildToggleTile({
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: CheckboxListTile(
+          title: Text(title, style: const TextStyle(fontSize: 12)),
+          value: value,
+          onChanged: (v) => onChanged(v ?? false),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+          activeColor: const Color(0xFF6C63FF),
+          controlAffinity: ListTileControlAffinity.leading,
+          dense: true,
+        ),
       ),
     );
   }
@@ -1810,40 +1918,18 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             Row(
               children: [
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: CheckboxListTile(
-                      title: const Text("Open to Relocate", style: TextStyle(fontSize: 12)),
-                      value: _openToRelocate,
-                      onChanged: (value) => setState(() => _openToRelocate = value ?? false),
-                      contentPadding: EdgeInsets.zero,
-                      activeColor: const Color(0xFF6C63FF),
-                      controlAffinity: ListTileControlAffinity.leading,
-                    ),
+                  child: _buildToggleTile(
+                    title: "Open to Relocate",
+                    value: _openToRelocate,
+                    onChanged: (v) => setState(() => _openToRelocate = v),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: CheckboxListTile(
-                      title: const Text("Open to Remote", style: TextStyle(fontSize: 12)),
-                      value: _openToRemoteWork,
-                      onChanged: (value) => setState(() => _openToRemoteWork = value ?? false),
-                      contentPadding: EdgeInsets.zero,
-                      activeColor: const Color(0xFF6C63FF),
-                      controlAffinity: ListTileControlAffinity.leading,
-                    ),
+                  child: _buildToggleTile(
+                    title: "Open to Remote",
+                    value: _openToRemoteWork,
+                    onChanged: (v) => setState(() => _openToRemoteWork = v),
                   ),
                 ),
               ],

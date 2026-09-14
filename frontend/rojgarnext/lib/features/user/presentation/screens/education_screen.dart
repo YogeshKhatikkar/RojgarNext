@@ -7,6 +7,10 @@
 // ✅ FIXED: Delete now works with proper error surfacing
 // ✅ ADDED: Auto-scroll to form on edit + editing highlight
 // ✅ FIXED: Robust ID extraction (String / MongoDB $oid / nested maps / int)
+// ✅ FIXED: Qualification Level visible in saved records
+// ✅ FIXED: NO duplicate level (chip shows level; title shows degree/stream only)
+// ✅ FIXED: _getLevelColor returns MaterialColor (so .shadeXXX works)
+// ✅ FIXED: No stray characters at end of file
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
@@ -55,7 +59,6 @@ class _EducationScreenState extends State<EducationScreen> {
 
   String? _editingId;
 
-  // ✅ Scroll helpers
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _formKey = GlobalKey();
 
@@ -94,7 +97,39 @@ class _EducationScreenState extends State<EducationScreen> {
     super.dispose();
   }
 
-  // ✅ Build options list for a level WITHOUT touching current selections
+  // ============================================================
+  // HELPERS
+  // ============================================================
+
+  bool _isNonEmpty(dynamic v) =>
+      v != null && v.toString().trim().isNotEmpty;
+
+  /// Extra identifier shown NEXT to the level chip (degree / stream).
+  /// Returns EMPTY when level alone is enough (10th / 12th without stream).
+  String _getEducationTitle(Map<String, dynamic> edu) {
+    final degree = (edu['degree'] ?? '').toString().trim();
+    final stream = (edu['stream'] ?? '').toString().trim();
+    final level = (edu['level'] ?? '').toString().trim();
+
+    if (degree.isNotEmpty) return degree;
+
+    if (stream.isNotEmpty &&
+        (level == '12th' || level == 'Vocational')) {
+      return stream;
+    }
+    return '';
+  }
+
+  /// Full title for snackbars / delete dialog (level + degree fallback).
+  String _getEducationFullTitle(Map<String, dynamic> edu) {
+    final degree = (edu['degree'] ?? '').toString().trim();
+    final level = (edu['level'] ?? '').toString().trim();
+    if (degree.isNotEmpty) {
+      return level.isNotEmpty ? '$level • $degree' : degree;
+    }
+    return level.isNotEmpty ? level : 'Education';
+  }
+
   void _rebuildOptionsForLevel(String level) {
     _degreeOptions = [];
     _streamOptions = [];
@@ -133,7 +168,6 @@ class _EducationScreenState extends State<EducationScreen> {
     }
   }
 
-  // ✅ Reset everything (used on level change)
   void _updateOptionsForLevel(String level) {
     setState(() {
       _selectedDegree = '';
@@ -193,36 +227,30 @@ class _EducationScreenState extends State<EducationScreen> {
     } catch (e) {
       debugPrint("❌ Error loading education: $e");
       if (mounted) {
-        showMessage(context, "Failed to load education: $e",
-            isError: true);
+        showMessage(context, "Failed to load education: $e", isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // ✅ Duplicate check
   bool _isDuplicateEducation() {
     return _educationList.any((edu) {
       final eduId = _getId(edu);
       if (eduId != null && eduId == _editingId) return false;
-      final sameLevel = (edu['level'] ?? '')
-              .toString()
-              .toLowerCase() ==
-          _selectedLevel.toLowerCase();
-      final sameDegree = (edu['degree'] ?? '')
-              .toString()
-              .toLowerCase() ==
-          _selectedDegree.toLowerCase();
-      final sameInstitute = (edu['institute'] ?? '')
-              .toString()
-              .toLowerCase() ==
-          _instituteCtrl.text.trim().toLowerCase();
+      final sameLevel =
+          (edu['level'] ?? '').toString().toLowerCase() ==
+              _selectedLevel.toLowerCase();
+      final sameDegree =
+          (edu['degree'] ?? '').toString().toLowerCase() ==
+              _selectedDegree.toLowerCase();
+      final sameInstitute =
+          (edu['institute'] ?? '').toString().toLowerCase() ==
+              _instituteCtrl.text.trim().toLowerCase();
       return sameLevel && sameDegree && sameInstitute;
     });
   }
 
-  // ✅ Handles String, MongoDB {$oid}, nested maps, int, etc.
   String? _extractId(dynamic raw) {
     if (raw == null) return null;
     if (raw is String) return raw.trim().isEmpty ? null : raw.trim();
@@ -246,7 +274,6 @@ class _EducationScreenState extends State<EducationScreen> {
     return (s.isEmpty || s == 'null' || s == 'undefined') ? null : s;
   }
 
-  // ✅ Robust ID extraction — tries every common field name
   String? _getId(Map<String, dynamic> item) {
     final id = _extractId(item['_id']) ??
         _extractId(item['id']) ??
@@ -261,7 +288,6 @@ class _EducationScreenState extends State<EducationScreen> {
     return id;
   }
 
-  // ✅ Scroll to form
   void _scrollToForm() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ctx = _formKey.currentContext;
@@ -276,7 +302,6 @@ class _EducationScreenState extends State<EducationScreen> {
     });
   }
 
-  // ✅ Edit preserves saved values & scrolls to form
   void _startEdit(Map<String, dynamic> item) {
     setState(() {
       _editingId = _getId(item);
@@ -305,8 +330,7 @@ class _EducationScreenState extends State<EducationScreen> {
       _rebuildOptionsForLevel(_selectedLevel);
     });
 
-    showMessage(context,
-        "✏️ Editing: ${item['degree'] ?? item['level'] ?? 'Education'}");
+    showMessage(context, "✏️ Editing: ${_getEducationFullTitle(item)}");
     _scrollToForm();
   }
 
@@ -355,8 +379,7 @@ class _EducationScreenState extends State<EducationScreen> {
         _basicLevel = 'None';
         await _loadEducation(forceRefresh: true);
         if (mounted) {
-          showMessage(context,
-              "✅ Switched to Formal Education Mode.");
+          showMessage(context, "✅ Switched to Formal Education Mode.");
         }
       } else {
         await UserService.saveProfile({'is_educated': false});
@@ -364,14 +387,12 @@ class _EducationScreenState extends State<EducationScreen> {
         _clearForm();
         await _loadEducation(forceRefresh: true);
         if (mounted) {
-          showMessage(context,
-              "✅ Switched to Basic Literacy Mode.");
+          showMessage(context, "✅ Switched to Basic Literacy Mode.");
         }
       }
     } catch (e) {
       if (mounted) {
-        showMessage(context, "Failed to switch mode: $e",
-            isError: true);
+        showMessage(context, "Failed to switch mode: $e", isError: true);
       }
       if (mounted) setState(() => _isEducated = !value);
     } finally {
@@ -409,8 +430,7 @@ class _EducationScreenState extends State<EducationScreen> {
       'board_university':
           _boardOptions.isNotEmpty ? _selectedBoard : _boardCtrl.text.trim(),
       'year_of_passing': int.tryParse(_yearCtrl.text.trim()) ?? 0,
-      'cgpa_percentage':
-          double.tryParse(_percentageCtrl.text.trim()),
+      'cgpa_percentage': double.tryParse(_percentageCtrl.text.trim()),
       'result_type': _selectedResultType,
       'grade': _gradeCtrl.text.trim(),
       'medium': _mediumCtrl.text.trim(),
@@ -428,8 +448,10 @@ class _EducationScreenState extends State<EducationScreen> {
           .toList(),
     };
 
+    final wasEditing = _editingId != null;
+
     try {
-      if (_editingId != null) {
+      if (wasEditing) {
         await UserService.updateEducation(_editingId!, payload);
       } else {
         await UserService.addEducation(payload);
@@ -439,9 +461,9 @@ class _EducationScreenState extends State<EducationScreen> {
       if (mounted) {
         showMessage(
             context,
-            _editingId == null
-                ? "Education saved successfully!"
-                : "Education updated successfully!");
+            wasEditing
+                ? "Education updated successfully!"
+                : "Education saved successfully!");
       }
     } catch (e) {
       if (mounted) showMessage(context, e.toString(), isError: true);
@@ -481,7 +503,6 @@ class _EducationScreenState extends State<EducationScreen> {
     }
   }
 
-  // ✅ FIXED: Reliable delete with proper error surfacing
   Future<void> _deleteEducation(String? id, String degree) async {
     debugPrint('🗑️ _deleteEducation called → id=$id, degree=$degree');
 
@@ -547,16 +568,13 @@ class _EducationScreenState extends State<EducationScreen> {
       ),
     );
 
-    debugPrint('🗑️ Confirm dialog result: $confirmed');
     if (confirmed != true) return;
     if (!mounted) return;
 
     setState(() => _isSaving = true);
 
     try {
-      debugPrint('🗑️ Calling UserService.deleteEducation($id) ...');
       await UserService.deleteEducation(id);
-      debugPrint('✅ Delete API success');
 
       if (_editingId == id) {
         _clearForm();
@@ -599,7 +617,8 @@ class _EducationScreenState extends State<EducationScreen> {
     }
   }
 
-  Color _getLevelColor(String level) {
+  // ✅ Return type is MaterialColor so .shade50 / .shade100 / .shade700 work.
+  MaterialColor _getLevelColor(String level) {
     switch (level) {
       case '10th':
         return Colors.blue;
@@ -1310,8 +1329,7 @@ class _EducationScreenState extends State<EducationScreen> {
               itemBuilder: (context, index) {
                 final edu = _educationList[index];
                 final id = _getId(edu) ?? 'idx_$index';
-                return _buildEducationCard(edu, index,
-                    key: ValueKey(id));
+                return _buildEducationCard(edu, index, key: ValueKey(id));
               },
             ),
         ],
@@ -1356,6 +1374,16 @@ class _EducationScreenState extends State<EducationScreen> {
     final id = _getId(edu);
     final isEditing = _editingId != null && _editingId == id;
 
+    // ✅ FIX: title shows ONLY degree / stream (empty for 10th / 12th w/o stream)
+    final displayTitle = _getEducationTitle(edu);
+
+    final yearStr = _isNonEmpty(edu['year_of_passing'])
+        ? edu['year_of_passing'].toString()
+        : '-';
+    final scoreStr = edu['cgpa_percentage'] != null
+        ? ' | ${edu['result_type'] ?? "Score"}: ${edu['cgpa_percentage']}'
+        : '';
+
     return Container(
       key: key,
       margin: const EdgeInsets.only(bottom: 12),
@@ -1384,15 +1412,41 @@ class _EducationScreenState extends State<EducationScreen> {
         ),
         title: Row(
           children: [
-            Expanded(
-              child: Text(
-                edu['degree'] ?? edu['level'] ?? '',
-                style: const TextStyle(
+            // ✅ Level chip — ALWAYS shown
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: levelColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  (edu['level'] ?? 'Education').toString(),
+                  style: TextStyle(
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87),
-                overflow: TextOverflow.ellipsis,
+                    color: levelColor.shade700,
+                  ),
+                ),
               ),
             ),
+
+            // ✅ Extra title (degree / stream) — only if non-empty
+            if (displayTitle.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  displayTitle,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ] else
+              const Spacer(),
+
             if (isEditing)
               Container(
                 margin: const EdgeInsets.only(left: 6),
@@ -1412,11 +1466,14 @@ class _EducationScreenState extends State<EducationScreen> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(edu['institute'] ?? '',
+            if (_isNonEmpty(edu['institute']))
+              Text(
+                edu['institute'].toString(),
                 style: TextStyle(
-                    color: Colors.grey.shade700, fontSize: 13)),
+                    color: Colors.grey.shade700, fontSize: 13),
+              ),
             Text(
-              "Year: ${edu['year_of_passing']}${edu['cgpa_percentage'] != null ? ' | ${edu['result_type'] ?? "Score"}: ${edu['cgpa_percentage']}' : ''}",
+              "Year: $yearStr$scoreStr",
               style: TextStyle(
                   fontSize: 12, color: Colors.grey.shade600),
             ),
@@ -1439,8 +1496,6 @@ class _EducationScreenState extends State<EducationScreen> {
                   : () => _startEdit(edu),
             ),
             const SizedBox(width: 6),
-            // ✅ FIX: no longer disables when id == null —
-            // the method itself shows an informative message
             _buildActionIcon(
               icon: Icons.delete,
               iconColor: Colors.red.shade700,
@@ -1448,11 +1503,7 @@ class _EducationScreenState extends State<EducationScreen> {
               tooltip: "Delete",
               onTap: _isSaving
                   ? null
-                  : () => _deleteEducation(
-                        id,
-                        (edu['degree'] ?? edu['level'] ?? 'Education')
-                            .toString(),
-                      ),
+                  : () => _deleteEducation(id, _getEducationFullTitle(edu)),
             ),
           ],
         ),
@@ -1462,29 +1513,30 @@ class _EducationScreenState extends State<EducationScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (edu['stream'] != null &&
-                    edu['stream'].toString().isNotEmpty)
+                if (_isNonEmpty(edu['level']))
+                  _buildDetailRow(Icons.school, "Level",
+                      edu['level'].toString()),
+                if (_isNonEmpty(edu['degree']))
+                  _buildDetailRow(Icons.workspace_premium, "Degree",
+                      edu['degree'].toString()),
+                if (_isNonEmpty(edu['stream']))
                   _buildDetailRow(
-                      Icons.category, "Stream", edu['stream']),
-                if (edu['board_university'] != null &&
-                    edu['board_university'].toString().isNotEmpty)
+                      Icons.category, "Stream", edu['stream'].toString()),
+                if (_isNonEmpty(edu['board_university']))
                   _buildDetailRow(Icons.account_balance,
-                      "Board/University", edu['board_university']),
-                if (edu['medium'] != null &&
-                    edu['medium'].toString().isNotEmpty)
+                      "Board/University", edu['board_university'].toString()),
+                if (_isNonEmpty(edu['medium']))
                   _buildDetailRow(
-                      Icons.language, "Medium", edu['medium']),
-                if (edu['grade'] != null &&
-                    edu['grade'].toString().isNotEmpty)
+                      Icons.language, "Medium", edu['medium'].toString()),
+                if (_isNonEmpty(edu['grade']))
                   _buildDetailRow(
-                      Icons.grade, "Grade", edu['grade']),
+                      Icons.grade, "Grade", edu['grade'].toString()),
                 if (edu['backlogs'] != null)
                   _buildDetailRow(Icons.warning, "Backlogs",
                       edu['backlogs'].toString()),
-                if (edu['certificate_url'] != null &&
-                    edu['certificate_url'].toString().isNotEmpty)
+                if (_isNonEmpty(edu['certificate_url']))
                   _buildDetailRow(Icons.link, "Certificate",
-                      edu['certificate_url']),
+                      edu['certificate_url'].toString()),
                 if (edu['subjects'] != null &&
                     (edu['subjects'] as List).isNotEmpty)
                   _buildListRow(

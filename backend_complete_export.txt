@@ -1,7 +1,7 @@
 ================================================================================
 ROJARGAR NEXT BACKEND - COMPLETE CODE EXPORT (SANITIZED)
 ================================================================================
-Generated: 2026-09-13 20:54:52
+Generated: 2026-09-14 12:02:29
 Source: E:\YOGESH\website\RojgarNext\backend\rojgarnext
 Total Files: 155
   - Python Files: 151
@@ -39962,12 +39962,13 @@ print("✅ Ultra Career Guidance Routes loaded - Using Unified AI Insights Colle
 
 ================================================================================
 [ 147/ 155] 🐍 PYTHON FILE: app\modules\user\routes.py
-📏 SIZE: 60,273 bytes
-🕐 MODIFIED: 2026-09-10 10:40:32
+📏 SIZE: 61,359 bytes
+🕐 MODIFIED: 2026-09-13 21:00:14
 
 ================================================================================
 
 # app/modules/user/routes.py - COMPLETE FIXED VERSION WITH MIME TYPE CHECKING
+# ✅ Added: DELETE /education/{id}  ✅ Added: DELETE /experience/{id}
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, BackgroundTasks, UploadFile, File, Form
 from typing import Optional, List, Dict, Any
@@ -40002,11 +40003,11 @@ async def get_contact_details(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     user = await db.auth.find_one({"email": email})
     mobile = user.get("mobile", "") if user else ""
     name = user.get("name", "") if user else ""
-    
+
     return {
         "email": email,
         "mobile": mobile,
@@ -40577,6 +40578,24 @@ async def update_education(
     return await service.update_education(email, qual_id, qualification)
 
 
+# ✅ NEW: DELETE education record
+@router.delete("/education/{qual_id}")
+async def delete_education(
+    qual_id: str,
+    email: Optional[str] = Query(None),  # optional; ignored — JWT email used
+    service: ProfileService = Depends(get_profile_service),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Delete an education record by its `_id`.
+    Frontend may send `?email=...` — we ignore it and use the JWT email instead.
+    """
+    user_email = current_user.get("email")
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+    return await service.delete_education(user_email, qual_id)
+
+
 # ================= EXPERIENCE =================
 @router.get("/experience")
 async def get_experience(
@@ -40615,6 +40634,24 @@ async def update_experience(
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
     return await service.update_experience(email, exp_id, experience)
+
+
+# ✅ NEW: DELETE experience record
+@router.delete("/experience/{exp_id}")
+async def delete_experience(
+    exp_id: str,
+    email: Optional[str] = Query(None),  # optional; ignored — JWT email used
+    service: ProfileService = Depends(get_profile_service),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Delete an experience record by its `_id`.
+    Frontend may send `?email=...` — we ignore it and use the JWT email instead.
+    """
+    user_email = current_user.get("email")
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+    return await service.delete_experience(user_email, exp_id)
 
 
 # ================= SKILLS =================
@@ -40959,10 +40996,10 @@ async def get_saved_jobs(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     user = await db.auth.find_one({"email": email})
     saved_job_ids = user.get("saved_jobs", []) if user else []
-    
+
     jobs = []
     for job_id in saved_job_ids:
         try:
@@ -40970,14 +41007,14 @@ async def get_saved_jobs(
                 obj_id = ObjectId(job_id)
             else:
                 obj_id = job_id
-            
+
             job = await db.job.find_one({"_id": obj_id})
             if job:
                 job["_id"] = str(job["_id"])
                 jobs.append(job)
         except Exception:
             continue
-    
+
     return {"saved_jobs": jobs}
 
 
@@ -40991,11 +41028,11 @@ async def save_job(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     job_id = data.get("job_id")
     if not job_id:
         raise HTTPException(status_code=400, detail="Job ID required")
-    
+
     try:
         obj_id = ObjectId(job_id) if isinstance(job_id, str) and len(job_id) == 24 else job_id
         job_exists = await db.job.find_one({"_id": obj_id})
@@ -41003,12 +41040,12 @@ async def save_job(
             raise HTTPException(status_code=404, detail="Job not found")
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid job ID")
-    
+
     await db.auth.update_one(
         {"email": email},
         {"$addToSet": {"saved_jobs": job_id}}
     )
-    
+
     return {"message": "Job saved successfully", "success": True}
 
 
@@ -41022,12 +41059,12 @@ async def unsave_job(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     await db.auth.update_one(
         {"email": email},
         {"$pull": {"saved_jobs": job_id}}
     )
-    
+
     return {"message": "Job removed from saved", "success": True}
 
 
@@ -41091,17 +41128,17 @@ async def get_ultra_ai_analysis(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     profile = await db.profile.find_one({"email": email})
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-    
+
     jobs = await db.job.find({"status": "open"}).limit(50).to_list(50)
-    
+
     career_analysis = await ultra_ai_engine._deep_candidate_analysis(profile, {})
     job_matches = await ultra_ai_engine.auto_job_matching(profile, jobs)
     predictions = await ultra_ai_engine.predictive_analytics(30)
-    
+
     return {
         "career_analysis": career_analysis,
         "top_job_matches": job_matches[:5],
@@ -41119,24 +41156,24 @@ async def get_ai_resume_score(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     profile = await db.profile.find_one({"email": email})
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-    
+
     score = 0
     suggestions = []
-    
+
     if profile.get('full_name'):
         score += 10
     else:
         suggestions.append("Add your full name")
-    
+
     if profile.get('summary'):
         score += 15
     else:
         suggestions.append("Add a professional summary")
-    
+
     skills_count = len(profile.get('skills', []))
     if skills_count >= 10:
         score += 20
@@ -41146,7 +41183,7 @@ async def get_ai_resume_score(
     else:
         score += 5
         suggestions.append("Add at least 5-10 relevant skills")
-    
+
     exp_count = len(profile.get('experience', []))
     if exp_count >= 3:
         score += 20
@@ -41155,28 +41192,28 @@ async def get_ai_resume_score(
         suggestions.append("Add more work experience details")
     else:
         suggestions.append("Add work experience or internships")
-    
+
     edu_count = len(profile.get('academic_records', []))
     if edu_count >= 2:
         score += 15
     elif edu_count >= 1:
         score += 10
         suggestions.append("Add your educational qualifications")
-    
+
     project_count = len(profile.get('projects', []))
     if project_count >= 3:
         score += 10
     elif project_count >= 1:
         score += 5
         suggestions.append("Add more projects to showcase your work")
-    
+
     cert_count = len(profile.get('certifications', []))
     if cert_count >= 2:
         score += 10
     elif cert_count >= 1:
         score += 5
         suggestions.append("Add relevant certifications")
-    
+
     return {
         "resume_score": min(100, score),
         "rating": "Excellent" if score >= 80 else "Good" if score >= 60 else "Average" if score >= 40 else "Needs Improvement",
@@ -41190,25 +41227,26 @@ async def get_ai_resume_score(
 async def _generate_personalized_actions(profile: Dict, analysis: Dict) -> List[str]:
     """Generate personalized action items"""
     actions = []
-    
+
     if analysis.get('skill_match', 0) < 60:
         actions.append("Focus on developing in-demand skills")
-    
+
     if len(profile.get('projects', [])) < 2:
         actions.append("Build and showcase personal projects")
-    
+
     if len(profile.get('certifications', [])) < 2:
         actions.append("Get relevant certifications")
-    
+
     if not profile.get('summary'):
         actions.append("Write a compelling professional summary")
-    
+
     if not actions:
         actions.append("Start applying to matching jobs")
         actions.append("Network with industry professionals")
         actions.append("Keep your profile updated")
-    
+
     return actions[:5]
+
 
 # ==================== EDUCATIONAL BACKGROUND ====================
 @router.get("/educational-background")
@@ -41329,16 +41367,16 @@ async def get_user_profile_by_email(
     # Check if user has admin access
     user_role = current_user.get("role", "").lower()
     allowed_roles = ["admin", "customadmin", "superadmin", "custom_admin"]
-    
+
     if user_role not in allowed_roles:
         raise HTTPException(
-            status_code=403, 
+            status_code=403,
             detail="Access denied. Only admin can view other user profiles."
         )
-    
+
     # Fetch profile by email
     profile = await db.profile.find_one({"email": email})
-    
+
     if not profile:
         # Try to get from auth if profile doesn't exist
         auth_user = await db.auth.find_one({"email": email})
@@ -41351,14 +41389,14 @@ async def get_user_profile_by_email(
             }
         else:
             raise HTTPException(status_code=404, detail=f"User with email {email} not found")
-    
+
     # Convert ObjectId to string
     if "_id" in profile:
         profile["_id"] = str(profile["_id"])
-    
+
     # Ensure all fields exist with defaults
     profile = _ensure_profile_defaults(profile)
-    
+
     return {
         "success": True,
         "data": profile,
@@ -41368,7 +41406,7 @@ async def get_user_profile_by_email(
 
 def _ensure_profile_defaults(profile: dict) -> dict:
     """Ensure all profile fields have default values"""
-    
+
     # Basic fields
     defaults = {
         "full_name": "",
@@ -41382,7 +41420,7 @@ def _ensure_profile_defaults(profile: dict) -> dict:
         "nationality": "Indian",
         "religion": "",
         "category": "General/UR",
-        
+
         # Disability
         "disability": {
             "is_disabled": False,
@@ -41392,7 +41430,7 @@ def _ensure_profile_defaults(profile: dict) -> dict:
             "physically_challenged": "No",
             "certificate_verified": False
         },
-        
+
         # Family
         "father_name": "",
         "mother_name": "",
@@ -41401,12 +41439,12 @@ def _ensure_profile_defaults(profile: dict) -> dict:
         "marital_status": "Unmarried",
         "family_annual_income": None,
         "number_of_dependents": None,
-        
+
         # Contact
         "alternate_mobile": "",
         "whatsapp_number": "",
         "emergency_contact": {"name": "", "relationship": "", "phone": ""},
-        
+
         # Address
         "current_address": {
             "house_number": "", "village_name": "", "post_office": "",
@@ -41415,14 +41453,14 @@ def _ensure_profile_defaults(profile: dict) -> dict:
         },
         "permanent_address": {},
         "same_as_current": True,
-        
+
         # Professional
         "summary": "",
         "career_objective": "",
-        
+
         # Social Links
         "social_links": {"linkedin": "", "github": "", "portfolio": ""},
-        
+
         # Education, Experience, Skills
         "academic_records": [],
         "experience": [],
@@ -41430,15 +41468,15 @@ def _ensure_profile_defaults(profile: dict) -> dict:
         "certifications": [],
         "projects": [],
         "languages_known": [],
-        
+
         # Resume
         "resume_url": "",
-        
+
         # Other
         "created_at": None,
         "updated_at": None
     }
-    
+
     # Apply defaults for missing fields
     for key, default_value in defaults.items():
         if key not in profile:
@@ -41448,7 +41486,7 @@ def _ensure_profile_defaults(profile: dict) -> dict:
             for sub_key, sub_default in default_value.items():
                 if sub_key not in profile[key]:
                     profile[key][sub_key] = sub_default
-    
+
     return profile
 
 
@@ -41461,7 +41499,7 @@ ALLOWED_MIME_TYPES = {
     # PDF
     'application/pdf',
     # Word documents
-    'application/msword', 
+    'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     # Excel
     'application/vnd.ms-excel',
@@ -41491,20 +41529,20 @@ async def upload_user_document_endpoint(
     Upload a document to Cloudinary and save URL to user profile
     """
     from app.core.services.cloudinary import upload_user_document
-    
+
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="Document file is required")
-    
+
     # ✅ FIXED: Check by MIME type first (more reliable)
     content_type = file.content_type
     file_ext = file.filename.split('.')[-1].lower() if file.filename else ''
-    
+
     is_allowed = False
-    
+
     # Check MIME type
     if content_type and content_type in ALLOWED_MIME_TYPES:
         is_allowed = True
@@ -41514,34 +41552,34 @@ async def upload_user_document_endpoint(
     # Also check for image/jpeg variations
     elif content_type and content_type.startswith('image/'):
         is_allowed = True
-    
+
     if not is_allowed:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Invalid file type. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
         )
-    
+
     # Check file size (max 10MB)
     file_content = await file.read()
     file_size = len(file_content)
     await file.seek(0)
-    
+
     max_size = 10 * 1024 * 1024  # 10MB
     if file_size > max_size:
         raise HTTPException(
             status_code=400,
             detail=f"File too large. Max size: 10MB, Your file: {file_size // (1024*1024)}MB"
         )
-    
+
     try:
         username = email.split('@')[0]
-        
+
         upload_result = await upload_user_document(
             file=file,
             username=username,
             document_type="documents"
         )
-        
+
         # Update profile with document URL
         await db.profile.update_one(
             {"email": email},
@@ -41553,7 +41591,7 @@ async def upload_user_document_endpoint(
             },
             upsert=True
         )
-        
+
         return {
             "success": True,
             "message": "Document uploaded successfully",
@@ -41563,7 +41601,7 @@ async def upload_user_document_endpoint(
             "public_id": upload_result.get("public_id"),
             "file_size_kb": file_size // 1024
         }
-        
+
     except Exception as e:
         logger.error(f"Document upload error: {e}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
@@ -41581,19 +41619,19 @@ async def update_profile_field(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     update_data = {}
     for key, value in data.items():
         update_data[key] = value
-    
+
     update_data["updated_at"] = datetime.utcnow()
-    
+
     result = await db.profile.update_one(
         {"email": email},
         {"$set": update_data},
         upsert=True
     )
-    
+
     return {
         "success": True,
         "message": "Profile updated successfully",
@@ -41613,13 +41651,13 @@ async def update_document_url(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     document_key = data.get("document_key")
     document_url = data.get("document_url")
-    
+
     if not document_key or not document_url:
         raise HTTPException(status_code=400, detail="Document key and URL are required")
-    
+
     result = await db.profile.update_one(
         {"email": email},
         {
@@ -41630,7 +41668,7 @@ async def update_document_url(
         },
         upsert=True
     )
-    
+
     return {
         "success": True,
         "message": "Document URL updated successfully",
@@ -41650,12 +41688,12 @@ async def delete_document(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     document_key = data.get("document_key")
-    
+
     if not document_key:
         raise HTTPException(status_code=400, detail="Document key is required")
-    
+
     # Remove the document URL from profile
     result = await db.profile.update_one(
         {"email": email},
@@ -41664,7 +41702,7 @@ async def delete_document(
             "$set": {"updated_at": datetime.utcnow()}
         }
     )
-    
+
     return {
         "success": True,
         "message": "Document deleted successfully",
@@ -41683,15 +41721,15 @@ async def get_user_documents(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     profile = await db.profile.find_one({"email": email})
-    
+
     if not profile:
         return {"success": True, "documents": {}}
-    
+
     # Extract all document URLs from additional_details
     additional = profile.get("additional_details", {})
-    
+
     # Document keys to look for
     document_keys = [
         'resume_url', 'profile_photo_url', 'aadhaar_url', 'pan_url',
@@ -41700,14 +41738,14 @@ async def get_user_documents(
         'offer_letter_url', 'disability_certificate_url', 'caste_certificate_url',
         'income_certificate_url', 'other_document_url'
     ]
-    
+
     documents = {}
     for key in document_keys:
         if key in additional and additional[key]:
             documents[key] = additional[key]
         elif key in profile and profile[key]:
             documents[key] = profile[key]
-    
+
     return {
         "success": True,
         "documents": documents
@@ -41715,240 +41753,489 @@ async def get_user_documents(
 
 
 # ================= END OF FILE =================
-print("✅ User routes loaded with Ultra AI features")
+print("✅ User routes loaded with Ultra AI features + DELETE education/experience")
 
 
 ================================================================================
 [ 148/ 155] 🐍 PYTHON FILE: app\modules\user\schema.py
-📏 SIZE: 11,363 bytes
-🕐 MODIFIED: 2026-09-13 20:50:16
+📏 SIZE: 13,620 bytes
+🕐 MODIFIED: 2026-09-13 20:56:43
 
 ================================================================================
 
-# app/modules/user/schema.py
-from pydantic import BaseModel, EmailStr, Field
-from typing import List, Optional, Dict, Any
+# app/modules/user/schema.py - COMPLETE UPDATED VERSION
+# Matches frontend user_service.dart contract exactly
+
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 
-# ================= ADDRESS SCHEMA =================
+# ==================== NESTED SCHEMAS ====================
+
 class AddressSchema(BaseModel):
-    state: str = Field(default="", description="State")
-    district: str = Field(default="", description="District")
-    city: str = Field(default="", description="City")
-    country: str = Field(default="India", description="Country")
-    house_number: Optional[str] = Field(None, description="House/Flat Number")
-    village_name: Optional[str] = Field(None, description="Village/City/Town")
-    post_office: Optional[str] = Field(None, description="Post Office")
-    tehsil: Optional[str] = Field(None, description="Tehsil/Taluka")
-    landmark: Optional[str] = Field(None, description="Landmark")
-    pincode: Optional[str] = Field(None, description="Pincode")
+    house_number: Optional[str] = None
+    village_name: Optional[str] = None
+    city: Optional[str] = None
+    post_office: Optional[str] = None
+    tehsil: Optional[str] = None
+    district: Optional[str] = ""
+    state: Optional[str] = ""
+    country: Optional[str] = "India"
+    pincode: Optional[str] = None
+    landmark: Optional[str] = None
+
+    class Config:
+        extra = "allow"
 
 
-# ================= BASIC DETAILS =================
-class BasicDetailsSchema(BaseModel):
-    full_name: str = Field(..., description="Full Name")
-    first_name: Optional[str] = Field(None, description="First Name")
-    middle_name: Optional[str] = Field(None, description="Middle Name")
-    last_name: Optional[str] = Field(None, description="Last Name")
-    email: EmailStr = Field(..., description="Email Address")
-    phone: Optional[str] = Field(None, description="Phone Number")
-    dob: Optional[str] = Field(None, description="Date of Birth")
-    gender: Optional[str] = Field("Male", description="Gender")
-    category: Optional[str] = Field("General/UR", description="Category (General/UR, OBC, SC, ST, EWS)")
-    is_disable: bool = Field(False, description="Are you a person with disability?")
-    disability_category: Optional[str] = Field(None, description="Disability Category (LD, HI, VI, MD)")
-    disability_percentage: Optional[float] = Field(None, description="Disability Percentage")
-    father_name: Optional[str] = Field(None, description="Father's Name")
-    mother_name: Optional[str] = Field(None, description="Mother's Name")
-    guardian_name: Optional[str] = Field(None, description="Guardian Name")
-    spouse_name: Optional[str] = Field(None, description="Spouse Name")
-    marital_status: Optional[str] = Field("Unmarried", description="Marital Status")
-    address: AddressSchema = Field(default_factory=AddressSchema)
+class EmergencyContactSchema(BaseModel):
+    name: Optional[str] = ""
+    relationship: Optional[str] = ""
+    phone: Optional[str] = ""
+    alternate_phone: Optional[str] = None
+    email: Optional[str] = None
+
+    class Config:
+        extra = "allow"
 
 
-# ================= EDUCATION SCHEMA =================
-class EducationCreateSchema(BaseModel):
-    level: str = Field(..., description="Education Level (10th, 12th, Graduation, etc.)")
-    degree: Optional[str] = Field(None, description="Degree/Course Name")
-    stream: Optional[str] = Field(None, description="Stream/Specialization")
-    subjects: List[str] = Field(default_factory=list, description="Subjects")
-    institute: str = Field(..., description="School/College/Institute Name")
-    board_university: Optional[str] = Field(None, description="Board/University")
-    year_of_passing: int = Field(..., description="Year of Passing")
-    cgpa_percentage: Optional[float] = Field(None, description="CGPA or Percentage")
-    result_type: Optional[str] = Field("Percentage", description="Result Type")
-    grade: Optional[str] = Field(None, description="Grade (if applicable)")
-    medium: Optional[str] = Field(None, description="Medium of Instruction")
-    backlogs: Optional[int] = Field(0, description="Number of Backlogs")
-    certificate_url: Optional[str] = Field(None, description="Certificate URL")
-
-
-class EducationUpdateSchema(EducationCreateSchema):
-    pass
-
-
-# ================= EXPERIENCE SCHEMA =================
-class ExperienceCreateSchema(BaseModel):
-    company: str = Field(..., description="Company Name")
-    role: str = Field(..., description="Job Role")
-    industry_type: Optional[str] = Field(None, description="Industry Type")
-    work_type: Optional[str] = Field(None, description="Work Type")
-    employment_type: Optional[str] = Field("Full-time", description="Employment Type")
-    location: Optional[str] = Field(None, description="Work Location")
-    salary: Optional[int] = Field(None, description="Monthly Salary")
-    start_date: str = Field(..., description="Start Date")
-    end_date: Optional[str] = Field(None, description="End Date")
-    description: str = Field(..., description="Job Description")
-    achievements: List[str] = Field(default_factory=list, description="Key Achievements")
-    skills_used: List[str] = Field(default_factory=list, description="Skills Used")
-    reason_for_leaving: Optional[str] = Field(None, description="Reason for Leaving")
-    reporting_manager: Optional[str] = Field(None, description="Reporting Manager")
-    team_size: Optional[int] = Field(None, description="Team Size")
-
-
-class ExperienceUpdateSchema(ExperienceCreateSchema):
-    pass
-
-
-# ================= SKILL SCHEMA =================
-class SkillSchema(BaseModel):
-    name: str = Field(..., description="Skill Name")
-    level: str = Field("intermediate", description="Proficiency Level (beginner/intermediate/advanced/expert)")
-    years_of_experience: Optional[float] = Field(None, description="Years of Experience")
-    last_used: Optional[str] = Field(None, description="Last Used")
-    importance: Optional[int] = Field(None, ge=1, le=10, description="Importance (1-10)")
-
-
-# ================= INTERNSHIP SCHEMA =================
-class InternshipSchema(BaseModel):
-    company: str = Field(..., description="Company Name")
-    role: str = Field(..., description="Internship Role")
-    start_date: str = Field(..., description="Start Date")
-    end_date: Optional[str] = Field(None, description="End Date")
-    description: str = Field(..., description="Internship Description")
-    stipend: Optional[int] = Field(None, description="Stipend Amount")
-    technologies: List[str] = Field(default_factory=list, description="Technologies Learned")
-
-
-# ================= CERTIFICATION SCHEMA =================
-class CertificationSchema(BaseModel):
-    name: str = Field(..., description="Certification Name")
-    issuer: str = Field(..., description="Issuing Organization")
-    year: int = Field(..., description="Year of Certification")
-    url: Optional[str] = Field(None, description="Certificate URL")
-    expiry_date: Optional[str] = Field(None, description="Expiry Date")
-    credential_id: Optional[str] = Field(None, description="Credential ID")
-
-
-# ================= PROJECT SCHEMA =================
-class ProjectSchema(BaseModel):
-    title: str = Field(..., description="Project Title")
-    description: str = Field(..., description="Project Description")
-    technologies: List[str] = Field(default_factory=list, description="Technologies Used")
-    url: Optional[str] = Field(None, description="Project URL")
-    github_url: Optional[str] = Field(None, description="GitHub URL")
-    start_date: Optional[str] = Field(None, description="Start Date")
-    end_date: Optional[str] = Field(None, description="End Date")
-    is_live: bool = Field(False, description="Is Project Live")
-
-
-# ================= LANGUAGE SCHEMA =================
-class LanguageSchema(BaseModel):
-    name: str = Field(..., description="Language Name")
-    proficiency: str = Field("fluent", description="Proficiency (native/fluent/intermediate/basic)")
-
-
-# ================= ADDITIONAL DETAILS SCHEMA =================
-class AdditionalDetailsSchema(BaseModel):
-    soft_skills: List[str] = Field(default_factory=list, description="Soft Skills")
-    linkedin_url: Optional[str] = Field(None, description="LinkedIn URL")
-    github_url: Optional[str] = Field(None, description="GitHub URL")
-    portfolio_url: Optional[str] = Field(None, description="Portfolio URL")
-    resume_url: Optional[str] = Field(None, description="Resume URL")
-    video_resume_url: Optional[str] = Field(None, description="Video Resume URL")
-    preferred_job_types: List[str] = Field(default_factory=list, description="Preferred Job Types")
-    preferred_industries: List[str] = Field(default_factory=list, description="Preferred Industries")
-    preferred_locations: List[str] = Field(default_factory=list, description="Preferred Locations")
-    open_to_relocate: bool = Field(False, description="Open to Relocate")
-    availability_date: Optional[str] = Field(None, description="Availability Date")
-    salary_expectation_min: Optional[int] = Field(None, description="Minimum Expected Salary")
-    salary_expectation_max: Optional[int] = Field(None, description="Maximum Expected Salary")
-    willing_for_internship: bool = Field(True, description="Willing for Internship")
-    willing_for_full_time: bool = Field(True, description="Willing for Full Time")
-
-
-# ================= FULL PROFILE RESPONSE =================
-class FullProfileResponse(BaseModel):
-    full_name: str = ""
-    first_name: str = ""
-    middle_name: str = ""
-    last_name: str = ""
-    email: str = ""
-    phone: str = ""
-    dob: str = ""
-    gender: str = "Male"
-    blood_group: str = ""
-    nationality: str = "Indian"
-    religion: str = ""
-    category: str = "General/UR"
-    is_disable: bool = False
-    disability_category: Optional[str] = None
+class DisabilitySchema(BaseModel):
+    is_disabled: bool = False
+    disability_category: Optional[str] = ""
     disability_percentage: Optional[float] = None
-    father_name: str = ""
-    mother_name: str = ""
-    guardian_name: str = ""
-    spouse_name: str = ""
-    marital_status: str = "Unmarried"
-    family_annual_income: Optional[int] = None
-    number_of_dependents: Optional[int] = None
-    alternate_mobile: str = ""
-    whatsapp_number: str = ""
-    emergency_contact: str = ""
-    emergency_contact_name: str = ""
-    emergency_contact_relation: str = ""
-    current_address: AddressSchema = Field(default_factory=AddressSchema)
-    permanent_address: Optional[AddressSchema] = None
-    same_as_current: bool = True
-    summary: str = ""
-    career_objective: str = ""
-    linkedin_url: str = ""
-    github_url: str = ""
-    portfolio_url: str = ""
-    preferred_location: str = ""
+    disability_details: Optional[str] = ""
+    certificate_url: Optional[str] = None
+    certificate_verified: bool = False
+
+    class Config:
+        extra = "allow"
+
+
+class SocialLinksSchema(BaseModel):
+    linkedin: Optional[str] = ""
+    github: Optional[str] = ""
+    portfolio: Optional[str] = ""
+    twitter: Optional[str] = ""
+    facebook: Optional[str] = ""
+    instagram: Optional[str] = ""
+    youtube: Optional[str] = ""
+    personal_website: Optional[str] = ""
+
+    class Config:
+        extra = "allow"
+
+
+class CompensationExpectationsSchema(BaseModel):
     expected_salary_min: Optional[int] = None
     expected_salary_max: Optional[int] = None
-    open_to_relocate: bool = False
-    open_to_remote_work: bool = False
-    preferred_job_types: List[str] = Field(default_factory=list)
-    preferred_industries: List[str] = Field(default_factory=list)
+    expected_salary_currency: Optional[str] = "INR"
+    is_salary_negotiable: Optional[bool] = True
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== MAIN BASIC DETAILS SCHEMA ====================
+# Permissive schema — accepts any of the fields the frontend sends.
+# extra="allow" so that new fields added on frontend won't break backend.
+
+class BasicDetailsSchema(BaseModel):
+    # Personal
+    full_name: Optional[str] = None
+    first_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    last_name: Optional[str] = None
+    gender: Optional[str] = None
+    dob: Optional[str] = None
+    birth_place: Optional[str] = None
+    blood_group: Optional[str] = None
+    nationality: Optional[str] = None
+    religion: Optional[str] = None
+    category: Optional[str] = None
+    hobbies: Optional[List[str]] = None
+    interests: Optional[List[str]] = None
+
+    # Family
+    father_name: Optional[str] = None
+    mother_name: Optional[str] = None
+    guardian_name: Optional[str] = None
+    spouse_name: Optional[str] = None
+    marital_status: Optional[str] = None
+    family_annual_income: Optional[int] = None
+    number_of_dependents: Optional[int] = None
+
+    # Contact
+    alternate_mobile: Optional[str] = None
+    whatsapp_number: Optional[str] = None
+    emergency_contact: Optional[EmergencyContactSchema] = None
+
+    # Address
+    current_address: Optional[AddressSchema] = None
+    same_as_current: Optional[bool] = None
+    permanent_address: Optional[AddressSchema] = None
+
+    # Professional
+    summary: Optional[str] = None
+    career_objective: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    github_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    social_links: Optional[SocialLinksSchema] = None
+
+    # Physical
     height: Optional[float] = None
     weight: Optional[float] = None
-    languages_known: List[str] = Field(default_factory=list)
-    academic_records: List[Dict[str, Any]] = Field(default_factory=list)
-    experience: List[Dict[str, Any]] = Field(default_factory=list)
-    internships: List[Dict[str, Any]] = Field(default_factory=list)
-    skills: List[Dict[str, Any]] = Field(default_factory=list)
-    certifications: List[Dict[str, Any]] = Field(default_factory=list)
-    projects: List[Dict[str, Any]] = Field(default_factory=list)
-    is_educated: bool = True
-    can_read: bool = False
-    can_write: bool = False
-    basic_education_level: str = "None"
-    basic_skills: List[str] = Field(default_factory=list)
-    is_fresher: bool = True
-    internship_details: str = ""
-    training_program: str = ""
+    languages_known: Optional[List[str]] = None
+
+    # Disability (nested only)
+    disability: Optional[DisabilitySchema] = None
+
+    # Job preferences
+    preferred_location: Optional[str] = None
+    open_to_relocate: Optional[bool] = None
+    open_to_remote_work: Optional[bool] = None
+    preferred_job_types: Optional[List[str]] = None
+    preferred_industries: Optional[List[str]] = None
+    compensation_expectations: Optional[CompensationExpectationsSchema] = None
+
+    class Config:
+        extra = "allow"
+        populate_by_name = True
+
+
+# ==================== EDUCATION SCHEMAS ====================
+
+class EducationCreateSchema(BaseModel):
+    level: str
+    degree: Optional[str] = ""
+    stream: Optional[str] = ""
+    institute: str
+    board_university: Optional[str] = ""
+    year_of_passing: int
+    cgpa_percentage: Optional[float] = None
+    result_type: Optional[str] = "Percentage"
+    grade: Optional[str] = ""
+    medium: Optional[str] = ""
+    subjects: List[str] = Field(default_factory=list)
+    backlogs: Optional[int] = 0
+    certificate_url: Optional[str] = ""
+    achievements: List[str] = Field(default_factory=list)
+    is_pursuing: Optional[bool] = False
+
+    class Config:
+        extra = "allow"
+
+
+class EducationUpdateSchema(BaseModel):
+    level: Optional[str] = None
+    degree: Optional[str] = None
+    stream: Optional[str] = None
+    institute: Optional[str] = None
+    board_university: Optional[str] = None
+    year_of_passing: Optional[int] = None
+    cgpa_percentage: Optional[float] = None
+    result_type: Optional[str] = None
+    grade: Optional[str] = None
+    medium: Optional[str] = None
+    subjects: Optional[List[str]] = None
+    backlogs: Optional[int] = None
+    certificate_url: Optional[str] = None
+    achievements: Optional[List[str]] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== EXPERIENCE SCHEMAS ====================
+
+class ExperienceCreateSchema(BaseModel):
+    company: str
+    role: str
+    industry_type: Optional[str] = ""
+    work_type: Optional[str] = ""
+    employment_type: Optional[str] = "Full-time"
+    location: Optional[str] = ""
+    salary: Optional[int] = None
+    start_date: str
+    end_date: Optional[str] = None
+    description: Optional[str] = ""
+    achievements: List[str] = Field(default_factory=list)
+    skills_used: List[str] = Field(default_factory=list)
+    reason_for_leaving: Optional[str] = ""
+    reporting_manager: Optional[str] = ""
+    team_size: Optional[int] = None
+
+    class Config:
+        extra = "allow"
+
+
+class ExperienceUpdateSchema(BaseModel):
+    company: Optional[str] = None
+    role: Optional[str] = None
+    industry_type: Optional[str] = None
+    work_type: Optional[str] = None
+    employment_type: Optional[str] = None
+    location: Optional[str] = None
+    salary: Optional[int] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    description: Optional[str] = None
+    achievements: Optional[List[str]] = None
+    skills_used: Optional[List[str]] = None
+    reason_for_leaving: Optional[str] = None
+    reporting_manager: Optional[str] = None
+    team_size: Optional[int] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== INTERNSHIP SCHEMAS ====================
+
+class InternshipCreateSchema(BaseModel):
+    company: str
+    role: str
+    start_date: str
+    end_date: Optional[str] = None
+    description: Optional[str] = ""
+    stipend: Optional[int] = None
+    technologies: List[str] = Field(default_factory=list)
+
+    class Config:
+        extra = "allow"
+
+
+class InternshipUpdateSchema(BaseModel):
+    company: Optional[str] = None
+    role: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    description: Optional[str] = None
+    stipend: Optional[int] = None
+    technologies: Optional[List[str]] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== SKILL SCHEMAS ====================
+
+class SkillCreateSchema(BaseModel):
+    name: str
+    proficiency: Optional[str] = "Intermediate"
+    level: Optional[str] = None
+    category: Optional[str] = "Technical"
+    years_of_experience: Optional[int] = 0
+
+    class Config:
+        extra = "allow"
+
+
+class SkillUpdateSchema(BaseModel):
+    name: Optional[str] = None
+    proficiency: Optional[str] = None
+    level: Optional[str] = None
+    category: Optional[str] = None
+    years_of_experience: Optional[int] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== PROJECT SCHEMAS ====================
+
+class ProjectCreateSchema(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    technologies: List[str] = Field(default_factory=list)
+    role: Optional[str] = ""
+    duration: Optional[str] = ""
+    url: Optional[str] = ""
+    github_url: Optional[str] = ""
+
+    class Config:
+        extra = "allow"
+
+
+class ProjectUpdateSchema(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    technologies: Optional[List[str]] = None
+    role: Optional[str] = None
+    duration: Optional[str] = None
+    url: Optional[str] = None
+    github_url: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== CERTIFICATION SCHEMAS ====================
+
+class CertificationCreateSchema(BaseModel):
+    name: str
+    issuer: Optional[str] = ""
+    year: Optional[int] = None
+    credential_id: Optional[str] = ""
+    url: Optional[str] = ""
+
+    class Config:
+        extra = "allow"
+
+
+class CertificationUpdateSchema(BaseModel):
+    name: Optional[str] = None
+    issuer: Optional[str] = None
+    year: Optional[int] = None
+    credential_id: Optional[str] = None
+    url: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== LANGUAGE SCHEMAS ====================
+
+class LanguageCreateSchema(BaseModel):
+    name: str
+    proficiency: Optional[str] = "Fluent"
+    read: Optional[bool] = True
+    write: Optional[bool] = True
+    speak: Optional[bool] = True
+
+    class Config:
+        extra = "allow"
+
+
+class LanguageUpdateSchema(BaseModel):
+    name: Optional[str] = None
+    proficiency: Optional[str] = None
+    read: Optional[bool] = None
+    write: Optional[bool] = None
+    speak: Optional[bool] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== OTHER DETAIL SCHEMAS ====================
+
+class BankDetailsSchema(BaseModel):
+    account_holder_name: Optional[str] = None
+    account_number: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    bank_name: Optional[str] = None
+    branch_name: Optional[str] = None
+    upi_id: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+class GovernmentIDsSchema(BaseModel):
+    aadhar_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    voter_id: Optional[str] = None
+    driving_license: Optional[str] = None
+    passport_number: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+class ReferenceCreateSchema(BaseModel):
+    name: str
+    designation: Optional[str] = ""
+    company: Optional[str] = ""
+    phone: Optional[str] = ""
+    email: Optional[str] = ""
+    relationship: Optional[str] = ""
+
+    class Config:
+        extra = "allow"
+
+
+class EmploymentPreferencesSchema(BaseModel):
+    preferred_work_modes: Optional[List[str]] = None
+    preferred_shifts: Optional[List[str]] = None
+    preferred_work_location: Optional[str] = None
+    notice_period_days: Optional[int] = None
+    can_join_immediately: Optional[bool] = None
+    expected_salary_min: Optional[int] = None
+    expected_salary_max: Optional[int] = None
+    preferred_industries: Optional[List[str]] = None
+    preferred_job_roles: Optional[List[str]] = None
+    preferred_locations: Optional[List[str]] = None
+    open_to_relocate: Optional[bool] = None
+
+    class Config:
+        extra = "allow"
+
+
+class WorkAuthorizationSchema(BaseModel):
+    is_indian_citizen: Optional[bool] = True
+    has_work_permit: Optional[bool] = False
+    work_permit_country: Optional[str] = None
+    visa_type: Optional[str] = None
+    visa_valid_until: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+class ApplicationPreferencesSchema(BaseModel):
+    email_notifications: Optional[bool] = True
+    sms_notifications: Optional[bool] = False
+    whatsapp_notifications: Optional[bool] = False
+    auto_apply_matches: Optional[bool] = False
+    min_match_percentage: Optional[int] = 70
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== STATUS TOGGLE SCHEMAS ====================
+
+class EducatedStatusSchema(BaseModel):
+    is_educated: Optional[bool] = None
+    can_read: Optional[bool] = None
+    can_write: Optional[bool] = None
+    basic_education_level: Optional[str] = None
+    languages_known: Optional[List[str]] = None
+    basic_skills: Optional[List[str]] = None
+
+    class Config:
+        extra = "allow"
+
+
+class FresherStatusSchema(BaseModel):
+    is_fresher: Optional[bool] = None
+    internship_details: Optional[str] = None
+    training_program: Optional[str] = None
     daily_wage: Optional[int] = None
-    projects_done: str = ""
-    certifications_list: List[str] = Field(default_factory=list)
-    labour_type: str = "Mason"
+    projects_done: Optional[str] = None
+    labour_type: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== OTHER DETAILS (generic) ====================
+
+class OtherDetailsSchema(BaseModel):
+    """Generic schema for other-details endpoint"""
+    soft_skills: Optional[List[str]] = None
+    video_resume_url: Optional[str] = None
+
+    class Config:
+        extra = "allow"
 
 
 ================================================================================
 [ 149/ 155] 🐍 PYTHON FILE: app\modules\user\service.py
-📏 SIZE: 66,915 bytes
-🕐 MODIFIED: 2026-09-10 10:40:32
+📏 SIZE: 70,006 bytes
+🕐 MODIFIED: 2026-09-13 21:01:58
 
 ================================================================================
 
@@ -42738,6 +43025,48 @@ class ProfileService:
         
         return {"message": "Education updated successfully"}
 
+
+        # ====================== DELETE EDUCATION ======================
+    async def delete_education(self, email: str, qual_id: str) -> dict:
+        """
+        Delete an education record by its `_id`.
+        Frontend sends DELETE /user/education/{qual_id}?email=...
+        Response format matches what user_service.dart expects:
+            { "success": true, "message": "...", "deleted_id": "..." }
+        """
+        result = await self.profiles.update_one(
+            {"email": email},
+            {
+                "$pull": {"academic_records": {"_id": qual_id}},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+        )
+
+        if result.modified_count == 0:
+            # Try legacy `id` field too
+            result = await self.profiles.update_one(
+                {"email": email},
+                {
+                    "$pull": {"academic_records": {"id": qual_id}},
+                    "$set": {"updated_at": datetime.utcnow()}
+                }
+            )
+            if result.modified_count == 0:
+                raise HTTPException(status_code=404, detail="Education record not found")
+
+        # Clear AI cache so next analysis reflects the change
+        cache_key = f"ai_insights_{email}"
+        if cache_key in self.ai_cache:
+            del self.ai_cache[cache_key]
+
+        logger.info(f"🗑️ Deleted education {qual_id} for {email}")
+        return {
+            "success": True,
+            "message": "Education deleted successfully",
+            "deleted_id": qual_id
+        }
+
+
     # ====================== EXPERIENCE ======================
     async def get_experience(self, email: str) -> List[dict]:
         profile = await self.profiles.find_one({"email": email})
@@ -42782,6 +43111,46 @@ class ProfileService:
             del self.ai_cache[cache_key]
         
         return {"message": "Experience updated successfully"}
+
+
+            # ====================== DELETE EXPERIENCE ======================
+    async def delete_experience(self, email: str, exp_id: str) -> dict:
+        """
+        Delete an experience record by its `_id`.
+        Frontend sends DELETE /user/experience/{exp_id}?email=...
+        Response format matches user_service.dart:
+            { "success": true, "message": "...", "deleted_id": "..." }
+        """
+        result = await self.profiles.update_one(
+            {"email": email},
+            {
+                "$pull": {"experience": {"_id": exp_id}},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+        )
+
+        if result.modified_count == 0:
+            # Try legacy `id` field
+            result = await self.profiles.update_one(
+                {"email": email},
+                {
+                    "$pull": {"experience": {"id": exp_id}},
+                    "$set": {"updated_at": datetime.utcnow()}
+                }
+            )
+            if result.modified_count == 0:
+                raise HTTPException(status_code=404, detail="Experience record not found")
+
+        cache_key = f"ai_insights_{email}"
+        if cache_key in self.ai_cache:
+            del self.ai_cache[cache_key]
+
+        logger.info(f"🗑️ Deleted experience {exp_id} for {email}")
+        return {
+            "success": True,
+            "message": "Experience deleted successfully",
+            "deleted_id": exp_id
+        }
 
     # ====================== SKILLS (Full CRUD) ======================
     async def get_skills(self, email: str) -> List[dict]:
