@@ -1,36 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-
-    <!-- ✅ Allow cleartext HTTP for local development -->
     <domain-config cleartextTrafficPermitted="true">
-        <!-- For adb reverse (real device) -->
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">127.0.0.1</domain>
-
-        <!-- For Android emulator -->
         <domain includeSubdomains="true">10.0.2.2</domain>
-
-        <!-- For same WiFi (real device) -->
-        <domain includeSubdomains="true">192.168.0.0</domain>
-        <domain includeSubdomains="true">192.168.1.0</domain>
-        <domain includeSubdomains="true">10.0.0.0</domain>
-
-        <!-- Allow any local network -->
-        <domain includeSubdomains="true">0.0.0.0</domain>
+        <domain includeSubdomains="true">localhost</domain>
     </domain-config>
-
-    <!-- ✅ Production HTTPS -->
-    <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">rojgarnext.com</domain>
-        <domain includeSubdomains="true">www.rojgarnext.com</domain>
-    </domain-config>
-
-    <!-- Default: use platform default (HTTPS only) -->
-    <base-config cleartextTrafficPermitted="true">
-        <trust-anchors>
-            <certificates src="system" />
-            <certificates src="user" />
-        </trust-anchors>
-    </base-config>
-
 </network-security-config>

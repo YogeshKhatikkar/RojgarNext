@@ -1,9 +1,9 @@
 ================================================================================
 ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-Generated: 2026-09-13 20:55:01
-Source: E:\yogesh\website\rojgarnext\frontend
-Total Files: 127
+Generated: 2026-09-14 17:20:57
+Source: H:\yogesh\website\rojgarnext\frontend
+Total Files: 129
 Total Size: 2.6 MB
 ================================================================================
 
@@ -61,7 +61,9 @@ Total Size: 2.6 MB
     │   │       ├── 🎯 platform_aware.dart
     │   │       ├── 🎯 platform_file_picker.dart
     │   │       ├── 🎯 platform_webview.dart
-    │   │       └── 🎯 responsive_widget.dart
+    │   │       ├── 🎯 responsive_widget.dart
+    │   │       ├── 🎯 web_pdf_viewer_stub.dart
+    │   │       └── 🎯 web_pdf_viewer_web.dart
     │   ├── 📁 features/
     │   │   ├── 📁 admin/
     │   │   │   ├── 📁 AI/
@@ -222,12 +224,12 @@ Total Size: 2.6 MB
 📊 FILE SUMMARY
 ================================================================================
 
-Total Files: 127
+Total Files: 129
 Total Size: 2.6 MB
 
 File Types:
-  .dart: 121 files (2.6 MB)
-  .yaml: 2 files (2.2 KB)
+  .dart: 123 files (2.6 MB)
+  .yaml: 2 files (2.5 KB)
   (no extension): 1 files (274 B)
   .md: 1 files (649 B)
   .html: 1 files (1.6 KB)
@@ -239,9 +241,9 @@ File Types:
 ================================================================================
 
 ================================================================================
-[   1/ 127] 📄 rojgarnext/Dockerfile
+[   1/ 129] 📄 rojgarnext/Dockerfile
 📏 SIZE: 274 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 FROM cirrusci/flutter:stable AS builder
@@ -256,9 +258,9 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 
 ================================================================================
-[   2/ 127] 📝 rojgarnext/README.md
+[   2/ 129] 📝 rojgarnext/README.md
 📏 SIZE: 649 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 # rojgarnext
@@ -281,9 +283,9 @@ samples, guidance on mobile development, and a full API reference.
 
 
 ================================================================================
-[   3/ 127] ⚙️ rojgarnext/analysis_options.yaml
-📏 SIZE: 569 B
-🕐 MODIFIED: 2026-09-10 12:55:35
+[   3/ 129] ⚙️ rojgarnext/analysis_options.yaml
+📏 SIZE: 559 B
+🕐 MODIFIED: 2026-09-14 13:38:51
 ================================================================================
 
 analyzer:
@@ -296,7 +298,7 @@ analyzer:
     - macos/**
     - linux/**
     - lib/features/payment/razorpay_web_service.dart
-    # ^ this file is web-only and never compiled for APK
+    - lib/core/widgets/web_pdf_viewer_web.dart
 
 include: package:flutter_lints/flutter.yaml
 
@@ -311,9 +313,9 @@ linter:
     use_key_in_widget_constructors: true
 
 ================================================================================
-[   4/ 127] 🎯 rojgarnext/lib/core/config/api_config.dart
+[   4/ 129] 🎯 rojgarnext/lib/core/config/api_config.dart
 📏 SIZE: 2.2 KB
-🕐 MODIFIED: 2026-09-12 12:05:34
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/config/api_config.dart
@@ -396,9 +398,9 @@ class ApiConfig {
 }
 
 ================================================================================
-[   5/ 127] 🎯 rojgarnext/lib/core/master_date/education.dart
+[   5/ 129] 🎯 rojgarnext/lib/core/master_date/education.dart
 📏 SIZE: 40.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/master_data/education.dart
@@ -1946,9 +1948,9 @@ class EducationMasterData {
 
 
 ================================================================================
-[   6/ 127] 🎯 rojgarnext/lib/core/master_date/locations.dart
+[   6/ 129] 🎯 rojgarnext/lib/core/master_date/locations.dart
 📏 SIZE: 2.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/location/locations.dart
@@ -2046,9 +2048,9 @@ class LocationData {
 
 
 ================================================================================
-[   7/ 127] 🎯 rojgarnext/lib/core/network/dio_client.dart
+[   7/ 129] 🎯 rojgarnext/lib/core/network/dio_client.dart
 📏 SIZE: 4.2 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/network/dio_client.dart
@@ -2190,9 +2192,9 @@ void initDioClient() {
 }
 
 ================================================================================
-[   8/ 127] 🎯 rojgarnext/lib/core/routes/app_routes.dart
+[   8/ 129] 🎯 rojgarnext/lib/core/routes/app_routes.dart
 📏 SIZE: 3.3 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/routes/app_routes.dart
@@ -2289,9 +2291,9 @@ class AppRoutes {
 }
 
 ================================================================================
-[   9/ 127] 🎯 rojgarnext/lib/core/services/cloudinary_service.dart
+[   9/ 129] 🎯 rojgarnext/lib/core/services/cloudinary_service.dart
 📏 SIZE: 7.0 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/services/cloudinary_service.dart
@@ -2523,9 +2525,9 @@ class CloudinaryService {
 }
 
 ================================================================================
-[  10/ 127] 🎯 rojgarnext/lib/core/services/geocoding_service.dart
+[  10/ 129] 🎯 rojgarnext/lib/core/services/geocoding_service.dart
 📏 SIZE: 806 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/services/geocoding_service.dart
@@ -2560,9 +2562,9 @@ class GeocodingService {
 
 
 ================================================================================
-[  11/ 127] 🎯 rojgarnext/lib/core/services/location_service.dart
+[  11/ 129] 🎯 rojgarnext/lib/core/services/location_service.dart
 📏 SIZE: 5.3 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/services/location_service.dart
@@ -2740,9 +2742,9 @@ class LocationService {
 
 
 ================================================================================
-[  12/ 127] 🎯 rojgarnext/lib/core/services/permission_service.dart
+[  12/ 129] 🎯 rojgarnext/lib/core/services/permission_service.dart
 📏 SIZE: 3.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/services/permission_service.dart
@@ -2871,9 +2873,9 @@ class PermissionService {
 
 
 ================================================================================
-[  13/ 127] 🎯 rojgarnext/lib/core/services/real_location_service.dart
+[  13/ 129] 🎯 rojgarnext/lib/core/services/real_location_service.dart
 📏 SIZE: 7.3 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/services/real_location_service.dart
@@ -3113,9 +3115,9 @@ class RealLocationService {
 
 
 ================================================================================
-[  14/ 127] 🎯 rojgarnext/lib/core/services/unified_location_service.dart
+[  14/ 129] 🎯 rojgarnext/lib/core/services/unified_location_service.dart
 📏 SIZE: 1.1 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/services/unified_location_service.dart
@@ -3151,9 +3153,9 @@ class UnifiedLocationService {
 
 
 ================================================================================
-[  15/ 127] 🎯 rojgarnext/lib/core/services/universal_location_service.dart
+[  15/ 129] 🎯 rojgarnext/lib/core/services/universal_location_service.dart
 📏 SIZE: 9.3 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/services/universal_location_service.dart
@@ -3436,9 +3438,9 @@ Please try:
 }
 
 ================================================================================
-[  16/ 127] 🎯 rojgarnext/lib/core/services/web_location_service.dart
+[  16/ 129] 🎯 rojgarnext/lib/core/services/web_location_service.dart
 📏 SIZE: 3.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/services/web_location_service.dart
@@ -3556,9 +3558,9 @@ class WebLocationService {
 
 
 ================================================================================
-[  17/ 127] 🎯 rojgarnext/lib/core/storage/secure_storage.dart
+[  17/ 129] 🎯 rojgarnext/lib/core/storage/secure_storage.dart
 📏 SIZE: 6.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/storage/secure_storage.dart
@@ -3753,9 +3755,9 @@ class SecureStorage {
 }
 
 ================================================================================
-[  18/ 127] 🎯 rojgarnext/lib/core/utils/app_snackbar.dart
+[  18/ 129] 🎯 rojgarnext/lib/core/utils/app_snackbar.dart
 📏 SIZE: 2.4 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/utils/app_snackbar.dart
@@ -3839,9 +3841,9 @@ void showGlobalSnackBar(String message, {bool isError = false}) {
 }
 
 ================================================================================
-[  19/ 127] 🎯 rojgarnext/lib/core/utils/auth_guard.dart
+[  19/ 129] 🎯 rojgarnext/lib/core/utils/auth_guard.dart
 📏 SIZE: 798 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 import 'package:flutter/material.dart';
@@ -3879,9 +3881,9 @@ class AuthGuard extends StatelessWidget {
 
 
 ================================================================================
-[  20/ 127] 🎯 rojgarnext/lib/core/utils/constants.dart
+[  20/ 129] 🎯 rojgarnext/lib/core/utils/constants.dart
 📏 SIZE: 967 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/utils/constants.dart
@@ -3915,9 +3917,9 @@ class AppConstants {
 
 
 ================================================================================
-[  21/ 127] 🎯 rojgarnext/lib/core/utils/coordinate_parser.dart
+[  21/ 129] 🎯 rojgarnext/lib/core/utils/coordinate_parser.dart
 📏 SIZE: 5.3 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/utils/coordinate_parser.dart
@@ -4097,9 +4099,9 @@ class CoordinateParser {
 
 
 ================================================================================
-[  22/ 127] 🎯 rojgarnext/lib/core/utils/distance_calculator.dart
+[  22/ 129] 🎯 rojgarnext/lib/core/utils/distance_calculator.dart
 📏 SIZE: 1.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/utils/distance_calculator.dart
@@ -4179,9 +4181,9 @@ class DistanceCalculator {
 }
 
 ================================================================================
-[  23/ 127] 🎯 rojgarnext/lib/core/utils/js_stub.dart
+[  23/ 129] 🎯 rojgarnext/lib/core/utils/js_stub.dart
 📏 SIZE: 1.1 KB
-🕐 MODIFIED: 2026-09-10 12:53:05
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/utils/js_stub.dart
@@ -4225,9 +4227,9 @@ typedef JsArrayBuffer = dynamic;
 typedef JSAny = dynamic;
 
 ================================================================================
-[  24/ 127] 🎯 rojgarnext/lib/core/utils/logger.dart
+[  24/ 129] 🎯 rojgarnext/lib/core/utils/logger.dart
 📏 SIZE: 999 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/utils/logger.dart
@@ -4273,9 +4275,9 @@ class Logger {
 }
 
 ================================================================================
-[  25/ 127] 🎯 rojgarnext/lib/core/utils/platform_utils.dart
+[  25/ 129] 🎯 rojgarnext/lib/core/utils/platform_utils.dart
 📏 SIZE: 2.8 KB
-🕐 MODIFIED: 2026-09-12 12:06:10
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/utils/platform_utils.dart
@@ -4380,18 +4382,18 @@ class PlatformUtils {
 }
 
 ================================================================================
-[  26/ 127] 🎯 rojgarnext/lib/core/utils/safe_async.dart
+[  26/ 129] 🎯 rojgarnext/lib/core/utils/safe_async.dart
 📏 SIZE: 2 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 
 
 
 ================================================================================
-[  27/ 127] 🎯 rojgarnext/lib/core/utils/stub_device_info.dart
+[  27/ 129] 🎯 rojgarnext/lib/core/utils/stub_device_info.dart
 📏 SIZE: 608 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/utils/stub_device_info.dart
@@ -4419,9 +4421,9 @@ class IosDeviceInfo {
 
 
 ================================================================================
-[  28/ 127] 🎯 rojgarnext/lib/core/utils/stub_local_auth.dart
+[  28/ 129] 🎯 rojgarnext/lib/core/utils/stub_local_auth.dart
 📏 SIZE: 816 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/utils/stub_local_auth.dart
@@ -4457,9 +4459,9 @@ class BiometricType {
 }
 
 ================================================================================
-[  29/ 127] 🎯 rojgarnext/lib/core/utils/widgets.dart
+[  29/ 129] 🎯 rojgarnext/lib/core/utils/widgets.dart
 📏 SIZE: 1.0 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 import 'package:flutter/material.dart';
@@ -4502,9 +4504,9 @@ class ModernButton extends StatelessWidget {
 
 
 ================================================================================
-[  30/ 127] 🎯 rojgarnext/lib/core/widgets/base_page.dart
+[  30/ 129] 🎯 rojgarnext/lib/core/widgets/base_page.dart
 📏 SIZE: 970 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/widgets/base_page.dart - CORRECTED
@@ -4548,20 +4550,200 @@ class BasePage extends StatelessWidget {
 
 
 ================================================================================
-[  31/ 127] 🎯 rojgarnext/lib/core/widgets/file_viewer_screen.dart
-📏 SIZE: 19.7 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+[  31/ 129] 🎯 rojgarnext/lib/core/widgets/file_viewer_screen.dart
+📏 SIZE: 33.8 KB
+🕐 MODIFIED: 2026-09-14 13:03:46
 ================================================================================
 
 // lib/core/widgets/file_viewer_screen.dart
-// ✅ COMPLETE FIXED VERSION - Supports Images + Opens PDF in Browser
+// ✅ PDF + IMAGE both display directly with blob URLs
+// ✅ Both have DOWNLOAD icon in AppBar
+// ✅ No download prompts during viewing
 
-import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 
+// Native PDF viewer (Android/iOS only)
+import 'package:flutter_pdfview/flutter_pdfview.dart';
+
+// ✅ Conditional web imports
+import 'web_pdf_viewer_stub.dart'
+    if (dart.library.js_interop) 'web_pdf_viewer_web.dart' as web_viewer;
+
+// ============================================================================
+// FILE TYPE DETECTOR
+// ============================================================================
+class FileTypeDetector {
+  static const Set<String> imageExtensions = {
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'wbmp', 'ico',
+  };
+  static const Set<String> pdfExtensions = {'pdf'};
+  static const Set<String> wordExtensions = {'doc', 'docx', 'odt', 'rtf'};
+  static const Set<String> excelExtensions = {'xls', 'xlsx', 'ods', 'csv'};
+  static const Set<String> pptExtensions = {'ppt', 'pptx', 'odp'};
+  static const Set<String> textExtensions = {
+    'txt', 'log', 'md', 'json', 'xml', 'html', 'css', 'js', 'yaml', 'yml'
+  };
+  static const Set<String> videoExtensions = {
+    'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm'
+  };
+  static const Set<String> audioExtensions = {
+    'mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a'
+  };
+
+  static String getExtension(String urlOrName) {
+    if (urlOrName.isEmpty) return '';
+    try {
+      final clean = urlOrName.split('?').first.split('#').first;
+      final segments = clean.split('/');
+      final last = segments.isNotEmpty ? segments.last : clean;
+      if (last.contains('.')) {
+        return last.split('.').last.toLowerCase().trim();
+      }
+    } catch (e) {
+      debugPrint('Extension parse error: $e');
+    }
+    return '';
+  }
+
+  static bool isPdf(String url, {String? explicitType}) {
+    if (explicitType != null) {
+      final t = explicitType.toLowerCase();
+      if (t == 'pdf' || t.contains('pdf')) return true;
+    }
+    if (pdfExtensions.contains(getExtension(url))) return true;
+    final lower = url.toLowerCase();
+    if (lower.contains('/raw/upload/')) return true;
+    if (lower.contains('/raw/authenticated/')) return true;
+    if (lower.contains('.pdf')) return true;
+    return false;
+  }
+
+  static bool isImage(String url, {String? explicitType}) {
+    if (explicitType != null) {
+      final t = explicitType.toLowerCase();
+      if (t == 'image' || t.contains('image')) return true;
+    }
+    if (imageExtensions.contains(getExtension(url))) return true;
+    if (isPdf(url, explicitType: explicitType)) return false;
+    final lower = url.toLowerCase();
+    if (lower.contains('cloudinary.com') &&
+        (lower.contains('/image/upload/') ||
+            lower.contains('/image/authenticated/'))) {
+      return true;
+    }
+    return false;
+  }
+
+  static bool isWord(String url, {String? explicitType}) {
+    if (explicitType != null && explicitType.toLowerCase().contains('word')) {
+      return true;
+    }
+    return wordExtensions.contains(getExtension(url));
+  }
+
+  static bool isExcel(String url, {String? explicitType}) {
+    if (explicitType != null && explicitType.toLowerCase().contains('excel')) {
+      return true;
+    }
+    return excelExtensions.contains(getExtension(url));
+  }
+
+  static bool isPowerPoint(String url, {String? explicitType}) {
+    if (explicitType != null &&
+        explicitType.toLowerCase().contains('powerpoint')) {
+      return true;
+    }
+    return pptExtensions.contains(getExtension(url));
+  }
+
+  static bool isText(String url, {String? explicitType}) {
+    if (explicitType != null && explicitType.toLowerCase().contains('text')) {
+      return true;
+    }
+    return textExtensions.contains(getExtension(url));
+  }
+
+  static bool isVideo(String url, {String? explicitType}) {
+    if (explicitType != null && explicitType.toLowerCase().contains('video')) {
+      return true;
+    }
+    return videoExtensions.contains(getExtension(url));
+  }
+
+  static bool isAudio(String url, {String? explicitType}) {
+    if (explicitType != null && explicitType.toLowerCase().contains('audio')) {
+      return true;
+    }
+    return audioExtensions.contains(getExtension(url));
+  }
+
+  static bool isGoogleDrive(String url) {
+    final lower = url.toLowerCase();
+    return lower.contains('drive.google.com') ||
+        lower.contains('docs.google.com');
+  }
+
+  static IconData getIcon(String url, {String? explicitType}) {
+    if (isPdf(url, explicitType: explicitType)) return Icons.picture_as_pdf;
+    if (isImage(url, explicitType: explicitType)) return Icons.image;
+    if (isWord(url, explicitType: explicitType)) return Icons.description;
+    if (isExcel(url, explicitType: explicitType)) return Icons.table_chart;
+    if (isPowerPoint(url, explicitType: explicitType)) return Icons.slideshow;
+    if (isText(url, explicitType: explicitType)) return Icons.text_snippet;
+    if (isVideo(url, explicitType: explicitType)) return Icons.video_file;
+    if (isAudio(url, explicitType: explicitType)) return Icons.audio_file;
+    if (isGoogleDrive(url)) return Icons.cloud;
+    return Icons.insert_drive_file;
+  }
+
+  static Color getColor(String url, {String? explicitType}) {
+    if (isPdf(url, explicitType: explicitType)) return Colors.red;
+    if (isImage(url, explicitType: explicitType)) return Colors.blue;
+    if (isWord(url, explicitType: explicitType)) return Colors.indigo;
+    if (isExcel(url, explicitType: explicitType)) return Colors.green;
+    if (isPowerPoint(url, explicitType: explicitType)) return Colors.orange;
+    if (isText(url, explicitType: explicitType)) return Colors.grey;
+    if (isVideo(url, explicitType: explicitType)) return Colors.purple;
+    if (isAudio(url, explicitType: explicitType)) return Colors.pink;
+    if (isGoogleDrive(url)) return Colors.teal;
+    return Colors.blueGrey;
+  }
+
+  /// ✅ Get file extension based on MIME type
+  static String getExtensionFromMime(String mimeType) {
+    switch (mimeType.toLowerCase()) {
+      case 'application/pdf':
+        return 'pdf';
+      case 'image/jpeg':
+      case 'image/jpg':
+        return 'jpg';
+      case 'image/png':
+        return 'png';
+      case 'image/gif':
+        return 'gif';
+      case 'image/webp':
+        return 'webp';
+      case 'image/bmp':
+        return 'bmp';
+      case 'text/plain':
+        return 'txt';
+      default:
+        return 'file';
+    }
+  }
+}
+
+// ============================================================================
+// MAIN FILE VIEWER SCREEN
+// ============================================================================
 class FileViewerScreen extends StatefulWidget {
   final String url;
   final String title;
@@ -4583,18 +4765,30 @@ class FileViewerScreen extends StatefulWidget {
 }
 
 class _FileViewerScreenState extends State<FileViewerScreen> {
-  final TransformationController _imageController = TransformationController();
-
-  // State
   bool _isLoading = true;
   String? _errorMessage;
+  String? _localFilePath;
+  Uint8List? _fileBytes;
+
+  // ✅ Blob URLs for web
+  String? _blobUrl;
+  String _blobMimeType = '';
+
+  final TransformationController _imageController = TransformationController();
   double _zoomScale = 1.0;
 
-  // Detected properties
   String _effectiveUrl = '';
+  String _fileExtension = '';
   bool _isWeb = false;
-  bool _isImageSupported = false;
   bool _isPdf = false;
+  bool _isImage = false;
+  bool _isWord = false;
+  bool _isExcel = false;
+  bool _isPowerPoint = false;
+  bool _isText = false;
+  bool _isVideo = false;
+  bool _isAudio = false;
+  bool _isGoogleDrive = false;
 
   @override
   void initState() {
@@ -4606,10 +4800,11 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
   @override
   void dispose() {
     _imageController.dispose();
+    if (_isWeb && _blobUrl != null) {
+      web_viewer.revokeBlobUrl(_blobUrl!);
+    }
     super.dispose();
   }
-
-  // ==================== INITIALIZATION ====================
 
   void _initializeViewer() {
     setState(() {
@@ -4625,192 +4820,331 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
 
     _detectFileType();
 
+    debugPrint('=' * 70);
     debugPrint('📄 FILE VIEWER INITIALIZED');
     debugPrint('   URL: $_effectiveUrl');
-    debugPrint('   Is Image Supported: $_isImageSupported');
     debugPrint('   Is PDF: $_isPdf');
+    debugPrint('   Is Image: $_isImage');
     debugPrint('   Platform: ${_isWeb ? "Web" : "Mobile"}');
+    debugPrint('=' * 70);
 
-    if (_isImageSupported) {
-      setState(() => _isLoading = false);
-    } else if (_isPdf) {
-      // For PDFs, we don't need to load anything - just show the viewer
-      setState(() => _isLoading = false);
+    if (_isPdf) {
+      if (_isWeb) {
+        _prepareWebBlobUrl('application/pdf');
+      } else {
+        _downloadPdfForMobile();
+      }
+    } else if (_isImage) {
+      if (_isWeb) {
+        _prepareWebBlobUrl(null);
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } else if (_isText) {
+      _downloadTextFile();
     } else {
-      setState(() {
-        _errorMessage =
-            '⚠️ Unsupported file format.\n\nOnly JPG, JPEG, PNG images and PDF files are supported.\n\nTap "Open in Browser" to view this file.';
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
   void _detectFileType() {
-    final urlLower = _effectiveUrl.toLowerCase();
-    final path = _effectiveUrl.split('?').first;
+    _fileExtension = FileTypeDetector.getExtension(_effectiveUrl);
+    final explicitType = widget.fileType?.toLowerCase() ?? '';
+    _isPdf = FileTypeDetector.isPdf(_effectiveUrl, explicitType: explicitType);
+    _isImage = !_isPdf &&
+        FileTypeDetector.isImage(_effectiveUrl, explicitType: explicitType);
+    _isWord = FileTypeDetector.isWord(_effectiveUrl, explicitType: explicitType);
+    _isExcel =
+        FileTypeDetector.isExcel(_effectiveUrl, explicitType: explicitType);
+    _isPowerPoint =
+        FileTypeDetector.isPowerPoint(_effectiveUrl, explicitType: explicitType);
+    _isText = FileTypeDetector.isText(_effectiveUrl, explicitType: explicitType);
+    _isVideo =
+        FileTypeDetector.isVideo(_effectiveUrl, explicitType: explicitType);
+    _isAudio =
+        FileTypeDetector.isAudio(_effectiveUrl, explicitType: explicitType);
+    _isGoogleDrive = FileTypeDetector.isGoogleDrive(_effectiveUrl);
+  }
 
-    // Check for PDF
-    _isPdf = path.endsWith('.pdf') ||
-        urlLower.contains('.pdf') ||
-        (urlLower.contains('cloudinary.com') &&
-            (urlLower.contains('/raw/upload/') ||
-                urlLower.contains('fl_attachment') ||
-                urlLower.contains('.pdf'))) ||
-        (widget.fileType?.toLowerCase() == 'pdf');
+  // ========================================================================
+  // UNIFIED WEB BLOB PREPARATION
+  // ========================================================================
+  Future<void> _prepareWebBlobUrl(String? explicitMime) async {
+    try {
+      debugPrint('⬇️ Downloading bytes for web blob...');
 
-    // Check if supported image (JPG, JPEG, PNG only)
-    _isImageSupported = !_isPdf &&
-        (path.endsWith('.jpg') ||
-            path.endsWith('.jpeg') ||
-            path.endsWith('.png'));
+      final response = await Dio().get<List<int>>(
+        _effectiveUrl,
+        options: Options(
+          responseType: ResponseType.bytes,
+          followRedirects: true,
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
 
-    // Also check for Cloudinary image paths
-    if (!_isImageSupported &&
-        !_isPdf &&
-        urlLower.contains('cloudinary.com') &&
-        (urlLower.contains('/image/upload/') ||
-            urlLower.contains('/image/authenticated/'))) {
-      _isImageSupported = true;
-    }
+      if (response.data == null || response.data!.isEmpty) {
+        throw Exception('Empty response from server');
+      }
 
-    // Override with widget.fileType
-    if (widget.fileType != null) {
-      final type = widget.fileType!.toLowerCase();
-      if (type == 'image') {
-        _isImageSupported = true;
-        _isPdf = false;
-      } else if (type == 'pdf') {
-        _isPdf = true;
-        _isImageSupported = false;
+      final bytes = Uint8List.fromList(response.data!);
+      debugPrint('✅ Downloaded ${bytes.length} bytes');
+
+      String mimeType = explicitMime ?? _detectMimeType(response, bytes);
+      debugPrint('✅ MIME type: $mimeType');
+
+      String? blobUrl;
+      if (mimeType == 'application/pdf') {
+        blobUrl = web_viewer.createPdfBlobUrl(bytes);
+      } else if (mimeType.startsWith('image/')) {
+        blobUrl = web_viewer.createImageBlobUrl(bytes, mimeType);
+      } else {
+        blobUrl = web_viewer.createPdfBlobUrl(bytes);
+      }
+
+      if (blobUrl == null || blobUrl.isEmpty) {
+        throw Exception('Failed to create blob URL');
+      }
+
+      if (mounted) {
+        setState(() {
+          _blobUrl = blobUrl;
+          _blobMimeType = mimeType;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Web blob preparation failed: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to load file: ${e.toString()}';
+        });
       }
     }
   }
 
-  // ==================== PDF VIEWER ====================
+  String _detectMimeType(Response<List<int>> response, Uint8List bytes) {
+    final contentType = response.headers.value('content-type') ?? '';
+    if (contentType.isNotEmpty) {
+      if (contentType.contains('pdf')) return 'application/pdf';
+      if (contentType.contains('image/jpeg')) return 'image/jpeg';
+      if (contentType.contains('image/jpg')) return 'image/jpeg';
+      if (contentType.contains('image/png')) return 'image/png';
+      if (contentType.contains('image/webp')) return 'image/webp';
+      if (contentType.contains('image/gif')) return 'image/gif';
+      if (contentType.startsWith('image/')) {
+        return contentType.split(';').first.trim();
+      }
+    }
 
-  Future<void> _viewPdf() async {
+    if (bytes.length >= 4) {
+      // PDF: %PDF
+      if (bytes[0] == 0x25 && bytes[1] == 0x50 && bytes[2] == 0x44 && bytes[3] == 0x46) {
+        return 'application/pdf';
+      }
+      // JPEG: FF D8 FF
+      if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) {
+        return 'image/jpeg';
+      }
+      // PNG: 89 50 4E 47
+      if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
+        return 'image/png';
+      }
+      // GIF
+      if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46) {
+        return 'image/gif';
+      }
+      // WEBP: RIFF....WEBP
+      if (bytes.length >= 12 &&
+          bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 &&
+          bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50) {
+        return 'image/webp';
+      }
+    }
+
+    if (_isPdf) return 'application/pdf';
+    if (_isImage) return 'image/jpeg';
+    return 'application/octet-stream';
+  }
+
+  Future<void> _downloadPdfForMobile() async {
     try {
-      final uri = Uri.parse(_effectiveUrl);
+      final dir = await getTemporaryDirectory();
+      final fileName = _getFileNameForLocalStorage();
+      final filePath = '${dir.path}/$fileName';
+      final file = File(filePath);
 
-      debugPrint('📄 Opening PDF: $_effectiveUrl');
+      if (await file.exists()) {
+        final size = await file.length();
+        if (size > 0) {
+          setState(() {
+            _localFilePath = filePath;
+            _isLoading = false;
+          });
+          return;
+        }
+      }
 
-      // On Web: Open in new tab
+      await Dio().download(_effectiveUrl, filePath);
+
+      if (mounted) {
+        setState(() {
+          _localFilePath = filePath;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to download PDF: ${e.toString()}';
+        });
+      }
+    }
+  }
+
+  Future<void> _downloadTextFile() async {
+    try {
+      final response = await Dio().get(
+        _effectiveUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      if (mounted && response.data != null) {
+        setState(() {
+          _fileBytes = response.data;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to load text file: $e';
+        });
+      }
+    }
+  }
+
+  String _getFileNameForLocalStorage() {
+    try {
+      if (widget.fileName != null && widget.fileName!.isNotEmpty) {
+        final name = widget.fileName!;
+        if (name.contains('.')) return name;
+        return '$name.$_fileExtension';
+      }
+      final clean = _effectiveUrl.split('?').first;
+      final segments = clean.split('/');
+      String name = segments.isNotEmpty ? segments.last : 'file';
+      if (!name.contains('.')) {
+        name = 'file.$_fileExtension';
+      }
+      return name.replaceAll(RegExp(r'[^\w\.\-]'), '_');
+    } catch (_) {
+      return 'file.$_fileExtension';
+    }
+  }
+
+  /// ✅ Get proper download file name with correct extension
+  String _getDownloadFileName() {
+    String baseName;
+    if (widget.fileName != null && widget.fileName!.isNotEmpty) {
+      baseName = widget.fileName!;
+      // Remove extension if present
+      if (baseName.contains('.')) {
+        baseName = baseName.split('.').first;
+      }
+    } else if (widget.title.isNotEmpty) {
+      baseName = widget.title;
+    } else {
+      baseName = 'document';
+    }
+
+    // Determine extension from MIME type or detected type
+    String extension = '';
+    if (_blobMimeType.isNotEmpty) {
+      extension = FileTypeDetector.getExtensionFromMime(_blobMimeType);
+    }
+    if (extension.isEmpty || extension == 'file') {
+      if (_isPdf) {
+        extension = 'pdf';
+      } else if (_isImage) {
+        extension = _fileExtension.isNotEmpty ? _fileExtension : 'jpg';
+      } else {
+        extension = _fileExtension.isNotEmpty ? _fileExtension : 'file';
+      }
+    }
+
+    // Sanitize base name
+    baseName = baseName.replaceAll(RegExp(r'[^\w\s\-]'), '').trim();
+    if (baseName.isEmpty) baseName = 'document';
+
+    return '$baseName.$extension';
+  }
+
+  // ========================================================================
+  // ✅ DOWNLOAD FILE (Web + Mobile)
+  // ========================================================================
+  Future<void> _downloadFile() async {
+    try {
+      // ✅ WEB: Use blob URL for download
       if (_isWeb) {
-        await launchUrl(uri, mode: LaunchMode.platformDefault);
-        _showSnackBar("PDF opened in new browser tab");
+        if (_blobUrl == null) {
+          _showSnackBar('File not ready for download', isError: true);
+          return;
+        }
+
+        final fileName = _getDownloadFileName();
+        debugPrint('📥 Web download: $fileName');
+
+        web_viewer.downloadBlobUrl(_blobUrl!, fileName);
+        _showSnackBar('Downloading: $fileName');
         return;
       }
 
-      // On Mobile: Try to open with external app (PDF viewer)
-      // Check if URL can be launched
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        _showSnackBar("Opening PDF with external PDF viewer...");
-      } else {
-        // Fallback: Show dialog with options
-        _showPdfOptionsDialog();
+      // ✅ MOBILE: Download and save file
+      _showSnackBar('Downloading file...');
+
+      // If we already have local file (PDF), copy it
+      if (_localFilePath != null) {
+        final dir = await getDownloadsDirectory() ??
+            await getTemporaryDirectory();
+        final fileName = _getDownloadFileName();
+        final destPath = '${dir.path}/$fileName';
+
+        final srcFile = File(_localFilePath!);
+        await srcFile.copy(destPath);
+
+        _showSnackBar('✅ Downloaded to: $destPath');
+        return;
       }
+
+      // Otherwise download from URL
+      final dir =
+          await getDownloadsDirectory() ?? await getTemporaryDirectory();
+      final fileName = _getDownloadFileName();
+      final filePath = '${dir.path}/$fileName';
+
+      await Dio().download(_effectiveUrl, filePath);
+      _showSnackBar('✅ Downloaded to: $filePath');
     } catch (e) {
-      debugPrint('❌ Error opening PDF: $e');
-      if (mounted) {
-        _showPdfOptionsDialog();
-      }
+      debugPrint('❌ Download failed: $e');
+      _showSnackBar('Download failed: $e', isError: true);
     }
-  }
-
-  void _showPdfOptionsDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.picture_as_pdf, color: Colors.red),
-            SizedBox(width: 10),
-            Text("PDF Document"),
-          ],
-        ),
-        content: const Text(
-          "This is a PDF file. How would you like to open it?",
-          style: TextStyle(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              _copyLinkToClipboard();
-            },
-            icon: const Icon(Icons.copy, size: 18),
-            label: const Text("Copy Link"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey,
-            ),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              _openInBrowser();
-            },
-            icon: const Icon(Icons.open_in_browser, size: 18),
-            label: const Text("Open in Browser"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==================== USER ACTIONS ====================
-
-  Future<void> _openInBrowser() async {
-    if (!mounted) return;
-    try {
-      final uri = Uri.parse(_effectiveUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        _showSnackBar("Opening in browser...");
-      } else {
-        _showSnackBar("Cannot open URL", isError: true);
-      }
-    } catch (e) {
-      _showSnackBar("Error opening URL: $e", isError: true);
-    }
-  }
-
-  void _copyLinkToClipboard() {
-    Clipboard.setData(ClipboardData(text: _effectiveUrl));
-    _showSnackBar("Link copied to clipboard!");
   }
 
   void _refreshViewer() {
+    if (_isWeb && _blobUrl != null) {
+      web_viewer.revokeBlobUrl(_blobUrl!);
+      _blobUrl = null;
+    }
+    _localFilePath = null;
+    _fileBytes = null;
     _initializeViewer();
   }
 
-  void _showSnackBar(String message, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  // ==================== ZOOM CONTROLS FOR IMAGES ====================
-
   void _zoomIn() {
     setState(() {
-      _zoomScale = (_zoomScale + 0.25).clamp(0.5, 3.0);
+      _zoomScale = (_zoomScale + 0.25).clamp(0.5, 5.0);
       _imageController.value = Matrix4.identity()
         ..setEntry(0, 0, _zoomScale)
         ..setEntry(1, 1, _zoomScale);
@@ -4819,7 +5153,7 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
 
   void _zoomOut() {
     setState(() {
-      _zoomScale = (_zoomScale - 0.25).clamp(0.5, 3.0);
+      _zoomScale = (_zoomScale - 0.25).clamp(0.5, 5.0);
       _imageController.value = Matrix4.identity()
         ..setEntry(0, 0, _zoomScale)
         ..setEntry(1, 1, _zoomScale);
@@ -4833,264 +5167,142 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
     });
   }
 
-  // ==================== BUILD METHODS ====================
-
-  Widget _buildImageViewer() {
-    return InteractiveViewer(
-      transformationController: _imageController,
-      minScale: 0.5,
-      maxScale: 3.0,
-      child: Center(
-        child: CachedNetworkImage(
-          imageUrl: _effectiveUrl,
-          placeholder: (_, __) => const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text("Loading image..."),
-              ],
-            ),
-          ),
-          errorWidget: (_, __, ___) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.broken_image, size: 64, color: Colors.grey),
-                const SizedBox(height: 16),
-                const Text("Failed to load image"),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _openInBrowser,
-                  child: const Text("Open in Browser"),
-                ),
-              ],
-            ),
-          ),
-          fit: BoxFit.contain,
-        ),
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
       ),
     );
   }
 
-  Widget _buildPdfViewer() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.red.shade200,
-                  blurRadius: 20,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.picture_as_pdf,
-              size: 70,
-              color: Colors.red,
-            ),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: _buildAppBar(),
+      body: _buildBody(),
+    );
+  }
+
+  // ========================================================================
+  // ✅ APPBAR - Now has download button for BOTH PDF and Image
+  // ========================================================================
+  PreferredSizeWidget _buildAppBar() {
+    final isReady = !_isLoading && _errorMessage == null;
+
+    return AppBar(
+      title: Text(
+        widget.title,
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+        overflow: TextOverflow.ellipsis,
+      ),
+      backgroundColor: Colors.black87,
+      foregroundColor: Colors.white,
+      centerTitle: false,
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: () => Navigator.of(context).maybePop(),
+        tooltip: 'Close',
+      ),
+      actions: [
+        // ✅ Zoom controls for images
+        if (_isImage && isReady) ...[
+          IconButton(
+            icon: const Icon(Icons.zoom_out),
+            onPressed: _zoomOut,
+            tooltip: 'Zoom Out',
           ),
-          const SizedBox(height: 30),
-          Text(
-            widget.title,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
+          IconButton(
+            icon: const Icon(Icons.zoom_in),
+            onPressed: _zoomIn,
+            tooltip: 'Zoom In',
           ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            margin: const EdgeInsets.symmetric(horizontal: 24),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.blue.shade200),
-            ),
-            child: Column(
-              children: [
-                const Icon(
-                  Icons.description,
-                  size: 32,
-                  color: Colors.blue,
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  "📄 PDF Document",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _isWeb
-                      ? "Click below to open PDF in a new browser tab"
-                      : "Click below to open PDF with your device's PDF viewer",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.blue,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 140,
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: _viewPdf,
-                  icon: const Icon(Icons.picture_as_pdf, size: 20),
-                  label: const Text('Open PDF'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 3,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              SizedBox(
-                width: 140,
-                height: 52,
-                child: OutlinedButton.icon(
-                  onPressed: _copyLinkToClipboard,
-                  icon: const Icon(Icons.copy, size: 18),
-                  label: const Text('Copy Link'),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.blue),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: 200,
-            height: 44,
-            child: TextButton.icon(
-              onPressed: _openInBrowser,
-              icon: const Icon(Icons.open_in_browser, size: 18),
-              label: const Text('Open in Browser'),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.grey,
-              ),
-            ),
+          IconButton(
+            icon: const Icon(Icons.aspect_ratio),
+            onPressed: _resetZoom,
+            tooltip: 'Reset Zoom',
           ),
         ],
-      ),
+
+        // ✅ DOWNLOAD BUTTON - for PDF AND Image (both web + mobile)
+        if ((_isPdf || _isImage) && isReady)
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: _downloadFile,
+            tooltip: 'Download',
+          ),
+
+        // Refresh button
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          onPressed: _refreshViewer,
+          tooltip: 'Refresh',
+        ),
+      ],
     );
   }
 
-  Widget _buildUnsupportedViewer() {
+  Widget _buildBody() {
+    if (_isLoading) return _buildLoadingView();
+    if (_errorMessage != null) return _buildErrorView();
+    if (_isPdf) return _buildPdfView();
+    if (_isImage) return _buildImageView();
+    if (_isText && _fileBytes != null) return _buildTextView();
+    return _buildUnsupportedFileView();
+  }
+
+  Widget _buildLoadingView() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade50,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.warning_amber,
-              size: 60,
-              color: Colors.orange,
-            ),
+          TweenAnimationBuilder<double>(
+            duration: const Duration(seconds: 2),
+            tween: Tween<double>(begin: 0.8, end: 1.2),
+            curve: Curves.easeInOut,
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: value,
+                child: Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Icon(
+                    FileTypeDetector.getIcon(_effectiveUrl,
+                        explicitType: widget.fileType),
+                    color: FileTypeDetector.getColor(_effectiveUrl,
+                        explicitType: widget.fileType),
+                    size: 36,
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 24),
           Text(
-            widget.title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
+            _isPdf
+                ? "Loading PDF..."
+                : (_isImage ? "Loading image..." : "Loading file..."),
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.orange.shade200),
+          const SizedBox(
+            width: 200,
+            child: LinearProgressIndicator(
+              backgroundColor: Colors.white12,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
             ),
-            child: Column(
-              children: [
-                const Icon(Icons.error_outline, size: 32, color: Colors.orange),
-                const SizedBox(height: 12),
-                const Text(
-                  "⚠️ Unsupported File Format",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _errorMessage ??
-                      "Only JPG, JPEG, PNG images and PDF files are supported.",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13, color: Colors.orange),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 140,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: _openInBrowser,
-                  icon: const Icon(Icons.open_in_browser, size: 18),
-                  label: const Text('Open'),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 140,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: _copyLinkToClipboard,
-                  icon: const Icon(Icons.copy, size: 18),
-                  label: const Text('Copy Link'),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -5099,110 +5311,325 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
 
   Widget _buildErrorView() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 80, color: Colors.red.shade300),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              _errorMessage!,
-              style: const TextStyle(color: Colors.red),
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 80, color: Colors.red.shade300),
+            const SizedBox(height: 20),
+            const Text(
+              "Failed to Load File",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _errorMessage ?? 'Unknown error',
               textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white54, fontSize: 13),
             ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _openInBrowser,
-            icon: const Icon(Icons.open_in_browser),
-            label: const Text("Open in Browser"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueAccent,
+            const SizedBox(height: 28),
+            ElevatedButton.icon(
+              onPressed: _refreshViewer,
+              icon: const Icon(Icons.refresh),
+              label: const Text("Retry"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  // ==================== MAIN BUILD ====================
-
-  @override
-  Widget build(BuildContext context) {
-    Widget content;
-
-    if (_errorMessage != null) {
-      content = _buildErrorView();
-    } else if (_isImageSupported) {
-      content = _buildImageViewer();
-    } else if (_isPdf) {
-      content = _buildPdfViewer();
-    } else {
-      content = _buildUnsupportedViewer();
+  // PDF VIEW
+  Widget _buildPdfView() {
+    if (_isWeb) {
+      if (_blobUrl == null) {
+        return _buildFileErrorView('PDF not prepared');
+      }
+      return web_viewer.buildWebPdfFromBlob(
+        blobUrl: _blobUrl!,
+        title: widget.title,
+      );
     }
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: Text(
-          widget.title,
-          style: const TextStyle(color: Colors.white),
-          overflow: TextOverflow.ellipsis,
+    if (_localFilePath != null) {
+      final file = File(_localFilePath!);
+      return FutureBuilder<bool>(
+        future: file.exists(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return _buildLoadingView();
+          }
+          if (snapshot.data == true) {
+            return PDFView(
+              filePath: _localFilePath!,
+              enableSwipe: true,
+              swipeHorizontal: false,
+              autoSpacing: true,
+              pageFling: true,
+              pageSnap: true,
+              defaultPage: 0,
+              fitPolicy: FitPolicy.BOTH,
+              onRender: (pages) {
+                debugPrint('✅ PDF rendered: $pages pages');
+              },
+              onError: (error) {
+                if (mounted) {
+                  setState(() {
+                    _errorMessage = 'Failed to display PDF: $error';
+                  });
+                }
+              },
+              onViewCreated: (PDFViewController pdfViewController) {
+                debugPrint('✅ PDF view created');
+              },
+            );
+          }
+          return _buildFileErrorView('File not found');
+        },
+      );
+    }
+
+    return _buildFileErrorView('PDF not downloaded');
+  }
+
+  Widget _buildFileErrorView(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 60, color: Colors.red),
+            const SizedBox(height: 16),
+            const Text(
+              "Could not load file",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: const TextStyle(color: Colors.white54, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _refreshViewer,
+              icon: const Icon(Icons.refresh),
+              label: const Text("Retry"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(200, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
         ),
-        backgroundColor: Colors.black87,
-        foregroundColor: Colors.white,
-        centerTitle: false,
-        actions: [
-          // Zoom controls (only for images)
-          if (_isImageSupported && !_isLoading) ...[
-            IconButton(
-              icon: const Icon(Icons.zoom_out),
-              onPressed: _zoomOut,
-              tooltip: "Zoom Out",
-            ),
-            IconButton(
-              icon: const Icon(Icons.zoom_in),
-              onPressed: _zoomIn,
-              tooltip: "Zoom In",
-            ),
-            IconButton(
-              icon: const Icon(Icons.aspect_ratio),
-              onPressed: _resetZoom,
-              tooltip: "Reset Zoom",
-            ),
-          ],
-          // Share/Copy button for PDFs
-          if (_isPdf && !_isLoading) ...[
-            IconButton(
-              icon: const Icon(Icons.copy),
-              onPressed: _copyLinkToClipboard,
-              tooltip: "Copy Link",
-            ),
-          ],
-          // Open in Browser button (always available)
-          IconButton(
-            icon: const Icon(Icons.open_in_browser),
-            onPressed: _openInBrowser,
-            tooltip: "Open in Browser",
-          ),
-          // Refresh button
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refreshViewer,
-            tooltip: "Refresh",
-          ),
-        ],
       ),
-      body: content,
     );
+  }
+
+  // IMAGE VIEW
+  Widget _buildImageView() {
+    if (_isWeb) {
+      if (_blobUrl == null) {
+        return _buildFileErrorView('Image not prepared');
+      }
+      debugPrint('🖼️ Building web image from blob: $_blobUrl');
+      return web_viewer.buildWebImageFromBlob(
+        blobUrl: _blobUrl!,
+        controller: _imageController,
+      );
+    }
+
+    return InteractiveViewer(
+      transformationController: _imageController,
+      minScale: 0.5,
+      maxScale: 5.0,
+      child: Center(
+        child: CachedNetworkImage(
+          imageUrl: _effectiveUrl,
+          placeholder: (_, __) => const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.white),
+                SizedBox(height: 16),
+                Text(
+                  "Loading image...",
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
+          errorWidget: (_, url, error) {
+            debugPrint('❌ Image load error: $error');
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.broken_image,
+                      size: 80, color: Colors.white38),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Failed to load image",
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: _refreshViewer,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text("Retry"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+  }
+
+  // TEXT VIEW
+  Widget _buildTextView() {
+    String content = '';
+    try {
+      content = String.fromCharCodes(_fileBytes!);
+    } catch (e) {
+      content = 'Failed to decode: $e';
+    }
+    return Container(
+      color: const Color(0xFF1E1E1E),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: SelectableText(
+          content,
+          style: const TextStyle(
+            color: Color(0xFFD4D4D4),
+            fontSize: 13,
+            fontFamily: 'monospace',
+            height: 1.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // UNSUPPORTED FILE VIEW
+  Widget _buildUnsupportedFileView() {
+    final icon = FileTypeDetector.getIcon(_effectiveUrl,
+        explicitType: widget.fileType);
+    final color = FileTypeDetector.getColor(_effectiveUrl,
+        explicitType: widget.fileType);
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(30),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: color.withValues(alpha: 0.4), width: 2),
+              ),
+              child: Icon(icon, size: 80, color: color),
+            ),
+            const SizedBox(height: 28),
+            Text(
+              widget.title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: 260,
+              height: 54,
+              child: ElevatedButton.icon(
+                onPressed: _openWithExternalApp,
+                icon: const Icon(Icons.open_in_new, size: 22),
+                label: const Text(
+                  "Open File",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: color,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openWithExternalApp() async {
+    if (_isWeb) {
+      final uri = Uri.parse(_effectiveUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+      return;
+    }
+    try {
+      String? path = _localFilePath;
+      if (path == null) {
+        final dir = await getTemporaryDirectory();
+        final fileName = _getFileNameForLocalStorage();
+        path = '${dir.path}/$fileName';
+        final file = File(path);
+        if (!await file.exists()) {
+          await Dio().download(_effectiveUrl, path);
+        }
+      }
+      await OpenFilex.open(path);
+    } catch (e) {
+      debugPrint('❌ Open failed: $e');
+    }
   }
 }
 
 ================================================================================
-[  32/ 127] 🎯 rojgarnext/lib/core/widgets/location_dropdowns.dart
+[  32/ 129] 🎯 rojgarnext/lib/core/widgets/location_dropdowns.dart
 📏 SIZE: 9.2 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/widgets/location_dropdowns.dart
@@ -5502,9 +5929,9 @@ class _LocationDropdownsState extends State<LocationDropdowns> {
 
 
 ================================================================================
-[  33/ 127] 🎯 rojgarnext/lib/core/widgets/modern_button.dart
+[  33/ 129] 🎯 rojgarnext/lib/core/widgets/modern_button.dart
 📏 SIZE: 2.4 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/widgets/modern_button.dart
@@ -5593,9 +6020,9 @@ class ModernButton extends StatelessWidget {
 
 
 ================================================================================
-[  34/ 127] 🎯 rojgarnext/lib/core/widgets/platform_aware.dart
+[  34/ 129] 🎯 rojgarnext/lib/core/widgets/platform_aware.dart
 📏 SIZE: 2.2 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/widgets/platform_aware.dart
@@ -5678,9 +6105,9 @@ class PlatformAware {
 
 
 ================================================================================
-[  35/ 127] 🎯 rojgarnext/lib/core/widgets/platform_file_picker.dart
+[  35/ 129] 🎯 rojgarnext/lib/core/widgets/platform_file_picker.dart
 📏 SIZE: 2.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/widgets/platform_file_picker.dart
@@ -5783,9 +6210,9 @@ class PlatformFileResult {
 }
 
 ================================================================================
-[  36/ 127] 🎯 rojgarnext/lib/core/widgets/platform_webview.dart
+[  36/ 129] 🎯 rojgarnext/lib/core/widgets/platform_webview.dart
 📏 SIZE: 3.0 KB
-🕐 MODIFIED: 2026-09-10 12:54:26
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/widgets/platform_webview.dart
@@ -5890,9 +6317,9 @@ class _PlatformWebViewState extends State<PlatformWebView> {
 }
 
 ================================================================================
-[  37/ 127] 🎯 rojgarnext/lib/core/widgets/responsive_widget.dart
+[  37/ 129] 🎯 rojgarnext/lib/core/widgets/responsive_widget.dart
 📏 SIZE: 2.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/core/widgets/responsive_widget.dart
@@ -5987,9 +6414,257 @@ class ResponsiveWidget extends StatelessWidget {
 
 
 ================================================================================
-[  38/ 127] 🎯 rojgarnext/lib/features/admin/AI/admin_ai_dashboard.dart
+[  38/ 129] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_stub.dart
+📏 SIZE: 1.6 KB
+🕐 MODIFIED: 2026-09-14 13:39:45
+================================================================================
+
+// lib/core/widgets/web_pdf_viewer_stub.dart
+// ✅ Stub for mobile/native platforms (Android / iOS / Windows / Linux / macOS)
+// ✅ This file MUST NOT import dart:html or dart:js_interop
+
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+
+// ============================================================================
+// PDF BLOB STUBS
+// ============================================================================
+String? createPdfBlobUrl(Uint8List bytes) => null;
+
+void revokeBlobUrl(String blobUrl) {}
+
+Widget buildWebPdfFromBlob({
+  required String blobUrl,
+  required String title,
+}) {
+  return const Center(
+    child: Text(
+      'Web PDF viewer not available on this platform',
+      style: TextStyle(color: Colors.white70),
+    ),
+  );
+}
+
+// ============================================================================
+// IMAGE BLOB STUBS
+// ============================================================================
+String? createImageBlobUrl(Uint8List bytes, String mimeType) => null;
+
+Widget buildWebImageFromBlob({
+  required String blobUrl,
+  required TransformationController controller,
+}) {
+  return const Center(
+    child: Text(
+      'Web image viewer not available on this platform',
+      style: TextStyle(color: Colors.white70),
+    ),
+  );
+}
+
+// ============================================================================
+// DOWNLOAD STUB
+// ============================================================================
+void downloadBlobUrl(String blobUrl, String fileName) {
+  // Stub - not available on mobile
+}
+
+================================================================================
+[  39/ 129] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_web.dart
+📏 SIZE: 5.2 KB
+🕐 MODIFIED: 2026-09-14 13:40:06
+================================================================================
+
+// lib/core/widgets/web_pdf_viewer_web.dart
+// ✅ ONLY compiled on Web (via conditional import in file_viewer_screen.dart)
+
+import 'dart:typed_data';
+import 'dart:html' as html;
+import 'dart:ui_web' as ui_web;
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
+
+// ============================================================================
+// PDF BLOB URL
+// ============================================================================
+String? createPdfBlobUrl(Uint8List bytes) {
+  try {
+    final blob = html.Blob([bytes], 'application/pdf');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    debugPrint('✅ PDF Blob URL created: $url');
+    return url;
+  } catch (e) {
+    debugPrint('❌ Failed to create PDF blob URL: $e');
+    return null;
+  }
+}
+
+void revokeBlobUrl(String blobUrl) {
+  try {
+    html.Url.revokeObjectUrl(blobUrl);
+    debugPrint('✅ Blob URL revoked: $blobUrl');
+  } catch (e) {
+    debugPrint('⚠️ Failed to revoke blob URL: $e');
+  }
+}
+
+Widget buildWebPdfFromBlob({
+  required String blobUrl,
+  required String title,
+}) {
+  return _WebPdfIframe(blobUrl: blobUrl, title: title);
+}
+
+class _WebPdfIframe extends StatefulWidget {
+  final String blobUrl;
+  final String title;
+
+  const _WebPdfIframe({
+    required this.blobUrl,
+    required this.title,
+  });
+
+  @override
+  State<_WebPdfIframe> createState() => _WebPdfIframeState();
+}
+
+class _WebPdfIframeState extends State<_WebPdfIframe> {
+  late final String _viewId;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewId = 'pdf-blob-${DateTime.now().microsecondsSinceEpoch}';
+
+    // ignore: undefined_prefixed_name
+    ui_web.platformViewRegistry.registerViewFactory(
+      _viewId,
+      (int viewId) {
+        final iframe = html.IFrameElement()
+          ..src = widget.blobUrl
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..style.backgroundColor = '#1E1E1E'
+          ..setAttribute('type', 'application/pdf')
+          ..setAttribute('allow', 'fullscreen');
+        return iframe;
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return HtmlElementView(viewType: _viewId);
+  }
+}
+
+// ============================================================================
+// IMAGE BLOB URL
+// ============================================================================
+String? createImageBlobUrl(Uint8List bytes, String mimeType) {
+  try {
+    final blob = html.Blob([bytes], mimeType);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    debugPrint('✅ Image Blob URL created ($mimeType): $url');
+    return url;
+  } catch (e) {
+    debugPrint('❌ Failed to create image blob URL: $e');
+    return null;
+  }
+}
+
+Widget buildWebImageFromBlob({
+  required String blobUrl,
+  required TransformationController controller,
+}) {
+  return _WebImageFromBlob(blobUrl: blobUrl, controller: controller);
+}
+
+class _WebImageFromBlob extends StatefulWidget {
+  final String blobUrl;
+  final TransformationController controller;
+
+  const _WebImageFromBlob({
+    required this.blobUrl,
+    required this.controller,
+  });
+
+  @override
+  State<_WebImageFromBlob> createState() => _WebImageFromBlobState();
+}
+
+class _WebImageFromBlobState extends State<_WebImageFromBlob> {
+  late final String _viewId;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewId = 'img-blob-${DateTime.now().microsecondsSinceEpoch}';
+
+    debugPrint('🖼️ Registering web image blob view: $_viewId');
+    debugPrint('   Blob URL: ${widget.blobUrl}');
+
+    // ignore: undefined_prefixed_name
+    ui_web.platformViewRegistry.registerViewFactory(
+      _viewId,
+      (int viewId) {
+        final img = html.ImageElement()
+          ..src = widget.blobUrl
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..style.objectFit = 'contain'
+          ..style.backgroundColor = '#000000';
+
+        debugPrint('✅ <img> created for blob');
+        return img;
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InteractiveViewer(
+      transformationController: widget.controller,
+      minScale: 0.5,
+      maxScale: 5.0,
+      child: HtmlElementView(viewType: _viewId),
+    );
+  }
+}
+
+// ============================================================================
+// DOWNLOAD BLOB URL
+// ============================================================================
+void downloadBlobUrl(String blobUrl, String fileName) {
+  try {
+    debugPrint('📥 Downloading: $fileName');
+    debugPrint('   From: $blobUrl');
+
+    final anchor = html.AnchorElement(href: blobUrl)
+      ..download = fileName
+      ..style.display = 'none';
+
+    html.document.body?.children.add(anchor);
+    anchor.click();
+    html.document.body?.children.remove(anchor);
+
+    debugPrint('✅ Download triggered for: $fileName');
+  } catch (e) {
+    debugPrint('❌ Download failed: $e');
+    try {
+      html.window.open(blobUrl, '_blank');
+      debugPrint('✅ Opened in new tab as fallback');
+    } catch (e2) {
+      debugPrint('❌ Fallback also failed: $e2');
+    }
+  }
+}
+
+================================================================================
+[  40/ 129] 🎯 rojgarnext/lib/features/admin/AI/admin_ai_dashboard.dart
 📏 SIZE: 10.7 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/admin/AI/admin_ai_dashboard.dart - Remove unused _selectedTab
@@ -6352,9 +7027,9 @@ class _AdminAIDashboardState extends State<AdminAIDashboard> {
 
 
 ================================================================================
-[  39/ 127] 🎯 rojgarnext/lib/features/admin/data/admin_service.dart
+[  41/ 129] 🎯 rojgarnext/lib/features/admin/data/admin_service.dart
 📏 SIZE: 6.3 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/admin/data/admin_service.dart
@@ -6596,9 +7271,9 @@ class AdminService {
 
 
 ================================================================================
-[  40/ 127] 🎯 rojgarnext/lib/features/admin/presentation/models/admin_menu.dart
+[  42/ 129] 🎯 rojgarnext/lib/features/admin/presentation/models/admin_menu.dart
 📏 SIZE: 433 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/admin/presentation/models/admin_menu.dart
@@ -6624,9 +7299,9 @@ enum ApplicationSubMenu {
 
 
 ================================================================================
-[  41/ 127] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_dashboard.dart
+[  43/ 129] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_dashboard.dart
 📏 SIZE: 29.2 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/admin/presentation/screens/admin_dashboard.dart
@@ -7463,9 +8138,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
 }
 
 ================================================================================
-[  42/ 127] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_reports_screen.dart
+[  44/ 129] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_reports_screen.dart
 📏 SIZE: 911 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/admin/presentation/screens/admin_reports_screen.dart
@@ -7500,9 +8175,9 @@ class AdminReportsScreen extends StatelessWidget {
 
 
 ================================================================================
-[  43/ 127] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_settings_screen.dart
+[  45/ 129] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_settings_screen.dart
 📏 SIZE: 1.3 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/admin/presentation/screens/admin_settings_screen.dart
@@ -7549,9 +8224,9 @@ class AdminSettingsScreen extends StatelessWidget {
 
 
 ================================================================================
-[  44/ 127] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_users_screen.dart
+[  46/ 129] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_users_screen.dart
 📏 SIZE: 3.1 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/admin/presentation/screens/admin_users_screen.dart
@@ -7661,9 +8336,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
 
 ================================================================================
-[  45/ 127] 🎯 rojgarnext/lib/features/admin/presentation/screens/pending_payments_screen.dart
+[  47/ 129] 🎯 rojgarnext/lib/features/admin/presentation/screens/pending_payments_screen.dart
 📏 SIZE: 5.4 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/admin/presentation/screens/pending_payments_screen.dart
@@ -7835,9 +8510,9 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
 
 
 ================================================================================
-[  46/ 127] 🎯 rojgarnext/lib/features/admin/presentation/widgets/admin_sidebar.dart
+[  48/ 129] 🎯 rojgarnext/lib/features/admin/presentation/widgets/admin_sidebar.dart
 📏 SIZE: 7.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/admin/presentation/widgets/admin_sidebar.dart
@@ -8064,9 +8739,9 @@ class AdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[  47/ 127] 🎯 rojgarnext/lib/features/auth/presentation/controllers/auth_controller.dart
+[  49/ 129] 🎯 rojgarnext/lib/features/auth/presentation/controllers/auth_controller.dart
 📏 SIZE: 29.3 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/auth/presentation/controllers/auth_controller.dart
@@ -8848,9 +9523,9 @@ class AuthController extends ChangeNotifier {
 }
 
 ================================================================================
-[  48/ 127] 🎯 rojgarnext/lib/features/auth/presentation/screens/change_password_screen.dart
+[  50/ 129] 🎯 rojgarnext/lib/features/auth/presentation/screens/change_password_screen.dart
 📏 SIZE: 36.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/auth/presentation/screens/change_password_screen.dart
@@ -9952,9 +10627,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 }
 
 ================================================================================
-[  49/ 127] 🎯 rojgarnext/lib/features/auth/presentation/screens/fingerprint_setup_page.dart
+[  51/ 129] 🎯 rojgarnext/lib/features/auth/presentation/screens/fingerprint_setup_page.dart
 📏 SIZE: 40.7 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/auth/presentation/screens/fingerprint_setup_page.dart
@@ -11170,9 +11845,9 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
 }
 
 ================================================================================
-[  50/ 127] 🎯 rojgarnext/lib/features/auth/presentation/screens/mpin_setup_page.dart
+[  52/ 129] 🎯 rojgarnext/lib/features/auth/presentation/screens/mpin_setup_page.dart
 📏 SIZE: 41.0 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/auth/presentation/screens/mpin_setup_page.dart
@@ -12409,9 +13084,9 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
 }
 
 ================================================================================
-[  51/ 127] 🎯 rojgarnext/lib/features/auth/presentation/screens/register_login_page.dart
+[  53/ 129] 🎯 rojgarnext/lib/features/auth/presentation/screens/register_login_page.dart
 📏 SIZE: 42.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/auth/presentation/screens/register_login_page.dart
@@ -13680,9 +14355,9 @@ class _ModernButton extends StatelessWidget {
 }
 
 ================================================================================
-[  52/ 127] 🎯 rojgarnext/lib/features/auth/presentation/screens/verify_otp_page.dart
+[  54/ 129] 🎯 rojgarnext/lib/features/auth/presentation/screens/verify_otp_page.dart
 📏 SIZE: 21.7 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/auth/presentation/screens/verify_otp_page.dart
@@ -14382,9 +15057,9 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 }
 
 ================================================================================
-[  53/ 127] 🎯 rojgarnext/lib/features/auth/services/auth_service.dart
+[  55/ 129] 🎯 rojgarnext/lib/features/auth/services/auth_service.dart
 📏 SIZE: 14.3 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/auth/services/auth_service.dart
@@ -14822,9 +15497,9 @@ class AuthService {
 }
 
 ================================================================================
-[  54/ 127] 🎯 rojgarnext/lib/features/common/widgets/internet_checker.dart
+[  56/ 129] 🎯 rojgarnext/lib/features/common/widgets/internet_checker.dart
 📏 SIZE: 4.2 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/common/widgets/internet_checker.dart
@@ -14973,9 +15648,9 @@ class _InternetCheckerState extends State<InternetChecker> {
 }
 
 ================================================================================
-[  55/ 127] 🎯 rojgarnext/lib/features/common/widgets/location_display.dart
+[  57/ 129] 🎯 rojgarnext/lib/features/common/widgets/location_display.dart
 📏 SIZE: 3.9 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/common/widgets/location_display.dart
@@ -15100,9 +15775,9 @@ class _LocationDisplayState extends State<LocationDisplay> {
 
 
 ================================================================================
-[  56/ 127] 🎯 rojgarnext/lib/features/customadmin/data/customadmin_service.dart
+[  58/ 129] 🎯 rojgarnext/lib/features/customadmin/data/customadmin_service.dart
 📏 SIZE: 8.4 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/customadmin/data/customadmin_service.dart
@@ -15400,9 +16075,9 @@ class CustomAdminService {
 }
 
 ================================================================================
-[  57/ 127] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
+[  59/ 129] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
 📏 SIZE: 27.7 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
@@ -16193,9 +16868,9 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
 }
 
 ================================================================================
-[  58/ 127] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/pending_payments_screen.dart
+[  60/ 129] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/pending_payments_screen.dart
 📏 SIZE: 5.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/customadmin/presentation/screens/pending_payments_screen.dart
@@ -16369,9 +17044,9 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
 
 
 ================================================================================
-[  59/ 127] 🎯 rojgarnext/lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
+[  61/ 129] 🎯 rojgarnext/lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
 📏 SIZE: 7.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
@@ -16595,9 +17270,9 @@ class CustomAdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[  60/ 127] 🎯 rojgarnext/lib/features/home/home_screen.dart
+[  62/ 129] 🎯 rojgarnext/lib/features/home/home_screen.dart
 📏 SIZE: 55.0 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/home/home_screen.dart
@@ -18217,9 +18892,9 @@ class _HomeScreenState extends State<HomeScreen>
 }
 
 ================================================================================
-[  61/ 127] 🎯 rojgarnext/lib/features/jobs/AI/job_ai_service.dart
+[  63/ 129] 🎯 rojgarnext/lib/features/jobs/AI/job_ai_service.dart
 📏 SIZE: 1.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/jobs/AI/job_ai_service.dart
@@ -18280,9 +18955,9 @@ class JobAIService {
 
 
 ================================================================================
-[  62/ 127] 🎯 rojgarnext/lib/features/jobs/AI/job_match_score_widget.dart
+[  64/ 129] 🎯 rojgarnext/lib/features/jobs/AI/job_match_score_widget.dart
 📏 SIZE: 5.1 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/jobs/AI/job_match_score_widget.dart
@@ -18466,9 +19141,9 @@ class _JobMatchScoreWidgetState extends State<JobMatchScoreWidget> {
 
 
 ================================================================================
-[  63/ 127] 🎯 rojgarnext/lib/features/jobs/presentation/screens/add_job_screen.dart
+[  65/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/add_job_screen.dart
 📏 SIZE: 196.1 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/jobs/presentation/screens/add_job_screen.dart
@@ -23805,9 +24480,9 @@ Future<void> _pickAdvertisement() async {
 
 
 ================================================================================
-[  64/ 127] 🎯 rojgarnext/lib/features/jobs/presentation/screens/applications_screen.dart
+[  66/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/applications_screen.dart
 📏 SIZE: 111.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/jobs/presentation/screens/applications_screen.dart
@@ -26995,9 +27670,9 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
 }
 
 ================================================================================
-[  65/ 127] 🎯 rojgarnext/lib/features/jobs/presentation/screens/candidate_profile_screen.dart
+[  67/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/candidate_profile_screen.dart
 📏 SIZE: 61.9 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/jobs/presentation/screens/candidate_profile_screen.dart
@@ -28694,9 +29369,9 @@ class _CandidateProfileScreenState extends State<CandidateProfileScreen> {
 
 
 ================================================================================
-[  66/ 127] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_detail_screen.dart
+[  68/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_detail_screen.dart
 📏 SIZE: 168.3 KB
-🕐 MODIFIED: 2026-09-12 20:48:05
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/jobs/presentation/screens/job_detail_screen.dart
@@ -33449,9 +34124,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 }
 
 ================================================================================
-[  67/ 127] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_list_screen.dart
+[  69/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_list_screen.dart
 📏 SIZE: 57.9 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/jobs/presentation/screens/job_list_screen.dart
@@ -35031,9 +35706,9 @@ class _JobListScreenState extends State<JobListScreen>
 }
 
 ================================================================================
-[  68/ 127] 🎯 rojgarnext/lib/features/jobs/presentation/screens/saved_jobs_screen.dart
+[  70/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/saved_jobs_screen.dart
 📏 SIZE: 15.4 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/jobs/presentation/screens/saved_jobs_screen.dart
@@ -35514,9 +36189,9 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
 
 
 ================================================================================
-[  69/ 127] 🎯 rojgarnext/lib/features/jobs/presentation/screens/show_jobs_screen.dart
+[  71/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/show_jobs_screen.dart
 📏 SIZE: 33.7 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/jobs/presentation/screens/show_jobs_screen.dart
@@ -36530,9 +37205,9 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
 }
 
 ================================================================================
-[  70/ 127] 🎯 rojgarnext/lib/features/jobs/presentation/screens/user_applications_screen.dart
+[  72/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/user_applications_screen.dart
 📏 SIZE: 116.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/jobs/presentation/screens/user_applications_screen.dart
@@ -39874,9 +40549,9 @@ class _UserApplicationScreenState extends State<UserApplicationScreen>
 }
 
 ================================================================================
-[  71/ 127] 🎯 rojgarnext/lib/features/jobs/presentation/widgets/submit_document_dialog.dart
+[  73/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/widgets/submit_document_dialog.dart
 📏 SIZE: 10.9 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/jobs/presentation/widgets/submit_document_dialog.dart
@@ -40192,9 +40867,9 @@ Future<void> _pickFile() async {
 
 
 ================================================================================
-[  72/ 127] 🎯 rojgarnext/lib/features/location/distance_test_screen.dart
+[  74/ 129] 🎯 rojgarnext/lib/features/location/distance_test_screen.dart
 📏 SIZE: 15.2 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/location/distance_test_screen.dart
@@ -40622,9 +41297,9 @@ class _DistanceTestScreenState extends State<DistanceTestScreen> {
 
 
 ================================================================================
-[  73/ 127] 🎯 rojgarnext/lib/features/location/location_test_screen.dart
+[  75/ 129] 🎯 rojgarnext/lib/features/location/location_test_screen.dart
 📏 SIZE: 6.1 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/location/location_test_screen.dart
@@ -40815,9 +41490,9 @@ class _LocationTestScreenState extends State<LocationTestScreen> {
 
 
 ================================================================================
-[  74/ 127] 🎯 rojgarnext/lib/features/market/AI/market_ai_service.dart
+[  76/ 129] 🎯 rojgarnext/lib/features/market/AI/market_ai_service.dart
 📏 SIZE: 1.0 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/market/AI/market_ai_service.dart
@@ -40861,9 +41536,9 @@ class MarketAIService {
 
 
 ================================================================================
-[  75/ 127] 🎯 rojgarnext/lib/features/notification/screens/notifications_list_screen.dart
+[  77/ 129] 🎯 rojgarnext/lib/features/notification/screens/notifications_list_screen.dart
 📏 SIZE: 14.9 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/notification/screens/notifications_list_screen.dart
@@ -41339,9 +42014,9 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
 
 
 ================================================================================
-[  76/ 127] 🎯 rojgarnext/lib/features/notification/service/notification_service.dart
+[  78/ 129] 🎯 rojgarnext/lib/features/notification/service/notification_service.dart
 📏 SIZE: 5.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/notification/service/notification_service.dart
@@ -41538,9 +42213,9 @@ class NotificationService {
 
 
 ================================================================================
-[  77/ 127] 🎯 rojgarnext/lib/features/notification/widgets/notification_bell.dart
+[  79/ 129] 🎯 rojgarnext/lib/features/notification/widgets/notification_bell.dart
 📏 SIZE: 5.6 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/notification/widgets/notification_bell.dart
@@ -41743,9 +42418,9 @@ class _NotificationBellState extends State<NotificationBell>
 }
 
 ================================================================================
-[  78/ 127] 🎯 rojgarnext/lib/features/payment/presentation/payment.dart
+[  80/ 129] 🎯 rojgarnext/lib/features/payment/presentation/payment.dart
 📏 SIZE: 92 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/payment/presentation/payment.dart
@@ -41755,9 +42430,9 @@ enum PaymentType {
 }
 
 ================================================================================
-[  79/ 127] 🎯 rojgarnext/lib/features/payment/presentation/screens/payment_screen.dart
+[  81/ 129] 🎯 rojgarnext/lib/features/payment/presentation/screens/payment_screen.dart
 📏 SIZE: 30.4 KB
-🕐 MODIFIED: 2026-09-12 20:49:04
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/payment/presentation/screens/payment_screen.dart
@@ -42597,9 +43272,9 @@ class _PaymentScreenState extends State<PaymentScreen>
 }
 
 ================================================================================
-[  80/ 127] 🎯 rojgarnext/lib/features/payment/razorpay_mobile_service.dart
+[  82/ 129] 🎯 rojgarnext/lib/features/payment/razorpay_mobile_service.dart
 📏 SIZE: 2.7 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/payment/razorpay_mobile_service.dart
@@ -42699,9 +43374,9 @@ class RazorpayMobileService {
 }
 
 ================================================================================
-[  81/ 127] 🎯 rojgarnext/lib/features/payment/razorpay_service.dart
+[  83/ 129] 🎯 rojgarnext/lib/features/payment/razorpay_service.dart
 📏 SIZE: 2.0 KB
-🕐 MODIFIED: 2026-09-10 12:54:00
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/payment/razorpay_service.dart
@@ -42776,9 +43451,9 @@ class RazorpayService {
 }
 
 ================================================================================
-[  82/ 127] 🎯 rojgarnext/lib/features/payment/razorpay_web_service.dart
+[  84/ 129] 🎯 rojgarnext/lib/features/payment/razorpay_web_service.dart
 📏 SIZE: 6.2 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/payment/razorpay_web_service.dart
@@ -42995,9 +43670,9 @@ class RazorpayWebService {
 }
 
 ================================================================================
-[  83/ 127] 🎯 rojgarnext/lib/features/payment/razorpay_web_stub.dart
+[  85/ 129] 🎯 rojgarnext/lib/features/payment/razorpay_web_stub.dart
 📏 SIZE: 967 B
-🕐 MODIFIED: 2026-09-10 12:53:43
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/payment/razorpay_web_stub.dart
@@ -43036,9 +43711,9 @@ class RazorpayWebService {
 }
 
 ================================================================================
-[  84/ 127] 🎯 rojgarnext/lib/features/resume/AI/resume_ai_service.dart
+[  86/ 129] 🎯 rojgarnext/lib/features/resume/AI/resume_ai_service.dart
 📏 SIZE: 505 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/AI/resume_ai_service.dart
@@ -43062,9 +43737,9 @@ class ResumeAIService {
 
 
 ================================================================================
-[  85/ 127] 🎯 rojgarnext/lib/features/resume/AI/resume_score_widget.dart
+[  87/ 129] 🎯 rojgarnext/lib/features/resume/AI/resume_score_widget.dart
 📏 SIZE: 3.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/AI/resume_score_widget.dart
@@ -43200,9 +43875,9 @@ class _ResumeScoreWidgetState extends State<ResumeScoreWidget> {
 
 
 ================================================================================
-[  86/ 127] 🎯 rojgarnext/lib/features/resume/presentation/screens/build_resume_screen.dart
+[  88/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/build_resume_screen.dart
 📏 SIZE: 28.9 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/presentation/screens/build_resume_screen.dart
@@ -44086,9 +44761,9 @@ void showMessage(BuildContext context, String message, {bool isError = false}) {
 }
 
 ================================================================================
-[  87/ 127] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/classic_format.dart
+[  89/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/classic_format.dart
 📏 SIZE: 11.2 KB
-🕐 MODIFIED: 2026-09-13 18:33:29
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/classic_format.dart
@@ -44339,9 +45014,9 @@ body{font-family:Georgia,serif;background:#f8f8f8;padding:30px 20px;line-height:
 }
 
 ================================================================================
-[  88/ 127] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/executive_format.dart
+[  90/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/executive_format.dart
 📏 SIZE: 9.9 KB
-🕐 MODIFIED: 2026-09-13 18:34:31
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/executive_format.dart
@@ -44550,9 +45225,9 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
 }
 
 ================================================================================
-[  89/ 127] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/fresher_format.dart
+[  91/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/fresher_format.dart
 📏 SIZE: 11.0 KB
-🕐 MODIFIED: 2026-09-13 18:35:08
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/fresher_format.dart
@@ -44795,9 +45470,9 @@ body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#e0f2f1
 }
 
 ================================================================================
-[  90/ 127] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/government_format.dart
+[  92/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/government_format.dart
 📏 SIZE: 10.9 KB
-🕐 MODIFIED: 2026-09-13 18:34:50
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/government_format.dart
@@ -45025,9 +45700,9 @@ th{background:#E8EAF6;color:#1A237E;font-weight:bold}
 }
 
 ================================================================================
-[  91/ 127] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/modern_format.dart
+[  93/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/modern_format.dart
 📏 SIZE: 12.0 KB
-🕐 MODIFIED: 2026-09-13 18:33:51
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/modern_format.dart
@@ -45287,9 +45962,9 @@ body{font-family:'Poppins',sans-serif;background:#f5f7fa;padding:30px 20px;line-
 }
 
 ================================================================================
-[  92/ 127] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/tech_format.dart
+[  94/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/tech_format.dart
 📏 SIZE: 13.4 KB
-🕐 MODIFIED: 2026-09-13 18:34:11
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/tech_format.dart
@@ -45582,9 +46257,9 @@ body{font-family:'Fira Code',monospace;background:#0a0e27;padding:30px 20px;line
 }
 
 ================================================================================
-[  93/ 127] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_base.dart
+[  95/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_base.dart
 📏 SIZE: 6.8 KB
-🕐 MODIFIED: 2026-09-13 18:41:07
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/resume_format_base.dart
@@ -45823,9 +46498,9 @@ abstract class ResumeFormatBase {
 }
 
 ================================================================================
-[  94/ 127] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_manager.dart
+[  96/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_manager.dart
 📏 SIZE: 2.4 KB
-🕐 MODIFIED: 2026-09-13 18:35:34
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/resume_format_manager.dart
@@ -45918,9 +46593,9 @@ class ResumeFormatManager {
 }
 
 ================================================================================
-[  95/ 127] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_popup.dart
+[  97/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_popup.dart
 📏 SIZE: 19.5 KB
-🕐 MODIFIED: 2026-09-13 18:46:46
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/resume_format_popup.dart
@@ -46508,9 +47183,9 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
 }
 
 ================================================================================
-[  96/ 127] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_widget.dart
+[  98/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_widget.dart
 📏 SIZE: 2.4 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/resume_format_manager.dart
@@ -46604,9 +47279,9 @@ class ResumeFormatManager {
 }
 
 ================================================================================
-[  97/ 127] 🎯 rojgarnext/lib/features/resume/presentation/screens/resume_screen.dart
+[  99/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/resume_screen.dart
 📏 SIZE: 55.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/resume/presentation/screens/resume_screen.dart
@@ -48137,9 +48812,9 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
 }
 
 ================================================================================
-[  98/ 127] 🎯 rojgarnext/lib/features/services/data/service_data_source.dart
+[ 100/ 129] 🎯 rojgarnext/lib/features/services/data/service_data_source.dart
 📏 SIZE: 2.7 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/services/data/service_data_source.dart
@@ -48236,9 +48911,9 @@ class ServiceDataSource {
 }
 
 ================================================================================
-[  99/ 127] 🎯 rojgarnext/lib/features/services/data/service_repository.dart
+[ 101/ 129] 🎯 rojgarnext/lib/features/services/data/service_repository.dart
 📏 SIZE: 8.2 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/services/data/service_repository.dart
@@ -48509,9 +49184,9 @@ class ServiceRepository {
 }
 
 ================================================================================
-[ 100/ 127] 🎯 rojgarnext/lib/features/services/models/service_types.dart
+[ 102/ 129] 🎯 rojgarnext/lib/features/services/models/service_types.dart
 📏 SIZE: 25.9 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/services/models/service_types.dart
@@ -49291,9 +49966,9 @@ class ServiceMasterData {
 }
 
 ================================================================================
-[ 101/ 127] 🎯 rojgarnext/lib/features/services/presentation/screens/apply_service_screen.dart
+[ 103/ 129] 🎯 rojgarnext/lib/features/services/presentation/screens/apply_service_screen.dart
 📏 SIZE: 59.3 KB
-🕐 MODIFIED: 2026-09-13 08:23:34
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/services/presentation/screens/apply_service_screen.dart
@@ -51146,9 +51821,9 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
 }
 
 ================================================================================
-[ 102/ 127] 🎯 rojgarnext/lib/features/services/presentation/screens/service_application_screen.dart
+[ 104/ 129] 🎯 rojgarnext/lib/features/services/presentation/screens/service_application_screen.dart
 📏 SIZE: 127.1 KB
-🕐 MODIFIED: 2026-09-13 10:46:04
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/services/presentation/screens/service_application_screen.dart
@@ -54685,9 +55360,9 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
 }
 
 ================================================================================
-[ 103/ 127] 🎯 rojgarnext/lib/features/services/presentation/screens/user_service_applications_screen.dart
+[ 105/ 129] 🎯 rojgarnext/lib/features/services/presentation/screens/user_service_applications_screen.dart
 📏 SIZE: 104.7 KB
-🕐 MODIFIED: 2026-09-13 10:46:16
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/services/presentation/screens/user_service_applications_screen.dart
@@ -57591,9 +58266,9 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 }
 
 ================================================================================
-[ 104/ 127] 🎯 rojgarnext/lib/features/splash/splash_page.dart
+[ 106/ 129] 🎯 rojgarnext/lib/features/splash/splash_page.dart
 📏 SIZE: 10.9 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/splash/splash_page.dart
@@ -57900,9 +58575,9 @@ class _SplashPageState extends State<SplashPage>
 }
 
 ================================================================================
-[ 105/ 127] 🎯 rojgarnext/lib/features/superadmin/AI/superadmin_ai_dashboard.dart
+[ 107/ 129] 🎯 rojgarnext/lib/features/superadmin/AI/superadmin_ai_dashboard.dart
 📏 SIZE: 1.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/jobs/AI/job_ai_service.dart
@@ -57963,9 +58638,9 @@ class JobAIService {
 
 
 ================================================================================
-[ 106/ 127] 🎯 rojgarnext/lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
+[ 108/ 129] 🎯 rojgarnext/lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
 📏 SIZE: 25.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
@@ -58789,9 +59464,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
 }
 
 ================================================================================
-[ 107/ 127] 🎯 rojgarnext/lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
+[ 109/ 129] 🎯 rojgarnext/lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
 📏 SIZE: 4.1 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
@@ -58924,9 +59599,9 @@ class SuperAdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[ 108/ 127] 🎯 rojgarnext/lib/features/user/AI/user_ai_dashboard.dart
+[ 110/ 129] 🎯 rojgarnext/lib/features/user/AI/user_ai_dashboard.dart
 📏 SIZE: 43.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/user/AI/user_ai_dashboard.dart
@@ -60243,9 +60918,9 @@ class _LineChartPainter extends CustomPainter {
 
 
 ================================================================================
-[ 109/ 127] 🎯 rojgarnext/lib/features/user/AI/user_ai_screen.dart
+[ 111/ 129] 🎯 rojgarnext/lib/features/user/AI/user_ai_screen.dart
 📏 SIZE: 17.7 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/user/AI/user_ai_screen.dart
@@ -60805,9 +61480,9 @@ class _UserAIScreenState extends State<UserAIScreen> {
 
 
 ================================================================================
-[ 110/ 127] 🎯 rojgarnext/lib/features/user/AI/user_ai_service.dart
+[ 112/ 129] 🎯 rojgarnext/lib/features/user/AI/user_ai_service.dart
 📏 SIZE: 3.7 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/user/AI/user_ai_service.dart
@@ -60932,9 +61607,9 @@ class UserAIService {
 
 
 ================================================================================
-[ 111/ 127] 🎯 rojgarnext/lib/features/user/AI/user_career_roadmap_screen.dart
+[ 113/ 129] 🎯 rojgarnext/lib/features/user/AI/user_career_roadmap_screen.dart
 📏 SIZE: 10.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/user/AI/user_career_roadmap_screen.dart
@@ -61279,9 +61954,9 @@ class _UserCareerRoadmapScreenState extends State<UserCareerRoadmapScreen> {
 
 
 ================================================================================
-[ 112/ 127] 🎯 rojgarnext/lib/features/user/data/user_service.dart
+[ 114/ 129] 🎯 rojgarnext/lib/features/user/data/user_service.dart
 📏 SIZE: 31.5 KB
-🕐 MODIFIED: 2026-09-13 20:38:56
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/user/data/user_service.dart
@@ -62284,9 +62959,9 @@ class UserService {
 }
 
 ================================================================================
-[ 113/ 127] 🎯 rojgarnext/lib/features/user/presentation/controllers/user_profile_controller.dart
+[ 115/ 129] 🎯 rojgarnext/lib/features/user/presentation/controllers/user_profile_controller.dart
 📏 SIZE: 7.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:37
 ================================================================================
 
 // lib/features/user/presentation/controllers/user_profile_controller.dart
@@ -62577,9 +63252,9 @@ class UserProfileController extends ChangeNotifier {
 
 
 ================================================================================
-[ 114/ 127] 🎯 rojgarnext/lib/features/user/presentation/screens/advanced_details_screen.dart
+[ 116/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/advanced_details_screen.dart
 📏 SIZE: 74.2 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:38
 ================================================================================
 
 // lib/features/user/presentation/screens/advanced_details_screen.dart
@@ -64653,9 +65328,9 @@ class _AdvancedDetailsScreenState extends State<AdvancedDetailsScreen>
 
 
 ================================================================================
-[ 115/ 127] 🎯 rojgarnext/lib/features/user/presentation/screens/basic_details_screen.dart
+[ 117/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/basic_details_screen.dart
 📏 SIZE: 77.3 KB
-🕐 MODIFIED: 2026-09-13 19:58:56
+🕐 MODIFIED: 2026-09-14 10:07:38
 ================================================================================
 
 // lib/features/user/presentation/screens/basic_details_screen.dart
@@ -66524,9 +67199,9 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
 }
 
 ================================================================================
-[ 116/ 127] 🎯 rojgarnext/lib/features/user/presentation/screens/education_screen.dart
+[ 118/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/education_screen.dart
 📏 SIZE: 57.7 KB
-🕐 MODIFIED: 2026-09-13 20:29:59
+🕐 MODIFIED: 2026-09-14 10:07:38
 ================================================================================
 
 // lib/features/user/presentation/screens/education_screen.dart
@@ -68256,9 +68931,9 @@ class _EducationScreenState extends State<EducationScreen> {
 }
 
 ================================================================================
-[ 117/ 127] 🎯 rojgarnext/lib/features/user/presentation/screens/experience_screen.dart
+[ 119/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/experience_screen.dart
 📏 SIZE: 72.3 KB
-🕐 MODIFIED: 2026-09-13 19:58:47
+🕐 MODIFIED: 2026-09-14 10:07:38
 ================================================================================
 
 // lib/features/user/presentation/screens/experience_screen.dart
@@ -70080,9 +70755,9 @@ class _TabData {
 }
 
 ================================================================================
-[ 118/ 127] 🎯 rojgarnext/lib/features/user/presentation/screens/user_applications_screen.dart
+[ 120/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/user_applications_screen.dart
 📏 SIZE: 91.6 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:38
 ================================================================================
 
 // lib/features/user/presentation/screens/user_applications_screen.dart
@@ -72713,9 +73388,9 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 }
 
 ================================================================================
-[ 119/ 127] 🎯 rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
+[ 121/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
 📏 SIZE: 37.2 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:38
 ================================================================================
 
 // lib/features/user/presentation/screens/user_dashboard.dart
@@ -73818,9 +74493,9 @@ class _UserDashboardState extends State<UserDashboard> {
 }
 
 ================================================================================
-[ 120/ 127] 🎯 rojgarnext/lib/features/user/presentation/screens/user_documents_screen.dart
+[ 122/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/user_documents_screen.dart
 📏 SIZE: 63.1 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:38
 ================================================================================
 
 // lib/features/user/presentation/screens/user_documents_screen.dart
@@ -75191,9 +75866,9 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 }
 
 ================================================================================
-[ 121/ 127] 🎯 rojgarnext/lib/features/user/presentation/screens/user_support_screen.dart
+[ 123/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/user_support_screen.dart
 📏 SIZE: 27.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:38
 ================================================================================
 
 // lib/features/user/presentation/screens/user_support_screen.dart
@@ -76077,9 +76752,9 @@ This message was sent from RojgarNext App
 }
 
 ================================================================================
-[ 122/ 127] 🎯 rojgarnext/lib/features/user/presentation/utils/menu_types.dart
+[ 124/ 129] 🎯 rojgarnext/lib/features/user/presentation/utils/menu_types.dart
 📏 SIZE: 462 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:38
 ================================================================================
 
 // lib/features/user/presentation/utils/menu_types.dart
@@ -76110,9 +76785,9 @@ enum MenuType {
 
 
 ================================================================================
-[ 123/ 127] 🎯 rojgarnext/lib/features/user/presentation/widgets/user_sidebar.dart
+[ 125/ 129] 🎯 rojgarnext/lib/features/user/presentation/widgets/user_sidebar.dart
 📏 SIZE: 12.3 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:38
 ================================================================================
 
 // lib/features/user/presentation/widgets/user_sidebar.dart
@@ -76497,9 +77172,9 @@ class _UserSidebarState extends State<UserSidebar> {
 }
 
 ================================================================================
-[ 124/ 127] 🎯 rojgarnext/lib/main.dart
+[ 126/ 129] 🎯 rojgarnext/lib/main.dart
 📏 SIZE: 4.3 KB
-🕐 MODIFIED: 2026-09-13 18:06:45
+🕐 MODIFIED: 2026-09-14 10:07:38
 ================================================================================
 
 // lib/main.dart - OPTIMIZED FOR FASTER LOAD
@@ -76659,9 +77334,9 @@ class _NoGlowScrollBehavior extends ScrollBehavior {
 }
 
 ================================================================================
-[ 125/ 127] ⚙️ rojgarnext/pubspec.yaml
-📏 SIZE: 1.6 KB
-🕐 MODIFIED: 2026-09-10 12:51:38
+[ 127/ 129] ⚙️ rojgarnext/pubspec.yaml
+📏 SIZE: 2.0 KB
+🕐 MODIFIED: 2026-09-14 13:38:32
 ================================================================================
 
 name: rojgarnext
@@ -76679,48 +77354,64 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
+  # ==================== CORE ====================
   intl: ^0.20.2
   provider: ^6.1.0
-  dio: ^5.4.0
+  dio: ^5.7.0
   http: ^1.1.0
   http_parser: ^4.0.0
+
+  # ==================== STORAGE ====================
   flutter_secure_storage: ^9.2.4
   shared_preferences: ^2.2.0
   hive: ^2.2.0
   hive_flutter: ^1.1.0
-  file_picker: ^8.3.0
-  path_provider: ^2.1.0
+  path_provider: ^2.1.5
   path: ^1.9.0
-  cached_network_image: ^3.3.0
+
+  # ==================== FILE HANDLING ====================
+  file_picker: ^8.3.0
   image_picker: ^1.0.7
+  open_filex: ^4.5.0
+  share_plus: ^10.1.4
+
+  # ==================== UI ====================
+  cached_network_image: ^3.4.1
   google_fonts: ^6.2.0
   flutter_svg: ^2.0.0
   shimmer: ^3.0.0
   pin_code_fields: ^8.0.0
   cupertino_icons: ^1.0.8
+  lottie: ^3.3.0
+  fl_chart: ^1.2.0
+  responsive_builder: ^0.7.0
+  flutter_widget_from_html: ^0.15.0
+
+  # ==================== NAVIGATION ====================
+  go_router: ^17.3.0
+  url_launcher: ^6.3.1
+
+  # ==================== PLATFORM ====================
   geolocator: ^10.1.1
   permission_handler: ^11.0.0
   device_info_plus: ^9.1.0
-  go_router: ^17.3.0
-  url_launcher: ^6.2.0
-  open_file: ^3.3.0
-  webview_flutter: ^4.10.0
-  lottie: ^3.3.0
-  fl_chart: ^1.2.0
-  local_auth: ^2.1.0
-  razorpay_flutter: ^1.3.4
-  qr_flutter: ^4.0.0
-  printing: ^5.11.0
-  pdf: ^3.10.0
-  responsive_builder: ^0.7.0
   connectivity_plus: ^7.2.0
   universal_io: ^2.0.0
-  flutter_widget_from_html: ^0.15.0
+  webview_flutter: ^4.10.0
 
-  # ❌ REMOVED for APK build:
-  # js: ^0.6.7                    → deprecated, uses removed dart:js
-  # webview_flutter_web: ^0.2.2   → pulls web:1.1.1 which breaks Android
-  # flutter_pdfview: ^1.3.0       → not used; 'printing'/'pdf' handle it
+  # ==================== AUTH ====================
+  local_auth: ^2.1.0
+
+  # ==================== PAYMENTS ====================
+  razorpay_flutter: ^1.3.4
+  qr_flutter: ^4.0.0
+
+  # ==================== PDF & PRINTING ====================
+  printing: ^5.11.0
+  pdf: ^3.10.0
+
+  # ✅ FIXED: Pinned to a stable version (avoids intl conflict & API break)
+  flutter_pdfview: 1.3.4
 
 dev_dependencies:
   flutter_test:
@@ -76736,9 +77427,9 @@ flutter:
     - assets/icons/
 
 ================================================================================
-[ 126/ 127] 🌐 rojgarnext/web/index.html
+[ 128/ 129] 🌐 rojgarnext/web/index.html
 📏 SIZE: 1.6 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:38
 ================================================================================
 
 <!DOCTYPE html>
@@ -76792,9 +77483,9 @@ flutter:
 </html>
 
 ================================================================================
-[ 127/ 127] 📋 rojgarnext/web/manifest.json
+[ 129/ 129] 📋 rojgarnext/web/manifest.json
 📏 SIZE: 951 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-09-14 10:07:38
 ================================================================================
 
 {
@@ -76837,6 +77528,6 @@ flutter:
 ================================================================================
 🎉 EXPORT COMPLETED!
 ================================================================================
-Total Files: 127
-Generated: 2026-09-13 20:55:01
+Total Files: 129
+Generated: 2026-09-14 17:21:01
 ================================================================================
