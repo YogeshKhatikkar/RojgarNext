@@ -1,7 +1,4 @@
 // lib/features/resume/presentation/screens/format/formats/government_format.dart
-// ✅ GOVERNMENT — Navy + gold framed border + formal grid
-// 🔧 Style changes: edit ONLY this file
-
 import 'package:flutter/material.dart';
 import '../resume_format_base.dart';
 
@@ -15,35 +12,25 @@ class GovernmentFormat extends ResumeFormatBase {
   @override String get templateType => 'government';
   @override String get badgeText => 'Official';
 
-  // ==================== COLORS ====================
   static const Color _navy = Color(0xFF1A237E);
   static const Color _gold = Color(0xFFFFD700);
   static const Color _lightNavy = Color(0xFFE8EAF6);
   static const Color _border = Color(0xFFDDDDDD);
   static const Color _softBg = Color(0xFFFAFAFA);
 
-  // ==========================================================================
-  // HTML — unchanged
-  // ==========================================================================
   @override
   String generateHtml(Map<String, dynamic> resumeData) {
     final name = getString(resumeData, 'user_info', 'full_name');
     final email = getString(resumeData, 'contact_info', 'email');
     final phone = getString(resumeData, 'contact_info', 'phone');
     final location = getLocation(resumeData);
+    final dob = getString(resumeData, 'user_info', 'date_of_birth');
+    final gender = getString(resumeData, 'user_info', 'gender');
+    final nationality = getString(resumeData, 'user_info', 'nationality');
+    final category = getString(resumeData, 'user_info', 'category');
     final education = getList(resumeData, 'education');
     final experience = getList(resumeData, 'experience');
-    final skills = getSkills(resumeData);
     final certifications = getList(resumeData, 'certifications');
-    final projects = getList(resumeData, 'projects');
-    final languages = getList(resumeData, 'languages');
-    final socialLinks = getMap(resumeData, 'social_links');
-
-    final languagesHtml = languages.map((lang) {
-      final n = lang['name']?.toString() ?? '';
-      final p = lang['proficiency']?.toString() ?? '';
-      return '<span class="skill-chip">${escapeHtml(p.isNotEmpty ? "$n - $p" : n)}</span>';
-    }).join(' ');
 
     return '''
 <!DOCTYPE html>
@@ -51,264 +38,186 @@ class GovernmentFormat extends ResumeFormatBase {
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Times New Roman',serif;background:#f5f5f0;padding:30px 20px;line-height:1.6}
-.resume-container{max-width:1000px;margin:0 auto;background:#fff;border:2px solid #1A237E;overflow:hidden}
-.header{background:#1A237E;padding:35px 30px;color:#fff;text-align:center;border-bottom:3px solid #FFD700}
-.name{font-size:34px;font-weight:bold;letter-spacing:1px}
-.section{padding:22px 30px;border-bottom:1px solid #eee}
-.section-title{font-size:18px;font-weight:bold;color:#1A237E;border-bottom:2px solid #FFD700;padding-bottom:8px;margin-bottom:16px}
-.card-item{padding:12px 16px;margin-bottom:10px;border:1px solid #ddd;background:#fafafa}
-.skill-chip{display:inline-block;background:#e8eaf6;color:#1A237E;padding:4px 12px;border-radius:15px;font-size:12px;margin:2px}
-@media(max-width:768px){.section{padding:16px}.name{font-size:26px}}
+.resume-container{max-width:1000px;margin:0 auto;background:#fff;border:2px solid #1A237E;padding:30px}
+.header{text-align:center;border-bottom:3px solid #1A237E;padding-bottom:15px;margin-bottom:20px}
+.name{font-size:28px;font-weight:bold;color:#1A237E;letter-spacing:1px}
+.contact-info{display:flex;justify-content:center;flex-wrap:wrap;gap:20px;margin-top:10px;font-size:14px}
+.section-title{font-size:16px;font-weight:bold;color:#1A237E;border-bottom:2px solid #FFD700;padding-bottom:5px;margin:20px 0 10px 0;text-transform:uppercase}
+table{width:100%;border-collapse:collapse;margin-bottom:15px}
+th,td{border:1px solid #1A237E;padding:8px 12px;font-size:13px;text-align:left}
+th{background:#E8EAF6;color:#1A237E;font-weight:bold}
+.card-item{padding:12px;margin-bottom:10px;border:1px solid #ddd;background:#fafafa}
+.card-title{font-weight:bold;color:#1A237E;font-size:14px}
+.card-subtitle{font-size:13px;color:#555}
 </style></head><body>
 <div class="resume-container">
-<div class="header"><div class="name">${escapeHtml(name)}</div>
-<div style="margin-top:15px;font-size:14px;display:flex;justify-content:center;flex-wrap:wrap;gap:20px;">
-${email.isNotEmpty ? '<span>📧 ${escapeHtml(email)}</span>' : ''}
-${phone.isNotEmpty ? '<span>📞 ${escapeHtml(phone)}</span>' : ''}
-${location.isNotEmpty ? '<span>📍 ${escapeHtml(location)}</span>' : ''}
-</div></div>
-<div class="section"><div class="section-title">EDUCATION</div>
-${education.map((edu) => '''
-<div class="card-item"><div style="font-weight:bold;color:#1A237E;">${escapeHtml(edu['degree'])}</div>
-<div>${escapeHtml(edu['institute'])}</div>
-<div style="font-size:12px;color:#666;">Year: ${escapeHtml(edu['year_of_passing'].toString())}</div></div>
-''').join('')}
+  <div class="header">
+    <div class="name">${escapeHtml(name)}</div>
+    <div style="font-size:14px;color:#555;">Assistant Engineer (Civil)</div>
+    <div class="contact-info">
+      <span>📞 ${escapeHtml(phone)}</span>
+      <span>📧 ${escapeHtml(email)}</span>
+      <span>📍 ${escapeHtml(location)}</span>
+    </div>
+  </div>
+  
+  <div class="section-title">Personal Details</div>
+  <table>
+    <tr><th width="30%">Date of Birth</th><td>${escapeHtml(dob)}</td></tr>
+    <tr><th>Gender</th><td>${escapeHtml(gender)}</td></tr>
+    <tr><th>Nationality</th><td>${escapeHtml(nationality)}</td></tr>
+    <tr><th>Category</th><td>${escapeHtml(category)}</td></tr>
+  </table>
+
+  <div class="section-title">Educational Qualification</div>
+  <table>
+    <tr><th>Qualification</th><th>Board / University</th><th>Year</th><th>Percentage</th></tr>
+    ${education.map((e) {
+      final x = pMap(e);
+      return '<tr><td>${escapeHtml(pStr(x['degree']))}</td><td>${escapeHtml(pStr(x['institute']))}</td><td>${escapeHtml(pStr(x['year_of_passing']))}</td><td>${escapeHtml(pStr(x['cgpa_percentage']))}%</td></tr>';
+    }).join('')}
+  </table>
+
+  <div class="section-title">Professional Experience</div>
+  ${experience.map((e) {
+    final x = pMap(e);
+    return '<div class="card-item"><div class="card-title">${escapeHtml(pStr(x['role']))}</div><div class="card-subtitle">${escapeHtml(pStr(x['company']))} | ${escapeHtml(pStr(x['start_date']))} - ${escapeHtml(pStr(x['end_date'], 'Present'))}</div><div style="margin-top:6px;font-size:13px;">${escapeHtml(pStr(x['description']))}</div></div>';
+  }).join('')}
+
+  <div class="section-title">Certifications & Training</div>
+  ${certifications.map((c) => '<div class="card-item" style="font-size:13px;">• ${escapeHtml(pCert(pMap(c)))}</div>').join('')}
 </div>
-<div class="section"><div class="section-title">EXPERIENCE</div>
-${experience.map((exp) => '''
-<div class="card-item"><div style="font-weight:bold;color:#1A237E;">${escapeHtml(exp['role'])}</div>
-<div>${escapeHtml(exp['company'])}</div>
-<div style="font-size:12px;color:#666;">${escapeHtml(exp['start_date'])} - ${escapeHtml(exp['end_date'] ?? 'Present')}</div>
-${exp['description'].toString().isNotEmpty ? '<div style="margin-top:6px;font-size:13px;">${escapeHtml(exp['description'])}</div>' : ''}</div>
-''').join('')}
-</div>
-<div class="section"><div class="section-title">SKILLS</div>
-${skills.map((s) => '<span class="skill-chip">${escapeHtml(s)}</span>').join(' ')}</div>
-${buildCertificationsSection(certifications)}
-${buildProjectsSection(projects)}
-<div class="section"><div class="section-title">LANGUAGES</div>$languagesHtml</div>
-${buildSocialSection(socialLinks)}
-</div></body></html>''';
+</body></html>''';
   }
 
-  // ==========================================================================
-  // ✅ NATIVE PREVIEW — edit ONLY this for style changes
-  // ==========================================================================
   @override
   Widget buildPreview(BuildContext context, Map<String, dynamic> data) {
-    final u = ResumeFormatBase.pMap(data['user_info']);
-    final c = ResumeFormatBase.pMap(data['contact_info']);
-    final name = ResumeFormatBase.pStr(u['full_name'], 'Your Name');
-    final email = ResumeFormatBase.pStr(c['email']);
-    final phone = ResumeFormatBase.pStr(c['phone']);
-    final location = ResumeFormatBase.pLocation(data);
-    final summary = ResumeFormatBase.pStr(data['professional_summary']);
-    final objective = ResumeFormatBase.pStr(data['career_objective']);
-    final exp = ResumeFormatBase.pList(data['experience']);
-    final edu = ResumeFormatBase.pList(data['education']);
-    final skills = ResumeFormatBase.pSkills(data['skills']);
-    final certs = ResumeFormatBase.pList(data['certifications']);
-    final projects = ResumeFormatBase.pList(data['projects']);
-    final langs = ResumeFormatBase.pList(data['languages']);
+    final u = pMap(data['user_info']);
+    final c = pMap(data['contact_info']);
+    final name = pStr(u['full_name'], 'Your Name');
+    final email = pStr(c['email']);
+    final phone = pStr(c['phone']);
+    final location = pLocation(data);
+    final dob = pStr(u['date_of_birth']);
+    final gender = pStr(u['gender']);
+    final nationality = pStr(u['nationality']);
+    final category = pStr(u['category']);
+    final exp = pList(data['experience']);
+    final edu = pList(data['education']);
+    final certs = pList(data['certifications']);
 
     return Container(
       color: Colors.white,
-      margin: const EdgeInsets.all(8),
-      decoration: BoxDecoration(border: Border.all(color: _navy, width: 2)),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // HEADER
           Container(
-            color: _navy,
-            padding: const EdgeInsets.all(22),
+            padding: const EdgeInsets.only(bottom: 12),
+            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: _navy, width: 3))),
             child: Column(
               children: [
-                Text(name,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.5,
-                        color: Colors.white)),
-                Container(
-                  margin: const EdgeInsets.only(top: 10),
-                  height: 2,
-                  width: 120,
-                  color: _gold,
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  alignment: WrapAlignment.center,
+                Text(name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _navy, letterSpacing: 1)),
+                const SizedBox(height: 4),
+                const Text("Assistant Engineer (Civil)", style: TextStyle(fontSize: 14, color: Colors.grey)),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (email.isNotEmpty) _line('📧 $email'),
-                    if (phone.isNotEmpty) _line('📞 $phone'),
-                    if (location.isNotEmpty) _line('📍 $location'),
+                    Text("📞 $phone", style: const TextStyle(fontSize: 12)),
+                    const SizedBox(width: 16),
+                    Text("📧 $email", style: const TextStyle(fontSize: 12)),
+                    const SizedBox(width: 16),
+                    Text("📍 $location", style: const TextStyle(fontSize: 12)),
                   ],
                 ),
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (summary.isNotEmpty) ...[
-                  ResumeFormatBase.pSectionTitle('Professional Summary',
-                      color: _navy,
-                      uppercase: true,
-                      underlineColor: _gold),
-                  Text(summary,
-                      style: const TextStyle(fontSize: 13, height: 1.5)),
-                  const SizedBox(height: 16),
-                ],
-                if (skills.isNotEmpty) ...[
-                  ResumeFormatBase.pSectionTitle('Skills',
-                      color: _navy,
-                      uppercase: true,
-                      underlineColor: _gold),
-                  ResumeFormatBase.pChipsWrap(skills,
-                      bg: _lightNavy,
-                      fg: _navy,
-                      border: _navy.withOpacity(0.25)),
-                  const SizedBox(height: 16),
-                ],
-                if (exp.isNotEmpty) ...[
-                  ResumeFormatBase.pSectionTitle('Work Experience',
-                      color: _navy,
-                      uppercase: true,
-                      underlineColor: _gold),
-                  ...exp.map((e) => _expCard(ResumeFormatBase.pMap(e))),
-                  const SizedBox(height: 16),
-                ],
-                if (edu.isNotEmpty) ...[
-                  ResumeFormatBase.pSectionTitle('Education',
-                      color: _navy,
-                      uppercase: true,
-                      underlineColor: _gold),
-                  ...edu.map((e) => _eduCard(ResumeFormatBase.pMap(e))),
-                  const SizedBox(height: 16),
-                ],
-                if (certs.isNotEmpty) ...[
-                  ResumeFormatBase.pSectionTitle('Certifications',
-                      color: _navy,
-                      uppercase: true,
-                      underlineColor: _gold),
-                  ...certs.map((x) => Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                            '• ${ResumeFormatBase.pCert(ResumeFormatBase.pMap(x))}',
-                            style: const TextStyle(fontSize: 13)),
-                      )),
-                  const SizedBox(height: 16),
-                ],
-                if (projects.isNotEmpty) ...[
-                  ResumeFormatBase.pSectionTitle('Projects',
-                      color: _navy,
-                      uppercase: true,
-                      underlineColor: _gold),
-                  ...projects.map((p) => _projCard(ResumeFormatBase.pMap(p))),
-                  const SizedBox(height: 16),
-                ],
-                if (langs.isNotEmpty) ...[
-                  ResumeFormatBase.pSectionTitle('Languages',
-                      color: _navy,
-                      uppercase: true,
-                      underlineColor: _gold),
-                  ResumeFormatBase.pChipsWrap(ResumeFormatBase.pLangs(langs),
-                      bg: _lightNavy,
-                      fg: _navy,
-                      border: _navy.withOpacity(0.25)),
-                  const SizedBox(height: 16),
-                ],
-                if (objective.isNotEmpty) ...[
-                  ResumeFormatBase.pSectionTitle('Career Objective',
-                      color: _navy,
-                      uppercase: true,
-                      underlineColor: _gold),
-                  Text(objective,
-                      style: const TextStyle(fontSize: 13, height: 1.5)),
-                ],
-              ],
-            ),
+          const SizedBox(height: 16),
+          _govTitle("PERSONAL DETAILS"),
+          Table(
+            border: TableBorder.all(color: _navy),
+            columnWidths: const {0: FractionColumnWidth(0.3), 1: FractionColumnWidth(0.7)},
+            children: [
+              _tableRow("Date of Birth", dob),
+              _tableRow("Gender", gender),
+              _tableRow("Nationality", nationality),
+              _tableRow("Category", category),
+            ],
           ),
+          const SizedBox(height: 16),
+          _govTitle("EDUCATIONAL QUALIFICATION"),
+          Table(
+            border: TableBorder.all(color: _navy),
+            columnWidths: const {0: FractionColumnWidth(0.3), 1: FractionColumnWidth(0.3), 2: FractionColumnWidth(0.2), 3: FractionColumnWidth(0.2)},
+            children: [
+              const TableRow(
+                decoration: BoxDecoration(color: _lightNavy),
+                children: [
+                  Padding(padding: EdgeInsets.all(8), child: Text("Qualification", style: TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 12))),
+                  Padding(padding: EdgeInsets.all(8), child: Text("Board / University", style: TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 12))),
+                  Padding(padding: EdgeInsets.all(8), child: Text("Year", style: TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 12))),
+                  Padding(padding: EdgeInsets.all(8), child: Text("Percentage", style: TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 12))),
+                ],
+              ),
+              ...edu.map((e) {
+                final x = pMap(e);
+                return TableRow(
+                  children: [
+                    Padding(padding: const EdgeInsets.all(8), child: Text(pStr(x['degree']), style: const TextStyle(fontSize: 12))),
+                    Padding(padding: const EdgeInsets.all(8), child: Text(pStr(x['institute']), style: const TextStyle(fontSize: 12))),
+                    Padding(padding: const EdgeInsets.all(8), child: Text(pStr(x['year_of_passing']), style: const TextStyle(fontSize: 12))),
+                    Padding(padding: const EdgeInsets.all(8), child: Text("${pStr(x['cgpa_percentage'])}%", style: const TextStyle(fontSize: 12))),
+                  ],
+                );
+              }),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _govTitle("PROFESSIONAL EXPERIENCE"),
+          ...exp.map((e) => _expCard(pMap(e))),
+          const SizedBox(height: 16),
+          _govTitle("CERTIFICATIONS & TRAINING"),
+          ...certs.map((c) => Padding(padding: const EdgeInsets.only(bottom: 4), child: Text("• ${pCert(pMap(c))}", style: const TextStyle(fontSize: 12, color: _navy)))),
         ],
       ),
     );
   }
 
-  Widget _line(String t) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-        child: Text(t,
-            style: const TextStyle(fontSize: 12, color: Colors.white)),
-      );
+  Widget _govTitle(String title) => Padding(
+    padding: const EdgeInsets.only(bottom: 8, top: 4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _navy)),
+        const SizedBox(height: 4),
+        Container(height: 2, width: 50, color: _gold),
+      ],
+    ),
+  );
 
-  Widget _expCard(Map<String, dynamic> exp) => ResumeFormatBase.pCard(
-        bg: _softBg,
-        borderColor: _border,
-        radius: 0,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(ResumeFormatBase.pStr(exp['role'], 'Role'),
-                style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.bold, color: _navy)),
-            const SizedBox(height: 3),
-            Text(ResumeFormatBase.pStr(exp['company'], 'Company'),
-                style: const TextStyle(fontSize: 13, color: Color(0xFF333333))),
-            const SizedBox(height: 4),
-            Text(
-              '${ResumeFormatBase.pStr(exp['start_date'])} - ${ResumeFormatBase.pStr(exp['end_date'], 'Present')}',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF666666)),
-            ),
-            if (ResumeFormatBase.pStr(exp['description']).isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(ResumeFormatBase.pStr(exp['description']),
-                  style: const TextStyle(fontSize: 12, height: 1.4)),
-            ],
-          ],
-        ),
-      );
+  TableRow _tableRow(String label, String value) => TableRow(
+    children: [
+      Padding(padding: const EdgeInsets.all(8), child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 12))),
+      Padding(padding: const EdgeInsets.all(8), child: Text(value, style: const TextStyle(fontSize: 12))),
+    ],
+  );
 
-  Widget _eduCard(Map<String, dynamic> edu) => ResumeFormatBase.pCard(
-        bg: _softBg,
-        borderColor: _border,
-        radius: 0,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(ResumeFormatBase.pStr(edu['degree'], 'Degree'),
-                style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.bold, color: _navy)),
-            const SizedBox(height: 3),
-            Text(ResumeFormatBase.pStr(edu['institute'], 'Institute'),
-                style: const TextStyle(fontSize: 12)),
-            if (ResumeFormatBase.pStr(edu['year_of_passing']).isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text('Year: ${edu['year_of_passing']}',
-                  style:
-                      const TextStyle(fontSize: 11, color: Color(0xFF666666))),
-            ],
-          ],
-        ),
-      );
-
-  Widget _projCard(Map<String, dynamic> p) => ResumeFormatBase.pCard(
-        bg: _softBg,
-        borderColor: _border,
-        radius: 0,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(ResumeFormatBase.pStr(p['title'], 'Project'),
-                style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.bold, color: _navy)),
-            if (ResumeFormatBase.pStr(p['description']).isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(ResumeFormatBase.pStr(p['description']),
-                  style: const TextStyle(fontSize: 12, height: 1.4)),
-            ],
-          ],
-        ),
-      );
+  Widget _expCard(Map<String, dynamic> exp) => pCard(
+    bg: _softBg, borderColor: _border, radius: 0,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(pStr(exp['role'], 'Role'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _navy)),
+        const SizedBox(height: 2),
+        Text("${pStr(exp['company'])} | ${pStr(exp['start_date'])} - ${pStr(exp['end_date'], 'Present')}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        if (pStr(exp['description']).isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(pStr(exp['description']), style: const TextStyle(fontSize: 12, height: 1.4)),
+        ],
+      ],
+    ),
+  );
 }

@@ -1,218 +1,467 @@
-# app/modules/user/schema.py
-from pydantic import BaseModel, EmailStr, Field
-from typing import List, Optional, Dict, Any
+# app/modules/user/schema.py - COMPLETE UPDATED VERSION
+# Matches frontend user_service.dart contract exactly
+
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 
-# ================= ADDRESS SCHEMA =================
+# ==================== NESTED SCHEMAS ====================
+
 class AddressSchema(BaseModel):
-    state: str = Field(default="", description="State")
-    district: str = Field(default="", description="District")
-    city: str = Field(default="", description="City")
-    country: str = Field(default="India", description="Country")
-    house_number: Optional[str] = Field(None, description="House/Flat Number")
-    village_name: Optional[str] = Field(None, description="Village/City/Town")
-    post_office: Optional[str] = Field(None, description="Post Office")
-    tehsil: Optional[str] = Field(None, description="Tehsil/Taluka")
-    landmark: Optional[str] = Field(None, description="Landmark")
-    pincode: Optional[str] = Field(None, description="Pincode")
+    house_number: Optional[str] = None
+    village_name: Optional[str] = None
+    city: Optional[str] = None
+    post_office: Optional[str] = None
+    tehsil: Optional[str] = None
+    district: Optional[str] = ""
+    state: Optional[str] = ""
+    country: Optional[str] = "India"
+    pincode: Optional[str] = None
+    landmark: Optional[str] = None
+
+    class Config:
+        extra = "allow"
 
 
-# ================= BASIC DETAILS =================
-class BasicDetailsSchema(BaseModel):
-    full_name: str = Field(..., description="Full Name")
-    first_name: Optional[str] = Field(None, description="First Name")
-    middle_name: Optional[str] = Field(None, description="Middle Name")
-    last_name: Optional[str] = Field(None, description="Last Name")
-    email: EmailStr = Field(..., description="Email Address")
-    phone: Optional[str] = Field(None, description="Phone Number")
-    dob: Optional[str] = Field(None, description="Date of Birth")
-    gender: Optional[str] = Field("Male", description="Gender")
-    category: Optional[str] = Field("General/UR", description="Category (General/UR, OBC, SC, ST, EWS)")
-    is_disable: bool = Field(False, description="Are you a person with disability?")
-    disability_category: Optional[str] = Field(None, description="Disability Category (LD, HI, VI, MD)")
-    disability_percentage: Optional[float] = Field(None, description="Disability Percentage")
-    father_name: Optional[str] = Field(None, description="Father's Name")
-    mother_name: Optional[str] = Field(None, description="Mother's Name")
-    guardian_name: Optional[str] = Field(None, description="Guardian Name")
-    spouse_name: Optional[str] = Field(None, description="Spouse Name")
-    marital_status: Optional[str] = Field("Unmarried", description="Marital Status")
-    address: AddressSchema = Field(default_factory=AddressSchema)
+class EmergencyContactSchema(BaseModel):
+    name: Optional[str] = ""
+    relationship: Optional[str] = ""
+    phone: Optional[str] = ""
+    alternate_phone: Optional[str] = None
+    email: Optional[str] = None
+
+    class Config:
+        extra = "allow"
 
 
-# ================= EDUCATION SCHEMA =================
-class EducationCreateSchema(BaseModel):
-    level: str = Field(..., description="Education Level (10th, 12th, Graduation, etc.)")
-    degree: Optional[str] = Field(None, description="Degree/Course Name")
-    stream: Optional[str] = Field(None, description="Stream/Specialization")
-    subjects: List[str] = Field(default_factory=list, description="Subjects")
-    institute: str = Field(..., description="School/College/Institute Name")
-    board_university: Optional[str] = Field(None, description="Board/University")
-    year_of_passing: int = Field(..., description="Year of Passing")
-    cgpa_percentage: Optional[float] = Field(None, description="CGPA or Percentage")
-    result_type: Optional[str] = Field("Percentage", description="Result Type")
-    grade: Optional[str] = Field(None, description="Grade (if applicable)")
-    medium: Optional[str] = Field(None, description="Medium of Instruction")
-    backlogs: Optional[int] = Field(0, description="Number of Backlogs")
-    certificate_url: Optional[str] = Field(None, description="Certificate URL")
-
-
-class EducationUpdateSchema(EducationCreateSchema):
-    pass
-
-
-# ================= EXPERIENCE SCHEMA =================
-class ExperienceCreateSchema(BaseModel):
-    company: str = Field(..., description="Company Name")
-    role: str = Field(..., description="Job Role")
-    industry_type: Optional[str] = Field(None, description="Industry Type")
-    work_type: Optional[str] = Field(None, description="Work Type")
-    employment_type: Optional[str] = Field("Full-time", description="Employment Type")
-    location: Optional[str] = Field(None, description="Work Location")
-    salary: Optional[int] = Field(None, description="Monthly Salary")
-    start_date: str = Field(..., description="Start Date")
-    end_date: Optional[str] = Field(None, description="End Date")
-    description: str = Field(..., description="Job Description")
-    achievements: List[str] = Field(default_factory=list, description="Key Achievements")
-    skills_used: List[str] = Field(default_factory=list, description="Skills Used")
-    reason_for_leaving: Optional[str] = Field(None, description="Reason for Leaving")
-    reporting_manager: Optional[str] = Field(None, description="Reporting Manager")
-    team_size: Optional[int] = Field(None, description="Team Size")
-
-
-class ExperienceUpdateSchema(ExperienceCreateSchema):
-    pass
-
-
-# ================= SKILL SCHEMA =================
-class SkillSchema(BaseModel):
-    name: str = Field(..., description="Skill Name")
-    level: str = Field("intermediate", description="Proficiency Level (beginner/intermediate/advanced/expert)")
-    years_of_experience: Optional[float] = Field(None, description="Years of Experience")
-    last_used: Optional[str] = Field(None, description="Last Used")
-    importance: Optional[int] = Field(None, ge=1, le=10, description="Importance (1-10)")
-
-
-# ================= INTERNSHIP SCHEMA =================
-class InternshipSchema(BaseModel):
-    company: str = Field(..., description="Company Name")
-    role: str = Field(..., description="Internship Role")
-    start_date: str = Field(..., description="Start Date")
-    end_date: Optional[str] = Field(None, description="End Date")
-    description: str = Field(..., description="Internship Description")
-    stipend: Optional[int] = Field(None, description="Stipend Amount")
-    technologies: List[str] = Field(default_factory=list, description="Technologies Learned")
-
-
-# ================= CERTIFICATION SCHEMA =================
-class CertificationSchema(BaseModel):
-    name: str = Field(..., description="Certification Name")
-    issuer: str = Field(..., description="Issuing Organization")
-    year: int = Field(..., description="Year of Certification")
-    url: Optional[str] = Field(None, description="Certificate URL")
-    expiry_date: Optional[str] = Field(None, description="Expiry Date")
-    credential_id: Optional[str] = Field(None, description="Credential ID")
-
-
-# ================= PROJECT SCHEMA =================
-class ProjectSchema(BaseModel):
-    title: str = Field(..., description="Project Title")
-    description: str = Field(..., description="Project Description")
-    technologies: List[str] = Field(default_factory=list, description="Technologies Used")
-    url: Optional[str] = Field(None, description="Project URL")
-    github_url: Optional[str] = Field(None, description="GitHub URL")
-    start_date: Optional[str] = Field(None, description="Start Date")
-    end_date: Optional[str] = Field(None, description="End Date")
-    is_live: bool = Field(False, description="Is Project Live")
-
-
-# ================= LANGUAGE SCHEMA =================
-class LanguageSchema(BaseModel):
-    name: str = Field(..., description="Language Name")
-    proficiency: str = Field("fluent", description="Proficiency (native/fluent/intermediate/basic)")
-
-
-# ================= ADDITIONAL DETAILS SCHEMA =================
-class AdditionalDetailsSchema(BaseModel):
-    soft_skills: List[str] = Field(default_factory=list, description="Soft Skills")
-    linkedin_url: Optional[str] = Field(None, description="LinkedIn URL")
-    github_url: Optional[str] = Field(None, description="GitHub URL")
-    portfolio_url: Optional[str] = Field(None, description="Portfolio URL")
-    resume_url: Optional[str] = Field(None, description="Resume URL")
-    video_resume_url: Optional[str] = Field(None, description="Video Resume URL")
-    preferred_job_types: List[str] = Field(default_factory=list, description="Preferred Job Types")
-    preferred_industries: List[str] = Field(default_factory=list, description="Preferred Industries")
-    preferred_locations: List[str] = Field(default_factory=list, description="Preferred Locations")
-    open_to_relocate: bool = Field(False, description="Open to Relocate")
-    availability_date: Optional[str] = Field(None, description="Availability Date")
-    salary_expectation_min: Optional[int] = Field(None, description="Minimum Expected Salary")
-    salary_expectation_max: Optional[int] = Field(None, description="Maximum Expected Salary")
-    willing_for_internship: bool = Field(True, description="Willing for Internship")
-    willing_for_full_time: bool = Field(True, description="Willing for Full Time")
-
-
-# ================= FULL PROFILE RESPONSE =================
-class FullProfileResponse(BaseModel):
-    full_name: str = ""
-    first_name: str = ""
-    middle_name: str = ""
-    last_name: str = ""
-    email: str = ""
-    phone: str = ""
-    dob: str = ""
-    gender: str = "Male"
-    blood_group: str = ""
-    nationality: str = "Indian"
-    religion: str = ""
-    category: str = "General/UR"
-    is_disable: bool = False
-    disability_category: Optional[str] = None
+class DisabilitySchema(BaseModel):
+    is_disabled: bool = False
+    disability_category: Optional[str] = ""
     disability_percentage: Optional[float] = None
-    father_name: str = ""
-    mother_name: str = ""
-    guardian_name: str = ""
-    spouse_name: str = ""
-    marital_status: str = "Unmarried"
-    family_annual_income: Optional[int] = None
-    number_of_dependents: Optional[int] = None
-    alternate_mobile: str = ""
-    whatsapp_number: str = ""
-    emergency_contact: str = ""
-    emergency_contact_name: str = ""
-    emergency_contact_relation: str = ""
-    current_address: AddressSchema = Field(default_factory=AddressSchema)
-    permanent_address: Optional[AddressSchema] = None
-    same_as_current: bool = True
-    summary: str = ""
-    career_objective: str = ""
-    linkedin_url: str = ""
-    github_url: str = ""
-    portfolio_url: str = ""
-    preferred_location: str = ""
+    disability_details: Optional[str] = ""
+    certificate_url: Optional[str] = None
+    certificate_verified: bool = False
+
+    class Config:
+        extra = "allow"
+
+
+class SocialLinksSchema(BaseModel):
+    linkedin: Optional[str] = ""
+    github: Optional[str] = ""
+    portfolio: Optional[str] = ""
+    twitter: Optional[str] = ""
+    facebook: Optional[str] = ""
+    instagram: Optional[str] = ""
+    youtube: Optional[str] = ""
+    personal_website: Optional[str] = ""
+
+    class Config:
+        extra = "allow"
+
+
+class CompensationExpectationsSchema(BaseModel):
     expected_salary_min: Optional[int] = None
     expected_salary_max: Optional[int] = None
-    open_to_relocate: bool = False
-    open_to_remote_work: bool = False
-    preferred_job_types: List[str] = Field(default_factory=list)
-    preferred_industries: List[str] = Field(default_factory=list)
+    expected_salary_currency: Optional[str] = "INR"
+    is_salary_negotiable: Optional[bool] = True
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== MAIN BASIC DETAILS SCHEMA ====================
+# Permissive schema — accepts any of the fields the frontend sends.
+# extra="allow" so that new fields added on frontend won't break backend.
+
+class BasicDetailsSchema(BaseModel):
+    # Personal
+    full_name: Optional[str] = None
+    first_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    last_name: Optional[str] = None
+    gender: Optional[str] = None
+    dob: Optional[str] = None
+    birth_place: Optional[str] = None
+    blood_group: Optional[str] = None
+    nationality: Optional[str] = None
+    religion: Optional[str] = None
+    category: Optional[str] = None
+    hobbies: Optional[List[str]] = None
+    interests: Optional[List[str]] = None
+
+    # Family
+    father_name: Optional[str] = None
+    mother_name: Optional[str] = None
+    guardian_name: Optional[str] = None
+    spouse_name: Optional[str] = None
+    marital_status: Optional[str] = None
+    family_annual_income: Optional[int] = None
+    number_of_dependents: Optional[int] = None
+
+    # Contact
+    alternate_mobile: Optional[str] = None
+    whatsapp_number: Optional[str] = None
+    emergency_contact: Optional[EmergencyContactSchema] = None
+
+    # Address
+    current_address: Optional[AddressSchema] = None
+    same_as_current: Optional[bool] = None
+    permanent_address: Optional[AddressSchema] = None
+
+    # Professional
+    summary: Optional[str] = None
+    career_objective: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    github_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    social_links: Optional[SocialLinksSchema] = None
+
+    # Physical
     height: Optional[float] = None
     weight: Optional[float] = None
-    languages_known: List[str] = Field(default_factory=list)
-    academic_records: List[Dict[str, Any]] = Field(default_factory=list)
-    experience: List[Dict[str, Any]] = Field(default_factory=list)
-    internships: List[Dict[str, Any]] = Field(default_factory=list)
-    skills: List[Dict[str, Any]] = Field(default_factory=list)
-    certifications: List[Dict[str, Any]] = Field(default_factory=list)
-    projects: List[Dict[str, Any]] = Field(default_factory=list)
-    is_educated: bool = True
-    can_read: bool = False
-    can_write: bool = False
-    basic_education_level: str = "None"
-    basic_skills: List[str] = Field(default_factory=list)
-    is_fresher: bool = True
-    internship_details: str = ""
-    training_program: str = ""
+    languages_known: Optional[List[str]] = None
+
+    # Disability (nested only)
+    disability: Optional[DisabilitySchema] = None
+
+    # Job preferences
+    preferred_location: Optional[str] = None
+    open_to_relocate: Optional[bool] = None
+    open_to_remote_work: Optional[bool] = None
+    preferred_job_types: Optional[List[str]] = None
+    preferred_industries: Optional[List[str]] = None
+    compensation_expectations: Optional[CompensationExpectationsSchema] = None
+
+    class Config:
+        extra = "allow"
+        populate_by_name = True
+
+
+# ==================== EDUCATION SCHEMAS ====================
+
+class EducationCreateSchema(BaseModel):
+    level: str
+    degree: Optional[str] = ""
+    stream: Optional[str] = ""
+    institute: str
+    board_university: Optional[str] = ""
+    year_of_passing: int
+    cgpa_percentage: Optional[float] = None
+    result_type: Optional[str] = "Percentage"
+    grade: Optional[str] = ""
+    medium: Optional[str] = ""
+    subjects: List[str] = Field(default_factory=list)
+    backlogs: Optional[int] = 0
+    certificate_url: Optional[str] = ""
+    achievements: List[str] = Field(default_factory=list)
+    is_pursuing: Optional[bool] = False
+
+    class Config:
+        extra = "allow"
+
+
+class EducationUpdateSchema(BaseModel):
+    level: Optional[str] = None
+    degree: Optional[str] = None
+    stream: Optional[str] = None
+    institute: Optional[str] = None
+    board_university: Optional[str] = None
+    year_of_passing: Optional[int] = None
+    cgpa_percentage: Optional[float] = None
+    result_type: Optional[str] = None
+    grade: Optional[str] = None
+    medium: Optional[str] = None
+    subjects: Optional[List[str]] = None
+    backlogs: Optional[int] = None
+    certificate_url: Optional[str] = None
+    achievements: Optional[List[str]] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== EXPERIENCE SCHEMAS ====================
+
+class ExperienceCreateSchema(BaseModel):
+    company: str
+    role: str
+    industry_type: Optional[str] = ""
+    work_type: Optional[str] = ""
+    employment_type: Optional[str] = "Full-time"
+    location: Optional[str] = ""
+    salary: Optional[int] = None
+    start_date: str
+    end_date: Optional[str] = None
+    description: Optional[str] = ""
+    achievements: List[str] = Field(default_factory=list)
+    skills_used: List[str] = Field(default_factory=list)
+    reason_for_leaving: Optional[str] = ""
+    reporting_manager: Optional[str] = ""
+    team_size: Optional[int] = None
+
+    class Config:
+        extra = "allow"
+
+
+class ExperienceUpdateSchema(BaseModel):
+    company: Optional[str] = None
+    role: Optional[str] = None
+    industry_type: Optional[str] = None
+    work_type: Optional[str] = None
+    employment_type: Optional[str] = None
+    location: Optional[str] = None
+    salary: Optional[int] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    description: Optional[str] = None
+    achievements: Optional[List[str]] = None
+    skills_used: Optional[List[str]] = None
+    reason_for_leaving: Optional[str] = None
+    reporting_manager: Optional[str] = None
+    team_size: Optional[int] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== INTERNSHIP SCHEMAS ====================
+
+class InternshipCreateSchema(BaseModel):
+    company: str
+    role: str
+    start_date: str
+    end_date: Optional[str] = None
+    description: Optional[str] = ""
+    stipend: Optional[int] = None
+    technologies: List[str] = Field(default_factory=list)
+
+    class Config:
+        extra = "allow"
+
+
+class InternshipUpdateSchema(BaseModel):
+    company: Optional[str] = None
+    role: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    description: Optional[str] = None
+    stipend: Optional[int] = None
+    technologies: Optional[List[str]] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== SKILL SCHEMAS ====================
+
+class SkillCreateSchema(BaseModel):
+    name: str
+    proficiency: Optional[str] = "Intermediate"
+    level: Optional[str] = None
+    category: Optional[str] = "Technical"
+    years_of_experience: Optional[int] = 0
+
+    class Config:
+        extra = "allow"
+
+
+class SkillUpdateSchema(BaseModel):
+    name: Optional[str] = None
+    proficiency: Optional[str] = None
+    level: Optional[str] = None
+    category: Optional[str] = None
+    years_of_experience: Optional[int] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== PROJECT SCHEMAS ====================
+
+class ProjectCreateSchema(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    technologies: List[str] = Field(default_factory=list)
+    role: Optional[str] = ""
+    duration: Optional[str] = ""
+    url: Optional[str] = ""
+    github_url: Optional[str] = ""
+
+    class Config:
+        extra = "allow"
+
+
+class ProjectUpdateSchema(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    technologies: Optional[List[str]] = None
+    role: Optional[str] = None
+    duration: Optional[str] = None
+    url: Optional[str] = None
+    github_url: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== CERTIFICATION SCHEMAS ====================
+
+class CertificationCreateSchema(BaseModel):
+    name: str
+    issuer: Optional[str] = ""
+    year: Optional[int] = None
+    credential_id: Optional[str] = ""
+    url: Optional[str] = ""
+
+    class Config:
+        extra = "allow"
+
+
+class CertificationUpdateSchema(BaseModel):
+    name: Optional[str] = None
+    issuer: Optional[str] = None
+    year: Optional[int] = None
+    credential_id: Optional[str] = None
+    url: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== LANGUAGE SCHEMAS ====================
+
+class LanguageCreateSchema(BaseModel):
+    name: str
+    proficiency: Optional[str] = "Fluent"
+    read: Optional[bool] = True
+    write: Optional[bool] = True
+    speak: Optional[bool] = True
+
+    class Config:
+        extra = "allow"
+
+
+class LanguageUpdateSchema(BaseModel):
+    name: Optional[str] = None
+    proficiency: Optional[str] = None
+    read: Optional[bool] = None
+    write: Optional[bool] = None
+    speak: Optional[bool] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== OTHER DETAIL SCHEMAS ====================
+
+class BankDetailsSchema(BaseModel):
+    account_holder_name: Optional[str] = None
+    account_number: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    bank_name: Optional[str] = None
+    branch_name: Optional[str] = None
+    upi_id: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+class GovernmentIDsSchema(BaseModel):
+    aadhar_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    voter_id: Optional[str] = None
+    driving_license: Optional[str] = None
+    passport_number: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+class ReferenceCreateSchema(BaseModel):
+    name: str
+    designation: Optional[str] = ""
+    company: Optional[str] = ""
+    phone: Optional[str] = ""
+    email: Optional[str] = ""
+    relationship: Optional[str] = ""
+
+    class Config:
+        extra = "allow"
+
+
+class EmploymentPreferencesSchema(BaseModel):
+    preferred_work_modes: Optional[List[str]] = None
+    preferred_shifts: Optional[List[str]] = None
+    preferred_work_location: Optional[str] = None
+    notice_period_days: Optional[int] = None
+    can_join_immediately: Optional[bool] = None
+    expected_salary_min: Optional[int] = None
+    expected_salary_max: Optional[int] = None
+    preferred_industries: Optional[List[str]] = None
+    preferred_job_roles: Optional[List[str]] = None
+    preferred_locations: Optional[List[str]] = None
+    open_to_relocate: Optional[bool] = None
+
+    class Config:
+        extra = "allow"
+
+
+class WorkAuthorizationSchema(BaseModel):
+    is_indian_citizen: Optional[bool] = True
+    has_work_permit: Optional[bool] = False
+    work_permit_country: Optional[str] = None
+    visa_type: Optional[str] = None
+    visa_valid_until: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+class ApplicationPreferencesSchema(BaseModel):
+    email_notifications: Optional[bool] = True
+    sms_notifications: Optional[bool] = False
+    whatsapp_notifications: Optional[bool] = False
+    auto_apply_matches: Optional[bool] = False
+    min_match_percentage: Optional[int] = 70
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== STATUS TOGGLE SCHEMAS ====================
+
+class EducatedStatusSchema(BaseModel):
+    is_educated: Optional[bool] = None
+    can_read: Optional[bool] = None
+    can_write: Optional[bool] = None
+    basic_education_level: Optional[str] = None
+    languages_known: Optional[List[str]] = None
+    basic_skills: Optional[List[str]] = None
+
+    class Config:
+        extra = "allow"
+
+
+class FresherStatusSchema(BaseModel):
+    is_fresher: Optional[bool] = None
+    internship_details: Optional[str] = None
+    training_program: Optional[str] = None
     daily_wage: Optional[int] = None
-    projects_done: str = ""
-    certifications_list: List[str] = Field(default_factory=list)
-    labour_type: str = "Mason"
+    projects_done: Optional[str] = None
+    labour_type: Optional[str] = None
+
+    class Config:
+        extra = "allow"
+
+
+# ==================== OTHER DETAILS (generic) ====================
+
+class OtherDetailsSchema(BaseModel):
+    """Generic schema for other-details endpoint"""
+    soft_skills: Optional[List[str]] = None
+    video_resume_url: Optional[str] = None
+
+    class Config:
+        extra = "allow"

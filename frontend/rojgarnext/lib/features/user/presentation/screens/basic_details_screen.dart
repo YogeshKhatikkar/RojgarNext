@@ -1,9 +1,7 @@
 // lib/features/user/presentation/screens/basic_details_screen.dart
 // ✅ ULTRA-FAST - CACHE FIRST, INSTANT LOAD
 // ✅ AI-BASED MODERN DESIGN WITH LARGER TABS
-// ✅ FIXED: Larger tabs for better visibility
-// ✅ FIXED: Selected tab highlighted clearly
-// ✅ FIXED: Tab text and icons for easy navigation
+// ✅ ADDED: birth_place, hobbies, interests, all social links (twitter, facebook, instagram, youtube, personal_website)
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/core/master_date/locations.dart';
@@ -24,10 +22,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
   bool _isSaving = false;
   int _currentTabIndex = 0;
 
-  // ==================== TAB CONTROLLER ====================
   late TabController _tabController;
 
-  // ==================== READ-ONLY FROM DATABASE ====================
   String _email = '';
   String _mobile = '';
   String _name = '';
@@ -39,10 +35,15 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
   final TextEditingController _lastName = TextEditingController();
   String _gender = 'Male';
   final TextEditingController _dob = TextEditingController();
+  final TextEditingController _birthPlace = TextEditingController();
   int _age = 0;
   String _bloodGroup = 'I don\'t know';
   String _nationality = 'Indian';
   String _religion = 'Hindu';
+
+  // ✅ NEW: Hobbies & Interests
+  List<String> _hobbies = [];
+  List<String> _interests = [];
 
   // ==================== CATEGORY ====================
   String _category = 'General/UR';
@@ -100,7 +101,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
   final TextEditingController _permPincode = TextEditingController();
   final TextEditingController _permLandmark = TextEditingController();
 
-  // ==================== LISTS ====================
   List<String> _countries = [];
   List<String> _states = [];
   List<String> _districts = [];
@@ -111,10 +111,15 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
   final TextEditingController _summary = TextEditingController();
   final TextEditingController _careerObjective = TextEditingController();
 
-  // ==================== SOCIAL LINKS ====================
+  // ✅ UPDATED: All social links
   final TextEditingController _linkedinUrl = TextEditingController();
   final TextEditingController _githubUrl = TextEditingController();
   final TextEditingController _portfolioUrl = TextEditingController();
+  final TextEditingController _twitterUrl = TextEditingController();
+  final TextEditingController _facebookUrl = TextEditingController();
+  final TextEditingController _instagramUrl = TextEditingController();
+  final TextEditingController _youtubeUrl = TextEditingController();
+  final TextEditingController _personalWebsiteUrl = TextEditingController();
 
   // ==================== JOB PREFERENCES ====================
   final TextEditingController _preferredLocation = TextEditingController();
@@ -131,6 +136,21 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
 
   // ==================== LANGUAGES ====================
   final TextEditingController _languagesKnown = TextEditingController();
+
+  // ==================== CHIP OPTIONS ====================
+  final List<String> _hobbyOptions = const [
+    'Reading', 'Writing', 'Cooking', 'Traveling', 'Photography',
+    'Music', 'Dancing', 'Painting', 'Gardening', 'Sports',
+    'Cycling', 'Swimming', 'Yoga', 'Chess', 'Gaming',
+    'Blogging', 'Volunteering', 'Crafting', 'Singing', 'Playing Instruments',
+  ];
+
+  final List<String> _interestOptions = const [
+    'Technology', 'Science', 'Business', 'Finance', 'Healthcare',
+    'Education', 'Social Work', 'Environment', 'Sports', 'Art & Culture',
+    'Politics', 'Fashion', 'Food', 'Travel', 'Books',
+    'Movies', 'Entrepreneurship', 'AI/ML', 'Startups', 'Research',
+  ];
 
   // ==================== TAB ICONS ====================
   final List<IconData> _tabIcons = [
@@ -151,15 +171,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     'Job',
   ];
 
-  final List<String> _tabSubtitles = [
-    'Personal Info',
-    'Category & Disability',
-    'Family & Contact',
-    'Address Details',
-    'Professional Info',
-    'Job Preferences',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -167,7 +178,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     _loadCountries();
     _loadData();
     _dob.addListener(_calculateAge);
-    
+
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
         setState(() {
@@ -185,6 +196,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     _middleName.dispose();
     _lastName.dispose();
     _dob.dispose();
+    _birthPlace.dispose();
     _disabilityPercentage.dispose();
     _disabilityDetails.dispose();
     _fatherName.dispose();
@@ -215,6 +227,11 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     _linkedinUrl.dispose();
     _githubUrl.dispose();
     _portfolioUrl.dispose();
+    _twitterUrl.dispose();
+    _facebookUrl.dispose();
+    _instagramUrl.dispose();
+    _youtubeUrl.dispose();
+    _personalWebsiteUrl.dispose();
     _preferredLocation.dispose();
     _expectedSalaryMin.dispose();
     _expectedSalaryMax.dispose();
@@ -361,10 +378,21 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         _lastName.text = _safeString(profile, 'last_name');
         _gender = _safeString(profile, 'gender', 'Male');
         _dob.text = _safeString(profile, 'dob');
+        _birthPlace.text = _safeString(profile, 'birth_place');
         _bloodGroup = _normalizeBloodGroup(_safeString(profile, 'blood_group', ''));
         _nationality = _safeString(profile, 'nationality', 'Indian');
         _religion = _normalizeReligion(_safeString(profile, 'religion', 'Hindu'));
         _category = _safeString(profile, 'category', 'General/UR');
+
+        // ✅ Hobbies & Interests
+        final hobbies = profile['hobbies'];
+        if (hobbies is List) {
+          _hobbies = List<String>.from(hobbies.map((e) => e.toString()));
+        }
+        final interests = profile['interests'];
+        if (interests is List) {
+          _interests = List<String>.from(interests.map((e) => e.toString()));
+        }
 
         final disability = _safeMap(profile, 'disability');
         _isDisable = disability['is_disabled'] is bool ? disability['is_disabled'] : false;
@@ -453,6 +481,19 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         _githubUrl.text = _safeString(profile, 'github_url');
         _portfolioUrl.text = _safeString(profile, 'portfolio_url');
 
+        // ✅ Load all social links
+        final socialLinks = _safeMap(profile, 'social_links');
+        if (socialLinks.isNotEmpty) {
+          _linkedinUrl.text = _safeString(socialLinks, 'linkedin', _linkedinUrl.text);
+          _githubUrl.text = _safeString(socialLinks, 'github', _githubUrl.text);
+          _portfolioUrl.text = _safeString(socialLinks, 'portfolio', _portfolioUrl.text);
+          _twitterUrl.text = _safeString(socialLinks, 'twitter');
+          _facebookUrl.text = _safeString(socialLinks, 'facebook');
+          _instagramUrl.text = _safeString(socialLinks, 'instagram');
+          _youtubeUrl.text = _safeString(socialLinks, 'youtube');
+          _personalWebsiteUrl.text = _safeString(socialLinks, 'personal_website');
+        }
+
         _preferredLocation.text = _safeString(profile, 'preferred_location');
         final compensation = _safeMap(profile, 'compensation_expectations');
         if (compensation.isNotEmpty) {
@@ -494,8 +535,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     }
   }
 
-  // ==================== HELPER METHODS ====================
-  
   String _safeString(Map<String, dynamic> map, String key, [String defaultValue = '']) {
     final value = map[key];
     if (value == null) return defaultValue;
@@ -515,6 +554,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
   Map<String, dynamic> _safeMap(Map<String, dynamic> map, String key) {
     final value = map[key];
     if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
     return {};
   }
 
@@ -550,9 +590,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     return 'LD (Learning Disability)';
   }
 
-  // ============================================================
-  // ✅ SAVE PROFILE WITH AI LOADING ANIMATION
-  // ============================================================
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -600,10 +637,13 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         'last_name': _lastName.text.trim(),
         'gender': _gender,
         'dob': _dob.text.trim(),
+        'birth_place': _birthPlace.text.trim(),
         'blood_group': _bloodGroup == 'I don\'t know' ? '' : _bloodGroup,
         'nationality': _nationality,
         'religion': _religion,
         'category': _category,
+        'hobbies': _hobbies,
+        'interests': _interests,
         'father_name': _fatherName.text.trim(),
         'mother_name': _motherName.text.trim(),
         'guardian_name': _guardianName.text.trim(),
@@ -626,6 +666,16 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         'linkedin_url': _linkedinUrl.text.trim(),
         'github_url': _githubUrl.text.trim(),
         'portfolio_url': _portfolioUrl.text.trim(),
+        'social_links': {
+          'linkedin': _linkedinUrl.text.trim(),
+          'github': _githubUrl.text.trim(),
+          'portfolio': _portfolioUrl.text.trim(),
+          'twitter': _twitterUrl.text.trim(),
+          'facebook': _facebookUrl.text.trim(),
+          'instagram': _instagramUrl.text.trim(),
+          'youtube': _youtubeUrl.text.trim(),
+          'personal_website': _personalWebsiteUrl.text.trim(),
+        },
         'preferred_location': _preferredLocation.text.trim(),
         'open_to_relocate': _openToRelocate,
         'open_to_remote_work': _openToRemoteWork,
@@ -665,9 +715,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     }
   }
 
-  // ============================================================
-  // ✅ AI SUCCESS DIALOG
-  // ============================================================
   Future<void> _showAISuccessDialog() async {
     return showDialog(
       context: context,
@@ -695,11 +742,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Center(
-                        child: Icon(
-                          Icons.check_circle,
-                          color: Colors.white,
-                          size: 40,
-                        ),
+                        child: Icon(Icons.check_circle, color: Colors.white, size: 40),
                       ),
                     ),
                   );
@@ -708,42 +751,12 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
               const SizedBox(height: 16),
               const Text(
                 "Profile Saved! 🎉",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
               ),
               const SizedBox(height: 8),
               Text(
                 "Your profile has been saved successfully.",
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.auto_awesome, size: 14, color: Colors.blue),
-                    const SizedBox(width: 4),
-                    Text(
-                      "AI Verified",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.blue.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -754,14 +767,9 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                     backgroundColor: const Color(0xFF6C63FF),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text(
-                    "Continue",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: const Text("Continue", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -782,9 +790,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     }
   }
 
-  // ============================================================
-  // ✅ BUILD - AI-BASED MODERN DESIGN WITH LARGER TABS
-  // ============================================================
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -823,9 +828,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     );
   }
 
-  // ============================================================
-  // ✅ TAB BAR - LARGER AND CLEAR
-  // ============================================================
   Widget _buildTabBar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -834,11 +836,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         color: Colors.white.withOpacity(0.95),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
-            blurRadius: 15,
-            spreadRadius: 5,
-          ),
+          BoxShadow(color: Colors.grey.withOpacity(0.15), blurRadius: 15, spreadRadius: 5),
         ],
       ),
       child: TabBar(
@@ -847,20 +845,12 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         labelColor: Colors.white,
         unselectedLabelColor: Colors.grey.shade700,
         indicator: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-          ),
+          gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
           borderRadius: BorderRadius.circular(12),
         ),
         indicatorSize: TabBarIndicatorSize.tab,
-        labelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
+        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+        unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         labelPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         tabs: List.generate(6, (index) {
           final isSelected = _currentTabIndex == index;
@@ -909,11 +899,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                       ),
                       child: Text(
                         "${index + 1}",
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ),
                 ],
@@ -930,25 +916,15 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     );
   }
 
-  // ============================================================
-  // ✅ BOTTOM BAR - WITH PROGRESS INDICATOR
-  // ============================================================
   Widget _buildBottomBar() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.95),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            spreadRadius: 5,
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 10, spreadRadius: 5)],
       ),
       child: Row(
         children: [
-          // Tab Progress Indicator
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -961,9 +937,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                         height: 4,
                         margin: const EdgeInsets.symmetric(horizontal: 2),
                         decoration: BoxDecoration(
-                          color: _currentTabIndex >= index
-                              ? const Color(0xFF6C63FF)
-                              : Colors.grey.shade300,
+                          color: _currentTabIndex >= index ? const Color(0xFF6C63FF) : Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -973,30 +947,17 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                 const SizedBox(height: 4),
                 Text(
                   "Step ${_currentTabIndex + 1} of 6 • ${_tabLabels[_currentTabIndex]}",
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 12),
-          // Save Button
           Container(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-              ),
+              gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF6C63FF).withOpacity(0.3),
-                  blurRadius: 10,
-                  spreadRadius: 2,
-                ),
-              ],
+              boxShadow: [BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 10, spreadRadius: 2)],
             ),
             child: ElevatedButton(
               onPressed: _isSaving ? null : _saveProfile,
@@ -1006,45 +967,15 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                 disabledBackgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: _isSaving
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Row(
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Row(
                       children: [
-                        const Icon(Icons.save, size: 18),
-                        const SizedBox(width: 6),
-                        const Text(
-                          "Save",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            "AI",
-                            style: TextStyle(
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                        Icon(Icons.save, size: 18),
+                        SizedBox(width: 6),
+                        Text("Save", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                       ],
                     ),
             ),
@@ -1053,10 +984,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
       ),
     );
   }
-
-  // ============================================================
-  // ✅ AI-BASED DESIGN COMPONENTS
-  // ============================================================
 
   Widget _buildLoadingScreen() {
     return Scaffold(
@@ -1076,47 +1003,25 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                        ),
+                        gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF6C63FF).withOpacity(0.3),
-                            blurRadius: 20,
-                            spreadRadius: 5,
-                          ),
-                        ],
+                        boxShadow: [BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 20, spreadRadius: 5)],
                       ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.auto_awesome,
-                          color: Colors.white,
-                          size: 40,
-                        ),
-                      ),
+                      child: const Center(child: Icon(Icons.auto_awesome, color: Colors.white, size: 40)),
                     ),
                   );
                 },
               ),
               const SizedBox(height: 30),
               ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(
-                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                ).createShader(bounds),
+                shaderCallback: (bounds) => const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]).createShader(bounds),
                 child: const Text(
                   "AI is loading your profile...",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ),
               const SizedBox(height: 10),
-              const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
+              const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
             ],
           ),
         ),
@@ -1143,68 +1048,35 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6C63FF).withOpacity(0.3),
-            blurRadius: 20,
-            spreadRadius: 5,
-          ),
-        ],
+        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
+        boxShadow: [BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 20, spreadRadius: 5)],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.person_outline,
-              color: Colors.white,
-              size: 24,
-            ),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.person_outline, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Complete Your Profile",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                const Text("Complete Your Profile", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                 Text(
                   "Step ${_currentTabIndex + 1} of 6 • ${_tabLabels[_currentTabIndex]}",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.8)),
                 ),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
             child: Text(
               "${_currentTabIndex + 1}/6",
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -1218,17 +1090,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.85),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.5),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 15,
-            spreadRadius: 5,
-          ),
-        ],
+        border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
+        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 15, spreadRadius: 5)],
       ),
       child: child,
     );
@@ -1245,30 +1108,19 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                  ),
+                  gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: Colors.white, size: 18),
               ),
               const SizedBox(width: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
+              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
               const Spacer(),
               Container(
                 width: 30,
                 height: 2,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                  ),
+                  gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1277,22 +1129,12 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
           if (subtitle != null)
             Padding(
               padding: const EdgeInsets.only(left: 44, top: 4),
-              child: Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
-              ),
+              child: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
             ),
         ],
       ),
     );
   }
-
-  // ============================================================
-  // ✅ AI TEXT FIELD
-  // ============================================================
 
   Widget _buildAITextField(
     TextEditingController ctrl,
@@ -1310,13 +1152,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.05),
-              blurRadius: 5,
-              spreadRadius: 1,
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 5, spreadRadius: 1)],
         ),
         child: TextFormField(
           controller: ctrl,
@@ -1325,15 +1161,10 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
           style: const TextStyle(color: Colors.black87),
           decoration: InputDecoration(
             labelText: required ? "$label *" : label,
-            labelStyle: TextStyle(
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
-            ),
+            labelStyle: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w500),
             hintText: hintText ?? (required ? null : "Optional"),
             hintStyle: TextStyle(color: Colors.grey.shade400),
-            prefixIcon: prefixIcon != null
-                ? Icon(prefixIcon, color: Colors.grey.shade600, size: 20)
-                : null,
+            prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: Colors.grey.shade600, size: 20) : null,
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             filled: true,
@@ -1344,10 +1175,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
       ),
     );
   }
-
-  // ============================================================
-  // ✅ AI DROPDOWN
-  // ============================================================
 
   Widget _buildAIDropdown<T>(
     T? value,
@@ -1363,41 +1190,23 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.05),
-              blurRadius: 5,
-              spreadRadius: 1,
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 5, spreadRadius: 1)],
         ),
         child: DropdownButtonFormField<T>(
           value: value,
           decoration: InputDecoration(
             labelText: required ? "$label *" : label,
-            labelStyle: TextStyle(
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
-            ),
+            labelStyle: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w500),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            suffixIcon: Icon(
-              Icons.arrow_drop_down,
-              color: Colors.grey.shade600,
-            ),
+            suffixIcon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
           ),
           dropdownColor: Colors.white,
-          style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 14,
-          ),
+          style: const TextStyle(color: Colors.black87, fontSize: 14),
           items: items.map((item) {
             return DropdownMenuItem<T>(
               value: item,
-              child: Text(
-                item.toString(),
-                style: const TextStyle(color: Colors.black87),
-              ),
+              child: Text(item.toString(), style: const TextStyle(color: Colors.black87)),
             );
           }).toList(),
           onChanged: onChanged,
@@ -1408,10 +1217,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     );
   }
 
-  // ============================================================
-  // ✅ AI DATE FIELD
-  // ============================================================
-
   Widget _buildAIDateField(TextEditingController ctrl, String label, {bool required = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -1420,13 +1225,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.05),
-              blurRadius: 5,
-              spreadRadius: 1,
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 5, spreadRadius: 1)],
         ),
         child: TextFormField(
           controller: ctrl,
@@ -1434,10 +1233,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
           style: const TextStyle(color: Colors.black87),
           decoration: InputDecoration(
             labelText: required ? "$label *" : label,
-            labelStyle: TextStyle(
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
-            ),
+            labelStyle: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w500),
             prefixIcon: Icon(Icons.calendar_today, color: Colors.grey.shade600, size: 18),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1461,24 +1257,13 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     );
   }
 
-  // ============================================================
-  // ✅ AI CHIP FIELD
-  // ============================================================
-
   Widget _buildAIChipField(String title, List<String> selectedValues, List<String> availableOptions) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
+          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -1510,9 +1295,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(
-                    color: isSelected ? const Color(0xFF6C63FF) : Colors.grey.shade300,
-                  ),
+                  side: BorderSide(color: isSelected ? const Color(0xFF6C63FF) : Colors.grey.shade300),
                 ),
               );
             }).toList(),
@@ -1522,10 +1305,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
               padding: const EdgeInsets.only(top: 8),
               child: Text(
                 "Selected: ${selectedValues.join(', ')}",
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
               ),
             ),
         ],
@@ -1533,9 +1313,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     );
   }
 
-  // ============================================================
-  // ✅ TAB 1: BASIC INFORMATION
-  // ============================================================
   Widget _buildBasicInfoTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -1543,8 +1320,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionHeader("Basic Information", Icons.person,
-                subtitle: "Fill your personal details"),
+            _sectionHeader("Basic Information", Icons.person, subtitle: "Fill your personal details"),
             _buildAITextField(_fullName, "Full Name *", required: true, prefixIcon: Icons.person),
             _buildAITextField(_firstName, "First Name", prefixIcon: Icons.person_outline),
             _buildAITextField(_middleName, "Middle Name", prefixIcon: Icons.person_outline),
@@ -1558,14 +1334,13 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
               },
             ),
             _buildAIDateField(_dob, "Date of Birth"),
+            _buildAITextField(_birthPlace, "Birth Place", prefixIcon: Icons.location_city),
             if (_age > 0)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                  ),
+                  gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -1573,14 +1348,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                   children: [
                     const Icon(Icons.cake, color: Colors.white, size: 18),
                     const SizedBox(width: 8),
-                    Text(
-                      "Age: $_age years",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
+                    Text("Age: $_age years", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
                   ],
                 ),
               ),
@@ -1608,15 +1376,16 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                 if (value != null) setState(() => _religion = value);
               },
             ),
+            const SizedBox(height: 8),
+            _buildAIChipField("Hobbies", _hobbies, _hobbyOptions),
+            const SizedBox(height: 8),
+            _buildAIChipField("Interests", _interests, _interestOptions),
           ],
         ),
       ),
     );
   }
 
-  // ============================================================
-  // ✅ TAB 2: CATEGORY & DISABILITY
-  // ============================================================
   Widget _buildCategoryDisabilityTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -1626,8 +1395,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Category", Icons.category,
-                    subtitle: "Select your category as per government policies"),
+                _sectionHeader("Category", Icons.category, subtitle: "Select your category as per government policies"),
                 _buildAIDropdown<String>(
                   _category,
                   _categoryOptions,
@@ -1644,8 +1412,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Disability Information", Icons.accessible,
-                    subtitle: "Toggle if you have any disability"),
+                _sectionHeader("Disability Information", Icons.accessible, subtitle: "Toggle if you have any disability"),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -1672,18 +1439,12 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                                 duration: const Duration(milliseconds: 300),
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: _isDisable
-                                      ? Colors.orange.withOpacity(0.2)
-                                      : Colors.grey.withOpacity(0.1),
+                                  color: _isDisable ? Colors.orange.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
-                                  _isDisable
-                                      ? Icons.accessible_forward
-                                      : Icons.accessible,
-                                  color: _isDisable
-                                      ? Colors.orange.shade700
-                                      : Colors.grey.shade600,
+                                  _isDisable ? Icons.accessible_forward : Icons.accessible,
+                                  color: _isDisable ? Colors.orange.shade700 : Colors.grey.shade600,
                                   size: 24,
                                 ),
                               ),
@@ -1696,18 +1457,14 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
-                                      color: _isDisable
-                                          ? Colors.orange.shade800
-                                          : Colors.black87,
+                                      color: _isDisable ? Colors.orange.shade800 : Colors.black87,
                                     ),
                                   ),
                                   Text(
                                     _isDisable ? "Enabled" : "Disabled",
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: _isDisable
-                                          ? Colors.orange.shade600
-                                          : Colors.grey.shade600,
+                                      color: _isDisable ? Colors.orange.shade600 : Colors.grey.shade600,
                                     ),
                                   ),
                                 ],
@@ -1717,17 +1474,11 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                           AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
                             decoration: BoxDecoration(
-                              color: _isDisable
-                                  ? Colors.orange.shade100
-                                  : Colors.grey.shade200,
+                              color: _isDisable ? Colors.orange.shade100 : Colors.grey.shade200,
                               borderRadius: BorderRadius.circular(30),
                               boxShadow: [
                                 if (_isDisable)
-                                  BoxShadow(
-                                    color: Colors.orange.withOpacity(0.3),
-                                    blurRadius: 10,
-                                    spreadRadius: 2,
-                                  ),
+                                  BoxShadow(color: Colors.orange.withOpacity(0.3), blurRadius: 10, spreadRadius: 2),
                               ],
                             ),
                             child: Transform.scale(
@@ -1761,9 +1512,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.7),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.orange.shade200,
-                            ),
+                            border: Border.all(color: Colors.orange.shade200),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1806,9 +1555,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     );
   }
 
-  // ============================================================
-  // ✅ TAB 3: FAMILY & CONTACT
-  // ============================================================
   Widget _buildFamilyContactTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -1818,8 +1564,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Family Details", Icons.family_restroom,
-                    subtitle: "Provide your family information"),
+                _sectionHeader("Family Details", Icons.family_restroom, subtitle: "Provide your family information"),
                 _buildAITextField(_fatherName, "Father's Name", prefixIcon: Icons.man),
                 _buildAITextField(_motherName, "Mother's Name", prefixIcon: Icons.woman),
                 _buildAITextField(_guardianName, "Guardian Name", prefixIcon: Icons.person),
@@ -1852,8 +1597,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Additional Contact", Icons.contact_phone,
-                    subtitle: "Alternative contact details"),
+                _sectionHeader("Additional Contact", Icons.contact_phone, subtitle: "Alternative contact details"),
                 _buildAITextField(
                   _alternateMobile,
                   "Alternate Mobile",
@@ -1870,9 +1614,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.red.shade50, Colors.red.shade100],
-                    ),
+                    gradient: LinearGradient(colors: [Colors.red.shade50, Colors.red.shade100]),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.red.shade200),
                   ),
@@ -1880,14 +1622,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                     children: [
                       Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
                       const SizedBox(width: 10),
-                      const Text(
-                        "Emergency Contact",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Colors.black87,
-                        ),
-                      ),
+                      const Text("Emergency Contact", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
                     ],
                   ),
                 ),
@@ -1908,9 +1643,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     );
   }
 
-  // ============================================================
-  // ✅ TAB 4: ADDRESS
-  // ============================================================
   Widget _buildAddressTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -1920,45 +1652,18 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Current Address", Icons.home,
-                    subtitle: "Your current residential address"),
+                _sectionHeader("Current Address", Icons.home, subtitle: "Your current residential address"),
                 _buildAITextField(_currHouseNumber, "House/Flat Number", prefixIcon: Icons.home),
                 _buildAITextField(_currVillageName, "Village/City/Town", prefixIcon: Icons.location_city),
                 _buildAITextField(_currPostOffice, "Post Office", prefixIcon: Icons.markunread_mailbox),
                 _buildAITextField(_currTehsil, "Tehsil/Taluka", prefixIcon: Icons.map),
                 const SizedBox(height: 8),
-                const Text(
-                  "Select Location",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
+                const Text("Select Location", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
                 const SizedBox(height: 8),
-                _buildAIDropdown<String>(
-                  _selectedCountry,
-                  _countries,
-                  "Country",
-                  onChanged: _onCountryChanged,
-                ),
-                _buildAIDropdown<String>(
-                  _selectedState,
-                  _states,
-                  "State",
-                  onChanged: _onStateChanged,
-                ),
-                _buildAIDropdown<String>(
-                  _selectedDistrict,
-                  _districts,
-                  "District",
-                  onChanged: _onDistrictChanged,
-                ),
-                _buildAITextField(
-                  _currPincode,
-                  "Pincode",
-                  keyboardType: TextInputType.number,
-                  prefixIcon: Icons.pin_drop,
-                ),
+                _buildAIDropdown<String>(_selectedCountry, _countries, "Country", onChanged: _onCountryChanged),
+                _buildAIDropdown<String>(_selectedState, _states, "State", onChanged: _onStateChanged),
+                _buildAIDropdown<String>(_selectedDistrict, _districts, "District", onChanged: _onDistrictChanged),
+                _buildAITextField(_currPincode, "Pincode", keyboardType: TextInputType.number, prefixIcon: Icons.pin_drop),
                 _buildAITextField(_currLandmark, "Landmark", prefixIcon: Icons.place),
               ],
             ),
@@ -1968,16 +1673,13 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Permanent Address", Icons.location_city,
-                    subtitle: "Your permanent residential address"),
+                _sectionHeader("Permanent Address", Icons.location_city, subtitle: "Your permanent residential address"),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: _sameAsCurrent ? Colors.blue.shade50 : Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _sameAsCurrent ? Colors.blue.shade200 : Colors.grey.shade200,
-                    ),
+                    border: Border.all(color: _sameAsCurrent ? Colors.blue.shade200 : Colors.grey.shade200),
                   ),
                   child: Row(
                     children: [
@@ -1986,29 +1688,13 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                         onChanged: (value) => setState(() => _sameAsCurrent = value ?? false),
                         activeColor: const Color(0xFF6C63FF),
                       ),
-                      const Text(
-                        "Same as Current Address",
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87,
-                        ),
-                      ),
+                      const Text("Same as Current Address", style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87)),
                       const Spacer(),
                       if (_sameAsCurrent)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            "✓ Auto-filled",
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                          child: const Text("✓ Auto-filled", style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
                         ),
                     ],
                   ),
@@ -2020,38 +1706,12 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                   _buildAITextField(_permPostOffice, "Post Office", prefixIcon: Icons.markunread_mailbox),
                   _buildAITextField(_permTehsil, "Tehsil/Taluka", prefixIcon: Icons.map),
                   const SizedBox(height: 8),
-                  const Text(
-                    "Select Location",
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
+                  const Text("Select Location", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
                   const SizedBox(height: 8),
-                  _buildAIDropdown<String>(
-                    _permSelectedCountry,
-                    _countries,
-                    "Country",
-                    onChanged: _onPermCountryChanged,
-                  ),
-                  _buildAIDropdown<String>(
-                    _permSelectedState,
-                    _permStates,
-                    "State",
-                    onChanged: _onPermStateChanged,
-                  ),
-                  _buildAIDropdown<String>(
-                    _permSelectedDistrict,
-                    _permDistricts,
-                    "District",
-                    onChanged: _onPermDistrictChanged,
-                  ),
-                  _buildAITextField(
-                    _permPincode,
-                    "Pincode",
-                    keyboardType: TextInputType.number,
-                    prefixIcon: Icons.pin_drop,
-                  ),
+                  _buildAIDropdown<String>(_permSelectedCountry, _countries, "Country", onChanged: _onPermCountryChanged),
+                  _buildAIDropdown<String>(_permSelectedState, _permStates, "State", onChanged: _onPermStateChanged),
+                  _buildAIDropdown<String>(_permSelectedDistrict, _permDistricts, "District", onChanged: _onPermDistrictChanged),
+                  _buildAITextField(_permPincode, "Pincode", keyboardType: TextInputType.number, prefixIcon: Icons.pin_drop),
                   _buildAITextField(_permLandmark, "Landmark", prefixIcon: Icons.place),
                 ],
               ],
@@ -2062,9 +1722,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     );
   }
 
-  // ============================================================
-  // ✅ TAB 5: PROFESSIONAL
-  // ============================================================
   Widget _buildProfessionalTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -2074,8 +1731,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Professional Summary", Icons.description,
-                    subtitle: "Tell about your professional background"),
+                _sectionHeader("Professional Summary", Icons.description, subtitle: "Tell about your professional background"),
                 _buildAITextField(_summary, "Short Summary/Bio", maxLines: 3, prefixIcon: Icons.description),
                 _buildAITextField(_careerObjective, "Career Objective", maxLines: 3, prefixIcon: Icons.flag),
               ],
@@ -2086,26 +1742,15 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Social & Professional Links", Icons.link,
-                    subtitle: "Connect your professional profiles"),
-                _buildAITextField(
-                  _linkedinUrl,
-                  "LinkedIn URL",
-                  hintText: "https://linkedin.com/in/your-profile",
-                  prefixIcon: Icons.link,
-                ),
-                _buildAITextField(
-                  _githubUrl,
-                  "GitHub URL",
-                  hintText: "https://github.com/your-username",
-                  prefixIcon: Icons.code,
-                ),
-                _buildAITextField(
-                  _portfolioUrl,
-                  "Portfolio Website",
-                  hintText: "https://your-portfolio.com",
-                  prefixIcon: Icons.web,
-                ),
+                _sectionHeader("Social & Professional Links", Icons.link, subtitle: "Connect your professional profiles"),
+                _buildAITextField(_linkedinUrl, "LinkedIn URL", hintText: "https://linkedin.com/in/your-profile", prefixIcon: Icons.link),
+                _buildAITextField(_githubUrl, "GitHub URL", hintText: "https://github.com/your-username", prefixIcon: Icons.code),
+                _buildAITextField(_portfolioUrl, "Portfolio Website", hintText: "https://your-portfolio.com", prefixIcon: Icons.web),
+                _buildAITextField(_twitterUrl, "Twitter / X URL", hintText: "https://twitter.com/username", prefixIcon: Icons.alternate_email),
+                _buildAITextField(_facebookUrl, "Facebook URL", hintText: "https://facebook.com/username", prefixIcon: Icons.facebook),
+                _buildAITextField(_instagramUrl, "Instagram URL", hintText: "https://instagram.com/username", prefixIcon: Icons.camera_alt),
+                _buildAITextField(_youtubeUrl, "YouTube Channel", hintText: "https://youtube.com/@channel", prefixIcon: Icons.play_circle),
+                _buildAITextField(_personalWebsiteUrl, "Personal Website", hintText: "https://yourwebsite.com", prefixIcon: Icons.public),
               ],
             ),
           ),
@@ -2114,20 +1759,9 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Physical Attributes", Icons.fitness_center,
-                    subtitle: "Your physical measurements"),
-                _buildAITextField(
-                  _height,
-                  "Height (cm)",
-                  keyboardType: TextInputType.number,
-                  prefixIcon: Icons.height,
-                ),
-                _buildAITextField(
-                  _weight,
-                  "Weight (kg)",
-                  keyboardType: TextInputType.number,
-                  prefixIcon: Icons.monitor_weight,
-                ),
+                _sectionHeader("Physical Attributes", Icons.fitness_center, subtitle: "Your physical measurements"),
+                _buildAITextField(_height, "Height (cm)", keyboardType: TextInputType.number, prefixIcon: Icons.height),
+                _buildAITextField(_weight, "Weight (kg)", keyboardType: TextInputType.number, prefixIcon: Icons.monitor_weight),
               ],
             ),
           ),
@@ -2136,8 +1770,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Languages Known", Icons.language,
-                    subtitle: "List all languages you speak"),
+                _sectionHeader("Languages Known", Icons.language, subtitle: "List all languages you speak"),
                 _buildAITextField(
                   _languagesKnown,
                   "Languages (comma separated)",
@@ -2152,9 +1785,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     );
   }
 
-  // ============================================================
-  // ✅ TAB 6: JOB PREFERENCES
-  // ============================================================
   Widget _buildJobPreferencesTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -2162,8 +1792,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionHeader("Job Preferences", Icons.work,
-                subtitle: "Set your career preferences"),
+            _sectionHeader("Job Preferences", Icons.work, subtitle: "Set your career preferences"),
             _buildAITextField(_preferredLocation, "Preferred Job Location", prefixIcon: Icons.location_on),
             _buildAITextField(
               _expectedSalaryMin,
@@ -2189,10 +1818,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                       border: Border.all(color: Colors.grey.shade200),
                     ),
                     child: CheckboxListTile(
-                      title: const Text(
-                        "Open to Relocate",
-                        style: TextStyle(fontSize: 12),
-                      ),
+                      title: const Text("Open to Relocate", style: TextStyle(fontSize: 12)),
                       value: _openToRelocate,
                       onChanged: (value) => setState(() => _openToRelocate = value ?? false),
                       contentPadding: EdgeInsets.zero,
@@ -2211,10 +1837,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                       border: Border.all(color: Colors.grey.shade200),
                     ),
                     child: CheckboxListTile(
-                      title: const Text(
-                        "Open to Remote",
-                        style: TextStyle(fontSize: 12),
-                      ),
+                      title: const Text("Open to Remote", style: TextStyle(fontSize: 12)),
                       value: _openToRemoteWork,
                       onChanged: (value) => setState(() => _openToRemoteWork = value ?? false),
                       contentPadding: EdgeInsets.zero,

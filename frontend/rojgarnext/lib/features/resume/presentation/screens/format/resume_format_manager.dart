@@ -1,5 +1,4 @@
 // lib/features/resume/presentation/screens/format/resume_format_manager.dart
-/// Manages all resume formats
 import 'resume_format_base.dart';
 import 'formats/classic_format.dart';
 import 'formats/modern_format.dart';

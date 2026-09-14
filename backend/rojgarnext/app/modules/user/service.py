@@ -784,6 +784,48 @@ class ProfileService:
         
         return {"message": "Education updated successfully"}
 
+
+        # ====================== DELETE EDUCATION ======================
+    async def delete_education(self, email: str, qual_id: str) -> dict:
+        """
+        Delete an education record by its `_id`.
+        Frontend sends DELETE /user/education/{qual_id}?email=...
+        Response format matches what user_service.dart expects:
+            { "success": true, "message": "...", "deleted_id": "..." }
+        """
+        result = await self.profiles.update_one(
+            {"email": email},
+            {
+                "$pull": {"academic_records": {"_id": qual_id}},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+        )
+
+        if result.modified_count == 0:
+            # Try legacy `id` field too
+            result = await self.profiles.update_one(
+                {"email": email},
+                {
+                    "$pull": {"academic_records": {"id": qual_id}},
+                    "$set": {"updated_at": datetime.utcnow()}
+                }
+            )
+            if result.modified_count == 0:
+                raise HTTPException(status_code=404, detail="Education record not found")
+
+        # Clear AI cache so next analysis reflects the change
+        cache_key = f"ai_insights_{email}"
+        if cache_key in self.ai_cache:
+            del self.ai_cache[cache_key]
+
+        logger.info(f"🗑️ Deleted education {qual_id} for {email}")
+        return {
+            "success": True,
+            "message": "Education deleted successfully",
+            "deleted_id": qual_id
+        }
+
+
     # ====================== EXPERIENCE ======================
     async def get_experience(self, email: str) -> List[dict]:
         profile = await self.profiles.find_one({"email": email})
@@ -828,6 +870,46 @@ class ProfileService:
             del self.ai_cache[cache_key]
         
         return {"message": "Experience updated successfully"}
+
+
+            # ====================== DELETE EXPERIENCE ======================
+    async def delete_experience(self, email: str, exp_id: str) -> dict:
+        """
+        Delete an experience record by its `_id`.
+        Frontend sends DELETE /user/experience/{exp_id}?email=...
+        Response format matches user_service.dart:
+            { "success": true, "message": "...", "deleted_id": "..." }
+        """
+        result = await self.profiles.update_one(
+            {"email": email},
+            {
+                "$pull": {"experience": {"_id": exp_id}},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+        )
+
+        if result.modified_count == 0:
+            # Try legacy `id` field
+            result = await self.profiles.update_one(
+                {"email": email},
+                {
+                    "$pull": {"experience": {"id": exp_id}},
+                    "$set": {"updated_at": datetime.utcnow()}
+                }
+            )
+            if result.modified_count == 0:
+                raise HTTPException(status_code=404, detail="Experience record not found")
+
+        cache_key = f"ai_insights_{email}"
+        if cache_key in self.ai_cache:
+            del self.ai_cache[cache_key]
+
+        logger.info(f"🗑️ Deleted experience {exp_id} for {email}")
+        return {
+            "success": True,
+            "message": "Experience deleted successfully",
+            "deleted_id": exp_id
+        }
 
     # ====================== SKILLS (Full CRUD) ======================
     async def get_skills(self, email: str) -> List[dict]:

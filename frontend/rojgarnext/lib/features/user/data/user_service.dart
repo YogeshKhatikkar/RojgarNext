@@ -1,13 +1,14 @@
 // lib/features/user/data/user_service.dart
 // ✅ ULTRA-FAST WITH CACHING - ALL PLATFORMS
 // ✅ COMPLETE WITH ALL FUNCTIONS - FIXED IMPORT
+// ✅ FIXED: deleteEducation now sends email + proper cache clearing
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
-
+import 'package:rojgarnext/core/storage/secure_storage.dart';
 class UserService {
   static const String _base = "/user";
   static const Duration CACHE_DURATION = Duration(minutes: 5);
@@ -32,8 +33,21 @@ class UserService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_cache_$key', jsonEncode(data));
-      await prefs.setInt('user_cache_time_$key', DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt(
+          'user_cache_time_$key', DateTime.now().millisecondsSinceEpoch);
     } catch (e) {}
+  }
+
+  // ✅ NEW: Properly REMOVE cache (not set to null)
+  static Future<void> _clearCache(String key) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_cache_$key');
+      await prefs.remove('user_cache_time_$key');
+      debugPrint("🗑️ Cache cleared: $key");
+    } catch (e) {
+      debugPrint("⚠️ Cache clear error for $key: $e");
+    }
   }
 
   static Future<dynamic> _getCache(String key) async {
@@ -59,6 +73,36 @@ class UserService {
     }
   }
 
+  // ✅ Helper: read email from SharedPreferences
+   // ✅ BULLETPROOF email lookup — tries SecureStorage, SharedPreferences, and JWT
+  static Future<String?> _getStoredEmail() async {
+    // 1) SecureStorage (primary — matches SecureStorage.setEmail)
+    try {
+      final email = await SecureStorage.getEmail();
+      if (email != null && email.isNotEmpty) {
+        debugPrint("📧 _getStoredEmail → SecureStorage: $email");
+        return email;
+      }
+    } catch (e) {
+      debugPrint("⚠️ SecureStorage.getEmail failed: $e");
+    }
+
+    // 2) SharedPreferences (legacy)
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final prefsEmail = prefs.getString('user_email');
+      if (prefsEmail != null && prefsEmail.isNotEmpty) {
+        debugPrint("📧 _getStoredEmail → SharedPreferences: $prefsEmail");
+        return prefsEmail;
+      }
+    } catch (e) {
+      debugPrint("⚠️ SharedPreferences failed: $e");
+    }
+
+    debugPrint("⚠️ _getStoredEmail → no email found in any storage");
+    return null;
+  }
+
   // ================= CONTACT DETAILS =================
   static Future<Map<String, String>> getContactDetails() async {
     try {
@@ -75,7 +119,8 @@ class UserService {
   }
 
   // ================= FULL PROFILE (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getFullProfile({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getFullProfile(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('full_profile');
       if (cached != null) {
@@ -93,11 +138,13 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> saveProfile(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> saveProfile(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/full-profile', data: data);
       final result = _unwrap(res.data);
-      await _setCache('full_profile', null);
+      await _clearCache('full_profile');
+      await _clearCache('profile_with_apps');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -105,7 +152,8 @@ class UserService {
   }
 
   // ================= BASIC DETAILS (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getBasicDetails({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getBasicDetails(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('basic_details');
       if (cached != null) {
@@ -123,12 +171,13 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> saveBasicDetails(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> saveBasicDetails(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/basic-details', data: data);
       final result = _unwrap(res.data);
-      await _setCache('basic_details', null);
-      await _setCache('full_profile', null);
+      await _clearCache('basic_details');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -136,7 +185,8 @@ class UserService {
   }
 
   // ================= EDUCATION (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getEducation({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getEducation(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('education');
       if (cached != null) {
@@ -154,42 +204,71 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> addEducation(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> addEducation(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/education', data: data);
       final result = _unwrap(res.data);
-      await _setCache('education', null);
-      await _setCache('full_profile', null);
+      await _clearCache('education');
+      await _clearCache('full_profile');
+      await _clearCache('profile_with_apps');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
-  static Future<Map<String, dynamic>> updateEducation(String id, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateEducation(
+      String id, Map<String, dynamic> data) async {
     try {
       final res = await _dio.put('$_base/education/$id', data: data);
       final result = _unwrap(res.data);
-      await _setCache('education', null);
-      await _setCache('full_profile', null);
+      await _clearCache('education');
+      await _clearCache('full_profile');
+      await _clearCache('profile_with_apps');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
+  // ✅ FIXED: deleteEducation with email param + proper cache clear
+   // ✅ FINAL FIX: deleteEducation — email is optional, backend reads from JWT
   static Future<void> deleteEducation(String id) async {
     try {
-      await _dio.delete('$_base/education/$id');
-      await _setCache('education', null);
-      await _setCache('full_profile', null);
+      debugPrint("🗑️ DELETE education → id=$id");
+
+      // Optionally attach email if we have it; NEVER fail if we don't.
+      final email = await _getStoredEmail();
+      final Map<String, dynamic>? queryParams =
+          (email != null && email.isNotEmpty) ? {'email': email} : null;
+
+      debugPrint("   Query params: $queryParams");
+
+      final res = await _dio.delete(
+        '$_base/education/$id',
+        queryParameters: queryParams,
+      );
+
+      debugPrint("✅ DELETE response: ${res.statusCode} | ${res.data}");
+
+      // Verify backend actually confirmed deletion
+      if (res.data is Map && res.data['success'] == false) {
+        throw Exception(res.data['message'] ?? "Delete failed");
+      }
+
+      // Clear caches so next fetch is fresh
+      await _clearCache('education');
+      await _clearCache('full_profile');
+      await _clearCache('profile_with_apps');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
   // ================= EXPERIENCE (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getExperience({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getExperience(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('experience');
       if (cached != null) {
@@ -207,24 +286,28 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> addExperience(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> addExperience(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/experience', data: data);
       final result = _unwrap(res.data);
-      await _setCache('experience', null);
-      await _setCache('full_profile', null);
+      await _clearCache('experience');
+      await _clearCache('full_profile');
+      await _clearCache('profile_with_apps');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
-  static Future<Map<String, dynamic>> updateExperience(String id, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateExperience(
+      String id, Map<String, dynamic> data) async {
     try {
       final res = await _dio.put('$_base/experience/$id', data: data);
       final result = _unwrap(res.data);
-      await _setCache('experience', null);
-      await _setCache('full_profile', null);
+      await _clearCache('experience');
+      await _clearCache('full_profile');
+      await _clearCache('profile_with_apps');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -233,16 +316,22 @@ class UserService {
 
   static Future<void> deleteExperience(String id) async {
     try {
-      await _dio.delete('$_base/experience/$id');
-      await _setCache('experience', null);
-      await _setCache('full_profile', null);
+      final email = await _getStoredEmail();
+      await _dio.delete(
+        '$_base/experience/$id',
+        queryParameters: email != null ? {'email': email} : null,
+      );
+      await _clearCache('experience');
+      await _clearCache('full_profile');
+      await _clearCache('profile_with_apps');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
   // ================= SKILLS (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getSkills({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getSkills(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('skills');
       if (cached != null) {
@@ -260,24 +349,26 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> addSkill(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> addSkill(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/skills', data: data);
       final result = _unwrap(res.data);
-      await _setCache('skills', null);
-      await _setCache('full_profile', null);
+      await _clearCache('skills');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
-  static Future<Map<String, dynamic>> updateSkill(String id, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateSkill(
+      String id, Map<String, dynamic> data) async {
     try {
       final res = await _dio.put('$_base/skills/$id', data: data);
       final result = _unwrap(res.data);
-      await _setCache('skills', null);
-      await _setCache('full_profile', null);
+      await _clearCache('skills');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -287,15 +378,16 @@ class UserService {
   static Future<void> deleteSkill(String id) async {
     try {
       await _dio.delete('$_base/skills/$id');
-      await _setCache('skills', null);
-      await _setCache('full_profile', null);
+      await _clearCache('skills');
+      await _clearCache('full_profile');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
   // ================= INTERNSHIPS (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getInternships({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getInternships(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('internships');
       if (cached != null) {
@@ -313,24 +405,26 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> addInternship(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> addInternship(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/internships', data: data);
       final result = _unwrap(res.data);
-      await _setCache('internships', null);
-      await _setCache('full_profile', null);
+      await _clearCache('internships');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
-  static Future<Map<String, dynamic>> updateInternship(String id, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateInternship(
+      String id, Map<String, dynamic> data) async {
     try {
       final res = await _dio.put('$_base/internships/$id', data: data);
       final result = _unwrap(res.data);
-      await _setCache('internships', null);
-      await _setCache('full_profile', null);
+      await _clearCache('internships');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -340,15 +434,16 @@ class UserService {
   static Future<void> deleteInternship(String id) async {
     try {
       await _dio.delete('$_base/internships/$id');
-      await _setCache('internships', null);
-      await _setCache('full_profile', null);
+      await _clearCache('internships');
+      await _clearCache('full_profile');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
   // ================= CERTIFICATIONS (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getCertifications({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getCertifications(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('certifications');
       if (cached != null) {
@@ -366,24 +461,26 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> addCertification(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> addCertification(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/certifications', data: data);
       final result = _unwrap(res.data);
-      await _setCache('certifications', null);
-      await _setCache('full_profile', null);
+      await _clearCache('certifications');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
-  static Future<Map<String, dynamic>> updateCertification(String id, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateCertification(
+      String id, Map<String, dynamic> data) async {
     try {
       final res = await _dio.put('$_base/certifications/$id', data: data);
       final result = _unwrap(res.data);
-      await _setCache('certifications', null);
-      await _setCache('full_profile', null);
+      await _clearCache('certifications');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -393,15 +490,16 @@ class UserService {
   static Future<void> deleteCertification(String id) async {
     try {
       await _dio.delete('$_base/certifications/$id');
-      await _setCache('certifications', null);
-      await _setCache('full_profile', null);
+      await _clearCache('certifications');
+      await _clearCache('full_profile');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
   // ================= PROJECTS (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getProjects({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getProjects(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('projects');
       if (cached != null) {
@@ -419,24 +517,26 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> addProject(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> addProject(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/projects', data: data);
       final result = _unwrap(res.data);
-      await _setCache('projects', null);
-      await _setCache('full_profile', null);
+      await _clearCache('projects');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
-  static Future<Map<String, dynamic>> updateProject(String id, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateProject(
+      String id, Map<String, dynamic> data) async {
     try {
       final res = await _dio.put('$_base/projects/$id', data: data);
       final result = _unwrap(res.data);
-      await _setCache('projects', null);
-      await _setCache('full_profile', null);
+      await _clearCache('projects');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -446,15 +546,16 @@ class UserService {
   static Future<void> deleteProject(String id) async {
     try {
       await _dio.delete('$_base/projects/$id');
-      await _setCache('projects', null);
-      await _setCache('full_profile', null);
+      await _clearCache('projects');
+      await _clearCache('full_profile');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
   // ================= LANGUAGES (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getLanguages({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getLanguages(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('languages');
       if (cached != null) {
@@ -472,24 +573,26 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> addLanguage(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> addLanguage(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/languages', data: data);
       final result = _unwrap(res.data);
-      await _setCache('languages', null);
-      await _setCache('full_profile', null);
+      await _clearCache('languages');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
-  static Future<Map<String, dynamic>> updateLanguage(String id, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateLanguage(
+      String id, Map<String, dynamic> data) async {
     try {
       final res = await _dio.put('$_base/languages/$id', data: data);
       final result = _unwrap(res.data);
-      await _setCache('languages', null);
-      await _setCache('full_profile', null);
+      await _clearCache('languages');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -499,15 +602,16 @@ class UserService {
   static Future<void> deleteLanguage(String id) async {
     try {
       await _dio.delete('$_base/languages/$id');
-      await _setCache('languages', null);
-      await _setCache('full_profile', null);
+      await _clearCache('languages');
+      await _clearCache('full_profile');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
   // ================= OTHER DETAILS (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getOtherDetails({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getOtherDetails(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('other_details');
       if (cached != null) {
@@ -525,12 +629,13 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> updateOtherDetails(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateOtherDetails(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.put('$_base/other-details', data: data);
       final result = _unwrap(res.data);
-      await _setCache('other_details', null);
-      await _setCache('full_profile', null);
+      await _clearCache('other_details');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -538,7 +643,8 @@ class UserService {
   }
 
   // ================= PROFILE WITH APPLICATIONS (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getProfileWithApplications({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getProfileWithApplications(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('profile_with_apps');
       if (cached != null) {
@@ -557,12 +663,14 @@ class UserService {
   }
 
   // ================= EDUCATED STATUS =================
-  static Future<Map<String, dynamic>> updateEducatedStatus(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateEducatedStatus(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/educated-status', data: data);
       final result = _unwrap(res.data);
-      await _setCache('full_profile', null);
-      await _setCache('basic_details', null);
+      await _clearCache('full_profile');
+      await _clearCache('basic_details');
+      await _clearCache('profile_with_apps');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -570,12 +678,14 @@ class UserService {
   }
 
   // ================= FRESHER STATUS =================
-  static Future<Map<String, dynamic>> updateFresherStatus(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateFresherStatus(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/fresher-status', data: data);
       final result = _unwrap(res.data);
-      await _setCache('full_profile', null);
-      await _setCache('experience', null);
+      await _clearCache('full_profile');
+      await _clearCache('experience');
+      await _clearCache('profile_with_apps');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -583,7 +693,8 @@ class UserService {
   }
 
   // ================= BANK DETAILS (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getBankDetails({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getBankDetails(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('bank_details');
       if (cached != null) {
@@ -601,12 +712,13 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> updateBankDetails(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateBankDetails(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/bank-details', data: data);
       final result = _unwrap(res.data);
-      await _setCache('bank_details', null);
-      await _setCache('full_profile', null);
+      await _clearCache('bank_details');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -614,7 +726,8 @@ class UserService {
   }
 
   // ================= GOVERNMENT IDs (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getGovernmentIds({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getGovernmentIds(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('gov_ids');
       if (cached != null) {
@@ -632,12 +745,13 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> updateGovernmentIds(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateGovernmentIds(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/government-ids', data: data);
       final result = _unwrap(res.data);
-      await _setCache('gov_ids', null);
-      await _setCache('full_profile', null);
+      await _clearCache('gov_ids');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -645,7 +759,8 @@ class UserService {
   }
 
   // ================= EMERGENCY CONTACT (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getEmergencyContact({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getEmergencyContact(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('emergency_contact');
       if (cached != null) {
@@ -663,12 +778,13 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> updateEmergencyContact(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateEmergencyContact(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/emergency-contact', data: data);
       final result = _unwrap(res.data);
-      await _setCache('emergency_contact', null);
-      await _setCache('full_profile', null);
+      await _clearCache('emergency_contact');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -676,7 +792,8 @@ class UserService {
   }
 
   // ================= REFERENCES (WITH CACHE) =================
-  static Future<List<dynamic>> getReferences({bool forceRefresh = false}) async {
+  static Future<List<dynamic>> getReferences(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('references');
       if (cached != null) {
@@ -695,24 +812,26 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> addReference(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> addReference(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/references', data: data);
       final result = _unwrap(res.data);
-      await _setCache('references', null);
-      await _setCache('full_profile', null);
+      await _clearCache('references');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
-  static Future<Map<String, dynamic>> updateReference(String id, Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateReference(
+      String id, Map<String, dynamic> data) async {
     try {
       final res = await _dio.put('$_base/references/$id', data: data);
       final result = _unwrap(res.data);
-      await _setCache('references', null);
-      await _setCache('full_profile', null);
+      await _clearCache('references');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -722,15 +841,16 @@ class UserService {
   static Future<void> deleteReference(String id) async {
     try {
       await _dio.delete('$_base/references/$id');
-      await _setCache('references', null);
-      await _setCache('full_profile', null);
+      await _clearCache('references');
+      await _clearCache('full_profile');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
   }
 
   // ================= EMPLOYMENT PREFERENCES (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getEmploymentPreferences({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getEmploymentPreferences(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('employment_prefs');
       if (cached != null) {
@@ -748,12 +868,14 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> updateEmploymentPreferences(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateEmploymentPreferences(
+      Map<String, dynamic> data) async {
     try {
-      final res = await _dio.post('$_base/employment-preferences', data: data);
+      final res =
+          await _dio.post('$_base/employment-preferences', data: data);
       final result = _unwrap(res.data);
-      await _setCache('employment_prefs', null);
-      await _setCache('full_profile', null);
+      await _clearCache('employment_prefs');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -761,7 +883,8 @@ class UserService {
   }
 
   // ================= SOCIAL LINKS (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getSocialLinks({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getSocialLinks(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('social_links');
       if (cached != null) {
@@ -779,12 +902,13 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> updateSocialLinks(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateSocialLinks(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/social-links', data: data);
       final result = _unwrap(res.data);
-      await _setCache('social_links', null);
-      await _setCache('full_profile', null);
+      await _clearCache('social_links');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -792,7 +916,8 @@ class UserService {
   }
 
   // ================= WORK AUTHORIZATION (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getWorkAuthorization({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getWorkAuthorization(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('work_auth');
       if (cached != null) {
@@ -810,12 +935,13 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> updateWorkAuthorization(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateWorkAuthorization(
+      Map<String, dynamic> data) async {
     try {
       final res = await _dio.post('$_base/work-authorization', data: data);
       final result = _unwrap(res.data);
-      await _setCache('work_auth', null);
-      await _setCache('full_profile', null);
+      await _clearCache('work_auth');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -823,7 +949,8 @@ class UserService {
   }
 
   // ================= APPLICATION PREFERENCES (WITH CACHE) =================
-  static Future<Map<String, dynamic>> getApplicationPreferences({bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getApplicationPreferences(
+      {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = await _getCache('app_prefs');
       if (cached != null) {
@@ -841,12 +968,14 @@ class UserService {
     }
   }
 
-  static Future<Map<String, dynamic>> updateApplicationPreferences(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateApplicationPreferences(
+      Map<String, dynamic> data) async {
     try {
-      final res = await _dio.post('$_base/application-preferences', data: data);
+      final res =
+          await _dio.post('$_base/application-preferences', data: data);
       final result = _unwrap(res.data);
-      await _setCache('app_prefs', null);
-      await _setCache('full_profile', null);
+      await _clearCache('app_prefs');
+      await _clearCache('full_profile');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);

@@ -1,9 +1,12 @@
 // lib/features/user/presentation/screens/education_screen.dart
 // ✅ COMPLETE AI-BASED MODERN DESIGN
-// ✅ FIXED: Loading animation on toggle switch
-// ✅ FIXED: Using correct UserService methods
-// ✅ FIXED: Font color and screen color now visible
-// ✅ EXTENSIVE master data for all platforms
+// ✅ ADDED: Achievements field
+// ✅ ADDED: Duplicate prevention (same level + degree + institute)
+// ✅ FIXED: Toggle switch loading
+// ✅ FIXED: Edit & Delete buttons working properly
+// ✅ FIXED: Delete now works with proper error surfacing
+// ✅ ADDED: Auto-scroll to form on edit + editing highlight
+// ✅ FIXED: Robust ID extraction (String / MongoDB $oid / nested maps / int)
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
@@ -23,7 +26,6 @@ class _EducationScreenState extends State<EducationScreen> {
   bool _isSaving = false;
   bool _isEducated = true;
 
-  // Text controllers
   final _instituteCtrl = TextEditingController();
   final _yearCtrl = TextEditingController();
   final _percentageCtrl = TextEditingController();
@@ -33,20 +35,18 @@ class _EducationScreenState extends State<EducationScreen> {
   final _backlogsCtrl = TextEditingController();
   final _certificateUrlCtrl = TextEditingController();
   final _boardCtrl = TextEditingController();
+  final _achievementsCtrl = TextEditingController();
 
-  // Dropdown selections
   String _selectedLevel = '10th';
   String _selectedDegree = '';
   String _selectedStream = '';
   String _selectedBoard = '';
   String _selectedResultType = 'Percentage';
 
-  // Available options
   List<String> _degreeOptions = [];
   List<String> _streamOptions = [];
   List<String> _boardOptions = [];
 
-  // Non-educated fields
   bool _canRead = false;
   bool _canWrite = false;
   String _basicLevel = 'None';
@@ -55,16 +55,18 @@ class _EducationScreenState extends State<EducationScreen> {
 
   String? _editingId;
 
+  // ✅ Scroll helpers
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _formKey = GlobalKey();
+
   final List<String> _levels = const [
     '10th', '12th', 'Diploma', 'Graduation', 'Post Graduation', 'PhD',
     'Certificate', 'Vocational', 'ITI',
   ];
 
-  final List<String> _resultTypes = const [
-    'Percentage', 'CGPA', 'GPA', 'Grade',
-  ];
+  final List<String> _resultTypes = const ['Percentage', 'CGPA', 'GPA', 'Grade'];
   final List<String> _basicLevels = const [
-    'None', 'Below 5th', '5th Pass', '8th Pass',
+    'None', 'Below 5th', '5th Pass', '8th Pass'
   ];
 
   @override
@@ -85,40 +87,64 @@ class _EducationScreenState extends State<EducationScreen> {
     _backlogsCtrl.dispose();
     _certificateUrlCtrl.dispose();
     _boardCtrl.dispose();
+    _achievementsCtrl.dispose();
     _nonEduLanguages.dispose();
     _nonEduSkills.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
+  // ✅ Build options list for a level WITHOUT touching current selections
+  void _rebuildOptionsForLevel(String level) {
+    _degreeOptions = [];
+    _streamOptions = [];
+    _boardOptions = [];
+
+    if (level == '10th') {
+      _boardOptions = List.from(EducationMasterData.tenthBoards);
+    } else if (level == '12th') {
+      _boardOptions = List.from(EducationMasterData.twelfthBoards);
+      _streamOptions = List.from(EducationMasterData.getTwelfthStreams());
+    } else if (level == 'Diploma') {
+      _degreeOptions = List.from(EducationMasterData.getDiplomaCourseNames());
+    } else if (level == 'Graduation' || level == 'Post Graduation') {
+      _degreeOptions = List.from(EducationMasterData.getDegreeNames());
+    } else if (level == 'PhD') {
+      _degreeOptions =
+          List.from(EducationMasterData.getDegreeNamesByType('Doctoral'));
+    } else if (level == 'Certificate') {
+      _degreeOptions = List.from(EducationMasterData.getCertificationNames());
+    } else if (level == 'Vocational') {
+      _streamOptions = List.from(EducationMasterData.getTwelfthStreams());
+    } else if (level == 'ITI') {
+      _degreeOptions = List.from(EducationMasterData.getItiTradeNames());
+    }
+
+    if (_selectedDegree.isNotEmpty &&
+        !_degreeOptions.contains(_selectedDegree)) {
+      _degreeOptions = [_selectedDegree, ..._degreeOptions];
+    }
+    if (_selectedStream.isNotEmpty &&
+        !_streamOptions.contains(_selectedStream)) {
+      _streamOptions = [_selectedStream, ..._streamOptions];
+    }
+    if (_selectedBoard.isNotEmpty && !_boardOptions.contains(_selectedBoard)) {
+      _boardOptions = [_selectedBoard, ..._boardOptions];
+    }
+  }
+
+  // ✅ Reset everything (used on level change)
   void _updateOptionsForLevel(String level) {
     setState(() {
-      _degreeOptions = [];
-      _streamOptions = [];
-      _boardOptions = [];
+      _selectedDegree = '';
+      _selectedStream = '';
+      _selectedBoard = '';
+      _rebuildOptionsForLevel(level);
 
-      if (level == '10th') {
-        _boardOptions = List.from(EducationMasterData.tenthBoards);
-      } else if (level == '12th') {
-        _boardOptions = List.from(EducationMasterData.twelfthBoards);
-        _streamOptions = List.from(EducationMasterData.getTwelfthStreams());
-      } else if (level == 'Diploma') {
-        _degreeOptions = List.from(EducationMasterData.getDiplomaCourseNames());
-      } else if (level == 'Graduation' || level == 'Post Graduation') {
-        _degreeOptions = List.from(EducationMasterData.getDegreeNames());
-      } else if (level == 'PhD') {
-        _degreeOptions = List.from(
-          EducationMasterData.getDegreeNamesByType('Doctoral'),
-        );
-      } else if (level == 'Certificate') {
-        _degreeOptions = List.from(EducationMasterData.getCertificationNames());
-      } else if (level == 'Vocational') {
-        _streamOptions = List.from(EducationMasterData.getTwelfthStreams());
-      } else if (level == 'ITI') {
-        _degreeOptions = List.from(EducationMasterData.getItiTradeNames());
-      }
-
-      _selectedDegree = _degreeOptions.isNotEmpty ? _degreeOptions.first : '';
-      _selectedStream = _streamOptions.isNotEmpty ? _streamOptions.first : '';
+      _selectedDegree =
+          _degreeOptions.isNotEmpty ? _degreeOptions.first : '';
+      _selectedStream =
+          _streamOptions.isNotEmpty ? _streamOptions.first : '';
       _selectedBoard = _boardOptions.isNotEmpty ? _boardOptions.first : '';
     });
   }
@@ -135,30 +161,21 @@ class _EducationScreenState extends State<EducationScreen> {
     }
   }
 
-  // ✅ FIXED: Force fresh data load with cache busting
   Future<void> _loadEducation({bool forceRefresh = false}) async {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      debugPrint("📊 _loadEducation called with forceRefresh: $forceRefresh");
-      
-      // ✅ Force fresh API call by passing a timestamp to bypass cache
       final data = await UserService.getProfileWithApplications(
-        forceRefresh: forceRefresh,
-      );
+          forceRefresh: forceRefresh);
       final profile = data['profile'] as Map<String, dynamic>? ?? {};
       final isEdu = profile['is_educated'] ?? true;
-
-      debugPrint("📊 _loadEducation: isEducated from server = $isEdu");
 
       if (mounted) {
         setState(() {
           _isEducated = isEdu;
           if (isEdu) {
             _educationList = List<Map<String, dynamic>>.from(
-              profile['academic_records'] ?? [],
-            );
-            // Clear non-education data
+                profile['academic_records'] ?? []);
             _nonEduLanguages.clear();
             _nonEduSkills.clear();
           } else {
@@ -169,7 +186,6 @@ class _EducationScreenState extends State<EducationScreen> {
                 (profile['languages_known'] as List?)?.join(', ') ?? '';
             _nonEduSkills.text =
                 (profile['basic_skills'] as List?)?.join(', ') ?? '';
-            // Clear education data
             _educationList = [];
           }
         });
@@ -177,33 +193,121 @@ class _EducationScreenState extends State<EducationScreen> {
     } catch (e) {
       debugPrint("❌ Error loading education: $e");
       if (mounted) {
-        showMessage(context, "Failed to load education: $e", isError: true);
+        showMessage(context, "Failed to load education: $e",
+            isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  // ✅ Duplicate check
+  bool _isDuplicateEducation() {
+    return _educationList.any((edu) {
+      final eduId = _getId(edu);
+      if (eduId != null && eduId == _editingId) return false;
+      final sameLevel = (edu['level'] ?? '')
+              .toString()
+              .toLowerCase() ==
+          _selectedLevel.toLowerCase();
+      final sameDegree = (edu['degree'] ?? '')
+              .toString()
+              .toLowerCase() ==
+          _selectedDegree.toLowerCase();
+      final sameInstitute = (edu['institute'] ?? '')
+              .toString()
+              .toLowerCase() ==
+          _instituteCtrl.text.trim().toLowerCase();
+      return sameLevel && sameDegree && sameInstitute;
+    });
+  }
+
+  // ✅ Handles String, MongoDB {$oid}, nested maps, int, etc.
+  String? _extractId(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is String) return raw.trim().isEmpty ? null : raw.trim();
+    if (raw is Map) {
+      if (raw.containsKey(r'$oid')) {
+        final v = raw[r'$oid']?.toString().trim();
+        return (v == null || v.isEmpty) ? null : v;
+      }
+      if (raw.containsKey('oid')) {
+        final v = raw['oid']?.toString().trim();
+        return (v == null || v.isEmpty) ? null : v;
+      }
+      if (raw.containsKey('id')) {
+        return _extractId(raw['id']);
+      }
+      if (raw.containsKey(r'$id')) {
+        return _extractId(raw[r'$id']);
+      }
+    }
+    final s = raw.toString().trim();
+    return (s.isEmpty || s == 'null' || s == 'undefined') ? null : s;
+  }
+
+  // ✅ Robust ID extraction — tries every common field name
+  String? _getId(Map<String, dynamic> item) {
+    final id = _extractId(item['_id']) ??
+        _extractId(item['id']) ??
+        _extractId(item['education_id']) ??
+        _extractId(item['educationId']) ??
+        _extractId(item['record_id']) ??
+        _extractId(item['recordId']);
+
+    if (id == null) {
+      debugPrint('⚠️ No ID found for record: ${item.keys.toList()}');
+    }
+    return id;
+  }
+
+  // ✅ Scroll to form
+  void _scrollToForm() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _formKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
+          alignment: 0.05,
+        );
+      }
+    });
+  }
+
+  // ✅ Edit preserves saved values & scrolls to form
   void _startEdit(Map<String, dynamic> item) {
-    _editingId = item['_id'];
-    _selectedLevel = item['level'] ?? '10th';
-    _selectedDegree = item['degree'] ?? '';
-    _selectedStream = item['stream'] ?? '';
-    _selectedBoard = item['board_university'] ?? '';
-    _selectedResultType = item['result_type'] ?? 'Percentage';
+    setState(() {
+      _editingId = _getId(item);
 
-    _instituteCtrl.text = item['institute'] ?? '';
-    _yearCtrl.text = item['year_of_passing']?.toString() ?? '';
-    _percentageCtrl.text = item['cgpa_percentage']?.toString() ?? '';
-    _mediumCtrl.text = item['medium'] ?? '';
-    _gradeCtrl.text = item['grade'] ?? '';
-    _subjectsCtrl.text = (item['subjects'] as List?)?.join(', ') ?? '';
-    _backlogsCtrl.text = item['backlogs']?.toString() ?? '0';
-    _certificateUrlCtrl.text = item['certificate_url'] ?? '';
-    _boardCtrl.text = item['board_university'] ?? '';
+      _selectedLevel = (item['level'] ?? '10th').toString();
+      _selectedDegree = (item['degree'] ?? '').toString();
+      _selectedStream = (item['stream'] ?? '').toString();
+      _selectedBoard = (item['board_university'] ?? '').toString();
+      _selectedResultType =
+          (item['result_type'] ?? 'Percentage').toString();
 
-    _updateOptionsForLevel(_selectedLevel);
-    setState(() {});
+      _instituteCtrl.text = (item['institute'] ?? '').toString();
+      _yearCtrl.text = item['year_of_passing']?.toString() ?? '';
+      _percentageCtrl.text = item['cgpa_percentage']?.toString() ?? '';
+      _mediumCtrl.text = (item['medium'] ?? '').toString();
+      _gradeCtrl.text = (item['grade'] ?? '').toString();
+      _subjectsCtrl.text =
+          (item['subjects'] as List?)?.join(', ') ?? '';
+      _backlogsCtrl.text = item['backlogs']?.toString() ?? '0';
+      _certificateUrlCtrl.text =
+          (item['certificate_url'] ?? '').toString();
+      _boardCtrl.text = (item['board_university'] ?? '').toString();
+      _achievementsCtrl.text =
+          (item['achievements'] as List?)?.join('\n') ?? '';
+
+      _rebuildOptionsForLevel(_selectedLevel);
+    });
+
+    showMessage(context,
+        "✏️ Editing: ${item['degree'] ?? item['level'] ?? 'Education'}");
+    _scrollToForm();
   }
 
   void _clearForm() {
@@ -222,92 +326,56 @@ class _EducationScreenState extends State<EducationScreen> {
     _backlogsCtrl.clear();
     _certificateUrlCtrl.clear();
     _boardCtrl.clear();
+    _achievementsCtrl.clear();
     _updateOptionsForLevel('10th');
   }
 
-  // ✅ FIXED: Toggle with loading animation using correct method
+  void _cancelEdit() {
+    setState(() => _clearForm());
+    showMessage(context, "Edit cancelled");
+  }
+
   Future<void> _toggleEducationMode(bool value) async {
     if (!mounted) return;
-    
-    debugPrint("🔄 Toggle called with value: $value");
-    debugPrint("🔄 Current _isEducated: $_isEducated");
-    
-    // Show loading indicator
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       if (value) {
-        // ========== SWITCHING TO FORMAL EDUCATION MODE ==========
-        debugPrint("🔄 Switching to Formal Education Mode...");
-        
-        // Step 1: Save any existing non-education data
         if (_nonEduLanguages.text.isNotEmpty ||
             _nonEduSkills.text.isNotEmpty ||
             _canRead ||
             _canWrite) {
           await _saveNonEducated();
-          debugPrint("✅ Non-education data saved before switching");
         }
-        
-        // ✅ Step 2: Update server to educated mode using saveProfile
         await UserService.saveProfile({'is_educated': true});
-        debugPrint("✅ Server updated to Formal Education Mode");
-        
-        // Step 3: Clear non-education data from UI
         _nonEduLanguages.clear();
         _nonEduSkills.clear();
         _canRead = false;
         _canWrite = false;
         _basicLevel = 'None';
-        
-        // ✅ Step 4: Reload data with force refresh to bust cache
         await _loadEducation(forceRefresh: true);
-        
         if (mounted) {
-          showMessage(
-            context,
-            "✅ Switched to Formal Education Mode. Add your academic qualifications.",
-          );
+          showMessage(context,
+              "✅ Switched to Formal Education Mode.");
         }
       } else {
-        // ========== SWITCHING TO BASIC LITERACY MODE ==========
-        debugPrint("🔄 Switching to Basic Literacy Mode...");
-        
-        // ✅ Step 1: Update server to non-educated mode using saveProfile
         await UserService.saveProfile({'is_educated': false});
-        debugPrint("✅ Server updated to Basic Literacy Mode");
-        
-        // Step 2: Clear education data from UI
         _educationList = [];
         _clearForm();
-        
-        // ✅ Step 3: Reload data with force refresh to bust cache
         await _loadEducation(forceRefresh: true);
-        
         if (mounted) {
-          showMessage(
-            context,
-            "✅ Switched to Basic Literacy Mode. Add your reading/writing skills.",
-          );
+          showMessage(context,
+              "✅ Switched to Basic Literacy Mode.");
         }
       }
     } catch (e) {
-      debugPrint("❌ Error switching mode: $e");
       if (mounted) {
-        showMessage(context, "Failed to switch mode: $e", isError: true);
+        showMessage(context, "Failed to switch mode: $e",
+            isError: true);
       }
-      // Revert the toggle state on error
-      if (mounted) {
-        setState(() {
-          _isEducated = !value;
-        });
-      }
+      if (mounted) setState(() => _isEducated = !value);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -317,8 +385,17 @@ class _EducationScreenState extends State<EducationScreen> {
       return;
     }
 
-    if (_instituteCtrl.text.trim().isEmpty || _yearCtrl.text.trim().isEmpty) {
-      showMessage(context, "Institute and Year are required", isError: true);
+    if (_instituteCtrl.text.trim().isEmpty ||
+        _yearCtrl.text.trim().isEmpty) {
+      showMessage(context, "Institute and Year are required",
+          isError: true);
+      return;
+    }
+
+    if (_isDuplicateEducation()) {
+      showMessage(context,
+          "⚠️ This education record already exists!",
+          isError: true);
       return;
     }
 
@@ -329,11 +406,11 @@ class _EducationScreenState extends State<EducationScreen> {
       'degree': _degreeOptions.isNotEmpty ? _selectedDegree : '',
       'stream': _streamOptions.isNotEmpty ? _selectedStream : '',
       'institute': _instituteCtrl.text.trim(),
-      'board_university': _boardOptions.isNotEmpty
-          ? _selectedBoard
-          : _boardCtrl.text.trim(),
+      'board_university':
+          _boardOptions.isNotEmpty ? _selectedBoard : _boardCtrl.text.trim(),
       'year_of_passing': int.tryParse(_yearCtrl.text.trim()) ?? 0,
-      'cgpa_percentage': double.tryParse(_percentageCtrl.text.trim()),
+      'cgpa_percentage':
+          double.tryParse(_percentageCtrl.text.trim()),
       'result_type': _selectedResultType,
       'grade': _gradeCtrl.text.trim(),
       'medium': _mediumCtrl.text.trim(),
@@ -344,6 +421,11 @@ class _EducationScreenState extends State<EducationScreen> {
           .toList(),
       'backlogs': int.tryParse(_backlogsCtrl.text.trim()) ?? 0,
       'certificate_url': _certificateUrlCtrl.text.trim(),
+      'achievements': _achievementsCtrl.text
+          .split('\n')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(),
     };
 
     try {
@@ -352,15 +434,17 @@ class _EducationScreenState extends State<EducationScreen> {
       } else {
         await UserService.addEducation(payload);
       }
-      _clearForm();
+      setState(() => _clearForm());
       await _loadEducation(forceRefresh: true);
       if (mounted) {
-        showMessage(context, "Education saved successfully!");
+        showMessage(
+            context,
+            _editingId == null
+                ? "Education saved successfully!"
+                : "Education updated successfully!");
       }
     } catch (e) {
-      if (mounted) {
-        showMessage(context, e.toString(), isError: true);
-      }
+      if (mounted) showMessage(context, e.toString(), isError: true);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -391,46 +475,105 @@ class _EducationScreenState extends State<EducationScreen> {
         showMessage(context, "Non-Educated information saved!");
       }
     } catch (e) {
-      if (mounted) {
-        showMessage(context, e.toString(), isError: true);
-      }
+      if (mounted) showMessage(context, e.toString(), isError: true);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  Future<void> _deleteEducation(String id, String degree) async {
-    final confirm = await showDialog<bool>(
+  // ✅ FIXED: Reliable delete with proper error surfacing
+  Future<void> _deleteEducation(String? id, String degree) async {
+    debugPrint('🗑️ _deleteEducation called → id=$id, degree=$degree');
+
+    if (id == null || id.isEmpty) {
+      if (mounted) {
+        showMessage(
+          context,
+          "❌ Cannot delete: record ID is missing. Please refresh the page.",
+          isError: true,
+        );
+      }
+      return;
+    }
+
+    if (_isSaving) {
+      debugPrint('⚠️ Delete already in progress, skipping');
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Delete Education"),
-        content: Text("Are you sure you want to delete \"$degree\"?"),
+      barrierDismissible: true,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.delete, color: Colors.red, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child:
+                  Text("Delete Education", style: TextStyle(fontSize: 18)),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete "$degree"?\n\nThis action cannot be undone.',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text("Cancel"),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             child: const Text("Delete"),
           ),
         ],
       ),
     );
 
-    if (confirm != true) return;
+    debugPrint('🗑️ Confirm dialog result: $confirmed');
+    if (confirmed != true) return;
+    if (!mounted) return;
 
     setState(() => _isSaving = true);
+
     try {
+      debugPrint('🗑️ Calling UserService.deleteEducation($id) ...');
       await UserService.deleteEducation(id);
+      debugPrint('✅ Delete API success');
+
+      if (_editingId == id) {
+        _clearForm();
+      }
       await _loadEducation(forceRefresh: true);
       if (mounted) {
-        showMessage(context, "Education deleted successfully!");
+        showMessage(context, "✅ Education deleted successfully!");
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ Delete failed: $e\n$st');
       if (mounted) {
-        showMessage(context, "Failed to delete: $e", isError: true);
+        final msg = e.toString().replaceAll('Exception:', '').trim();
+        showMessage(
+          context,
+          "❌ Failed to delete: ${msg.isEmpty ? 'Unknown error' : msg}",
+          isError: true,
+        );
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -439,39 +582,52 @@ class _EducationScreenState extends State<EducationScreen> {
 
   String _getLevelIcon(String level) {
     switch (level) {
-      case '10th': return '🎓';
-      case '12th': return '📚';
-      case 'Diploma': return '📜';
-      case 'Graduation': return '🎓';
-      case 'Post Graduation': return '🏆';
-      case 'PhD': return '🥇';
-      default: return '📖';
+      case '10th':
+        return '🎓';
+      case '12th':
+        return '📚';
+      case 'Diploma':
+        return '📜';
+      case 'Graduation':
+        return '🎓';
+      case 'Post Graduation':
+        return '🏆';
+      case 'PhD':
+        return '🥇';
+      default:
+        return '📖';
     }
   }
 
   Color _getLevelColor(String level) {
     switch (level) {
-      case '10th': return Colors.blue;
-      case '12th': return Colors.green;
-      case 'Diploma': return Colors.orange;
-      case 'Graduation': return Colors.purple;
-      case 'Post Graduation': return Colors.teal;
-      case 'PhD': return Colors.deepOrange;
-      default: return Colors.grey;
+      case '10th':
+        return Colors.blue;
+      case '12th':
+        return Colors.green;
+      case 'Diploma':
+        return Colors.orange;
+      case 'Graduation':
+        return Colors.purple;
+      case 'Post Graduation':
+        return Colors.teal;
+      case 'PhD':
+        return Colors.deepOrange;
+      default:
+        return Colors.grey;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return _buildLoadingScreen();
-    }
+    if (_isLoading) return _buildLoadingScreen();
 
     return Scaffold(
       body: Container(
         decoration: _buildGradientBackground(),
         child: SafeArea(
           child: SingleChildScrollView(
+            controller: _scrollController,
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,8 +654,6 @@ class _EducationScreenState extends State<EducationScreen> {
     );
   }
 
-  // ==================== AI-BASED DESIGN COMPONENTS ====================
-
   Widget _buildLoadingScreen() {
     return Scaffold(
       body: Container(
@@ -518,24 +672,23 @@ class _EducationScreenState extends State<EducationScreen> {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                        ),
+                        gradient: const LinearGradient(colors: [
+                          Color(0xFF6C63FF),
+                          Color(0xFFFF6588)
+                        ]),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF6C63FF).withOpacity(0.3),
+                            color: const Color(0xFF6C63FF)
+                                .withOpacity(0.3),
                             blurRadius: 20,
                             spreadRadius: 5,
                           ),
                         ],
                       ),
                       child: const Center(
-                        child: Icon(
-                          Icons.auto_awesome,
-                          color: Colors.white,
-                          size: 40,
-                        ),
+                        child: Icon(Icons.auto_awesome,
+                            color: Colors.white, size: 40),
                       ),
                     ),
                   );
@@ -544,8 +697,8 @@ class _EducationScreenState extends State<EducationScreen> {
               const SizedBox(height: 30),
               ShaderMask(
                 shaderCallback: (bounds) => const LinearGradient(
-                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                ).createShader(bounds),
+                        colors: [Color(0xFF6C63FF), Color(0xFFFF6588)])
+                    .createShader(bounds),
                 child: const Text(
                   "AI is loading your education...",
                   style: TextStyle(
@@ -557,7 +710,8 @@ class _EducationScreenState extends State<EducationScreen> {
               ),
               const SizedBox(height: 10),
               const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(Colors.white),
               ),
             ],
           ),
@@ -602,11 +756,8 @@ class _EducationScreenState extends State<EducationScreen> {
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(15),
             ),
-            child: const Icon(
-              Icons.school_outlined,
-              color: Colors.white,
-              size: 28,
-            ),
+            child: const Icon(Icons.school_outlined,
+                color: Colors.white, size: 28),
           ),
           const SizedBox(width: 15),
           Expanded(
@@ -616,34 +767,20 @@ class _EducationScreenState extends State<EducationScreen> {
                 const Text(
                   "Education Details",
                   style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _isEducated 
+                  _isEducated
                       ? "Add your academic qualifications"
                       : "Add your basic reading/writing skills",
                   style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
+                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.8)),
                 ),
               ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.auto_awesome,
-              color: Colors.white,
-              size: 20,
             ),
           ),
         ],
@@ -657,10 +794,8 @@ class _EducationScreenState extends State<EducationScreen> {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.85),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.5),
-          width: 1,
-        ),
+        border:
+            Border.all(color: Colors.white.withOpacity(0.5), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -682,29 +817,27 @@ class _EducationScreenState extends State<EducationScreen> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-              ),
+                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87),
             ),
           ),
-          const Spacer(),
           Container(
             width: 30,
             height: 2,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-              ),
+                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -712,8 +845,6 @@ class _EducationScreenState extends State<EducationScreen> {
       ),
     );
   }
-
-  // ==================== EDUCATION TOGGLE ====================
 
   Widget _buildEducatedToggle() {
     final isEducated = _isEducated;
@@ -734,7 +865,9 @@ class _EducationScreenState extends State<EducationScreen> {
                 ),
                 child: Icon(
                   isEducated ? Icons.school : Icons.text_fields,
-                  color: isEducated ? Colors.blue.shade700 : Colors.green.shade700,
+                  color: isEducated
+                      ? Colors.blue.shade700
+                      : Colors.green.shade700,
                   size: 24,
                 ),
               ),
@@ -747,7 +880,9 @@ class _EducationScreenState extends State<EducationScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: isEducated ? Colors.blue.shade900 : Colors.green.shade900,
+                      color: isEducated
+                          ? Colors.blue.shade900
+                          : Colors.green.shade900,
                     ),
                   ),
                   Text(
@@ -756,7 +891,9 @@ class _EducationScreenState extends State<EducationScreen> {
                         : "Add your basic reading/writing skills",
                     style: TextStyle(
                       fontSize: 12,
-                      color: isEducated ? Colors.blue.shade700 : Colors.green.shade700,
+                      color: isEducated
+                          ? Colors.blue.shade700
+                          : Colors.green.shade700,
                     ),
                   ),
                 ],
@@ -770,30 +907,20 @@ class _EducationScreenState extends State<EducationScreen> {
                   ? Colors.blue.shade100
                   : Colors.green.shade100,
               borderRadius: BorderRadius.circular(30),
-              boxShadow: isEducated
-                  ? [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.3),
-                        blurRadius: 10,
-                        spreadRadius: 2,
-                      ),
-                    ]
-                  : [
-                      BoxShadow(
-                        color: Colors.green.withOpacity(0.3),
-                        blurRadius: 10,
-                        spreadRadius: 2,
-                      ),
-                    ],
+              boxShadow: [
+                BoxShadow(
+                  color: (isEducated ? Colors.blue : Colors.green)
+                      .withOpacity(0.3),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
             ),
             child: Transform.scale(
               scale: 0.8,
               child: Switch(
                 value: isEducated,
-                onChanged: (value) {
-                  debugPrint("🔄 Switch tapped! New value: $value");
-                  _toggleEducationMode(value);
-                },
+                onChanged: _toggleEducationMode,
                 activeColor: Colors.white,
                 activeTrackColor: Colors.blue,
                 inactiveThumbColor: Colors.white,
@@ -805,8 +932,6 @@ class _EducationScreenState extends State<EducationScreen> {
       ),
     );
   }
-
-  // ==================== AI TEXT FIELD ====================
 
   Widget _buildAITextField(
     TextEditingController ctrl,
@@ -849,17 +974,17 @@ class _EducationScreenState extends State<EducationScreen> {
                 ? Icon(prefixIcon, color: Colors.grey.shade600, size: 20)
                 : null,
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            filled: true,
-            fillColor: Colors.transparent,
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 14),
           ),
-          validator: (value) => required && (value == null || value.isEmpty) ? "Required" : null,
+          validator: (value) =>
+              required && (value == null || value.isEmpty)
+                  ? "Required"
+                  : null,
         ),
       ),
     );
   }
-
-  // ==================== AI DROPDOWN ====================
 
   Widget _buildAIDropdown<T>(
     T? value,
@@ -868,6 +993,9 @@ class _EducationScreenState extends State<EducationScreen> {
     void Function(T?)? onChanged,
     bool required = false,
   }) {
+    final T? safeValue =
+        (value != null && items.contains(value)) ? value : null;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
@@ -884,7 +1012,7 @@ class _EducationScreenState extends State<EducationScreen> {
           ],
         ),
         child: DropdownButtonFormField<T>(
-          value: value,
+          value: safeValue,
           decoration: InputDecoration(
             labelText: required ? "$label *" : label,
             labelStyle: TextStyle(
@@ -892,163 +1020,172 @@ class _EducationScreenState extends State<EducationScreen> {
               fontWeight: FontWeight.w500,
             ),
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            suffixIcon: Icon(
-              Icons.arrow_drop_down,
-              color: Colors.grey.shade600,
-            ),
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 14),
+            suffixIcon:
+                Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
           ),
-          items: items.map((item) {
-            return DropdownMenuItem<T>(
-              value: item,
-              child: Text(
-                item.toString(),
-                style: const TextStyle(color: Colors.black87),
-              ),
-            );
-          }).toList(),
+          items: items
+              .map(
+                (item) => DropdownMenuItem<T>(
+                  value: item,
+                  child: Text(item.toString(),
+                      style: const TextStyle(color: Colors.black87)),
+                ),
+              )
+              .toList(),
           onChanged: onChanged,
           isExpanded: true,
-          validator: (value) => required && value == null ? "Required" : null,
+          validator: (value) =>
+              required && value == null ? "Required" : null,
         ),
       ),
     );
   }
 
-  // ==================== FORM ====================
-
   Widget _buildForm() {
-    return _buildGlassContainer(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionHeader(
-            _editingId == null ? "Add New Education" : "Edit Education",
-            _editingId == null ? Icons.add_circle_outline : Icons.edit,
-          ),
-          
-          _buildAIDropdown<String>(
-            _selectedLevel,
-            _levels,
-            "Qualification Level",
-            required: true,
-            onChanged: (v) {
-              if (v != null) {
-                setState(() {
-                  _selectedLevel = v;
-                  _updateOptionsForLevel(_selectedLevel);
-                });
-              }
-            },
-          ),
-
-          if (_degreeOptions.isNotEmpty)
+    return Container(
+      key: _formKey,
+      child: _buildGlassContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_editingId != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.edit,
+                        size: 16, color: Colors.orange.shade800),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "You are editing an existing record",
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange.shade900,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            _sectionHeader(
+              _editingId == null
+                  ? "Add New Education"
+                  : "Edit Education",
+              _editingId == null
+                  ? Icons.add_circle_outline
+                  : Icons.edit,
+            ),
             _buildAIDropdown<String>(
-              _selectedDegree.isNotEmpty ? _selectedDegree : null,
-              _degreeOptions,
-              "Degree/Course Name",
+              _selectedLevel,
+              _levels,
+              "Qualification Level",
+              required: true,
               onChanged: (v) {
-                if (v != null) setState(() => _selectedDegree = v);
+                if (v != null) {
+                  setState(() {
+                    _selectedLevel = v;
+                    _updateOptionsForLevel(_selectedLevel);
+                  });
+                }
               },
             ),
-
-          if (_streamOptions.isNotEmpty)
-            _buildAIDropdown<String>(
-              _selectedStream.isNotEmpty ? _selectedStream : null,
-              _streamOptions,
-              "Stream/Specialization",
-              onChanged: (v) {
-                if (v != null) _onStreamChanged(v);
-              },
-            ),
-
-          _buildAITextField(
-            _instituteCtrl,
-            "School/College/Institute",
-            required: true,
-            prefixIcon: Icons.business,
-          ),
-
-          if (_boardOptions.isNotEmpty)
-            _buildAIDropdown<String>(
-              _selectedBoard.isNotEmpty ? _selectedBoard : null,
-              _boardOptions,
-              "Board/University",
-              onChanged: (v) {
-                if (v != null) setState(() => _selectedBoard = v);
-              },
-            )
-          else
+            if (_degreeOptions.isNotEmpty)
+              _buildAIDropdown<String>(
+                _selectedDegree.isNotEmpty ? _selectedDegree : null,
+                _degreeOptions,
+                "Degree/Course Name",
+                onChanged: (v) {
+                  if (v != null) setState(() => _selectedDegree = v);
+                },
+              ),
+            if (_streamOptions.isNotEmpty)
+              _buildAIDropdown<String>(
+                _selectedStream.isNotEmpty ? _selectedStream : null,
+                _streamOptions,
+                "Stream/Specialization",
+                onChanged: (v) {
+                  if (v != null) _onStreamChanged(v);
+                },
+              ),
             _buildAITextField(
-              _boardCtrl,
-              "Board/University",
-              prefixIcon: Icons.account_balance,
+                _instituteCtrl, "School/College/Institute",
+                required: true, prefixIcon: Icons.business),
+            if (_boardOptions.isNotEmpty)
+              _buildAIDropdown<String>(
+                _selectedBoard.isNotEmpty ? _selectedBoard : null,
+                _boardOptions,
+                "Board/University",
+                onChanged: (v) {
+                  if (v != null) setState(() => _selectedBoard = v);
+                },
+              )
+            else
+              _buildAITextField(_boardCtrl, "Board/University",
+                  prefixIcon: Icons.account_balance),
+            _buildAITextField(_yearCtrl, "Year of Passing",
+                required: true,
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.calendar_today),
+            _buildAIDropdown<String>(
+              _selectedResultType,
+              _resultTypes,
+              "Result Type",
+              onChanged: (v) {
+                if (v != null) setState(() => _selectedResultType = v);
+              },
             ),
-
-          _buildAITextField(
-            _yearCtrl,
-            "Year of Passing",
-            required: true,
-            keyboardType: TextInputType.number,
-            prefixIcon: Icons.calendar_today,
-          ),
-
-          _buildAIDropdown<String>(
-            _selectedResultType,
-            _resultTypes,
-            "Result Type",
-            onChanged: (v) {
-              if (v != null) setState(() => _selectedResultType = v);
-            },
-          ),
-
-          _buildAITextField(
-            _percentageCtrl,
-            "$_selectedResultType (Optional)",
-            keyboardType: TextInputType.number,
-            prefixIcon: Icons.percent,
-          ),
-
-          if (_selectedResultType == 'Grade')
             _buildAITextField(
-              _gradeCtrl,
-              "Grade (e.g., A+, B, etc.)",
-              prefixIcon: Icons.grade,
+                _percentageCtrl, "$_selectedResultType (Optional)",
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.percent),
+            if (_selectedResultType == 'Grade')
+              _buildAITextField(_gradeCtrl,
+                  "Grade (e.g., A+, B, etc.)",
+                  prefixIcon: Icons.grade),
+            _buildAITextField(_mediumCtrl, "Medium of Instruction",
+                prefixIcon: Icons.language),
+            _buildAITextField(
+                _subjectsCtrl, "Subjects (comma separated)",
+                prefixIcon: Icons.subject, maxLines: 2),
+            _buildAITextField(
+                _backlogsCtrl, "Number of Backlogs (if any)",
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.warning),
+            _buildAITextField(
+                _certificateUrlCtrl, "Certificate URL (Optional)",
+                keyboardType: TextInputType.url,
+                prefixIcon: Icons.link),
+            _buildAITextField(
+              _achievementsCtrl,
+              "Achievements (one per line)",
+              prefixIcon: Icons.emoji_events,
+              maxLines: 3,
+              hintText:
+                  "e.g.,\nScored 95% in Mathematics\nWon inter-school quiz",
             ),
-
-          _buildAITextField(
-            _mediumCtrl,
-            "Medium of Instruction",
-            prefixIcon: Icons.language,
-          ),
-          _buildAITextField(
-            _subjectsCtrl,
-            "Subjects (comma separated)",
-            prefixIcon: Icons.subject,
-            maxLines: 2,
-          ),
-          _buildAITextField(
-            _backlogsCtrl,
-            "Number of Backlogs (if any)",
-            keyboardType: TextInputType.number,
-            prefixIcon: Icons.warning,
-          ),
-          _buildAITextField(
-            _certificateUrlCtrl,
-            "Certificate URL (Optional)",
-            keyboardType: TextInputType.url,
-            prefixIcon: Icons.link,
-          ),
-
-          const SizedBox(height: 20),
-          _buildActionButtons(
-            onSave: _saveEducation,
-            onCancel: _editingId != null ? _clearForm : null,
-            isSaving: _isSaving,
-            saveLabel: _editingId == null ? "Add Education" : "Update Education",
-            buttonColor: Colors.blue,
-          ),
-        ],
+            const SizedBox(height: 20),
+            _buildActionButtons(
+              onSave: _saveEducation,
+              onCancel: _editingId != null ? _cancelEdit : null,
+              isSaving: _isSaving,
+              saveLabel: _editingId == null
+                  ? "Add Education"
+                  : "Update Education",
+              buttonColor:
+                  _editingId == null ? Colors.blue : Colors.orange,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1066,8 +1203,7 @@ class _EducationScreenState extends State<EducationScreen> {
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [buttonColor, buttonColor.withOpacity(0.8)],
-              ),
+                  colors: [buttonColor, buttonColor.withOpacity(0.8)]),
               borderRadius: BorderRadius.circular(12),
             ),
             child: ElevatedButton(
@@ -1079,28 +1215,29 @@ class _EducationScreenState extends State<EducationScreen> {
                 shadowColor: Colors.transparent,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: isSaving
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
                     )
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.save, size: 18),
+                        Icon(
+                            _editingId == null
+                                ? Icons.save
+                                : Icons.update,
+                            size: 18),
                         const SizedBox(width: 8),
-                        Text(
-                          saveLabel,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+                        Text(saveLabel,
+                            style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
                       ],
                     ),
             ),
@@ -1114,22 +1251,17 @@ class _EducationScreenState extends State<EducationScreen> {
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                    borderRadius: BorderRadius.circular(12)),
                 side: BorderSide(color: Colors.grey.shade400),
               ),
-              child: Text(
-                "Cancel",
-                style: TextStyle(color: Colors.black87),
-              ),
+              child: const Text("Cancel",
+                  style: TextStyle(color: Colors.black87)),
             ),
           ),
         ],
       ],
     );
   }
-
-  // ==================== RECORDS LIST ====================
 
   Widget _buildRecordsList() {
     return _buildGlassContainer(
@@ -1139,27 +1271,25 @@ class _EducationScreenState extends State<EducationScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                "Your Education Records",
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+              const Expanded(
+                child: Text("Your Education Records",
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87)),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                ),
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(20)),
                 child: Text(
                   "${_educationList.length} Records",
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade900,
-                  ),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade900),
                 ),
               ),
             ],
@@ -1169,114 +1299,280 @@ class _EducationScreenState extends State<EducationScreen> {
             _buildEmptyState(
               icon: Icons.school_outlined,
               title: "No education records added yet",
-              subtitle: "Add your first education record using the form above",
+              subtitle:
+                  "Add your first education record using the form above",
             )
           else
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _educationList.length,
-              itemBuilder: (context, index) =>
-                  _buildEducationCard(_educationList[index], index),
+              itemBuilder: (context, index) {
+                final edu = _educationList[index];
+                final id = _getId(edu) ?? 'idx_$index';
+                return _buildEducationCard(edu, index,
+                    key: ValueKey(id));
+              },
             ),
         ],
       ),
     );
   }
 
-  Widget _buildEducationCard(Map<String, dynamic> edu, int index) {
+  Widget _buildActionIcon({
+    required IconData icon,
+    required Color iconColor,
+    required Color bgColor,
+    required String tooltip,
+    VoidCallback? onTap,
+  }) {
+    final disabled = onTap == null;
+    return Tooltip(
+      message: disabled ? "$tooltip (unavailable)" : tooltip,
+      child: Material(
+        color: disabled ? Colors.grey.shade200 : bgColor,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: disabled ? null : onTap,
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Icon(
+              icon,
+              color: disabled ? Colors.grey.shade500 : iconColor,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEducationCard(Map<String, dynamic> edu, int index,
+      {Key? key}) {
     final levelColor = _getLevelColor(edu['level'] ?? '');
+    final achievements = edu['achievements'] as List? ?? [];
+    final id = _getId(edu);
+    final isEditing = _editingId != null && _editingId == id;
+
     return Container(
+      key: key,
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isEditing ? Colors.orange.shade50 : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: levelColor.withOpacity(0.3)),
+        border: Border.all(
+          color: isEditing ? Colors.orange : levelColor.withOpacity(0.3),
+          width: isEditing ? 1.5 : 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            blurRadius: 5,
-            spreadRadius: 1,
-          ),
+              color: Colors.grey.withOpacity(0.05),
+              blurRadius: 5,
+              spreadRadius: 1),
         ],
       ),
-      child: ListTile(
+      child: ExpansionTile(
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: levelColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            _getLevelIcon(edu['level'] ?? ''),
-            style: const TextStyle(fontSize: 24),
-          ),
+              color: levelColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12)),
+          child: Text(_getLevelIcon(edu['level'] ?? ''),
+              style: const TextStyle(fontSize: 24)),
         ),
-        title: Text(
-          edu['degree'] ?? '',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                edu['degree'] ?? edu['level'] ?? '',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (isEditing)
+              Container(
+                margin: const EdgeInsets.only(left: 6),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                    color: Colors.orange,
+                    borderRadius: BorderRadius.circular(8)),
+                child: const Text("Editing",
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold)),
+              ),
+          ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              edu['institute'] ?? '',
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
-            ),
+            Text(edu['institute'] ?? '',
+                style: TextStyle(
+                    color: Colors.grey.shade700, fontSize: 13)),
             Text(
               "Year: ${edu['year_of_passing']}${edu['cgpa_percentage'] != null ? ' | ${edu['result_type'] ?? "Score"}: ${edu['cgpa_percentage']}' : ''}",
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(
+                  fontSize: 12, color: Colors.grey.shade600),
             ),
-            if (edu['level'] != null)
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: levelColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  edu['level'],
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: levelColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
           ],
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: IconButton(
-                icon: Icon(Icons.edit, color: Colors.blue.shade700, size: 20),
-                onPressed: () => _startEdit(edu),
-                tooltip: "Edit",
-              ),
+            _buildActionIcon(
+              icon: Icons.edit,
+              iconColor: isEditing
+                  ? Colors.orange.shade800
+                  : Colors.blue.shade700,
+              bgColor: isEditing
+                  ? Colors.orange.shade100
+                  : Colors.blue.shade50,
+              tooltip: "Edit",
+              onTap: (id == null || _isSaving)
+                  ? null
+                  : () => _startEdit(edu),
             ),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: IconButton(
-                icon: Icon(Icons.delete, color: Colors.red.shade700, size: 20),
-                onPressed: () =>
-                    _deleteEducation(edu['_id'], edu['degree'] ?? 'Education'),
-                tooltip: "Delete",
-              ),
+            const SizedBox(width: 6),
+            // ✅ FIX: no longer disables when id == null —
+            // the method itself shows an informative message
+            _buildActionIcon(
+              icon: Icons.delete,
+              iconColor: Colors.red.shade700,
+              bgColor: Colors.red.shade50,
+              tooltip: "Delete",
+              onTap: _isSaving
+                  ? null
+                  : () => _deleteEducation(
+                        id,
+                        (edu['degree'] ?? edu['level'] ?? 'Education')
+                            .toString(),
+                      ),
             ),
           ],
         ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (edu['stream'] != null &&
+                    edu['stream'].toString().isNotEmpty)
+                  _buildDetailRow(
+                      Icons.category, "Stream", edu['stream']),
+                if (edu['board_university'] != null &&
+                    edu['board_university'].toString().isNotEmpty)
+                  _buildDetailRow(Icons.account_balance,
+                      "Board/University", edu['board_university']),
+                if (edu['medium'] != null &&
+                    edu['medium'].toString().isNotEmpty)
+                  _buildDetailRow(
+                      Icons.language, "Medium", edu['medium']),
+                if (edu['grade'] != null &&
+                    edu['grade'].toString().isNotEmpty)
+                  _buildDetailRow(
+                      Icons.grade, "Grade", edu['grade']),
+                if (edu['backlogs'] != null)
+                  _buildDetailRow(Icons.warning, "Backlogs",
+                      edu['backlogs'].toString()),
+                if (edu['certificate_url'] != null &&
+                    edu['certificate_url'].toString().isNotEmpty)
+                  _buildDetailRow(Icons.link, "Certificate",
+                      edu['certificate_url']),
+                if (edu['subjects'] != null &&
+                    (edu['subjects'] as List).isNotEmpty)
+                  _buildListRow(
+                      Icons.subject, "Subjects", edu['subjects']),
+                if (achievements.isNotEmpty)
+                  _buildListRow(
+                      Icons.emoji_events, "Achievements", achievements),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: Colors.grey.shade600),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 100,
+            child: Text(label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                    color: Colors.black87)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+              child: Text(value,
+                  style: TextStyle(
+                      fontSize: 13, color: Colors.grey.shade800))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListRow(
+      IconData icon, String label, List<dynamic> items) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: Colors.grey.shade600),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 100,
+            child: Text(label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                    color: Colors.black87)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: items
+                  .map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Row(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Text("• ",
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade800)),
+                          Expanded(
+                            child: Text(item.toString(),
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey.shade800)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1289,22 +1585,19 @@ class _EducationScreenState extends State<EducationScreen> {
     return Container(
       padding: const EdgeInsets.all(40),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(16),
-      ),
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(16)),
       child: Column(
         children: [
           Icon(icon, size: 48, color: Colors.grey.shade400),
           const SizedBox(height: 12),
-          Text(
-            title,
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-          ),
+          Text(title,
+              style:
+                  TextStyle(fontSize: 16, color: Colors.grey.shade600)),
           const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-          ),
+          Text(subtitle,
+              style:
+                  TextStyle(fontSize: 13, color: Colors.grey.shade500)),
         ],
       ),
     );
@@ -1314,17 +1607,17 @@ class _EducationScreenState extends State<EducationScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(12),
-      ),
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           Icon(Icons.info_outline, size: 20, color: Colors.blue.shade700),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              "You can add, edit, or delete your education records as needed.",
-              style: TextStyle(fontSize: 12, color: Colors.blue.shade900),
+              "You can add, edit, or delete your education records as needed. Duplicate entries are automatically prevented.",
+              style: TextStyle(
+                  fontSize: 12, color: Colors.blue.shade900),
             ),
           ),
         ],
@@ -1332,15 +1625,13 @@ class _EducationScreenState extends State<EducationScreen> {
     );
   }
 
-  // ==================== NON-EDUCATED SECTION ====================
-
   Widget _buildNonEducatedSection() {
     return _buildGlassContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader("Basic Literacy & Skills Information", Icons.text_fields),
-          
+          _sectionHeader(
+              "Basic Literacy & Skills Information", Icons.text_fields),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -1368,7 +1659,6 @@ class _EducationScreenState extends State<EducationScreen> {
             ),
           ),
           const SizedBox(height: 12),
-
           _buildAIDropdown<String>(
             _basicLevel,
             _basicLevels,
@@ -1377,19 +1667,12 @@ class _EducationScreenState extends State<EducationScreen> {
               if (v != null) setState(() => _basicLevel = v);
             },
           ),
-
           _buildAITextField(
-            _nonEduLanguages,
-            "Languages Known (comma separated)",
-            prefixIcon: Icons.language,
-          ),
+              _nonEduLanguages, "Languages Known (comma separated)",
+              prefixIcon: Icons.language),
           _buildAITextField(
-            _nonEduSkills,
-            "Basic Skills (comma separated)",
-            prefixIcon: Icons.build,
-            maxLines: 2,
-          ),
-
+              _nonEduSkills, "Basic Skills (comma separated)",
+              prefixIcon: Icons.build, maxLines: 2),
           const SizedBox(height: 20),
           _buildActionButtons(
             onSave: _saveNonEducated,
@@ -1417,20 +1700,13 @@ class _EducationScreenState extends State<EducationScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
+                Text(title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87)),
+                Text(subtitle,
+                    style: TextStyle(
+                        fontSize: 12, color: Colors.grey.shade600)),
               ],
             ),
           ),

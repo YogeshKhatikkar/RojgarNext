@@ -1,4 +1,5 @@
 # app/modules/user/routes.py - COMPLETE FIXED VERSION WITH MIME TYPE CHECKING
+# ✅ Added: DELETE /education/{id}  ✅ Added: DELETE /experience/{id}
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, BackgroundTasks, UploadFile, File, Form
 from typing import Optional, List, Dict, Any
@@ -33,11 +34,11 @@ async def get_contact_details(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     user = await db.auth.find_one({"email": email})
     mobile = user.get("mobile", "") if user else ""
     name = user.get("name", "") if user else ""
-    
+
     return {
         "email": email,
         "mobile": mobile,
@@ -608,6 +609,24 @@ async def update_education(
     return await service.update_education(email, qual_id, qualification)
 
 
+# ✅ NEW: DELETE education record
+@router.delete("/education/{qual_id}")
+async def delete_education(
+    qual_id: str,
+    email: Optional[str] = Query(None),  # optional; ignored — JWT email used
+    service: ProfileService = Depends(get_profile_service),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Delete an education record by its `_id`.
+    Frontend may send `?email=...` — we ignore it and use the JWT email instead.
+    """
+    user_email = current_user.get("email")
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+    return await service.delete_education(user_email, qual_id)
+
+
 # ================= EXPERIENCE =================
 @router.get("/experience")
 async def get_experience(
@@ -646,6 +665,24 @@ async def update_experience(
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
     return await service.update_experience(email, exp_id, experience)
+
+
+# ✅ NEW: DELETE experience record
+@router.delete("/experience/{exp_id}")
+async def delete_experience(
+    exp_id: str,
+    email: Optional[str] = Query(None),  # optional; ignored — JWT email used
+    service: ProfileService = Depends(get_profile_service),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Delete an experience record by its `_id`.
+    Frontend may send `?email=...` — we ignore it and use the JWT email instead.
+    """
+    user_email = current_user.get("email")
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+    return await service.delete_experience(user_email, exp_id)
 
 
 # ================= SKILLS =================
@@ -990,10 +1027,10 @@ async def get_saved_jobs(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     user = await db.auth.find_one({"email": email})
     saved_job_ids = user.get("saved_jobs", []) if user else []
-    
+
     jobs = []
     for job_id in saved_job_ids:
         try:
@@ -1001,14 +1038,14 @@ async def get_saved_jobs(
                 obj_id = ObjectId(job_id)
             else:
                 obj_id = job_id
-            
+
             job = await db.job.find_one({"_id": obj_id})
             if job:
                 job["_id"] = str(job["_id"])
                 jobs.append(job)
         except Exception:
             continue
-    
+
     return {"saved_jobs": jobs}
 
 
@@ -1022,11 +1059,11 @@ async def save_job(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     job_id = data.get("job_id")
     if not job_id:
         raise HTTPException(status_code=400, detail="Job ID required")
-    
+
     try:
         obj_id = ObjectId(job_id) if isinstance(job_id, str) and len(job_id) == 24 else job_id
         job_exists = await db.job.find_one({"_id": obj_id})
@@ -1034,12 +1071,12 @@ async def save_job(
             raise HTTPException(status_code=404, detail="Job not found")
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid job ID")
-    
+
     await db.auth.update_one(
         {"email": email},
         {"$addToSet": {"saved_jobs": job_id}}
     )
-    
+
     return {"message": "Job saved successfully", "success": True}
 
 
@@ -1053,12 +1090,12 @@ async def unsave_job(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     await db.auth.update_one(
         {"email": email},
         {"$pull": {"saved_jobs": job_id}}
     )
-    
+
     return {"message": "Job removed from saved", "success": True}
 
 
@@ -1122,17 +1159,17 @@ async def get_ultra_ai_analysis(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     profile = await db.profile.find_one({"email": email})
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-    
+
     jobs = await db.job.find({"status": "open"}).limit(50).to_list(50)
-    
+
     career_analysis = await ultra_ai_engine._deep_candidate_analysis(profile, {})
     job_matches = await ultra_ai_engine.auto_job_matching(profile, jobs)
     predictions = await ultra_ai_engine.predictive_analytics(30)
-    
+
     return {
         "career_analysis": career_analysis,
         "top_job_matches": job_matches[:5],
@@ -1150,24 +1187,24 @@ async def get_ai_resume_score(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     profile = await db.profile.find_one({"email": email})
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-    
+
     score = 0
     suggestions = []
-    
+
     if profile.get('full_name'):
         score += 10
     else:
         suggestions.append("Add your full name")
-    
+
     if profile.get('summary'):
         score += 15
     else:
         suggestions.append("Add a professional summary")
-    
+
     skills_count = len(profile.get('skills', []))
     if skills_count >= 10:
         score += 20
@@ -1177,7 +1214,7 @@ async def get_ai_resume_score(
     else:
         score += 5
         suggestions.append("Add at least 5-10 relevant skills")
-    
+
     exp_count = len(profile.get('experience', []))
     if exp_count >= 3:
         score += 20
@@ -1186,28 +1223,28 @@ async def get_ai_resume_score(
         suggestions.append("Add more work experience details")
     else:
         suggestions.append("Add work experience or internships")
-    
+
     edu_count = len(profile.get('academic_records', []))
     if edu_count >= 2:
         score += 15
     elif edu_count >= 1:
         score += 10
         suggestions.append("Add your educational qualifications")
-    
+
     project_count = len(profile.get('projects', []))
     if project_count >= 3:
         score += 10
     elif project_count >= 1:
         score += 5
         suggestions.append("Add more projects to showcase your work")
-    
+
     cert_count = len(profile.get('certifications', []))
     if cert_count >= 2:
         score += 10
     elif cert_count >= 1:
         score += 5
         suggestions.append("Add relevant certifications")
-    
+
     return {
         "resume_score": min(100, score),
         "rating": "Excellent" if score >= 80 else "Good" if score >= 60 else "Average" if score >= 40 else "Needs Improvement",
@@ -1221,25 +1258,26 @@ async def get_ai_resume_score(
 async def _generate_personalized_actions(profile: Dict, analysis: Dict) -> List[str]:
     """Generate personalized action items"""
     actions = []
-    
+
     if analysis.get('skill_match', 0) < 60:
         actions.append("Focus on developing in-demand skills")
-    
+
     if len(profile.get('projects', [])) < 2:
         actions.append("Build and showcase personal projects")
-    
+
     if len(profile.get('certifications', [])) < 2:
         actions.append("Get relevant certifications")
-    
+
     if not profile.get('summary'):
         actions.append("Write a compelling professional summary")
-    
+
     if not actions:
         actions.append("Start applying to matching jobs")
         actions.append("Network with industry professionals")
         actions.append("Keep your profile updated")
-    
+
     return actions[:5]
+
 
 # ==================== EDUCATIONAL BACKGROUND ====================
 @router.get("/educational-background")
@@ -1360,16 +1398,16 @@ async def get_user_profile_by_email(
     # Check if user has admin access
     user_role = current_user.get("role", "").lower()
     allowed_roles = ["admin", "customadmin", "superadmin", "custom_admin"]
-    
+
     if user_role not in allowed_roles:
         raise HTTPException(
-            status_code=403, 
+            status_code=403,
             detail="Access denied. Only admin can view other user profiles."
         )
-    
+
     # Fetch profile by email
     profile = await db.profile.find_one({"email": email})
-    
+
     if not profile:
         # Try to get from auth if profile doesn't exist
         auth_user = await db.auth.find_one({"email": email})
@@ -1382,14 +1420,14 @@ async def get_user_profile_by_email(
             }
         else:
             raise HTTPException(status_code=404, detail=f"User with email {email} not found")
-    
+
     # Convert ObjectId to string
     if "_id" in profile:
         profile["_id"] = str(profile["_id"])
-    
+
     # Ensure all fields exist with defaults
     profile = _ensure_profile_defaults(profile)
-    
+
     return {
         "success": True,
         "data": profile,
@@ -1399,7 +1437,7 @@ async def get_user_profile_by_email(
 
 def _ensure_profile_defaults(profile: dict) -> dict:
     """Ensure all profile fields have default values"""
-    
+
     # Basic fields
     defaults = {
         "full_name": "",
@@ -1413,7 +1451,7 @@ def _ensure_profile_defaults(profile: dict) -> dict:
         "nationality": "Indian",
         "religion": "",
         "category": "General/UR",
-        
+
         # Disability
         "disability": {
             "is_disabled": False,
@@ -1423,7 +1461,7 @@ def _ensure_profile_defaults(profile: dict) -> dict:
             "physically_challenged": "No",
             "certificate_verified": False
         },
-        
+
         # Family
         "father_name": "",
         "mother_name": "",
@@ -1432,12 +1470,12 @@ def _ensure_profile_defaults(profile: dict) -> dict:
         "marital_status": "Unmarried",
         "family_annual_income": None,
         "number_of_dependents": None,
-        
+
         # Contact
         "alternate_mobile": "",
         "whatsapp_number": "",
         "emergency_contact": {"name": "", "relationship": "", "phone": ""},
-        
+
         # Address
         "current_address": {
             "house_number": "", "village_name": "", "post_office": "",
@@ -1446,14 +1484,14 @@ def _ensure_profile_defaults(profile: dict) -> dict:
         },
         "permanent_address": {},
         "same_as_current": True,
-        
+
         # Professional
         "summary": "",
         "career_objective": "",
-        
+
         # Social Links
         "social_links": {"linkedin": "", "github": "", "portfolio": ""},
-        
+
         # Education, Experience, Skills
         "academic_records": [],
         "experience": [],
@@ -1461,15 +1499,15 @@ def _ensure_profile_defaults(profile: dict) -> dict:
         "certifications": [],
         "projects": [],
         "languages_known": [],
-        
+
         # Resume
         "resume_url": "",
-        
+
         # Other
         "created_at": None,
         "updated_at": None
     }
-    
+
     # Apply defaults for missing fields
     for key, default_value in defaults.items():
         if key not in profile:
@@ -1479,7 +1517,7 @@ def _ensure_profile_defaults(profile: dict) -> dict:
             for sub_key, sub_default in default_value.items():
                 if sub_key not in profile[key]:
                     profile[key][sub_key] = sub_default
-    
+
     return profile
 
 
@@ -1492,7 +1530,7 @@ ALLOWED_MIME_TYPES = {
     # PDF
     'application/pdf',
     # Word documents
-    'application/msword', 
+    'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     # Excel
     'application/vnd.ms-excel',
@@ -1522,20 +1560,20 @@ async def upload_user_document_endpoint(
     Upload a document to Cloudinary and save URL to user profile
     """
     from app.core.services.cloudinary import upload_user_document
-    
+
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="Document file is required")
-    
+
     # ✅ FIXED: Check by MIME type first (more reliable)
     content_type = file.content_type
     file_ext = file.filename.split('.')[-1].lower() if file.filename else ''
-    
+
     is_allowed = False
-    
+
     # Check MIME type
     if content_type and content_type in ALLOWED_MIME_TYPES:
         is_allowed = True
@@ -1545,34 +1583,34 @@ async def upload_user_document_endpoint(
     # Also check for image/jpeg variations
     elif content_type and content_type.startswith('image/'):
         is_allowed = True
-    
+
     if not is_allowed:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Invalid file type. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
         )
-    
+
     # Check file size (max 10MB)
     file_content = await file.read()
     file_size = len(file_content)
     await file.seek(0)
-    
+
     max_size = 10 * 1024 * 1024  # 10MB
     if file_size > max_size:
         raise HTTPException(
             status_code=400,
             detail=f"File too large. Max size: 10MB, Your file: {file_size // (1024*1024)}MB"
         )
-    
+
     try:
         username = email.split('@')[0]
-        
+
         upload_result = await upload_user_document(
             file=file,
             username=username,
             document_type="documents"
         )
-        
+
         # Update profile with document URL
         await db.profile.update_one(
             {"email": email},
@@ -1584,7 +1622,7 @@ async def upload_user_document_endpoint(
             },
             upsert=True
         )
-        
+
         return {
             "success": True,
             "message": "Document uploaded successfully",
@@ -1594,7 +1632,7 @@ async def upload_user_document_endpoint(
             "public_id": upload_result.get("public_id"),
             "file_size_kb": file_size // 1024
         }
-        
+
     except Exception as e:
         logger.error(f"Document upload error: {e}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
@@ -1612,19 +1650,19 @@ async def update_profile_field(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     update_data = {}
     for key, value in data.items():
         update_data[key] = value
-    
+
     update_data["updated_at"] = datetime.utcnow()
-    
+
     result = await db.profile.update_one(
         {"email": email},
         {"$set": update_data},
         upsert=True
     )
-    
+
     return {
         "success": True,
         "message": "Profile updated successfully",
@@ -1644,13 +1682,13 @@ async def update_document_url(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     document_key = data.get("document_key")
     document_url = data.get("document_url")
-    
+
     if not document_key or not document_url:
         raise HTTPException(status_code=400, detail="Document key and URL are required")
-    
+
     result = await db.profile.update_one(
         {"email": email},
         {
@@ -1661,7 +1699,7 @@ async def update_document_url(
         },
         upsert=True
     )
-    
+
     return {
         "success": True,
         "message": "Document URL updated successfully",
@@ -1681,12 +1719,12 @@ async def delete_document(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     document_key = data.get("document_key")
-    
+
     if not document_key:
         raise HTTPException(status_code=400, detail="Document key is required")
-    
+
     # Remove the document URL from profile
     result = await db.profile.update_one(
         {"email": email},
@@ -1695,7 +1733,7 @@ async def delete_document(
             "$set": {"updated_at": datetime.utcnow()}
         }
     )
-    
+
     return {
         "success": True,
         "message": "Document deleted successfully",
@@ -1714,15 +1752,15 @@ async def get_user_documents(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     profile = await db.profile.find_one({"email": email})
-    
+
     if not profile:
         return {"success": True, "documents": {}}
-    
+
     # Extract all document URLs from additional_details
     additional = profile.get("additional_details", {})
-    
+
     # Document keys to look for
     document_keys = [
         'resume_url', 'profile_photo_url', 'aadhaar_url', 'pan_url',
@@ -1731,14 +1769,14 @@ async def get_user_documents(
         'offer_letter_url', 'disability_certificate_url', 'caste_certificate_url',
         'income_certificate_url', 'other_document_url'
     ]
-    
+
     documents = {}
     for key in document_keys:
         if key in additional and additional[key]:
             documents[key] = additional[key]
         elif key in profile and profile[key]:
             documents[key] = profile[key]
-    
+
     return {
         "success": True,
         "documents": documents
@@ -1746,4 +1784,4 @@ async def get_user_documents(
 
 
 # ================= END OF FILE =================
-print("✅ User routes loaded with Ultra AI features")
+print("✅ User routes loaded with Ultra AI features + DELETE education/experience")

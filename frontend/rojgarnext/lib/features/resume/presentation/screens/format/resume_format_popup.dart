@@ -1,12 +1,4 @@
 // lib/features/resume/presentation/screens/format/resume_format_popup.dart
-// ============================================================================
-// ✅ SINGLE FILE — Popup shell only. NO format-specific styling here.
-// ✅ Format styles live in formats/*.dart — इस file को छूने की ज़रूरत नहीं
-// ✅ Web + Android + iOS पर identical rendering (native Flutter widgets)
-// ✅ PDF export + Refresh + Loading + Error states
-// ✅ Only "Download PDF" button (Copy HTML removed)
-// ============================================================================
-
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:printing/printing.dart';
@@ -14,9 +6,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'resume_format_base.dart';
 
-// ============================================================================
-// POPUP WIDGET
-// ============================================================================
 class ResumeFormatPopup extends StatefulWidget {
   final ResumeFormatBase format;
   final Map<String, dynamic> resumeData;
@@ -33,13 +22,9 @@ class ResumeFormatPopup extends StatefulWidget {
   State<ResumeFormatPopup> createState() => _ResumeFormatPopupState();
 }
 
-// ============================================================================
-// STATE — NO format-specific logic here!
-// ============================================================================
 class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
   bool _isLoading = true;
   bool _isExporting = false;
-  String? _htmlContent;
   String? _errorMessage;
 
   @override
@@ -50,7 +35,9 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
 
   void _prepare() {
     try {
-      _htmlContent = widget.format.generateHtml(widget.resumeData);
+      if (widget.resumeData.isEmpty) {
+        throw Exception("Resume data is empty");
+      }
       _errorMessage = null;
     } catch (e) {
       _errorMessage = 'Error: $e';
@@ -66,9 +53,6 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
     _prepare();
   }
 
-  // ==========================================================================
-  // PDF EXPORT — platform independent
-  // ==========================================================================
   Future<void> _exportPdf() async {
     if (_isExporting) return;
     setState(() => _isExporting = true);
@@ -108,21 +92,15 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
     final data = widget.resumeData;
     final u = _m(data['user_info']);
     final c = _m(data['contact_info']);
-    final addr = _m(c['current_address']);
     final name = _s(u['full_name'], 'User');
     final email = _s(c['email']);
     final phone = _s(c['phone']);
-    final city = _s(addr['city']);
-    final state = _s(addr['state']);
-    final location = [city, state].where((s) => s.isNotEmpty).join(', ');
     final summary = _s(data['professional_summary']);
-    final objective = _s(data['career_objective']);
     final edu = _l(data['education']);
     final exp = _l(data['experience']);
     final skills = _skills(data['skills']);
     final certs = _l(data['certifications']);
     final projects = _l(data['projects']);
-    final langs = _l(data['languages']);
 
     PdfColor primary = PdfColors.blue900;
     try {
@@ -166,10 +144,6 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
                       pw.Text('📞 $phone',
                           style: const pw.TextStyle(
                               fontSize: 10, color: PdfColors.white)),
-                    if (location.isNotEmpty)
-                      pw.Text('📍 $location',
-                          style: const pw.TextStyle(
-                              fontSize: 10, color: PdfColors.white)),
                   ],
                 ),
               ],
@@ -193,16 +167,14 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
                   children: [
                     pw.Text(_s(x['role'], 'Role'),
                         style: pw.TextStyle(
-                            fontSize: 12,
-                            fontWeight: pw.FontWeight.bold)),
+                            fontSize: 12, fontWeight: pw.FontWeight.bold)),
                     pw.Text(_s(x['company'], 'Company'),
                         style: const pw.TextStyle(
                             fontSize: 10, color: PdfColors.grey700)),
                     pw.Text(
-                      '${_s(x['start_date'])} - ${_s(x['end_date'], 'Present')}',
-                      style: const pw.TextStyle(
-                          fontSize: 9, color: PdfColors.grey600),
-                    ),
+                        '${_s(x['start_date'])} - ${_s(x['end_date'], 'Present')}',
+                        style: const pw.TextStyle(
+                            fontSize: 9, color: PdfColors.grey600)),
                     if (_s(x['description']).isNotEmpty)
                       pw.Padding(
                         padding: const pw.EdgeInsets.only(top: 3),
@@ -227,16 +199,9 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
                   children: [
                     pw.Text(_s(x['degree'], 'Degree'),
                         style: pw.TextStyle(
-                            fontSize: 11,
-                            fontWeight: pw.FontWeight.bold)),
+                            fontSize: 11, fontWeight: pw.FontWeight.bold)),
                     pw.Text(_s(x['institute'], 'Institute'),
                         style: const pw.TextStyle(fontSize: 10)),
-                    pw.Text(
-                      'Year: ${_s(x['year_of_passing'])}'
-                      '${_s(x['cgpa_percentage']).isNotEmpty ? "  |  ${_s(x['result_type'], "Score")}: ${_s(x['cgpa_percentage'])}" : ""}',
-                      style: const pw.TextStyle(
-                          fontSize: 9, color: PdfColors.grey700),
-                    ),
                   ],
                 ),
               );
@@ -289,8 +254,7 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
                   children: [
                     pw.Text(_s(x['title'], 'Project'),
                         style: pw.TextStyle(
-                            fontSize: 11,
-                            fontWeight: pw.FontWeight.bold)),
+                            fontSize: 11, fontWeight: pw.FontWeight.bold)),
                     if (_s(x['description']).isNotEmpty)
                       pw.Text(_s(x['description']),
                           style: const pw.TextStyle(
@@ -300,26 +264,6 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
               );
             }),
             pw.SizedBox(height: 8),
-          ],
-          if (langs.isNotEmpty) ...[
-            _pdfTitle('Languages', primary),
-            pw.Text(
-              langs
-                  .map((l) {
-                    final x = _m(l);
-                    final n = _s(x['name']);
-                    final p = _s(x['proficiency']);
-                    return p.isNotEmpty ? '$n ($p)' : n;
-                  })
-                  .join(', '),
-              style: const pw.TextStyle(fontSize: 10),
-            ),
-            pw.SizedBox(height: 8),
-          ],
-          if (objective.isNotEmpty) ...[
-            _pdfTitle('Career Objective', primary),
-            pw.Text(objective,
-                style: const pw.TextStyle(fontSize: 11, height: 1.4)),
           ],
         ],
       ),
@@ -336,7 +280,9 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
           pw.Text(
             title.toUpperCase(),
             style: pw.TextStyle(
-                fontSize: 12, fontWeight: pw.FontWeight.bold, color: color),
+                fontSize: 12,
+                fontWeight: pw.FontWeight.bold,
+                color: color),
           ),
           pw.Container(
               height: 1,
@@ -347,9 +293,6 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
     );
   }
 
-  // ==========================================================================
-  // DATA HELPERS (local, minimal)
-  // ==========================================================================
   Map<String, dynamic> _m(dynamic v) {
     if (v is Map<String, dynamic>) return v;
     if (v is Map) return Map<String, dynamic>.from(v);
@@ -374,13 +317,11 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
         .toList();
   }
 
-  // ==========================================================================
-  // BUILD
-  // ==========================================================================
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final small = size.width < 500;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       insetPadding: EdgeInsets.all(small ? 8 : 16),
@@ -494,6 +435,10 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
     );
   }
 
+  // ============================================================
+  // ✅ FIXED _buildBody() — Uses IntrinsicHeight + LayoutBuilder
+  //    to properly constrain the Row/Expanded layout in the preview.
+  // ============================================================
   Widget _buildBody() {
     if (_isLoading) {
       return Center(
@@ -549,9 +494,9 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
       );
     }
 
-    // ✅ ONLY THIS LINE CHANGES WHEN A FORMAT'S STYLE CHANGES
-    // The format file (classic/modern/tech/executive/government/fresher)
-    // owns all its colors, gradients, layouts, and shadows.
+    // ✅ The main fix: Use LayoutBuilder to get bounded width,
+    //    then wrap the preview in IntrinsicHeight + ConstrainedBox
+    //    inside a SingleChildScrollView.
     return Container(
       margin: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -561,17 +506,32 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: widget.format.buildPreview(context, widget.resumeData),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight > 500
+                      ? constraints.maxHeight
+                      : 500,
+                  maxWidth: constraints.maxWidth,
+                ),
+                child: IntrinsicHeight(
+                  child: SizedBox(
+                    width: constraints.maxWidth,
+                    child: widget.format
+                        .buildPreview(context, widget.resumeData),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  // ==========================================================================
-  // FOOTER — only "Download PDF" (full width)
-  // ==========================================================================
   Widget _buildFooter() {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -597,8 +557,7 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
               : const Icon(Icons.picture_as_pdf, size: 20),
           label: Text(
             _isExporting ? 'Exporting...' : 'Download PDF',
-            style: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.redAccent,
