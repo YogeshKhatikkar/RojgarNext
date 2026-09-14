@@ -9,6 +9,8 @@
 // ✅ NEW: Service Charge + GST added to application fees
 // ✅ NEW: Total fees = Application Fees + GST (18%) + Service Charge (₹50)
 // ✅ NEW: Payment screen receives total amount with full breakdown
+// ✅ NEW: PDF links, images, and ALL file types open in FileViewerScreen
+// ✅ NEW: Enhanced file type detection for external URLs and Google Drive
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -124,6 +126,146 @@ class FeeBreakdown {
   String toString() {
     return 'FeeBreakdown(app: ₹$applicationFee, gst: ₹$gstAmount, '
         'service: ₹$serviceCharge, total: ₹$totalFee)';
+  }
+}
+
+// ============================================================
+// FILE TYPE DETECTOR (Local helper for job detail screen)
+// ============================================================
+class _JobFileTypeDetector {
+  static const Set<String> imageExtensions = {
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'wbmp', 'ico', 'tiff', 'tif', 'svg',
+  };
+  static const Set<String> pdfExtensions = {'pdf'};
+
+  static String getExtension(String urlOrName) {
+    if (urlOrName.isEmpty) return '';
+    try {
+      final clean = urlOrName.split('?').first.split('#').first;
+      final segments = clean.split('/');
+      final last = segments.isNotEmpty ? segments.last : clean;
+      if (last.contains('.')) {
+        return last.split('.').last.toLowerCase().trim();
+      }
+    } catch (e) {
+      debugPrint('Extension parse error: $e');
+    }
+    return '';
+  }
+
+  static bool isPdf(String url, {String? explicitType}) {
+    if (url.isEmpty) return false;
+    final lower = url.toLowerCase();
+
+    // 1. Check explicit type
+    if (explicitType != null) {
+      final t = explicitType.toLowerCase();
+      if (t == 'pdf' || t.contains('pdf')) return true;
+    }
+
+    // 2. Check file extension
+    final ext = getExtension(url);
+    if (pdfExtensions.contains(ext)) return true;
+
+    // 3. Check URL patterns
+    if (lower.contains('/raw/upload/')) return true;
+    if (lower.contains('/raw/authenticated/')) return true;
+    if (lower.contains('.pdf')) return true;
+    if (lower.contains('application/pdf')) return true;
+    if (lower.contains('/pdf/')) return true;
+    if (lower.contains('type=pdf')) return true;
+    if (lower.contains('format=pdf')) return true;
+
+    // 4. Google Docs PDF export
+    if (lower.contains('docs.google.com') && lower.contains('export=pdf')) {
+      return true;
+    }
+
+    return false;
+  }
+
+  static bool isImage(String url, {String? explicitType}) {
+    if (url.isEmpty) return false;
+    final lower = url.toLowerCase();
+
+    // 1. Check explicit type
+    if (explicitType != null) {
+      final t = explicitType.toLowerCase();
+      if (t == 'image' || t.contains('image')) return true;
+    }
+
+    // 2. Check file extension
+    final ext = getExtension(url);
+    if (imageExtensions.contains(ext)) return true;
+
+    // 3. Don't classify as image if it's PDF
+    if (isPdf(url, explicitType: explicitType)) return false;
+
+    // 4. Cloudinary image patterns
+    if (lower.contains('cloudinary.com') &&
+        (lower.contains('/image/upload/') ||
+         lower.contains('/image/authenticated/'))) {
+      return true;
+    }
+
+    // 5. Common image URL patterns
+    if (lower.contains('image/')) return true;
+    if (lower.contains('img/')) return true;
+    if (lower.contains('photo/')) return true;
+    if (lower.contains('picture/')) return true;
+
+    return false;
+  }
+
+  static bool isGoogleDrive(String url) {
+    if (url.isEmpty) return false;
+    final lower = url.toLowerCase();
+    return lower.contains('drive.google.com') ||
+        lower.contains('docs.google.com');
+  }
+
+  /// ✅ Get best file type string for FileViewerScreen
+  static String detectFileType(String url, {String? explicitType}) {
+    if (url.isEmpty) return 'unknown';
+
+    if (isPdf(url, explicitType: explicitType)) return 'pdf';
+    if (isImage(url, explicitType: explicitType)) return 'image';
+    if (isGoogleDrive(url)) return 'gdrive';
+
+    final ext = getExtension(url);
+    if (ext.isNotEmpty) {
+      // Return the extension as the type for better handling
+      switch (ext) {
+        case 'doc':
+        case 'docx':
+          return 'word';
+        case 'xls':
+        case 'xlsx':
+          return 'excel';
+        case 'ppt':
+        case 'pptx':
+          return 'powerpoint';
+        case 'txt':
+        case 'log':
+        case 'md':
+        case 'json':
+        case 'xml':
+          return 'text';
+        case 'mp4':
+        case 'avi':
+        case 'mkv':
+        case 'mov':
+          return 'video';
+        case 'mp3':
+        case 'wav':
+        case 'aac':
+          return 'audio';
+        default:
+          return ext;
+      }
+    }
+
+    return 'unknown';
   }
 }
 
@@ -494,8 +636,10 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     if (officialUrl != null && officialUrl.toString().isNotEmpty) {
       _officialNotificationUrl = officialUrl.toString();
       _hasOfficialNotification = true;
-      _isOfficialNotificationPdf =
-          _officialNotificationUrl!.toLowerCase().contains('.pdf');
+      _isOfficialNotificationPdf = _JobFileTypeDetector.isPdf(
+        _officialNotificationUrl!,
+        explicitType: 'pdf',
+      );
     }
 
     final advUrl = widget.job['advertisement_url'];
@@ -507,15 +651,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           _advertisementUrl!.contains('cloudinary.com');
 
       final urlLower = _advertisementUrl!.toLowerCase();
-      _isAdvertisementPdf = urlLower.endsWith('.pdf') ||
-          urlLower.contains('fl_attachment') ||
-          urlLower.contains('raw/upload');
-      _isImageFile = urlLower.endsWith('.jpg') ||
-          urlLower.endsWith('.jpeg') ||
-          urlLower.endsWith('.png') ||
-          urlLower.endsWith('.webp');
-      _isGoogleDriveLink = urlLower.contains('drive.google.com') ||
-          urlLower.contains('docs.google.com');
+      _isAdvertisementPdf = _JobFileTypeDetector.isPdf(_advertisementUrl!);
+      _isImageFile = _JobFileTypeDetector.isImage(_advertisementUrl!);
+      _isGoogleDriveLink = _JobFileTypeDetector.isGoogleDrive(_advertisementUrl!);
     }
   }
 
@@ -1461,7 +1599,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // FILE VIEWERS
+  // ✅ ENHANCED: FILE VIEWERS - Opens ALL file types in FileViewerScreen
   // ============================================================
   void _showFilePopup(
     String url,
@@ -1469,10 +1607,35 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     String? downloadUrl,
     String? fileType,
   }) {
-    String finalUrl = url;
-    if (!finalUrl.startsWith('http')) {
+    String finalUrl = url.trim();
+    if (finalUrl.isEmpty) {
+      _showSnackBar("No file URL available", isError: true);
+      return;
+    }
+
+    if (!finalUrl.startsWith('http') &&
+        !finalUrl.startsWith('file') &&
+        !finalUrl.startsWith('blob:')) {
       finalUrl = 'https://$finalUrl';
     }
+
+    // ✅ Auto-detect file type if not provided or unknown
+    String effectiveFileType = fileType ?? 'unknown';
+    if (effectiveFileType == 'unknown' || effectiveFileType.isEmpty) {
+      effectiveFileType = _JobFileTypeDetector.detectFileType(
+        finalUrl,
+        explicitType: fileType,
+      );
+    }
+
+    debugPrint('=' * 70);
+    debugPrint('📄 OPENING FILE VIEWER');
+    debugPrint('   URL: $finalUrl');
+    debugPrint('   Title: $title');
+    debugPrint('   File Type: $effectiveFileType');
+    debugPrint('   Download URL: ${downloadUrl ?? "same as url"}');
+    debugPrint('=' * 70);
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1488,47 +1651,53 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           child: FileViewerScreen(
             url: finalUrl,
             title: title,
-            downloadUrl: downloadUrl,
-            fileType: fileType,
+            downloadUrl: downloadUrl ?? finalUrl,
+            fileType: effectiveFileType,
+            fileName: title,
           ),
         ),
       ),
     );
   }
 
+  // ============================================================
+  // ✅ VIEW OFFICIAL NOTIFICATION - Opens in FileViewerScreen
+  // ============================================================
   void _viewOfficialNotification() {
     if (_officialNotificationUrl == null || _officialNotificationUrl!.isEmpty) {
       _showSnackBar("No notification link", isError: true);
       return;
     }
+
+    // ✅ Detect if it's a PDF or other type
+    final fileType = _isOfficialNotificationPdf
+        ? 'pdf'
+        : _JobFileTypeDetector.detectFileType(_officialNotificationUrl!);
+
     _showFilePopup(
       _officialNotificationUrl!,
       widget.job['post_name'] ?? "Official Notification",
-      fileType: "pdf",
+      fileType: fileType,
     );
   }
 
+  // ============================================================
+  // ✅ VIEW ADVERTISEMENT - Opens ALL file types in FileViewerScreen
+  // ============================================================
   void _viewAdvertisement() {
     if (_advertisementUrl == null || _advertisementUrl!.isEmpty) {
       _showSnackBar("No advertisement", isError: true);
       return;
     }
-    String fileType = 'unknown';
-    final urlLower = _advertisementUrl!.toLowerCase();
-    if (urlLower.endsWith('.pdf') ||
-        urlLower.contains('fl_attachment') ||
-        urlLower.contains('raw/upload')) {
-      fileType = 'pdf';
-    } else if (urlLower.endsWith('.jpg') ||
-        urlLower.endsWith('.jpeg') ||
-        urlLower.endsWith('.png') ||
-        urlLower.endsWith('.webp')) {
-      fileType = 'image';
-    } else if (urlLower.endsWith('.doc') || urlLower.endsWith('.docx')) {
-      fileType = 'word';
-    } else if (urlLower.contains('drive.google.com')) {
-      fileType = 'gdrive';
-    }
+
+    // ✅ Enhanced file type detection using our helper
+    final fileType = _JobFileTypeDetector.detectFileType(
+      _advertisementUrl!,
+    );
+
+    debugPrint('📢 Advertisement file type: $fileType');
+    debugPrint('   URL: $_advertisementUrl');
+
     _showFilePopup(
       _advertisementUrl!,
       widget.job['post_name'] ?? "Job Advertisement",

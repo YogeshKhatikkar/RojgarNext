@@ -8,7 +8,7 @@ analyzer:
     - macos/**
     - linux/**
     - lib/features/payment/razorpay_web_service.dart
-    # ^ this file is web-only and never compiled for APK
+    - lib/core/widgets/web_pdf_viewer_web.dart
 
 include: package:flutter_lints/flutter.yaml
 
