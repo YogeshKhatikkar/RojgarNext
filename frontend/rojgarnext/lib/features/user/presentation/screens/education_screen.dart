@@ -11,6 +11,7 @@
 // ✅ FIXED: NO duplicate level (chip shows level; title shows degree/stream only)
 // ✅ FIXED: _getLevelColor returns MaterialColor (so .shadeXXX works)
 // ✅ FIXED: No stray characters at end of file
+// ✅ FIXED: Dropdown selection list names now clearly visible
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
@@ -1005,6 +1006,7 @@ class _EducationScreenState extends State<EducationScreen> {
     );
   }
 
+  // ✅ FIXED: Dropdown selection list names now clearly visible
   Widget _buildAIDropdown<T>(
     T? value,
     List<T> items,
@@ -1032,6 +1034,8 @@ class _EducationScreenState extends State<EducationScreen> {
         ),
         child: DropdownButtonFormField<T>(
           value: safeValue,
+          // ✅ Dropdown menu background white — items clearly visible
+          dropdownColor: Colors.white,
           decoration: InputDecoration(
             labelText: required ? "$label *" : label,
             labelStyle: TextStyle(
@@ -1044,12 +1048,25 @@ class _EducationScreenState extends State<EducationScreen> {
             suffixIcon:
                 Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
           ),
+          // ✅ Selected value text style — clearly visible
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
           items: items
               .map(
                 (item) => DropdownMenuItem<T>(
                   value: item,
-                  child: Text(item.toString(),
-                      style: const TextStyle(color: Colors.black87)),
+                  // ✅ Item name text — black, 15px, medium weight
+                  child: Text(
+                    item.toString(),
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
               )
               .toList(),

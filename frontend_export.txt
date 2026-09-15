@@ -1,15 +1,9 @@
 ================================================================================
 ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-<<<<<<< HEAD
-Generated: 2026-09-14 12:02:17
+Generated: 2026-09-15 10:38:32
 Source: E:\yogesh\website\rojgarnext\frontend
-Total Files: 127
-=======
-Generated: 2026-09-14 17:20:57
-Source: H:\yogesh\website\rojgarnext\frontend
 Total Files: 129
->>>>>>> 5fdcfed668962850c77422e75da326c94af48e9d
 Total Size: 2.6 MB
 ================================================================================
 
@@ -249,7 +243,7 @@ File Types:
 ================================================================================
 [   1/ 129] 📄 rojgarnext/Dockerfile
 📏 SIZE: 274 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 FROM cirrusci/flutter:stable AS builder
@@ -266,7 +260,7 @@ CMD ["nginx", "-g", "daemon off;"]
 ================================================================================
 [   2/ 129] 📝 rojgarnext/README.md
 📏 SIZE: 649 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 # rojgarnext
@@ -291,7 +285,7 @@ samples, guidance on mobile development, and a full API reference.
 ================================================================================
 [   3/ 129] ⚙️ rojgarnext/analysis_options.yaml
 📏 SIZE: 559 B
-🕐 MODIFIED: 2026-09-14 13:38:51
+🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
 
 analyzer:
@@ -321,7 +315,7 @@ linter:
 ================================================================================
 [   4/ 129] 🎯 rojgarnext/lib/core/config/api_config.dart
 📏 SIZE: 2.2 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-12 12:05:34
 ================================================================================
 
 // lib/core/config/api_config.dart
@@ -406,7 +400,7 @@ class ApiConfig {
 ================================================================================
 [   5/ 129] 🎯 rojgarnext/lib/core/master_date/education.dart
 📏 SIZE: 40.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/master_data/education.dart
@@ -1956,7 +1950,7 @@ class EducationMasterData {
 ================================================================================
 [   6/ 129] 🎯 rojgarnext/lib/core/master_date/locations.dart
 📏 SIZE: 2.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/location/locations.dart
@@ -2056,7 +2050,7 @@ class LocationData {
 ================================================================================
 [   7/ 129] 🎯 rojgarnext/lib/core/network/dio_client.dart
 📏 SIZE: 4.2 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/network/dio_client.dart
@@ -2200,7 +2194,7 @@ void initDioClient() {
 ================================================================================
 [   8/ 129] 🎯 rojgarnext/lib/core/routes/app_routes.dart
 📏 SIZE: 3.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/routes/app_routes.dart
@@ -2299,7 +2293,7 @@ class AppRoutes {
 ================================================================================
 [   9/ 129] 🎯 rojgarnext/lib/core/services/cloudinary_service.dart
 📏 SIZE: 7.0 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/services/cloudinary_service.dart
@@ -2533,7 +2527,7 @@ class CloudinaryService {
 ================================================================================
 [  10/ 129] 🎯 rojgarnext/lib/core/services/geocoding_service.dart
 📏 SIZE: 806 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/services/geocoding_service.dart
@@ -2570,7 +2564,7 @@ class GeocodingService {
 ================================================================================
 [  11/ 129] 🎯 rojgarnext/lib/core/services/location_service.dart
 📏 SIZE: 5.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/services/location_service.dart
@@ -2750,7 +2744,7 @@ class LocationService {
 ================================================================================
 [  12/ 129] 🎯 rojgarnext/lib/core/services/permission_service.dart
 📏 SIZE: 3.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/services/permission_service.dart
@@ -2881,7 +2875,7 @@ class PermissionService {
 ================================================================================
 [  13/ 129] 🎯 rojgarnext/lib/core/services/real_location_service.dart
 📏 SIZE: 7.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/services/real_location_service.dart
@@ -3123,7 +3117,7 @@ class RealLocationService {
 ================================================================================
 [  14/ 129] 🎯 rojgarnext/lib/core/services/unified_location_service.dart
 📏 SIZE: 1.1 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/services/unified_location_service.dart
@@ -3161,7 +3155,7 @@ class UnifiedLocationService {
 ================================================================================
 [  15/ 129] 🎯 rojgarnext/lib/core/services/universal_location_service.dart
 📏 SIZE: 9.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/services/universal_location_service.dart
@@ -3446,7 +3440,7 @@ Please try:
 ================================================================================
 [  16/ 129] 🎯 rojgarnext/lib/core/services/web_location_service.dart
 📏 SIZE: 3.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/services/web_location_service.dart
@@ -3566,7 +3560,7 @@ class WebLocationService {
 ================================================================================
 [  17/ 129] 🎯 rojgarnext/lib/core/storage/secure_storage.dart
 📏 SIZE: 6.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/storage/secure_storage.dart
@@ -3763,7 +3757,7 @@ class SecureStorage {
 ================================================================================
 [  18/ 129] 🎯 rojgarnext/lib/core/utils/app_snackbar.dart
 📏 SIZE: 2.4 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/utils/app_snackbar.dart
@@ -3849,7 +3843,7 @@ void showGlobalSnackBar(String message, {bool isError = false}) {
 ================================================================================
 [  19/ 129] 🎯 rojgarnext/lib/core/utils/auth_guard.dart
 📏 SIZE: 798 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 import 'package:flutter/material.dart';
@@ -3889,7 +3883,7 @@ class AuthGuard extends StatelessWidget {
 ================================================================================
 [  20/ 129] 🎯 rojgarnext/lib/core/utils/constants.dart
 📏 SIZE: 967 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/utils/constants.dart
@@ -3925,7 +3919,7 @@ class AppConstants {
 ================================================================================
 [  21/ 129] 🎯 rojgarnext/lib/core/utils/coordinate_parser.dart
 📏 SIZE: 5.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/utils/coordinate_parser.dart
@@ -4107,7 +4101,7 @@ class CoordinateParser {
 ================================================================================
 [  22/ 129] 🎯 rojgarnext/lib/core/utils/distance_calculator.dart
 📏 SIZE: 1.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/utils/distance_calculator.dart
@@ -4189,7 +4183,7 @@ class DistanceCalculator {
 ================================================================================
 [  23/ 129] 🎯 rojgarnext/lib/core/utils/js_stub.dart
 📏 SIZE: 1.1 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 12:53:05
 ================================================================================
 
 // lib/core/utils/js_stub.dart
@@ -4235,7 +4229,7 @@ typedef JSAny = dynamic;
 ================================================================================
 [  24/ 129] 🎯 rojgarnext/lib/core/utils/logger.dart
 📏 SIZE: 999 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/utils/logger.dart
@@ -4283,7 +4277,7 @@ class Logger {
 ================================================================================
 [  25/ 129] 🎯 rojgarnext/lib/core/utils/platform_utils.dart
 📏 SIZE: 2.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-12 12:06:10
 ================================================================================
 
 // lib/core/utils/platform_utils.dart
@@ -4390,7 +4384,7 @@ class PlatformUtils {
 ================================================================================
 [  26/ 129] 🎯 rojgarnext/lib/core/utils/safe_async.dart
 📏 SIZE: 2 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 
@@ -4399,7 +4393,7 @@ class PlatformUtils {
 ================================================================================
 [  27/ 129] 🎯 rojgarnext/lib/core/utils/stub_device_info.dart
 📏 SIZE: 608 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/utils/stub_device_info.dart
@@ -4429,7 +4423,7 @@ class IosDeviceInfo {
 ================================================================================
 [  28/ 129] 🎯 rojgarnext/lib/core/utils/stub_local_auth.dart
 📏 SIZE: 816 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/utils/stub_local_auth.dart
@@ -4467,7 +4461,7 @@ class BiometricType {
 ================================================================================
 [  29/ 129] 🎯 rojgarnext/lib/core/utils/widgets.dart
 📏 SIZE: 1.0 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 import 'package:flutter/material.dart';
@@ -4512,7 +4506,7 @@ class ModernButton extends StatelessWidget {
 ================================================================================
 [  30/ 129] 🎯 rojgarnext/lib/core/widgets/base_page.dart
 📏 SIZE: 970 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/widgets/base_page.dart - CORRECTED
@@ -4557,14 +4551,18 @@ class BasePage extends StatelessWidget {
 
 ================================================================================
 [  31/ 129] 🎯 rojgarnext/lib/core/widgets/file_viewer_screen.dart
-📏 SIZE: 33.8 KB
-🕐 MODIFIED: 2026-09-14 13:03:46
+📏 SIZE: 43.9 KB
+🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
 
 // lib/core/widgets/file_viewer_screen.dart
-// ✅ PDF + IMAGE both display directly with blob URLs
-// ✅ Both have DOWNLOAD icon in AppBar
-// ✅ No download prompts during viewing
+// ✅ FIXED: External PDFs now open on Web WITHOUT CORS issues
+// ✅ Strategy:
+//    - Cloudinary/owned PDFs → Download bytes → Blob URL (works)
+//    - External PDFs on Web → Direct iframe embed (no XHR)
+//    - Mobile → Download to local file (as before)
+// ✅ PDF, Image, Google Drive, and all other file types supported
+// ✅ DOWNLOAD icon available for all supported types
 
 import 'dart:io';
 import 'dart:typed_data';
@@ -4584,11 +4582,11 @@ import 'web_pdf_viewer_stub.dart'
     if (dart.library.js_interop) 'web_pdf_viewer_web.dart' as web_viewer;
 
 // ============================================================================
-// FILE TYPE DETECTOR
+// FILE TYPE DETECTOR - ENHANCED
 // ============================================================================
 class FileTypeDetector {
   static const Set<String> imageExtensions = {
-    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'wbmp', 'ico',
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'wbmp', 'ico', 'tiff', 'tif', 'svg',
   };
   static const Set<String> pdfExtensions = {'pdf'};
   static const Set<String> wordExtensions = {'doc', 'docx', 'odt', 'rtf'};
@@ -4598,10 +4596,10 @@ class FileTypeDetector {
     'txt', 'log', 'md', 'json', 'xml', 'html', 'css', 'js', 'yaml', 'yml'
   };
   static const Set<String> videoExtensions = {
-    'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm'
+    'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', '3gp'
   };
   static const Set<String> audioExtensions = {
-    'mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a'
+    'mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a', 'wma'
   };
 
   static String getExtension(String urlOrName) {
@@ -4620,35 +4618,59 @@ class FileTypeDetector {
   }
 
   static bool isPdf(String url, {String? explicitType}) {
+    if (url.isEmpty) return false;
+    final lower = url.toLowerCase();
+
     if (explicitType != null) {
       final t = explicitType.toLowerCase();
       if (t == 'pdf' || t.contains('pdf')) return true;
     }
-    if (pdfExtensions.contains(getExtension(url))) return true;
-    final lower = url.toLowerCase();
+
+    final ext = getExtension(url);
+    if (pdfExtensions.contains(ext)) return true;
+
     if (lower.contains('/raw/upload/')) return true;
     if (lower.contains('/raw/authenticated/')) return true;
     if (lower.contains('.pdf')) return true;
-    return false;
-  }
+    if (lower.contains('application/pdf')) return true;
+    if (lower.contains('/pdf/')) return true;
+    if (lower.contains('type=pdf')) return true;
+    if (lower.contains('format=pdf')) return true;
 
-  static bool isImage(String url, {String? explicitType}) {
-    if (explicitType != null) {
-      final t = explicitType.toLowerCase();
-      if (t == 'image' || t.contains('image')) return true;
-    }
-    if (imageExtensions.contains(getExtension(url))) return true;
-    if (isPdf(url, explicitType: explicitType)) return false;
-    final lower = url.toLowerCase();
-    if (lower.contains('cloudinary.com') &&
-        (lower.contains('/image/upload/') ||
-            lower.contains('/image/authenticated/'))) {
+    if (lower.contains('docs.google.com') && lower.contains('export=pdf')) {
       return true;
     }
     return false;
   }
 
+  static bool isImage(String url, {String? explicitType}) {
+    if (url.isEmpty) return false;
+    final lower = url.toLowerCase();
+
+    if (explicitType != null) {
+      final t = explicitType.toLowerCase();
+      if (t == 'image' || t.contains('image')) return true;
+    }
+
+    final ext = getExtension(url);
+    if (imageExtensions.contains(ext)) return true;
+
+    if (isPdf(url, explicitType: explicitType)) return false;
+
+    if (lower.contains('cloudinary.com') &&
+        (lower.contains('/image/upload/') ||
+         lower.contains('/image/authenticated/'))) {
+      return true;
+    }
+    if (lower.contains('image/')) return true;
+    if (lower.contains('img/')) return true;
+    if (lower.contains('photo/')) return true;
+    if (lower.contains('picture/')) return true;
+    return false;
+  }
+
   static bool isWord(String url, {String? explicitType}) {
+    if (url.isEmpty) return false;
     if (explicitType != null && explicitType.toLowerCase().contains('word')) {
       return true;
     }
@@ -4656,6 +4678,7 @@ class FileTypeDetector {
   }
 
   static bool isExcel(String url, {String? explicitType}) {
+    if (url.isEmpty) return false;
     if (explicitType != null && explicitType.toLowerCase().contains('excel')) {
       return true;
     }
@@ -4663,6 +4686,7 @@ class FileTypeDetector {
   }
 
   static bool isPowerPoint(String url, {String? explicitType}) {
+    if (url.isEmpty) return false;
     if (explicitType != null &&
         explicitType.toLowerCase().contains('powerpoint')) {
       return true;
@@ -4671,6 +4695,7 @@ class FileTypeDetector {
   }
 
   static bool isText(String url, {String? explicitType}) {
+    if (url.isEmpty) return false;
     if (explicitType != null && explicitType.toLowerCase().contains('text')) {
       return true;
     }
@@ -4678,6 +4703,7 @@ class FileTypeDetector {
   }
 
   static bool isVideo(String url, {String? explicitType}) {
+    if (url.isEmpty) return false;
     if (explicitType != null && explicitType.toLowerCase().contains('video')) {
       return true;
     }
@@ -4685,6 +4711,7 @@ class FileTypeDetector {
   }
 
   static bool isAudio(String url, {String? explicitType}) {
+    if (url.isEmpty) return false;
     if (explicitType != null && explicitType.toLowerCase().contains('audio')) {
       return true;
     }
@@ -4692,12 +4719,19 @@ class FileTypeDetector {
   }
 
   static bool isGoogleDrive(String url) {
+    if (url.isEmpty) return false;
     final lower = url.toLowerCase();
     return lower.contains('drive.google.com') ||
         lower.contains('docs.google.com');
   }
 
+  static bool isCloudinary(String url) {
+    if (url.isEmpty) return false;
+    return url.toLowerCase().contains('cloudinary.com');
+  }
+
   static IconData getIcon(String url, {String? explicitType}) {
+    if (url.isEmpty) return Icons.insert_drive_file;
     if (isPdf(url, explicitType: explicitType)) return Icons.picture_as_pdf;
     if (isImage(url, explicitType: explicitType)) return Icons.image;
     if (isWord(url, explicitType: explicitType)) return Icons.description;
@@ -4711,6 +4745,7 @@ class FileTypeDetector {
   }
 
   static Color getColor(String url, {String? explicitType}) {
+    if (url.isEmpty) return Colors.blueGrey;
     if (isPdf(url, explicitType: explicitType)) return Colors.red;
     if (isImage(url, explicitType: explicitType)) return Colors.blue;
     if (isWord(url, explicitType: explicitType)) return Colors.indigo;
@@ -4723,7 +4758,6 @@ class FileTypeDetector {
     return Colors.blueGrey;
   }
 
-  /// ✅ Get file extension based on MIME type
   static String getExtensionFromMime(String mimeType) {
     switch (mimeType.toLowerCase()) {
       case 'application/pdf':
@@ -4739,10 +4773,50 @@ class FileTypeDetector {
         return 'webp';
       case 'image/bmp':
         return 'bmp';
+      case 'image/tiff':
+        return 'tiff';
       case 'text/plain':
         return 'txt';
+      case 'application/msword':
+        return 'doc';
+      case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        return 'docx';
+      case 'application/vnd.ms-excel':
+        return 'xls';
+      case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+        return 'xlsx';
       default:
         return 'file';
+    }
+  }
+
+  static String getMimeFromExtension(String ext) {
+    switch (ext.toLowerCase()) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'bmp':
+        return 'image/bmp';
+      case 'svg':
+        return 'image/svg+xml';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      default:
+        return 'application/octet-stream';
     }
   }
 }
@@ -4776,9 +4850,12 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
   String? _localFilePath;
   Uint8List? _fileBytes;
 
-  // ✅ Blob URLs for web
+  // ✅ Blob URLs for web (only for CORS-friendly sources)
   String? _blobUrl;
   String _blobMimeType = '';
+
+  // ✅ NEW: Flag to indicate we're using direct iframe (external URL)
+  bool _useDirectIframe = false;
 
   final TransformationController _imageController = TransformationController();
   double _zoomScale = 1.0;
@@ -4795,6 +4872,8 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
   bool _isVideo = false;
   bool _isAudio = false;
   bool _isGoogleDrive = false;
+  bool _isExternalUrl = false;
+  bool _isCloudinaryUrl = false;
 
   @override
   void initState() {
@@ -4816,13 +4895,27 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _useDirectIframe = false;
     });
 
-    _effectiveUrl = widget.url;
+    _effectiveUrl = widget.url.trim();
+    if (_effectiveUrl.isEmpty) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'No URL provided';
+      });
+      return;
+    }
+
+    // Ensure URL has protocol
     if (!_effectiveUrl.startsWith('http') &&
-        !_effectiveUrl.startsWith('file')) {
+        !_effectiveUrl.startsWith('file') &&
+        !_effectiveUrl.startsWith('blob:')) {
       _effectiveUrl = 'https://$_effectiveUrl';
     }
+
+    _isCloudinaryUrl = _effectiveUrl.contains('cloudinary.com');
+    _isExternalUrl = !_isCloudinaryUrl;
 
     _detectFileType();
 
@@ -4831,31 +4924,83 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
     debugPrint('   URL: $_effectiveUrl');
     debugPrint('   Is PDF: $_isPdf');
     debugPrint('   Is Image: $_isImage');
+    debugPrint('   Is Google Drive: $_isGoogleDrive');
+    debugPrint('   Is External: $_isExternalUrl');
+    debugPrint('   Is Cloudinary: $_isCloudinaryUrl');
     debugPrint('   Platform: ${_isWeb ? "Web" : "Mobile"}');
+    debugPrint('   File Extension: $_fileExtension');
     debugPrint('=' * 70);
 
+    // ✅ Handle Google Drive links specially
+    if (_isGoogleDrive) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    // ========================================================================
+    // ✅ PDF HANDLING
+    // ========================================================================
     if (_isPdf) {
       if (_isWeb) {
-        _prepareWebBlobUrl('application/pdf');
+        // ✅ SMART STRATEGY FOR WEB:
+        // - Cloudinary PDFs → download bytes → blob (works, CORS allowed)
+        // - External PDFs → direct iframe (bypasses CORS entirely)
+        if (_isCloudinaryUrl) {
+          _prepareWebBlobUrl('application/pdf');
+        } else {
+          // External PDF → direct iframe embed (NO download)
+          debugPrint('🔗 External PDF detected → using DIRECT iframe embed');
+          setState(() {
+            _useDirectIframe = true;
+            _isLoading = false;
+          });
+        }
       } else {
+        // Mobile: download to local file
         _downloadPdfForMobile();
       }
-    } else if (_isImage) {
+      return;
+    }
+
+    // ========================================================================
+    // ✅ IMAGE HANDLING
+    // ========================================================================
+    if (_isImage) {
       if (_isWeb) {
-        _prepareWebBlobUrl(null);
+        // Cloudinary images → blob (works)
+        // External images → try direct img tag with crossOrigin
+        if (_isCloudinaryUrl) {
+          _prepareWebBlobUrl(null);
+        } else {
+          // External image → direct embed
+          debugPrint('🔗 External Image detected → using DIRECT img embed');
+          setState(() {
+            _useDirectIframe = true;
+            _isLoading = false;
+          });
+        }
       } else {
         setState(() => _isLoading = false);
       }
-    } else if (_isText) {
-      _downloadTextFile();
-    } else {
-      setState(() => _isLoading = false);
+      return;
     }
+
+    // ========================================================================
+    // ✅ TEXT HANDLING
+    // ========================================================================
+    if (_isText && _isCloudinaryUrl) {
+      _downloadTextFile();
+      return;
+    }
+
+    // Other file types - show unsupported view
+    setState(() => _isLoading = false);
   }
 
   void _detectFileType() {
     _fileExtension = FileTypeDetector.getExtension(_effectiveUrl);
     final explicitType = widget.fileType?.toLowerCase() ?? '';
+
     _isPdf = FileTypeDetector.isPdf(_effectiveUrl, explicitType: explicitType);
     _isImage = !_isPdf &&
         FileTypeDetector.isImage(_effectiveUrl, explicitType: explicitType);
@@ -4873,18 +5018,24 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
   }
 
   // ========================================================================
-  // UNIFIED WEB BLOB PREPARATION
+  // ✅ WEB BLOB PREPARATION (only for Cloudinary / owned files)
   // ========================================================================
   Future<void> _prepareWebBlobUrl(String? explicitMime) async {
     try {
       debugPrint('⬇️ Downloading bytes for web blob...');
+      debugPrint('   URL: $_effectiveUrl');
 
+      // ✅ NO custom User-Agent header (avoid preflight)
       final response = await Dio().get<List<int>>(
         _effectiveUrl,
         options: Options(
           responseType: ResponseType.bytes,
           followRedirects: true,
           validateStatus: (status) => status != null && status < 500,
+          headers: {
+            'Accept': '*/*',
+            // ✅ Do NOT add User-Agent — it triggers CORS preflight
+          },
         ),
       );
 
@@ -4921,9 +5072,12 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
     } catch (e) {
       debugPrint('❌ Web blob preparation failed: $e');
       if (mounted) {
+        // ✅ FALLBACK: If download fails, try direct iframe anyway
+        debugPrint('🔄 Falling back to DIRECT iframe embed');
         setState(() {
+          _useDirectIframe = true;
           _isLoading = false;
-          _errorMessage = 'Failed to load file: ${e.toString()}';
+          _errorMessage = null;
         });
       }
     }
@@ -4932,44 +5086,51 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
   String _detectMimeType(Response<List<int>> response, Uint8List bytes) {
     final contentType = response.headers.value('content-type') ?? '';
     if (contentType.isNotEmpty) {
-      if (contentType.contains('pdf')) return 'application/pdf';
-      if (contentType.contains('image/jpeg')) return 'image/jpeg';
-      if (contentType.contains('image/jpg')) return 'image/jpeg';
-      if (contentType.contains('image/png')) return 'image/png';
-      if (contentType.contains('image/webp')) return 'image/webp';
-      if (contentType.contains('image/gif')) return 'image/gif';
-      if (contentType.startsWith('image/')) {
+      final lowerType = contentType.toLowerCase();
+      if (lowerType.contains('pdf')) return 'application/pdf';
+      if (lowerType.contains('image/jpeg')) return 'image/jpeg';
+      if (lowerType.contains('image/jpg')) return 'image/jpeg';
+      if (lowerType.contains('image/png')) return 'image/png';
+      if (lowerType.contains('image/webp')) return 'image/webp';
+      if (lowerType.contains('image/gif')) return 'image/gif';
+      if (lowerType.contains('image/bmp')) return 'image/bmp';
+      if (lowerType.contains('image/svg')) return 'image/svg+xml';
+      if (lowerType.startsWith('image/')) {
         return contentType.split(';').first.trim();
       }
     }
 
     if (bytes.length >= 4) {
-      // PDF: %PDF
-      if (bytes[0] == 0x25 && bytes[1] == 0x50 && bytes[2] == 0x44 && bytes[3] == 0x46) {
+      if (bytes[0] == 0x25 &&
+          bytes[1] == 0x50 &&
+          bytes[2] == 0x44 &&
+          bytes[3] == 0x46) {
         return 'application/pdf';
       }
-      // JPEG: FF D8 FF
       if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) {
         return 'image/jpeg';
       }
-      // PNG: 89 50 4E 47
-      if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
+      if (bytes[0] == 0x89 &&
+          bytes[1] == 0x50 &&
+          bytes[2] == 0x4E &&
+          bytes[3] == 0x47) {
         return 'image/png';
       }
-      // GIF
       if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46) {
         return 'image/gif';
       }
-      // WEBP: RIFF....WEBP
       if (bytes.length >= 12 &&
           bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 &&
           bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50) {
         return 'image/webp';
       }
+      if (bytes[0] == 0x42 && bytes[1] == 0x4D) {
+        return 'image/bmp';
+      }
     }
 
     if (_isPdf) return 'application/pdf';
-    if (_isImage) return 'image/jpeg';
+    if (_isImage) return FileTypeDetector.getMimeFromExtension(_fileExtension);
     return 'application/octet-stream';
   }
 
@@ -5050,12 +5211,10 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
     }
   }
 
-  /// ✅ Get proper download file name with correct extension
   String _getDownloadFileName() {
     String baseName;
     if (widget.fileName != null && widget.fileName!.isNotEmpty) {
       baseName = widget.fileName!;
-      // Remove extension if present
       if (baseName.contains('.')) {
         baseName = baseName.split('.').first;
       }
@@ -5065,7 +5224,6 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
       baseName = 'document';
     }
 
-    // Determine extension from MIME type or detected type
     String extension = '';
     if (_blobMimeType.isNotEmpty) {
       extension = FileTypeDetector.getExtensionFromMime(_blobMimeType);
@@ -5080,10 +5238,8 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
       }
     }
 
-    // Sanitize base name
     baseName = baseName.replaceAll(RegExp(r'[^\w\s\-]'), '').trim();
     if (baseName.isEmpty) baseName = 'document';
-
     return '$baseName.$extension';
   }
 
@@ -5092,10 +5248,16 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
   // ========================================================================
   Future<void> _downloadFile() async {
     try {
-      // ✅ WEB: Use blob URL for download
+      // ✅ WEB: Use blob URL for download (only available for Cloudinary)
       if (_isWeb) {
         if (_blobUrl == null) {
-          _showSnackBar('File not ready for download', isError: true);
+          // For external URLs, open in browser instead
+          _showSnackBar(
+            'This file is hosted externally. Use "Open in Browser" to download.',
+            isError: false,
+          );
+          // Try opening external URL in new tab
+          web_viewer.openExternalUrl(_effectiveUrl);
           return;
         }
 
@@ -5110,7 +5272,6 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
       // ✅ MOBILE: Download and save file
       _showSnackBar('Downloading file...');
 
-      // If we already have local file (PDF), copy it
       if (_localFilePath != null) {
         final dir = await getDownloadsDirectory() ??
             await getTemporaryDirectory();
@@ -5124,7 +5285,6 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
         return;
       }
 
-      // Otherwise download from URL
       final dir =
           await getDownloadsDirectory() ?? await getTemporaryDirectory();
       final fileName = _getDownloadFileName();
@@ -5185,6 +5345,23 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
     );
   }
 
+  Future<void> _openInBrowser() async {
+    if (_isWeb) {
+      web_viewer.openExternalUrl(_effectiveUrl);
+      return;
+    }
+    try {
+      final uri = Uri.parse(_effectiveUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        _showSnackBar('Could not open in browser', isError: true);
+      }
+    } catch (e) {
+      _showSnackBar('Error opening browser: $e', isError: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -5194,9 +5371,6 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
     );
   }
 
-  // ========================================================================
-  // ✅ APPBAR - Now has download button for BOTH PDF and Image
-  // ========================================================================
   PreferredSizeWidget _buildAppBar() {
     final isReady = !_isLoading && _errorMessage == null;
 
@@ -5215,8 +5389,8 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
         tooltip: 'Close',
       ),
       actions: [
-        // ✅ Zoom controls for images
-        if (_isImage && isReady) ...[
+        // Zoom controls for images
+        if (_isImage && isReady && !_useDirectIframe) ...[
           IconButton(
             icon: const Icon(Icons.zoom_out),
             onPressed: _zoomOut,
@@ -5234,15 +5408,22 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
           ),
         ],
 
-        // ✅ DOWNLOAD BUTTON - for PDF AND Image (both web + mobile)
-        if ((_isPdf || _isImage) && isReady)
+        // ✅ DOWNLOAD BUTTON - only when blob URL is available
+        if ((_isPdf || _isImage) && isReady && _blobUrl != null)
           IconButton(
             icon: const Icon(Icons.download),
             onPressed: _downloadFile,
             tooltip: 'Download',
           ),
 
-        // Refresh button
+        // ✅ Open in browser - always available
+        if (isReady)
+          IconButton(
+            icon: const Icon(Icons.open_in_browser),
+            onPressed: _openInBrowser,
+            tooltip: 'Open in Browser',
+          ),
+
         IconButton(
           icon: const Icon(Icons.refresh),
           onPressed: _refreshViewer,
@@ -5258,6 +5439,7 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
     if (_isPdf) return _buildPdfView();
     if (_isImage) return _buildImageView();
     if (_isText && _fileBytes != null) return _buildTextView();
+    if (_isGoogleDrive) return _buildGoogleDriveView();
     return _buildUnsupportedFileView();
   }
 
@@ -5339,17 +5521,35 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
               style: const TextStyle(color: Colors.white54, fontSize: 13),
             ),
             const SizedBox(height: 28),
-            ElevatedButton.icon(
-              onPressed: _refreshViewer,
-              icon: const Icon(Icons.refresh),
-              label: const Text("Retry"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _refreshViewer,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text("Retry"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: _openInBrowser,
+                  icon: const Icon(Icons.open_in_browser),
+                  label: const Text("Open Browser"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -5357,18 +5557,33 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
     );
   }
 
-  // PDF VIEW
+  // ========================================================================
+  // ✅ PDF VIEW - SMART STRATEGY
+  // ========================================================================
   Widget _buildPdfView() {
     if (_isWeb) {
-      if (_blobUrl == null) {
-        return _buildFileErrorView('PDF not prepared');
+      // ✅ Case 1: Blob URL available (Cloudinary PDF downloaded)
+      if (_blobUrl != null) {
+        return web_viewer.buildWebPdfFromBlob(
+          blobUrl: _blobUrl!,
+          title: widget.title,
+        );
       }
-      return web_viewer.buildWebPdfFromBlob(
-        blobUrl: _blobUrl!,
-        title: widget.title,
-      );
+
+      // ✅ Case 2: Direct iframe for external PDF
+      if (_useDirectIframe) {
+        debugPrint('📄 Using DIRECT iframe for external PDF');
+        return web_viewer.buildWebPdfFromUrl(
+          url: _effectiveUrl,
+          title: widget.title,
+        );
+      }
+
+      // Should not reach here, but as fallback
+      return _buildFileErrorView('PDF not prepared');
     }
 
+    // Mobile
     if (_localFilePath != null) {
       final file = File(_localFilePath!);
       return FutureBuilder<bool>(
@@ -5453,19 +5668,31 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
     );
   }
 
-  // IMAGE VIEW
+  // ========================================================================
+  // ✅ IMAGE VIEW
+  // ========================================================================
   Widget _buildImageView() {
     if (_isWeb) {
-      if (_blobUrl == null) {
-        return _buildFileErrorView('Image not prepared');
+      // Blob URL (Cloudinary)
+      if (_blobUrl != null) {
+        debugPrint('🖼️ Building web image from blob: $_blobUrl');
+        return web_viewer.buildWebImageFromBlob(
+          blobUrl: _blobUrl!,
+          controller: _imageController,
+        );
       }
-      debugPrint('🖼️ Building web image from blob: $_blobUrl');
-      return web_viewer.buildWebImageFromBlob(
-        blobUrl: _blobUrl!,
-        controller: _imageController,
-      );
+
+      // Direct external image
+      if (_useDirectIframe) {
+        debugPrint('🖼️ Building web image from direct URL');
+        return web_viewer.buildWebImageFromUrl(
+          url: _effectiveUrl,
+          controller: _imageController,
+        );
+      }
     }
 
+    // Mobile: use cached network image (works fine on mobile)
     return InteractiveViewer(
       transformationController: _imageController,
       minScale: 0.5,
@@ -5544,6 +5771,71 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
     );
   }
 
+  // GOOGLE DRIVE VIEW
+  Widget _buildGoogleDriveView() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(30),
+              decoration: BoxDecoration(
+                color: Colors.teal.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: Colors.teal.withValues(alpha: 0.4), width: 2),
+              ),
+              child: const Icon(Icons.cloud, size: 80, color: Colors.teal),
+            ),
+            const SizedBox(height: 28),
+            Text(
+              widget.title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Google Drive Document",
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white70,
+              ),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: 260,
+              height: 54,
+              child: ElevatedButton.icon(
+                onPressed: _openInBrowser,
+                icon: const Icon(Icons.open_in_new, size: 22),
+                label: const Text(
+                  "Open in Browser",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // UNSUPPORTED FILE VIEW
   Widget _buildUnsupportedFileView() {
     final icon = FileTypeDetector.getIcon(_effectiveUrl,
@@ -5608,10 +5900,7 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
 
   Future<void> _openWithExternalApp() async {
     if (_isWeb) {
-      final uri = Uri.parse(_effectiveUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
+      await _openInBrowser();
       return;
     }
     try {
@@ -5635,7 +5924,7 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
 ================================================================================
 [  32/ 129] 🎯 rojgarnext/lib/core/widgets/location_dropdowns.dart
 📏 SIZE: 9.2 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/widgets/location_dropdowns.dart
@@ -5937,7 +6226,7 @@ class _LocationDropdownsState extends State<LocationDropdowns> {
 ================================================================================
 [  33/ 129] 🎯 rojgarnext/lib/core/widgets/modern_button.dart
 📏 SIZE: 2.4 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/widgets/modern_button.dart
@@ -6028,7 +6317,7 @@ class ModernButton extends StatelessWidget {
 ================================================================================
 [  34/ 129] 🎯 rojgarnext/lib/core/widgets/platform_aware.dart
 📏 SIZE: 2.2 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/widgets/platform_aware.dart
@@ -6113,7 +6402,7 @@ class PlatformAware {
 ================================================================================
 [  35/ 129] 🎯 rojgarnext/lib/core/widgets/platform_file_picker.dart
 📏 SIZE: 2.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/widgets/platform_file_picker.dart
@@ -6218,7 +6507,7 @@ class PlatformFileResult {
 ================================================================================
 [  36/ 129] 🎯 rojgarnext/lib/core/widgets/platform_webview.dart
 📏 SIZE: 3.0 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 12:54:26
 ================================================================================
 
 // lib/core/widgets/platform_webview.dart
@@ -6325,7 +6614,7 @@ class _PlatformWebViewState extends State<PlatformWebView> {
 ================================================================================
 [  37/ 129] 🎯 rojgarnext/lib/core/widgets/responsive_widget.dart
 📏 SIZE: 2.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/core/widgets/responsive_widget.dart
@@ -6421,13 +6710,14 @@ class ResponsiveWidget extends StatelessWidget {
 
 ================================================================================
 [  38/ 129] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_stub.dart
-📏 SIZE: 1.6 KB
-🕐 MODIFIED: 2026-09-14 13:39:45
+📏 SIZE: 3.1 KB
+🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
 
 // lib/core/widgets/web_pdf_viewer_stub.dart
 // ✅ Stub for mobile/native platforms (Android / iOS / Windows / Linux / macOS)
 // ✅ This file MUST NOT import dart:html or dart:js_interop
+// ✅ ALL functions must exist so conditional import works on all platforms
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -6441,6 +6731,21 @@ void revokeBlobUrl(String blobUrl) {}
 
 Widget buildWebPdfFromBlob({
   required String blobUrl,
+  required String title,
+}) {
+  return const Center(
+    child: Text(
+      'Web PDF viewer not available on this platform',
+      style: TextStyle(color: Colors.white70),
+    ),
+  );
+}
+
+// ============================================================================
+// ✅ NEW STUB: PDF FROM URL (for external PDFs)
+// ============================================================================
+Widget buildWebPdfFromUrl({
+  required String url,
   required String title,
 }) {
   return const Center(
@@ -6469,20 +6774,53 @@ Widget buildWebImageFromBlob({
 }
 
 // ============================================================================
+// ✅ NEW STUB: IMAGE FROM URL (for external images)
+// ============================================================================
+Widget buildWebImageFromUrl({
+  required String url,
+  required TransformationController controller,
+}) {
+  return const Center(
+    child: Text(
+      'Web image viewer not available on this platform',
+      style: TextStyle(color: Colors.white70),
+    ),
+  );
+}
+
+// ============================================================================
 // DOWNLOAD STUB
 // ============================================================================
 void downloadBlobUrl(String blobUrl, String fileName) {
   // Stub - not available on mobile
 }
 
+// ============================================================================
+// ✅ NEW STUB: OPEN EXTERNAL URL
+// ============================================================================
+void openExternalUrl(String url) {
+  // Stub - not available on mobile
+}
+
+// ============================================================================
+// ✅ BACKWARD COMPATIBILITY STUB: openPdfInNewTab
+// ============================================================================
+void openPdfInNewTab(String url) {
+  openExternalUrl(url);
+}
+
 ================================================================================
 [  39/ 129] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_web.dart
-📏 SIZE: 5.2 KB
-🕐 MODIFIED: 2026-09-14 13:40:06
+📏 SIZE: 10.1 KB
+🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
 
 // lib/core/widgets/web_pdf_viewer_web.dart
 // ✅ ONLY compiled on Web (via conditional import in file_viewer_screen.dart)
+// ✅ FIXED: External PDFs now open via DIRECT iframe (NO CORS issues!)
+// ✅ NEW: buildWebPdfFromUrl() - for external PDF URLs
+// ✅ NEW: buildWebImageFromUrl() - for external image URLs
+// ✅ NEW: openExternalUrl() - open any URL in new browser tab
 
 import 'dart:typed_data';
 import 'dart:html' as html;
@@ -6491,7 +6829,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 
 // ============================================================================
-// PDF BLOB URL
+// PDF BLOB URL (for Cloudinary/owned PDFs — CORS-friendly sources)
 // ============================================================================
 String? createPdfBlobUrl(Uint8List bytes) {
   try {
@@ -6514,6 +6852,9 @@ void revokeBlobUrl(String blobUrl) {
   }
 }
 
+// ============================================================================
+// ✅ PDF FROM BLOB (Cloudinary PDFs — works perfectly)
+// ============================================================================
 Widget buildWebPdfFromBlob({
   required String blobUrl,
   required String title,
@@ -6554,6 +6895,8 @@ class _WebPdfIframeState extends State<_WebPdfIframe> {
           ..style.backgroundColor = '#1E1E1E'
           ..setAttribute('type', 'application/pdf')
           ..setAttribute('allow', 'fullscreen');
+
+        debugPrint('✅ PDF iframe created with src: ${widget.blobUrl}');
         return iframe;
       },
     );
@@ -6566,7 +6909,70 @@ class _WebPdfIframeState extends State<_WebPdfIframe> {
 }
 
 // ============================================================================
-// IMAGE BLOB URL
+// ✅ NEW: PDF FROM URL (External PDFs — NO CORS issues!)
+// This uses direct iframe embedding. The browser treats the iframe `src`
+// as a navigation (not XHR), so it completely bypasses CORS.
+// ============================================================================
+Widget buildWebPdfFromUrl({
+  required String url,
+  required String title,
+}) {
+  return _WebPdfFromUrl(url: url, title: title);
+}
+
+class _WebPdfFromUrl extends StatefulWidget {
+  final String url;
+  final String title;
+
+  const _WebPdfFromUrl({
+    required this.url,
+    required this.title,
+  });
+
+  @override
+  State<_WebPdfFromUrl> createState() => _WebPdfFromUrlState();
+}
+
+class _WebPdfFromUrlState extends State<_WebPdfFromUrl> {
+  late final String _viewId;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewId = 'pdf-url-${DateTime.now().microsecondsSinceEpoch}';
+
+    debugPrint('📄 Creating DIRECT iframe for external PDF: ${widget.url}');
+
+    // ignore: undefined_prefixed_name
+    ui_web.platformViewRegistry.registerViewFactory(
+      _viewId,
+      (int viewId) {
+        // ✅ Direct iframe embed — browser handles this as a navigation,
+        // NOT as an XHR, so NO CORS restrictions apply!
+        final iframe = html.IFrameElement()
+          ..src = widget.url
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..style.backgroundColor = '#1E1E1E'
+          ..setAttribute('type', 'application/pdf')
+          ..setAttribute('allow', 'fullscreen')
+          ..setAttribute('allowfullscreen', 'true');
+
+        debugPrint('✅ Direct PDF iframe created for: ${widget.url}');
+        return iframe;
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return HtmlElementView(viewType: _viewId);
+  }
+}
+
+// ============================================================================
+// IMAGE BLOB URL (for Cloudinary/owned images)
 // ============================================================================
 String? createImageBlobUrl(Uint8List bytes, String mimeType) {
   try {
@@ -6640,6 +7046,67 @@ class _WebImageFromBlobState extends State<_WebImageFromBlob> {
 }
 
 // ============================================================================
+// ✅ NEW: IMAGE FROM DIRECT URL (External images)
+// ============================================================================
+Widget buildWebImageFromUrl({
+  required String url,
+  required TransformationController controller,
+}) {
+  return _WebImageFromUrl(url: url, controller: controller);
+}
+
+class _WebImageFromUrl extends StatefulWidget {
+  final String url;
+  final TransformationController controller;
+
+  const _WebImageFromUrl({
+    required this.url,
+    required this.controller,
+  });
+
+  @override
+  State<_WebImageFromUrl> createState() => _WebImageFromUrlState();
+}
+
+class _WebImageFromUrlState extends State<_WebImageFromUrl> {
+  late final String _viewId;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewId = 'img-url-${DateTime.now().microsecondsSinceEpoch}';
+
+    debugPrint('🖼️ Creating DIRECT img for external URL: ${widget.url}');
+
+    // ignore: undefined_prefixed_name
+    ui_web.platformViewRegistry.registerViewFactory(
+      _viewId,
+      (int viewId) {
+        final img = html.ImageElement()
+          ..src = widget.url
+          ..style.width = '100%'
+          ..style.height = '100%'
+          ..style.objectFit = 'contain'
+          ..style.backgroundColor = '#000000';
+
+        debugPrint('✅ Direct <img> created for URL: ${widget.url}');
+        return img;
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InteractiveViewer(
+      transformationController: widget.controller,
+      minScale: 0.5,
+      maxScale: 5.0,
+      child: HtmlElementView(viewType: _viewId),
+    );
+  }
+}
+
+// ============================================================================
 // DOWNLOAD BLOB URL
 // ============================================================================
 void downloadBlobUrl(String blobUrl, String fileName) {
@@ -6667,10 +7134,29 @@ void downloadBlobUrl(String blobUrl, String fileName) {
   }
 }
 
+// ============================================================================
+// ✅ NEW: OPEN EXTERNAL URL IN NEW TAB
+// ============================================================================
+void openExternalUrl(String url) {
+  try {
+    debugPrint('🌐 Opening external URL: $url');
+    html.window.open(url, '_blank');
+  } catch (e) {
+    debugPrint('❌ Failed to open external URL: $e');
+  }
+}
+
+// ============================================================================
+// ✅ BACKWARD COMPATIBILITY: openPdfInNewTab (alias for openExternalUrl)
+// ============================================================================
+void openPdfInNewTab(String url) {
+  openExternalUrl(url);
+}
+
 ================================================================================
 [  40/ 129] 🎯 rojgarnext/lib/features/admin/AI/admin_ai_dashboard.dart
 📏 SIZE: 10.7 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/admin/AI/admin_ai_dashboard.dart - Remove unused _selectedTab
@@ -7035,7 +7521,7 @@ class _AdminAIDashboardState extends State<AdminAIDashboard> {
 ================================================================================
 [  41/ 129] 🎯 rojgarnext/lib/features/admin/data/admin_service.dart
 📏 SIZE: 6.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/admin/data/admin_service.dart
@@ -7279,7 +7765,7 @@ class AdminService {
 ================================================================================
 [  42/ 129] 🎯 rojgarnext/lib/features/admin/presentation/models/admin_menu.dart
 📏 SIZE: 433 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/admin/presentation/models/admin_menu.dart
@@ -7307,7 +7793,7 @@ enum ApplicationSubMenu {
 ================================================================================
 [  43/ 129] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_dashboard.dart
 📏 SIZE: 29.2 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/admin/presentation/screens/admin_dashboard.dart
@@ -8146,7 +8632,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 ================================================================================
 [  44/ 129] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_reports_screen.dart
 📏 SIZE: 911 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/admin/presentation/screens/admin_reports_screen.dart
@@ -8183,7 +8669,7 @@ class AdminReportsScreen extends StatelessWidget {
 ================================================================================
 [  45/ 129] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_settings_screen.dart
 📏 SIZE: 1.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/admin/presentation/screens/admin_settings_screen.dart
@@ -8232,7 +8718,7 @@ class AdminSettingsScreen extends StatelessWidget {
 ================================================================================
 [  46/ 129] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_users_screen.dart
 📏 SIZE: 3.1 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/admin/presentation/screens/admin_users_screen.dart
@@ -8344,7 +8830,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 ================================================================================
 [  47/ 129] 🎯 rojgarnext/lib/features/admin/presentation/screens/pending_payments_screen.dart
 📏 SIZE: 5.4 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/admin/presentation/screens/pending_payments_screen.dart
@@ -8518,7 +9004,7 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
 ================================================================================
 [  48/ 129] 🎯 rojgarnext/lib/features/admin/presentation/widgets/admin_sidebar.dart
 📏 SIZE: 7.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/admin/presentation/widgets/admin_sidebar.dart
@@ -8747,7 +9233,7 @@ class AdminSidebar extends StatelessWidget {
 ================================================================================
 [  49/ 129] 🎯 rojgarnext/lib/features/auth/presentation/controllers/auth_controller.dart
 📏 SIZE: 29.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/auth/presentation/controllers/auth_controller.dart
@@ -9531,7 +10017,7 @@ class AuthController extends ChangeNotifier {
 ================================================================================
 [  50/ 129] 🎯 rojgarnext/lib/features/auth/presentation/screens/change_password_screen.dart
 📏 SIZE: 36.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/auth/presentation/screens/change_password_screen.dart
@@ -10635,7 +11121,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 ================================================================================
 [  51/ 129] 🎯 rojgarnext/lib/features/auth/presentation/screens/fingerprint_setup_page.dart
 📏 SIZE: 40.7 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/auth/presentation/screens/fingerprint_setup_page.dart
@@ -11853,7 +12339,7 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
 ================================================================================
 [  52/ 129] 🎯 rojgarnext/lib/features/auth/presentation/screens/mpin_setup_page.dart
 📏 SIZE: 41.0 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/auth/presentation/screens/mpin_setup_page.dart
@@ -13092,7 +13578,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
 ================================================================================
 [  53/ 129] 🎯 rojgarnext/lib/features/auth/presentation/screens/register_login_page.dart
 📏 SIZE: 42.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/auth/presentation/screens/register_login_page.dart
@@ -14363,7 +14849,7 @@ class _ModernButton extends StatelessWidget {
 ================================================================================
 [  54/ 129] 🎯 rojgarnext/lib/features/auth/presentation/screens/verify_otp_page.dart
 📏 SIZE: 21.7 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/auth/presentation/screens/verify_otp_page.dart
@@ -15065,7 +15551,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 ================================================================================
 [  55/ 129] 🎯 rojgarnext/lib/features/auth/services/auth_service.dart
 📏 SIZE: 14.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/auth/services/auth_service.dart
@@ -15505,7 +15991,7 @@ class AuthService {
 ================================================================================
 [  56/ 129] 🎯 rojgarnext/lib/features/common/widgets/internet_checker.dart
 📏 SIZE: 4.2 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/common/widgets/internet_checker.dart
@@ -15656,7 +16142,7 @@ class _InternetCheckerState extends State<InternetChecker> {
 ================================================================================
 [  57/ 129] 🎯 rojgarnext/lib/features/common/widgets/location_display.dart
 📏 SIZE: 3.9 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/common/widgets/location_display.dart
@@ -15783,7 +16269,7 @@ class _LocationDisplayState extends State<LocationDisplay> {
 ================================================================================
 [  58/ 129] 🎯 rojgarnext/lib/features/customadmin/data/customadmin_service.dart
 📏 SIZE: 8.4 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/customadmin/data/customadmin_service.dart
@@ -16083,7 +16569,7 @@ class CustomAdminService {
 ================================================================================
 [  59/ 129] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
 📏 SIZE: 27.7 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
@@ -16876,7 +17362,7 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
 ================================================================================
 [  60/ 129] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/pending_payments_screen.dart
 📏 SIZE: 5.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/customadmin/presentation/screens/pending_payments_screen.dart
@@ -17052,7 +17538,7 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
 ================================================================================
 [  61/ 129] 🎯 rojgarnext/lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
 📏 SIZE: 7.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
@@ -17278,7 +17764,7 @@ class CustomAdminSidebar extends StatelessWidget {
 ================================================================================
 [  62/ 129] 🎯 rojgarnext/lib/features/home/home_screen.dart
 📏 SIZE: 55.0 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/home/home_screen.dart
@@ -18900,7 +19386,7 @@ class _HomeScreenState extends State<HomeScreen>
 ================================================================================
 [  63/ 129] 🎯 rojgarnext/lib/features/jobs/AI/job_ai_service.dart
 📏 SIZE: 1.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/jobs/AI/job_ai_service.dart
@@ -18963,7 +19449,7 @@ class JobAIService {
 ================================================================================
 [  64/ 129] 🎯 rojgarnext/lib/features/jobs/AI/job_match_score_widget.dart
 📏 SIZE: 5.1 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/jobs/AI/job_match_score_widget.dart
@@ -19149,7 +19635,7 @@ class _JobMatchScoreWidgetState extends State<JobMatchScoreWidget> {
 ================================================================================
 [  65/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/add_job_screen.dart
 📏 SIZE: 196.1 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/jobs/presentation/screens/add_job_screen.dart
@@ -24488,7 +24974,7 @@ Future<void> _pickAdvertisement() async {
 ================================================================================
 [  66/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/applications_screen.dart
 📏 SIZE: 111.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/jobs/presentation/screens/applications_screen.dart
@@ -27678,7 +28164,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
 ================================================================================
 [  67/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/candidate_profile_screen.dart
 📏 SIZE: 61.9 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/jobs/presentation/screens/candidate_profile_screen.dart
@@ -29376,8 +29862,8 @@ class _CandidateProfileScreenState extends State<CandidateProfileScreen> {
 
 ================================================================================
 [  68/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_detail_screen.dart
-📏 SIZE: 168.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+📏 SIZE: 173.6 KB
+🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
 
 // lib/features/jobs/presentation/screens/job_detail_screen.dart
@@ -29391,6 +29877,8 @@ class _CandidateProfileScreenState extends State<CandidateProfileScreen> {
 // ✅ NEW: Service Charge + GST added to application fees
 // ✅ NEW: Total fees = Application Fees + GST (18%) + Service Charge (₹50)
 // ✅ NEW: Payment screen receives total amount with full breakdown
+// ✅ NEW: PDF links, images, and ALL file types open in FileViewerScreen
+// ✅ NEW: Enhanced file type detection for external URLs and Google Drive
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -29506,6 +29994,146 @@ class FeeBreakdown {
   String toString() {
     return 'FeeBreakdown(app: ₹$applicationFee, gst: ₹$gstAmount, '
         'service: ₹$serviceCharge, total: ₹$totalFee)';
+  }
+}
+
+// ============================================================
+// FILE TYPE DETECTOR (Local helper for job detail screen)
+// ============================================================
+class _JobFileTypeDetector {
+  static const Set<String> imageExtensions = {
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'wbmp', 'ico', 'tiff', 'tif', 'svg',
+  };
+  static const Set<String> pdfExtensions = {'pdf'};
+
+  static String getExtension(String urlOrName) {
+    if (urlOrName.isEmpty) return '';
+    try {
+      final clean = urlOrName.split('?').first.split('#').first;
+      final segments = clean.split('/');
+      final last = segments.isNotEmpty ? segments.last : clean;
+      if (last.contains('.')) {
+        return last.split('.').last.toLowerCase().trim();
+      }
+    } catch (e) {
+      debugPrint('Extension parse error: $e');
+    }
+    return '';
+  }
+
+  static bool isPdf(String url, {String? explicitType}) {
+    if (url.isEmpty) return false;
+    final lower = url.toLowerCase();
+
+    // 1. Check explicit type
+    if (explicitType != null) {
+      final t = explicitType.toLowerCase();
+      if (t == 'pdf' || t.contains('pdf')) return true;
+    }
+
+    // 2. Check file extension
+    final ext = getExtension(url);
+    if (pdfExtensions.contains(ext)) return true;
+
+    // 3. Check URL patterns
+    if (lower.contains('/raw/upload/')) return true;
+    if (lower.contains('/raw/authenticated/')) return true;
+    if (lower.contains('.pdf')) return true;
+    if (lower.contains('application/pdf')) return true;
+    if (lower.contains('/pdf/')) return true;
+    if (lower.contains('type=pdf')) return true;
+    if (lower.contains('format=pdf')) return true;
+
+    // 4. Google Docs PDF export
+    if (lower.contains('docs.google.com') && lower.contains('export=pdf')) {
+      return true;
+    }
+
+    return false;
+  }
+
+  static bool isImage(String url, {String? explicitType}) {
+    if (url.isEmpty) return false;
+    final lower = url.toLowerCase();
+
+    // 1. Check explicit type
+    if (explicitType != null) {
+      final t = explicitType.toLowerCase();
+      if (t == 'image' || t.contains('image')) return true;
+    }
+
+    // 2. Check file extension
+    final ext = getExtension(url);
+    if (imageExtensions.contains(ext)) return true;
+
+    // 3. Don't classify as image if it's PDF
+    if (isPdf(url, explicitType: explicitType)) return false;
+
+    // 4. Cloudinary image patterns
+    if (lower.contains('cloudinary.com') &&
+        (lower.contains('/image/upload/') ||
+         lower.contains('/image/authenticated/'))) {
+      return true;
+    }
+
+    // 5. Common image URL patterns
+    if (lower.contains('image/')) return true;
+    if (lower.contains('img/')) return true;
+    if (lower.contains('photo/')) return true;
+    if (lower.contains('picture/')) return true;
+
+    return false;
+  }
+
+  static bool isGoogleDrive(String url) {
+    if (url.isEmpty) return false;
+    final lower = url.toLowerCase();
+    return lower.contains('drive.google.com') ||
+        lower.contains('docs.google.com');
+  }
+
+  /// ✅ Get best file type string for FileViewerScreen
+  static String detectFileType(String url, {String? explicitType}) {
+    if (url.isEmpty) return 'unknown';
+
+    if (isPdf(url, explicitType: explicitType)) return 'pdf';
+    if (isImage(url, explicitType: explicitType)) return 'image';
+    if (isGoogleDrive(url)) return 'gdrive';
+
+    final ext = getExtension(url);
+    if (ext.isNotEmpty) {
+      // Return the extension as the type for better handling
+      switch (ext) {
+        case 'doc':
+        case 'docx':
+          return 'word';
+        case 'xls':
+        case 'xlsx':
+          return 'excel';
+        case 'ppt':
+        case 'pptx':
+          return 'powerpoint';
+        case 'txt':
+        case 'log':
+        case 'md':
+        case 'json':
+        case 'xml':
+          return 'text';
+        case 'mp4':
+        case 'avi':
+        case 'mkv':
+        case 'mov':
+          return 'video';
+        case 'mp3':
+        case 'wav':
+        case 'aac':
+          return 'audio';
+        default:
+          return ext;
+      }
+    }
+
+    return 'unknown';
   }
 }
 
@@ -29876,8 +30504,10 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     if (officialUrl != null && officialUrl.toString().isNotEmpty) {
       _officialNotificationUrl = officialUrl.toString();
       _hasOfficialNotification = true;
-      _isOfficialNotificationPdf =
-          _officialNotificationUrl!.toLowerCase().contains('.pdf');
+      _isOfficialNotificationPdf = _JobFileTypeDetector.isPdf(
+        _officialNotificationUrl!,
+        explicitType: 'pdf',
+      );
     }
 
     final advUrl = widget.job['advertisement_url'];
@@ -29889,15 +30519,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           _advertisementUrl!.contains('cloudinary.com');
 
       final urlLower = _advertisementUrl!.toLowerCase();
-      _isAdvertisementPdf = urlLower.endsWith('.pdf') ||
-          urlLower.contains('fl_attachment') ||
-          urlLower.contains('raw/upload');
-      _isImageFile = urlLower.endsWith('.jpg') ||
-          urlLower.endsWith('.jpeg') ||
-          urlLower.endsWith('.png') ||
-          urlLower.endsWith('.webp');
-      _isGoogleDriveLink = urlLower.contains('drive.google.com') ||
-          urlLower.contains('docs.google.com');
+      _isAdvertisementPdf = _JobFileTypeDetector.isPdf(_advertisementUrl!);
+      _isImageFile = _JobFileTypeDetector.isImage(_advertisementUrl!);
+      _isGoogleDriveLink = _JobFileTypeDetector.isGoogleDrive(_advertisementUrl!);
     }
   }
 
@@ -30843,7 +31467,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // FILE VIEWERS
+  // ✅ ENHANCED: FILE VIEWERS - Opens ALL file types in FileViewerScreen
   // ============================================================
   void _showFilePopup(
     String url,
@@ -30851,10 +31475,35 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     String? downloadUrl,
     String? fileType,
   }) {
-    String finalUrl = url;
-    if (!finalUrl.startsWith('http')) {
+    String finalUrl = url.trim();
+    if (finalUrl.isEmpty) {
+      _showSnackBar("No file URL available", isError: true);
+      return;
+    }
+
+    if (!finalUrl.startsWith('http') &&
+        !finalUrl.startsWith('file') &&
+        !finalUrl.startsWith('blob:')) {
       finalUrl = 'https://$finalUrl';
     }
+
+    // ✅ Auto-detect file type if not provided or unknown
+    String effectiveFileType = fileType ?? 'unknown';
+    if (effectiveFileType == 'unknown' || effectiveFileType.isEmpty) {
+      effectiveFileType = _JobFileTypeDetector.detectFileType(
+        finalUrl,
+        explicitType: fileType,
+      );
+    }
+
+    debugPrint('=' * 70);
+    debugPrint('📄 OPENING FILE VIEWER');
+    debugPrint('   URL: $finalUrl');
+    debugPrint('   Title: $title');
+    debugPrint('   File Type: $effectiveFileType');
+    debugPrint('   Download URL: ${downloadUrl ?? "same as url"}');
+    debugPrint('=' * 70);
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -30870,47 +31519,53 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           child: FileViewerScreen(
             url: finalUrl,
             title: title,
-            downloadUrl: downloadUrl,
-            fileType: fileType,
+            downloadUrl: downloadUrl ?? finalUrl,
+            fileType: effectiveFileType,
+            fileName: title,
           ),
         ),
       ),
     );
   }
 
+  // ============================================================
+  // ✅ VIEW OFFICIAL NOTIFICATION - Opens in FileViewerScreen
+  // ============================================================
   void _viewOfficialNotification() {
     if (_officialNotificationUrl == null || _officialNotificationUrl!.isEmpty) {
       _showSnackBar("No notification link", isError: true);
       return;
     }
+
+    // ✅ Detect if it's a PDF or other type
+    final fileType = _isOfficialNotificationPdf
+        ? 'pdf'
+        : _JobFileTypeDetector.detectFileType(_officialNotificationUrl!);
+
     _showFilePopup(
       _officialNotificationUrl!,
       widget.job['post_name'] ?? "Official Notification",
-      fileType: "pdf",
+      fileType: fileType,
     );
   }
 
+  // ============================================================
+  // ✅ VIEW ADVERTISEMENT - Opens ALL file types in FileViewerScreen
+  // ============================================================
   void _viewAdvertisement() {
     if (_advertisementUrl == null || _advertisementUrl!.isEmpty) {
       _showSnackBar("No advertisement", isError: true);
       return;
     }
-    String fileType = 'unknown';
-    final urlLower = _advertisementUrl!.toLowerCase();
-    if (urlLower.endsWith('.pdf') ||
-        urlLower.contains('fl_attachment') ||
-        urlLower.contains('raw/upload')) {
-      fileType = 'pdf';
-    } else if (urlLower.endsWith('.jpg') ||
-        urlLower.endsWith('.jpeg') ||
-        urlLower.endsWith('.png') ||
-        urlLower.endsWith('.webp')) {
-      fileType = 'image';
-    } else if (urlLower.endsWith('.doc') || urlLower.endsWith('.docx')) {
-      fileType = 'word';
-    } else if (urlLower.contains('drive.google.com')) {
-      fileType = 'gdrive';
-    }
+
+    // ✅ Enhanced file type detection using our helper
+    final fileType = _JobFileTypeDetector.detectFileType(
+      _advertisementUrl!,
+    );
+
+    debugPrint('📢 Advertisement file type: $fileType');
+    debugPrint('   URL: $_advertisementUrl');
+
     _showFilePopup(
       _advertisementUrl!,
       widget.job['post_name'] ?? "Job Advertisement",
@@ -34132,7 +34787,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 ================================================================================
 [  69/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_list_screen.dart
 📏 SIZE: 57.9 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/jobs/presentation/screens/job_list_screen.dart
@@ -35714,7 +36369,7 @@ class _JobListScreenState extends State<JobListScreen>
 ================================================================================
 [  70/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/saved_jobs_screen.dart
 📏 SIZE: 15.4 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/jobs/presentation/screens/saved_jobs_screen.dart
@@ -36197,7 +36852,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
 ================================================================================
 [  71/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/show_jobs_screen.dart
 📏 SIZE: 33.7 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/jobs/presentation/screens/show_jobs_screen.dart
@@ -37213,7 +37868,7 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
 ================================================================================
 [  72/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/screens/user_applications_screen.dart
 📏 SIZE: 116.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/jobs/presentation/screens/user_applications_screen.dart
@@ -40557,7 +41212,7 @@ class _UserApplicationScreenState extends State<UserApplicationScreen>
 ================================================================================
 [  73/ 129] 🎯 rojgarnext/lib/features/jobs/presentation/widgets/submit_document_dialog.dart
 📏 SIZE: 10.9 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/jobs/presentation/widgets/submit_document_dialog.dart
@@ -40875,7 +41530,7 @@ Future<void> _pickFile() async {
 ================================================================================
 [  74/ 129] 🎯 rojgarnext/lib/features/location/distance_test_screen.dart
 📏 SIZE: 15.2 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/location/distance_test_screen.dart
@@ -41305,7 +41960,7 @@ class _DistanceTestScreenState extends State<DistanceTestScreen> {
 ================================================================================
 [  75/ 129] 🎯 rojgarnext/lib/features/location/location_test_screen.dart
 📏 SIZE: 6.1 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/location/location_test_screen.dart
@@ -41498,7 +42153,7 @@ class _LocationTestScreenState extends State<LocationTestScreen> {
 ================================================================================
 [  76/ 129] 🎯 rojgarnext/lib/features/market/AI/market_ai_service.dart
 📏 SIZE: 1.0 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/market/AI/market_ai_service.dart
@@ -41544,7 +42199,7 @@ class MarketAIService {
 ================================================================================
 [  77/ 129] 🎯 rojgarnext/lib/features/notification/screens/notifications_list_screen.dart
 📏 SIZE: 14.9 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/notification/screens/notifications_list_screen.dart
@@ -42022,7 +42677,7 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
 ================================================================================
 [  78/ 129] 🎯 rojgarnext/lib/features/notification/service/notification_service.dart
 📏 SIZE: 5.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/notification/service/notification_service.dart
@@ -42221,7 +42876,7 @@ class NotificationService {
 ================================================================================
 [  79/ 129] 🎯 rojgarnext/lib/features/notification/widgets/notification_bell.dart
 📏 SIZE: 5.6 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/notification/widgets/notification_bell.dart
@@ -42426,7 +43081,7 @@ class _NotificationBellState extends State<NotificationBell>
 ================================================================================
 [  80/ 129] 🎯 rojgarnext/lib/features/payment/presentation/payment.dart
 📏 SIZE: 92 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/payment/presentation/payment.dart
@@ -42438,7 +43093,7 @@ enum PaymentType {
 ================================================================================
 [  81/ 129] 🎯 rojgarnext/lib/features/payment/presentation/screens/payment_screen.dart
 📏 SIZE: 30.4 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-12 20:49:04
 ================================================================================
 
 // lib/features/payment/presentation/screens/payment_screen.dart
@@ -43280,7 +43935,7 @@ class _PaymentScreenState extends State<PaymentScreen>
 ================================================================================
 [  82/ 129] 🎯 rojgarnext/lib/features/payment/razorpay_mobile_service.dart
 📏 SIZE: 2.7 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/payment/razorpay_mobile_service.dart
@@ -43382,7 +44037,7 @@ class RazorpayMobileService {
 ================================================================================
 [  83/ 129] 🎯 rojgarnext/lib/features/payment/razorpay_service.dart
 📏 SIZE: 2.0 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 12:54:00
 ================================================================================
 
 // lib/features/payment/razorpay_service.dart
@@ -43459,7 +44114,7 @@ class RazorpayService {
 ================================================================================
 [  84/ 129] 🎯 rojgarnext/lib/features/payment/razorpay_web_service.dart
 📏 SIZE: 6.2 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/payment/razorpay_web_service.dart
@@ -43678,7 +44333,7 @@ class RazorpayWebService {
 ================================================================================
 [  85/ 129] 🎯 rojgarnext/lib/features/payment/razorpay_web_stub.dart
 📏 SIZE: 967 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 12:53:43
 ================================================================================
 
 // lib/features/payment/razorpay_web_stub.dart
@@ -43719,7 +44374,7 @@ class RazorpayWebService {
 ================================================================================
 [  86/ 129] 🎯 rojgarnext/lib/features/resume/AI/resume_ai_service.dart
 📏 SIZE: 505 B
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/resume/AI/resume_ai_service.dart
@@ -43745,7 +44400,7 @@ class ResumeAIService {
 ================================================================================
 [  87/ 129] 🎯 rojgarnext/lib/features/resume/AI/resume_score_widget.dart
 📏 SIZE: 3.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/resume/AI/resume_score_widget.dart
@@ -43883,7 +44538,7 @@ class _ResumeScoreWidgetState extends State<ResumeScoreWidget> {
 ================================================================================
 [  88/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/build_resume_screen.dart
 📏 SIZE: 28.9 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/resume/presentation/screens/build_resume_screen.dart
@@ -44769,7 +45424,7 @@ void showMessage(BuildContext context, String message, {bool isError = false}) {
 ================================================================================
 [  89/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/classic_format.dart
 📏 SIZE: 11.2 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-13 18:33:29
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/classic_format.dart
@@ -45022,7 +45677,7 @@ body{font-family:Georgia,serif;background:#f8f8f8;padding:30px 20px;line-height:
 ================================================================================
 [  90/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/executive_format.dart
 📏 SIZE: 9.9 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-13 18:34:31
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/executive_format.dart
@@ -45233,7 +45888,7 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
 ================================================================================
 [  91/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/fresher_format.dart
 📏 SIZE: 11.0 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-13 18:35:08
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/fresher_format.dart
@@ -45478,7 +46133,7 @@ body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#e0f2f1
 ================================================================================
 [  92/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/government_format.dart
 📏 SIZE: 10.9 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-13 18:34:50
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/government_format.dart
@@ -45708,7 +46363,7 @@ th{background:#E8EAF6;color:#1A237E;font-weight:bold}
 ================================================================================
 [  93/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/modern_format.dart
 📏 SIZE: 12.0 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-13 18:33:51
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/modern_format.dart
@@ -45970,7 +46625,7 @@ body{font-family:'Poppins',sans-serif;background:#f5f7fa;padding:30px 20px;line-
 ================================================================================
 [  94/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/tech_format.dart
 📏 SIZE: 13.4 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-13 18:34:11
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/tech_format.dart
@@ -46265,7 +46920,7 @@ body{font-family:'Fira Code',monospace;background:#0a0e27;padding:30px 20px;line
 ================================================================================
 [  95/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_base.dart
 📏 SIZE: 6.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-13 18:41:07
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/resume_format_base.dart
@@ -46506,7 +47161,7 @@ abstract class ResumeFormatBase {
 ================================================================================
 [  96/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_manager.dart
 📏 SIZE: 2.4 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-13 18:35:34
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/resume_format_manager.dart
@@ -46601,7 +47256,7 @@ class ResumeFormatManager {
 ================================================================================
 [  97/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_popup.dart
 📏 SIZE: 19.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-13 18:46:46
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/resume_format_popup.dart
@@ -47191,7 +47846,7 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
 ================================================================================
 [  98/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_widget.dart
 📏 SIZE: 2.4 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/resume_format_manager.dart
@@ -47287,7 +47942,7 @@ class ResumeFormatManager {
 ================================================================================
 [  99/ 129] 🎯 rojgarnext/lib/features/resume/presentation/screens/resume_screen.dart
 📏 SIZE: 55.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/resume/presentation/screens/resume_screen.dart
@@ -48820,7 +49475,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
 ================================================================================
 [ 100/ 129] 🎯 rojgarnext/lib/features/services/data/service_data_source.dart
 📏 SIZE: 2.7 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/services/data/service_data_source.dart
@@ -48919,7 +49574,7 @@ class ServiceDataSource {
 ================================================================================
 [ 101/ 129] 🎯 rojgarnext/lib/features/services/data/service_repository.dart
 📏 SIZE: 8.2 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/services/data/service_repository.dart
@@ -49192,7 +49847,7 @@ class ServiceRepository {
 ================================================================================
 [ 102/ 129] 🎯 rojgarnext/lib/features/services/models/service_types.dart
 📏 SIZE: 25.9 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/services/models/service_types.dart
@@ -49974,7 +50629,7 @@ class ServiceMasterData {
 ================================================================================
 [ 103/ 129] 🎯 rojgarnext/lib/features/services/presentation/screens/apply_service_screen.dart
 📏 SIZE: 59.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-13 08:23:34
 ================================================================================
 
 // lib/features/services/presentation/screens/apply_service_screen.dart
@@ -51829,7 +52484,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
 ================================================================================
 [ 104/ 129] 🎯 rojgarnext/lib/features/services/presentation/screens/service_application_screen.dart
 📏 SIZE: 127.1 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-13 10:46:04
 ================================================================================
 
 // lib/features/services/presentation/screens/service_application_screen.dart
@@ -55368,7 +56023,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
 ================================================================================
 [ 105/ 129] 🎯 rojgarnext/lib/features/services/presentation/screens/user_service_applications_screen.dart
 📏 SIZE: 104.7 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-13 10:46:16
 ================================================================================
 
 // lib/features/services/presentation/screens/user_service_applications_screen.dart
@@ -58274,7 +58929,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 ================================================================================
 [ 106/ 129] 🎯 rojgarnext/lib/features/splash/splash_page.dart
 📏 SIZE: 10.9 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/splash/splash_page.dart
@@ -58583,7 +59238,7 @@ class _SplashPageState extends State<SplashPage>
 ================================================================================
 [ 107/ 129] 🎯 rojgarnext/lib/features/superadmin/AI/superadmin_ai_dashboard.dart
 📏 SIZE: 1.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/jobs/AI/job_ai_service.dart
@@ -58646,7 +59301,7 @@ class JobAIService {
 ================================================================================
 [ 108/ 129] 🎯 rojgarnext/lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
 📏 SIZE: 25.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
@@ -59472,7 +60127,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
 ================================================================================
 [ 109/ 129] 🎯 rojgarnext/lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
 📏 SIZE: 4.1 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
@@ -59607,7 +60262,7 @@ class SuperAdminSidebar extends StatelessWidget {
 ================================================================================
 [ 110/ 129] 🎯 rojgarnext/lib/features/user/AI/user_ai_dashboard.dart
 📏 SIZE: 43.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/user/AI/user_ai_dashboard.dart
@@ -60926,7 +61581,7 @@ class _LineChartPainter extends CustomPainter {
 ================================================================================
 [ 111/ 129] 🎯 rojgarnext/lib/features/user/AI/user_ai_screen.dart
 📏 SIZE: 17.7 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/user/AI/user_ai_screen.dart
@@ -61488,7 +62143,7 @@ class _UserAIScreenState extends State<UserAIScreen> {
 ================================================================================
 [ 112/ 129] 🎯 rojgarnext/lib/features/user/AI/user_ai_service.dart
 📏 SIZE: 3.7 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/user/AI/user_ai_service.dart
@@ -61615,7 +62270,7 @@ class UserAIService {
 ================================================================================
 [ 113/ 129] 🎯 rojgarnext/lib/features/user/AI/user_career_roadmap_screen.dart
 📏 SIZE: 10.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/user/AI/user_career_roadmap_screen.dart
@@ -61962,7 +62617,7 @@ class _UserCareerRoadmapScreenState extends State<UserCareerRoadmapScreen> {
 ================================================================================
 [ 114/ 129] 🎯 rojgarnext/lib/features/user/data/user_service.dart
 📏 SIZE: 31.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-13 20:38:56
 ================================================================================
 
 // lib/features/user/data/user_service.dart
@@ -62967,7 +63622,7 @@ class UserService {
 ================================================================================
 [ 115/ 129] 🎯 rojgarnext/lib/features/user/presentation/controllers/user_profile_controller.dart
 📏 SIZE: 7.5 KB
-🕐 MODIFIED: 2026-09-14 10:07:37
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/user/presentation/controllers/user_profile_controller.dart
@@ -63260,7 +63915,7 @@ class UserProfileController extends ChangeNotifier {
 ================================================================================
 [ 116/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/advanced_details_screen.dart
 📏 SIZE: 74.2 KB
-🕐 MODIFIED: 2026-09-14 10:07:38
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/user/presentation/screens/advanced_details_screen.dart
@@ -65335,14 +65990,15 @@ class _AdvancedDetailsScreenState extends State<AdvancedDetailsScreen>
 
 ================================================================================
 [ 117/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/basic_details_screen.dart
-📏 SIZE: 77.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:38
+📏 SIZE: 79.2 KB
+🕐 MODIFIED: 2026-09-14 19:46:34
 ================================================================================
 
 // lib/features/user/presentation/screens/basic_details_screen.dart
 // ✅ ULTRA-FAST - CACHE FIRST, INSTANT LOAD
 // ✅ AI-BASED MODERN DESIGN WITH LARGER TABS
-// ✅ ADDED: birth_place, hobbies, interests, all social links (twitter, facebook, instagram, youtube, personal_website)
+// ✅ FIXED: Save → auto-jump to next tab (no crash) + All tabs always visible
+// ✅ ADDED: birth_place, hobbies, interests, all social links
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/core/master_date/locations.dart';
@@ -65382,7 +66038,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
   String _nationality = 'Indian';
   String _religion = 'Hindu';
 
-  // ✅ NEW: Hobbies & Interests
+  // ✅ Hobbies & Interests
   List<String> _hobbies = [];
   List<String> _interests = [];
 
@@ -65452,7 +66108,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
   final TextEditingController _summary = TextEditingController();
   final TextEditingController _careerObjective = TextEditingController();
 
-  // ✅ UPDATED: All social links
+  // ✅ All social links
   final TextEditingController _linkedinUrl = TextEditingController();
   final TextEditingController _githubUrl = TextEditingController();
   final TextEditingController _portfolioUrl = TextEditingController();
@@ -65493,8 +66149,10 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     'Movies', 'Entrepreneurship', 'AI/ML', 'Startups', 'Research',
   ];
 
-  // ==================== TAB ICONS ====================
-  final List<IconData> _tabIcons = [
+  // ==================== TAB ICONS / LABELS ====================
+  static const int _tabCount = 6;
+
+  final List<IconData> _tabIcons = const [
     Icons.person,
     Icons.category,
     Icons.family_restroom,
@@ -65503,25 +66161,38 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     Icons.business_center,
   ];
 
-  final List<String> _tabLabels = [
+  final List<String> _tabLabels = const [
     'Basic',
     'Category',
     'Family',
     'Address',
-    'Professional',
+    'Profile',
     'Job',
   ];
+
+  /// ✅ Safety net — never crash even if index goes out of range
+  String get _safeTabLabel {
+    final idx = _currentTabIndex.clamp(0, _tabLabels.length - 1);
+    return _tabLabels[idx];
+  }
+
+  IconData get _safeTabIcon {
+    final idx = _currentTabIndex.clamp(0, _tabIcons.length - 1);
+    return _tabIcons[idx];
+  }
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: _tabCount, vsync: this);
     _loadCountries();
     _loadData();
     _dob.addListener(_calculateAge);
 
+    // ✅ SINGLE source of truth — only sync from controller
     _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
+      if (!mounted) return;
+      if (_currentTabIndex != _tabController.index) {
         setState(() {
           _currentTabIndex = _tabController.index;
         });
@@ -65653,9 +66324,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
   }
 
   void _onDistrictChanged(String? district) {
-    setState(() {
-      _selectedDistrict = district;
-    });
+    setState(() => _selectedDistrict = district);
   }
 
   void _onPermCountryChanged(String? country) {
@@ -65677,9 +66346,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
   }
 
   void _onPermDistrictChanged(String? district) {
-    setState(() {
-      _permSelectedDistrict = district;
-    });
+    setState(() => _permSelectedDistrict = district);
   }
 
   void _calculateAge() {
@@ -65725,7 +66392,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         _religion = _normalizeReligion(_safeString(profile, 'religion', 'Hindu'));
         _category = _safeString(profile, 'category', 'General/UR');
 
-        // ✅ Hobbies & Interests
         final hobbies = profile['hobbies'];
         if (hobbies is List) {
           _hobbies = List<String>.from(hobbies.map((e) => e.toString()));
@@ -65822,7 +66488,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         _githubUrl.text = _safeString(profile, 'github_url');
         _portfolioUrl.text = _safeString(profile, 'portfolio_url');
 
-        // ✅ Load all social links
         final socialLinks = _safeMap(profile, 'social_links');
         if (socialLinks.isNotEmpty) {
           _linkedinUrl.text = _safeString(socialLinks, 'linkedin', _linkedinUrl.text);
@@ -65931,8 +66596,12 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     return 'LD (Learning Disability)';
   }
 
+  /// ✅ SAVE → auto-jump to next tab (safe, no double increment)
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      showMessage(context, "Please fill all required fields", isError: true);
+      return;
+    }
 
     setState(() => _isSaving = true);
 
@@ -66030,7 +66699,11 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
         },
         'height': double.tryParse(_height.text.trim()),
         'weight': double.tryParse(_weight.text.trim()),
-        'languages_known': _languagesKnown.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
+        'languages_known': _languagesKnown.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList(),
         'disability': {
           'is_disabled': _isDisable,
           'disability_category': _isDisable ? _disabilityCategory : '',
@@ -66041,10 +66714,15 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
 
       await UserService.saveProfile(data);
 
-      if (mounted) {
-        await _showAISuccessDialog();
-        _goToNextTab();
-      }
+      if (!mounted) return;
+
+      // ✅ Show success dialog
+      await _showAISuccessDialog();
+
+      if (!mounted) return;
+
+      // ✅ After dialog closes, jump to next tab SAFELY
+      _goToNextTabSafe();
     } catch (e) {
       if (mounted) {
         showMessage(context, "Save failed: $e", isError: true);
@@ -66053,6 +66731,27 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
       if (mounted) {
         setState(() => _isSaving = false);
       }
+    }
+  }
+
+  /// ✅ SAFE next-tab navigation — never manually increments _currentTabIndex
+  void _goToNextTabSafe() {
+    final current = _tabController.index;
+    if (current < _tabCount - 1) {
+      _tabController.animateTo(current + 1);
+      // Do NOT touch _currentTabIndex — listener handles it
+    } else {
+      // Last tab → just show message, no jump
+      showMessage(context, "All sections completed! ✅", isError: false);
+    }
+  }
+
+  /// ✅ SAFE previous-tab navigation
+  void _goToPreviousTabSafe() {
+    final current = _tabController.index;
+    if (current > 0) {
+      _tabController.animateTo(current - 1);
+      // Do NOT touch _currentTabIndex — listener handles it
     }
   }
 
@@ -66120,17 +66819,6 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     );
   }
 
-  void _goToNextTab() {
-    if (_currentTabIndex < 5) {
-      _tabController.animateTo(_currentTabIndex + 1);
-      setState(() {
-        _currentTabIndex = _currentTabIndex + 1;
-      });
-    } else {
-      showMessage(context, "All sections completed! ✅", isError: false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -66150,6 +66838,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                   key: _formKey,
                   child: TabBarView(
                     controller: _tabController,
+                    physics: const NeverScrollableScrollPhysics(),
                     children: [
                       _buildBasicInfoTab(),
                       _buildCategoryDisabilityTab(),
@@ -66169,6 +66858,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
     );
   }
 
+  /// ✅ NON-SCROLLABLE TAB BAR — all 6 tabs always visible
   Widget _buildTabBar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -66182,7 +66872,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
       ),
       child: TabBar(
         controller: _tabController,
-        isScrollable: true,
+        isScrollable: false, // ✅ All tabs visible
         labelColor: Colors.white,
         unselectedLabelColor: Colors.grey.shade700,
         indicator: BoxDecoration(
@@ -66190,136 +66880,140 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
           borderRadius: BorderRadius.circular(12),
         ),
         indicatorSize: TabBarIndicatorSize.tab,
-        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-        unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-        labelPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        tabs: List.generate(6, (index) {
+        labelPadding: EdgeInsets.zero,
+        dividerColor: Colors.transparent,
+        splashBorderRadius: BorderRadius.circular(12),
+        tabs: List.generate(_tabCount, (index) {
           final isSelected = _currentTabIndex == index;
           return Tab(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _tabIcons[index],
-                    size: isSelected ? 20 : 18,
-                    color: isSelected ? Colors.white : Colors.grey.shade600,
+            height: 58,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _tabIcons[index],
+                  size: 18,
+                  color: isSelected ? Colors.white : Colors.grey.shade600,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _tabLabels[index],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected ? Colors.white : Colors.grey.shade700,
                   ),
-                  const SizedBox(width: 6),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _tabLabels[index],
-                        style: TextStyle(
-                          fontSize: isSelected ? 14 : 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? Colors.white : Colors.grey.shade700,
-                        ),
-                      ),
-                      if (isSelected)
-                        Container(
-                          width: 20,
-                          height: 2,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                    ],
-                  ),
-                  if (isSelected)
-                    Container(
-                      margin: const EdgeInsets.only(left: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        "${index + 1}",
-                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                    ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         }),
         onTap: (index) {
-          setState(() {
-            _currentTabIndex = index;
-          });
+          // Listener will sync _currentTabIndex — no setState needed
         },
       ),
     );
   }
 
+  /// ✅ Bottom bar — Save (auto next) + Prev/Next buttons
   Widget _buildBottomBar() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.95),
         boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 10, spreadRadius: 5)],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: List.generate(6, (index) {
-                    return Expanded(
-                      child: Container(
-                        height: 4,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        decoration: BoxDecoration(
-                          color: _currentTabIndex >= index ? const Color(0xFF6C63FF) : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    );
-                  }),
+          // Progress bar
+          Row(
+            children: List.generate(_tabCount, (index) {
+              return Expanded(
+                child: Container(
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: _currentTabIndex >= index ? const Color(0xFF6C63FF) : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  "Step ${_currentTabIndex + 1} of 6 • ${_tabLabels[_currentTabIndex]}",
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
+              );
+            }),
           ),
-          const SizedBox(width: 12),
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 10, spreadRadius: 2)],
-            ),
-            child: ElevatedButton(
-              onPressed: _isSaving ? null : _saveProfile,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Text(
+                "Step ${_currentTabIndex + 1} of $_tabCount • $_safeTabLabel",
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
               ),
-              child: _isSaving
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Row(
-                      children: [
-                        Icon(Icons.save, size: 18),
-                        SizedBox(width: 6),
-                        Text("Save", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-            ),
+              const Spacer(),
+              // Prev button
+              if (_currentTabIndex > 0)
+                IconButton(
+                  onPressed: _goToPreviousTabSafe,
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 16, color: Color(0xFF6C63FF)),
+                  tooltip: "Previous",
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.grey.shade100,
+                    padding: const EdgeInsets.all(8),
+                  ),
+                ),
+              if (_currentTabIndex > 0) const SizedBox(width: 8),
+              // Save button — auto jumps to next tab after save
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 10, spreadRadius: 2),
+                  ],
+                ),
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _saveProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.save, size: 18),
+                            const SizedBox(width: 6),
+                            Text(
+                              _currentTabIndex < _tabCount - 1 ? "Save & Next" : "Save",
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Next button — manual serial navigation
+              if (_currentTabIndex < _tabCount - 1)
+                IconButton(
+                  onPressed: _goToNextTabSafe,
+                  icon: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white),
+                  tooltip: "Next",
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFF6C63FF),
+                    padding: const EdgeInsets.all(10),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -66346,7 +67040,9 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]),
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 20, spreadRadius: 5)],
+                        boxShadow: [
+                          BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 20, spreadRadius: 5),
+                        ],
                       ),
                       child: const Center(child: Icon(Icons.auto_awesome, color: Colors.white, size: 40)),
                     ),
@@ -66355,7 +67051,9 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
               ),
               const SizedBox(height: 30),
               ShaderMask(
-                shaderCallback: (bounds) => const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFFFF6588)]).createShader(bounds),
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                ).createShader(bounds),
                 child: const Text(
                   "AI is loading your profile...",
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
@@ -66389,24 +67087,32 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
-        boxShadow: [BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 20, spreadRadius: 5)],
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 20, spreadRadius: 5),
+        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-            child: const Icon(Icons.person_outline, color: Colors.white, size: 24),
+            child: Icon(_safeTabIcon, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Complete Your Profile", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                const Text(
+                  "Complete Your Profile",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
                 Text(
-                  "Step ${_currentTabIndex + 1} of 6 • ${_tabLabels[_currentTabIndex]}",
+                  "Step ${_currentTabIndex + 1} of $_tabCount • $_safeTabLabel",
                   style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.8)),
                 ),
               ],
@@ -66416,7 +67122,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
             child: Text(
-              "${_currentTabIndex + 1}/6",
+              "${_currentTabIndex + 1}/$_tabCount",
               style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
@@ -66588,7 +67294,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
               lastDate: DateTime.now(),
             );
             if (picked != null && mounted) {
-              ctrl.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+              ctrl.text =
+                  "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
               _calculateAge();
             }
           },
@@ -66689,7 +67396,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                   children: [
                     const Icon(Icons.cake, color: Colors.white, size: 18),
                     const SizedBox(width: 8),
-                    Text("Age: $_age years", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                    Text("Age: $_age years",
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
                   ],
                 ),
               ),
@@ -66753,7 +67461,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Disability Information", Icons.accessible, subtitle: "Toggle if you have any disability"),
+                _sectionHeader("Disability Information", Icons.accessible,
+                    subtitle: "Toggle if you have any disability"),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -66963,7 +67672,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                     children: [
                       Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
                       const SizedBox(width: 10),
-                      const Text("Emergency Contact", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
+                      const Text("Emergency Contact",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
                     ],
                   ),
                 ),
@@ -67004,7 +67714,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                 _buildAIDropdown<String>(_selectedCountry, _countries, "Country", onChanged: _onCountryChanged),
                 _buildAIDropdown<String>(_selectedState, _states, "State", onChanged: _onStateChanged),
                 _buildAIDropdown<String>(_selectedDistrict, _districts, "District", onChanged: _onDistrictChanged),
-                _buildAITextField(_currPincode, "Pincode", keyboardType: TextInputType.number, prefixIcon: Icons.pin_drop),
+                _buildAITextField(_currPincode, "Pincode",
+                    keyboardType: TextInputType.number, prefixIcon: Icons.pin_drop),
                 _buildAITextField(_currLandmark, "Landmark", prefixIcon: Icons.place),
               ],
             ),
@@ -67014,7 +67725,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Permanent Address", Icons.location_city, subtitle: "Your permanent residential address"),
+                _sectionHeader("Permanent Address", Icons.location_city,
+                    subtitle: "Your permanent residential address"),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -67029,13 +67741,18 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                         onChanged: (value) => setState(() => _sameAsCurrent = value ?? false),
                         activeColor: const Color(0xFF6C63FF),
                       ),
-                      const Text("Same as Current Address", style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87)),
+                      const Text("Same as Current Address",
+                          style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87)),
                       const Spacer(),
                       if (_sameAsCurrent)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                          child: const Text("✓ Auto-filled", style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text("✓ Auto-filled",
+                              style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
                         ),
                     ],
                   ),
@@ -67047,12 +67764,17 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
                   _buildAITextField(_permPostOffice, "Post Office", prefixIcon: Icons.markunread_mailbox),
                   _buildAITextField(_permTehsil, "Tehsil/Taluka", prefixIcon: Icons.map),
                   const SizedBox(height: 8),
-                  const Text("Select Location", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
+                  const Text("Select Location",
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
                   const SizedBox(height: 8),
-                  _buildAIDropdown<String>(_permSelectedCountry, _countries, "Country", onChanged: _onPermCountryChanged),
-                  _buildAIDropdown<String>(_permSelectedState, _permStates, "State", onChanged: _onPermStateChanged),
-                  _buildAIDropdown<String>(_permSelectedDistrict, _permDistricts, "District", onChanged: _onPermDistrictChanged),
-                  _buildAITextField(_permPincode, "Pincode", keyboardType: TextInputType.number, prefixIcon: Icons.pin_drop),
+                  _buildAIDropdown<String>(_permSelectedCountry, _countries, "Country",
+                      onChanged: _onPermCountryChanged),
+                  _buildAIDropdown<String>(_permSelectedState, _permStates, "State",
+                      onChanged: _onPermStateChanged),
+                  _buildAIDropdown<String>(_permSelectedDistrict, _permDistricts, "District",
+                      onChanged: _onPermDistrictChanged),
+                  _buildAITextField(_permPincode, "Pincode",
+                      keyboardType: TextInputType.number, prefixIcon: Icons.pin_drop),
                   _buildAITextField(_permLandmark, "Landmark", prefixIcon: Icons.place),
                 ],
               ],
@@ -67072,7 +67794,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Professional Summary", Icons.description, subtitle: "Tell about your professional background"),
+                _sectionHeader("Professional Summary", Icons.description,
+                    subtitle: "Tell about your professional background"),
                 _buildAITextField(_summary, "Short Summary/Bio", maxLines: 3, prefixIcon: Icons.description),
                 _buildAITextField(_careerObjective, "Career Objective", maxLines: 3, prefixIcon: Icons.flag),
               ],
@@ -67083,15 +67806,24 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeader("Social & Professional Links", Icons.link, subtitle: "Connect your professional profiles"),
-                _buildAITextField(_linkedinUrl, "LinkedIn URL", hintText: "https://linkedin.com/in/your-profile", prefixIcon: Icons.link),
-                _buildAITextField(_githubUrl, "GitHub URL", hintText: "https://github.com/your-username", prefixIcon: Icons.code),
-                _buildAITextField(_portfolioUrl, "Portfolio Website", hintText: "https://your-portfolio.com", prefixIcon: Icons.web),
-                _buildAITextField(_twitterUrl, "Twitter / X URL", hintText: "https://twitter.com/username", prefixIcon: Icons.alternate_email),
-                _buildAITextField(_facebookUrl, "Facebook URL", hintText: "https://facebook.com/username", prefixIcon: Icons.facebook),
-                _buildAITextField(_instagramUrl, "Instagram URL", hintText: "https://instagram.com/username", prefixIcon: Icons.camera_alt),
-                _buildAITextField(_youtubeUrl, "YouTube Channel", hintText: "https://youtube.com/@channel", prefixIcon: Icons.play_circle),
-                _buildAITextField(_personalWebsiteUrl, "Personal Website", hintText: "https://yourwebsite.com", prefixIcon: Icons.public),
+                _sectionHeader("Social & Professional Links", Icons.link,
+                    subtitle: "Connect your professional profiles"),
+                _buildAITextField(_linkedinUrl, "LinkedIn URL",
+                    hintText: "https://linkedin.com/in/your-profile", prefixIcon: Icons.link),
+                _buildAITextField(_githubUrl, "GitHub URL",
+                    hintText: "https://github.com/your-username", prefixIcon: Icons.code),
+                _buildAITextField(_portfolioUrl, "Portfolio Website",
+                    hintText: "https://your-portfolio.com", prefixIcon: Icons.web),
+                _buildAITextField(_twitterUrl, "Twitter / X URL",
+                    hintText: "https://twitter.com/username", prefixIcon: Icons.alternate_email),
+                _buildAITextField(_facebookUrl, "Facebook URL",
+                    hintText: "https://facebook.com/username", prefixIcon: Icons.facebook),
+                _buildAITextField(_instagramUrl, "Instagram URL",
+                    hintText: "https://instagram.com/username", prefixIcon: Icons.camera_alt),
+                _buildAITextField(_youtubeUrl, "YouTube Channel",
+                    hintText: "https://youtube.com/@channel", prefixIcon: Icons.play_circle),
+                _buildAITextField(_personalWebsiteUrl, "Personal Website",
+                    hintText: "https://yourwebsite.com", prefixIcon: Icons.public),
               ],
             ),
           ),
@@ -67101,8 +67833,10 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _sectionHeader("Physical Attributes", Icons.fitness_center, subtitle: "Your physical measurements"),
-                _buildAITextField(_height, "Height (cm)", keyboardType: TextInputType.number, prefixIcon: Icons.height),
-                _buildAITextField(_weight, "Weight (kg)", keyboardType: TextInputType.number, prefixIcon: Icons.monitor_weight),
+                _buildAITextField(_height, "Height (cm)",
+                    keyboardType: TextInputType.number, prefixIcon: Icons.height),
+                _buildAITextField(_weight, "Weight (kg)",
+                    keyboardType: TextInputType.number, prefixIcon: Icons.monitor_weight),
               ],
             ),
           ),
@@ -67122,6 +67856,35 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// ✅ CheckboxListTile wrapped in Material to fix ink splash warning
+  Widget _buildToggleTile({
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: CheckboxListTile(
+          title: Text(title, style: const TextStyle(fontSize: 12)),
+          value: value,
+          onChanged: (v) => onChanged(v ?? false),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+          activeColor: const Color(0xFF6C63FF),
+          controlAffinity: ListTileControlAffinity.leading,
+          dense: true,
+        ),
       ),
     );
   }
@@ -67151,40 +67914,18 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
             Row(
               children: [
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: CheckboxListTile(
-                      title: const Text("Open to Relocate", style: TextStyle(fontSize: 12)),
-                      value: _openToRelocate,
-                      onChanged: (value) => setState(() => _openToRelocate = value ?? false),
-                      contentPadding: EdgeInsets.zero,
-                      activeColor: const Color(0xFF6C63FF),
-                      controlAffinity: ListTileControlAffinity.leading,
-                    ),
+                  child: _buildToggleTile(
+                    title: "Open to Relocate",
+                    value: _openToRelocate,
+                    onChanged: (v) => setState(() => _openToRelocate = v),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: CheckboxListTile(
-                      title: const Text("Open to Remote", style: TextStyle(fontSize: 12)),
-                      value: _openToRemoteWork,
-                      onChanged: (value) => setState(() => _openToRemoteWork = value ?? false),
-                      contentPadding: EdgeInsets.zero,
-                      activeColor: const Color(0xFF6C63FF),
-                      controlAffinity: ListTileControlAffinity.leading,
-                    ),
+                  child: _buildToggleTile(
+                    title: "Open to Remote",
+                    value: _openToRemoteWork,
+                    onChanged: (v) => setState(() => _openToRemoteWork = v),
                   ),
                 ),
               ],
@@ -67206,8 +67947,8 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
 
 ================================================================================
 [ 118/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/education_screen.dart
-📏 SIZE: 57.7 KB
-🕐 MODIFIED: 2026-09-14 10:07:38
+📏 SIZE: 59.6 KB
+🕐 MODIFIED: 2026-09-14 18:56:23
 ================================================================================
 
 // lib/features/user/presentation/screens/education_screen.dart
@@ -67219,6 +67960,10 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
 // ✅ FIXED: Delete now works with proper error surfacing
 // ✅ ADDED: Auto-scroll to form on edit + editing highlight
 // ✅ FIXED: Robust ID extraction (String / MongoDB $oid / nested maps / int)
+// ✅ FIXED: Qualification Level visible in saved records
+// ✅ FIXED: NO duplicate level (chip shows level; title shows degree/stream only)
+// ✅ FIXED: _getLevelColor returns MaterialColor (so .shadeXXX works)
+// ✅ FIXED: No stray characters at end of file
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
@@ -67267,7 +68012,6 @@ class _EducationScreenState extends State<EducationScreen> {
 
   String? _editingId;
 
-  // ✅ Scroll helpers
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _formKey = GlobalKey();
 
@@ -67306,7 +68050,39 @@ class _EducationScreenState extends State<EducationScreen> {
     super.dispose();
   }
 
-  // ✅ Build options list for a level WITHOUT touching current selections
+  // ============================================================
+  // HELPERS
+  // ============================================================
+
+  bool _isNonEmpty(dynamic v) =>
+      v != null && v.toString().trim().isNotEmpty;
+
+  /// Extra identifier shown NEXT to the level chip (degree / stream).
+  /// Returns EMPTY when level alone is enough (10th / 12th without stream).
+  String _getEducationTitle(Map<String, dynamic> edu) {
+    final degree = (edu['degree'] ?? '').toString().trim();
+    final stream = (edu['stream'] ?? '').toString().trim();
+    final level = (edu['level'] ?? '').toString().trim();
+
+    if (degree.isNotEmpty) return degree;
+
+    if (stream.isNotEmpty &&
+        (level == '12th' || level == 'Vocational')) {
+      return stream;
+    }
+    return '';
+  }
+
+  /// Full title for snackbars / delete dialog (level + degree fallback).
+  String _getEducationFullTitle(Map<String, dynamic> edu) {
+    final degree = (edu['degree'] ?? '').toString().trim();
+    final level = (edu['level'] ?? '').toString().trim();
+    if (degree.isNotEmpty) {
+      return level.isNotEmpty ? '$level • $degree' : degree;
+    }
+    return level.isNotEmpty ? level : 'Education';
+  }
+
   void _rebuildOptionsForLevel(String level) {
     _degreeOptions = [];
     _streamOptions = [];
@@ -67345,7 +68121,6 @@ class _EducationScreenState extends State<EducationScreen> {
     }
   }
 
-  // ✅ Reset everything (used on level change)
   void _updateOptionsForLevel(String level) {
     setState(() {
       _selectedDegree = '';
@@ -67405,36 +68180,30 @@ class _EducationScreenState extends State<EducationScreen> {
     } catch (e) {
       debugPrint("❌ Error loading education: $e");
       if (mounted) {
-        showMessage(context, "Failed to load education: $e",
-            isError: true);
+        showMessage(context, "Failed to load education: $e", isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // ✅ Duplicate check
   bool _isDuplicateEducation() {
     return _educationList.any((edu) {
       final eduId = _getId(edu);
       if (eduId != null && eduId == _editingId) return false;
-      final sameLevel = (edu['level'] ?? '')
-              .toString()
-              .toLowerCase() ==
-          _selectedLevel.toLowerCase();
-      final sameDegree = (edu['degree'] ?? '')
-              .toString()
-              .toLowerCase() ==
-          _selectedDegree.toLowerCase();
-      final sameInstitute = (edu['institute'] ?? '')
-              .toString()
-              .toLowerCase() ==
-          _instituteCtrl.text.trim().toLowerCase();
+      final sameLevel =
+          (edu['level'] ?? '').toString().toLowerCase() ==
+              _selectedLevel.toLowerCase();
+      final sameDegree =
+          (edu['degree'] ?? '').toString().toLowerCase() ==
+              _selectedDegree.toLowerCase();
+      final sameInstitute =
+          (edu['institute'] ?? '').toString().toLowerCase() ==
+              _instituteCtrl.text.trim().toLowerCase();
       return sameLevel && sameDegree && sameInstitute;
     });
   }
 
-  // ✅ Handles String, MongoDB {$oid}, nested maps, int, etc.
   String? _extractId(dynamic raw) {
     if (raw == null) return null;
     if (raw is String) return raw.trim().isEmpty ? null : raw.trim();
@@ -67458,7 +68227,6 @@ class _EducationScreenState extends State<EducationScreen> {
     return (s.isEmpty || s == 'null' || s == 'undefined') ? null : s;
   }
 
-  // ✅ Robust ID extraction — tries every common field name
   String? _getId(Map<String, dynamic> item) {
     final id = _extractId(item['_id']) ??
         _extractId(item['id']) ??
@@ -67473,7 +68241,6 @@ class _EducationScreenState extends State<EducationScreen> {
     return id;
   }
 
-  // ✅ Scroll to form
   void _scrollToForm() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ctx = _formKey.currentContext;
@@ -67488,7 +68255,6 @@ class _EducationScreenState extends State<EducationScreen> {
     });
   }
 
-  // ✅ Edit preserves saved values & scrolls to form
   void _startEdit(Map<String, dynamic> item) {
     setState(() {
       _editingId = _getId(item);
@@ -67517,8 +68283,7 @@ class _EducationScreenState extends State<EducationScreen> {
       _rebuildOptionsForLevel(_selectedLevel);
     });
 
-    showMessage(context,
-        "✏️ Editing: ${item['degree'] ?? item['level'] ?? 'Education'}");
+    showMessage(context, "✏️ Editing: ${_getEducationFullTitle(item)}");
     _scrollToForm();
   }
 
@@ -67567,8 +68332,7 @@ class _EducationScreenState extends State<EducationScreen> {
         _basicLevel = 'None';
         await _loadEducation(forceRefresh: true);
         if (mounted) {
-          showMessage(context,
-              "✅ Switched to Formal Education Mode.");
+          showMessage(context, "✅ Switched to Formal Education Mode.");
         }
       } else {
         await UserService.saveProfile({'is_educated': false});
@@ -67576,14 +68340,12 @@ class _EducationScreenState extends State<EducationScreen> {
         _clearForm();
         await _loadEducation(forceRefresh: true);
         if (mounted) {
-          showMessage(context,
-              "✅ Switched to Basic Literacy Mode.");
+          showMessage(context, "✅ Switched to Basic Literacy Mode.");
         }
       }
     } catch (e) {
       if (mounted) {
-        showMessage(context, "Failed to switch mode: $e",
-            isError: true);
+        showMessage(context, "Failed to switch mode: $e", isError: true);
       }
       if (mounted) setState(() => _isEducated = !value);
     } finally {
@@ -67621,8 +68383,7 @@ class _EducationScreenState extends State<EducationScreen> {
       'board_university':
           _boardOptions.isNotEmpty ? _selectedBoard : _boardCtrl.text.trim(),
       'year_of_passing': int.tryParse(_yearCtrl.text.trim()) ?? 0,
-      'cgpa_percentage':
-          double.tryParse(_percentageCtrl.text.trim()),
+      'cgpa_percentage': double.tryParse(_percentageCtrl.text.trim()),
       'result_type': _selectedResultType,
       'grade': _gradeCtrl.text.trim(),
       'medium': _mediumCtrl.text.trim(),
@@ -67640,8 +68401,10 @@ class _EducationScreenState extends State<EducationScreen> {
           .toList(),
     };
 
+    final wasEditing = _editingId != null;
+
     try {
-      if (_editingId != null) {
+      if (wasEditing) {
         await UserService.updateEducation(_editingId!, payload);
       } else {
         await UserService.addEducation(payload);
@@ -67651,9 +68414,9 @@ class _EducationScreenState extends State<EducationScreen> {
       if (mounted) {
         showMessage(
             context,
-            _editingId == null
-                ? "Education saved successfully!"
-                : "Education updated successfully!");
+            wasEditing
+                ? "Education updated successfully!"
+                : "Education saved successfully!");
       }
     } catch (e) {
       if (mounted) showMessage(context, e.toString(), isError: true);
@@ -67693,7 +68456,6 @@ class _EducationScreenState extends State<EducationScreen> {
     }
   }
 
-  // ✅ FIXED: Reliable delete with proper error surfacing
   Future<void> _deleteEducation(String? id, String degree) async {
     debugPrint('🗑️ _deleteEducation called → id=$id, degree=$degree');
 
@@ -67759,16 +68521,13 @@ class _EducationScreenState extends State<EducationScreen> {
       ),
     );
 
-    debugPrint('🗑️ Confirm dialog result: $confirmed');
     if (confirmed != true) return;
     if (!mounted) return;
 
     setState(() => _isSaving = true);
 
     try {
-      debugPrint('🗑️ Calling UserService.deleteEducation($id) ...');
       await UserService.deleteEducation(id);
-      debugPrint('✅ Delete API success');
 
       if (_editingId == id) {
         _clearForm();
@@ -67811,7 +68570,8 @@ class _EducationScreenState extends State<EducationScreen> {
     }
   }
 
-  Color _getLevelColor(String level) {
+  // ✅ Return type is MaterialColor so .shade50 / .shade100 / .shade700 work.
+  MaterialColor _getLevelColor(String level) {
     switch (level) {
       case '10th':
         return Colors.blue;
@@ -68522,8 +69282,7 @@ class _EducationScreenState extends State<EducationScreen> {
               itemBuilder: (context, index) {
                 final edu = _educationList[index];
                 final id = _getId(edu) ?? 'idx_$index';
-                return _buildEducationCard(edu, index,
-                    key: ValueKey(id));
+                return _buildEducationCard(edu, index, key: ValueKey(id));
               },
             ),
         ],
@@ -68568,6 +69327,16 @@ class _EducationScreenState extends State<EducationScreen> {
     final id = _getId(edu);
     final isEditing = _editingId != null && _editingId == id;
 
+    // ✅ FIX: title shows ONLY degree / stream (empty for 10th / 12th w/o stream)
+    final displayTitle = _getEducationTitle(edu);
+
+    final yearStr = _isNonEmpty(edu['year_of_passing'])
+        ? edu['year_of_passing'].toString()
+        : '-';
+    final scoreStr = edu['cgpa_percentage'] != null
+        ? ' | ${edu['result_type'] ?? "Score"}: ${edu['cgpa_percentage']}'
+        : '';
+
     return Container(
       key: key,
       margin: const EdgeInsets.only(bottom: 12),
@@ -68596,15 +69365,41 @@ class _EducationScreenState extends State<EducationScreen> {
         ),
         title: Row(
           children: [
-            Expanded(
-              child: Text(
-                edu['degree'] ?? edu['level'] ?? '',
-                style: const TextStyle(
+            // ✅ Level chip — ALWAYS shown
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: levelColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  (edu['level'] ?? 'Education').toString(),
+                  style: TextStyle(
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87),
-                overflow: TextOverflow.ellipsis,
+                    color: levelColor.shade700,
+                  ),
+                ),
               ),
             ),
+
+            // ✅ Extra title (degree / stream) — only if non-empty
+            if (displayTitle.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  displayTitle,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ] else
+              const Spacer(),
+
             if (isEditing)
               Container(
                 margin: const EdgeInsets.only(left: 6),
@@ -68624,11 +69419,14 @@ class _EducationScreenState extends State<EducationScreen> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(edu['institute'] ?? '',
+            if (_isNonEmpty(edu['institute']))
+              Text(
+                edu['institute'].toString(),
                 style: TextStyle(
-                    color: Colors.grey.shade700, fontSize: 13)),
+                    color: Colors.grey.shade700, fontSize: 13),
+              ),
             Text(
-              "Year: ${edu['year_of_passing']}${edu['cgpa_percentage'] != null ? ' | ${edu['result_type'] ?? "Score"}: ${edu['cgpa_percentage']}' : ''}",
+              "Year: $yearStr$scoreStr",
               style: TextStyle(
                   fontSize: 12, color: Colors.grey.shade600),
             ),
@@ -68651,8 +69449,6 @@ class _EducationScreenState extends State<EducationScreen> {
                   : () => _startEdit(edu),
             ),
             const SizedBox(width: 6),
-            // ✅ FIX: no longer disables when id == null —
-            // the method itself shows an informative message
             _buildActionIcon(
               icon: Icons.delete,
               iconColor: Colors.red.shade700,
@@ -68660,11 +69456,7 @@ class _EducationScreenState extends State<EducationScreen> {
               tooltip: "Delete",
               onTap: _isSaving
                   ? null
-                  : () => _deleteEducation(
-                        id,
-                        (edu['degree'] ?? edu['level'] ?? 'Education')
-                            .toString(),
-                      ),
+                  : () => _deleteEducation(id, _getEducationFullTitle(edu)),
             ),
           ],
         ),
@@ -68674,29 +69466,30 @@ class _EducationScreenState extends State<EducationScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (edu['stream'] != null &&
-                    edu['stream'].toString().isNotEmpty)
+                if (_isNonEmpty(edu['level']))
+                  _buildDetailRow(Icons.school, "Level",
+                      edu['level'].toString()),
+                if (_isNonEmpty(edu['degree']))
+                  _buildDetailRow(Icons.workspace_premium, "Degree",
+                      edu['degree'].toString()),
+                if (_isNonEmpty(edu['stream']))
                   _buildDetailRow(
-                      Icons.category, "Stream", edu['stream']),
-                if (edu['board_university'] != null &&
-                    edu['board_university'].toString().isNotEmpty)
+                      Icons.category, "Stream", edu['stream'].toString()),
+                if (_isNonEmpty(edu['board_university']))
                   _buildDetailRow(Icons.account_balance,
-                      "Board/University", edu['board_university']),
-                if (edu['medium'] != null &&
-                    edu['medium'].toString().isNotEmpty)
+                      "Board/University", edu['board_university'].toString()),
+                if (_isNonEmpty(edu['medium']))
                   _buildDetailRow(
-                      Icons.language, "Medium", edu['medium']),
-                if (edu['grade'] != null &&
-                    edu['grade'].toString().isNotEmpty)
+                      Icons.language, "Medium", edu['medium'].toString()),
+                if (_isNonEmpty(edu['grade']))
                   _buildDetailRow(
-                      Icons.grade, "Grade", edu['grade']),
+                      Icons.grade, "Grade", edu['grade'].toString()),
                 if (edu['backlogs'] != null)
                   _buildDetailRow(Icons.warning, "Backlogs",
                       edu['backlogs'].toString()),
-                if (edu['certificate_url'] != null &&
-                    edu['certificate_url'].toString().isNotEmpty)
+                if (_isNonEmpty(edu['certificate_url']))
                   _buildDetailRow(Icons.link, "Certificate",
-                      edu['certificate_url']),
+                      edu['certificate_url'].toString()),
                 if (edu['subjects'] != null &&
                     (edu['subjects'] as List).isNotEmpty)
                   _buildListRow(
@@ -68939,7 +69732,7 @@ class _EducationScreenState extends State<EducationScreen> {
 ================================================================================
 [ 119/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/experience_screen.dart
 📏 SIZE: 72.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:38
+🕐 MODIFIED: 2026-09-13 19:58:47
 ================================================================================
 
 // lib/features/user/presentation/screens/experience_screen.dart
@@ -70763,7 +71556,7 @@ class _TabData {
 ================================================================================
 [ 120/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/user_applications_screen.dart
 📏 SIZE: 91.6 KB
-🕐 MODIFIED: 2026-09-14 10:07:38
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/user/presentation/screens/user_applications_screen.dart
@@ -73396,7 +74189,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 ================================================================================
 [ 121/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
 📏 SIZE: 37.2 KB
-🕐 MODIFIED: 2026-09-14 10:07:38
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/user/presentation/screens/user_dashboard.dart
@@ -74501,7 +75294,7 @@ class _UserDashboardState extends State<UserDashboard> {
 ================================================================================
 [ 122/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/user_documents_screen.dart
 📏 SIZE: 63.1 KB
-🕐 MODIFIED: 2026-09-14 10:07:38
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/user/presentation/screens/user_documents_screen.dart
@@ -75874,7 +76667,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 ================================================================================
 [ 123/ 129] 🎯 rojgarnext/lib/features/user/presentation/screens/user_support_screen.dart
 📏 SIZE: 27.8 KB
-🕐 MODIFIED: 2026-09-14 10:07:38
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/user/presentation/screens/user_support_screen.dart
@@ -76760,7 +77553,7 @@ This message was sent from RojgarNext App
 ================================================================================
 [ 124/ 129] 🎯 rojgarnext/lib/features/user/presentation/utils/menu_types.dart
 📏 SIZE: 462 B
-🕐 MODIFIED: 2026-09-14 10:07:38
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/user/presentation/utils/menu_types.dart
@@ -76793,7 +77586,7 @@ enum MenuType {
 ================================================================================
 [ 125/ 129] 🎯 rojgarnext/lib/features/user/presentation/widgets/user_sidebar.dart
 📏 SIZE: 12.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:38
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 // lib/features/user/presentation/widgets/user_sidebar.dart
@@ -77180,7 +77973,7 @@ class _UserSidebarState extends State<UserSidebar> {
 ================================================================================
 [ 126/ 129] 🎯 rojgarnext/lib/main.dart
 📏 SIZE: 4.3 KB
-🕐 MODIFIED: 2026-09-14 10:07:38
+🕐 MODIFIED: 2026-09-13 18:06:45
 ================================================================================
 
 // lib/main.dart - OPTIMIZED FOR FASTER LOAD
@@ -77342,7 +78135,7 @@ class _NoGlowScrollBehavior extends ScrollBehavior {
 ================================================================================
 [ 127/ 129] ⚙️ rojgarnext/pubspec.yaml
 📏 SIZE: 2.0 KB
-🕐 MODIFIED: 2026-09-14 13:38:32
+🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
 
 name: rojgarnext
@@ -77435,7 +78228,7 @@ flutter:
 ================================================================================
 [ 128/ 129] 🌐 rojgarnext/web/index.html
 📏 SIZE: 1.6 KB
-🕐 MODIFIED: 2026-09-14 10:07:38
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 <!DOCTYPE html>
@@ -77491,7 +78284,7 @@ flutter:
 ================================================================================
 [ 129/ 129] 📋 rojgarnext/web/manifest.json
 📏 SIZE: 951 B
-🕐 MODIFIED: 2026-09-14 10:07:38
+🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
 
 {
@@ -77534,11 +78327,6 @@ flutter:
 ================================================================================
 🎉 EXPORT COMPLETED!
 ================================================================================
-<<<<<<< HEAD
-Total Files: 127
-Generated: 2026-09-14 12:02:19
-=======
 Total Files: 129
-Generated: 2026-09-14 17:21:01
->>>>>>> 5fdcfed668962850c77422e75da326c94af48e9d
+Generated: 2026-09-15 10:38:35
 ================================================================================
