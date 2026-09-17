@@ -1,16 +1,26 @@
 // lib/features/resume/presentation/screens/format/formats/executive_format.dart
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import '../resume_format_base.dart';
 
 class ExecutiveFormat extends ResumeFormatBase {
-  @override String get id => 'executive';
-  @override String get name => 'Executive Leadership';
-  @override String get icon => '👔';
-  @override String get description => 'Premium Professional Format';
-  @override String get color => '#BF360C';
-  @override String get styleKey => 'executive';
-  @override String get templateType => 'executive';
-  @override String get badgeText => 'Premium';
+  @override
+  String get id => 'executive';
+  @override
+  String get name => 'Executive Leadership';
+  @override
+  String get icon => '👔';
+  @override
+  String get description => 'Premium Professional Format';
+  @override
+  String get color => '#BF360C';
+  @override
+  String get styleKey => 'executive';
+  @override
+  String get templateType => 'executive';
+  @override
+  String get badgeText => 'Premium';
 
   static const Color _dark = Color(0xFF2C1810);
   static const Color _dark2 = Color(0xFF4A2818);
@@ -28,6 +38,11 @@ class ExecutiveFormat extends ResumeFormatBase {
     final experience = getList(resumeData, 'experience');
     final skills = getSkills(resumeData);
     final certifications = getList(resumeData, 'certifications');
+    final designation = pDesignation(resumeData);
+
+    final desigHtml = designation.isNotEmpty
+        ? '<div style="font-size:13px;color:#D4AF37;">${escapeHtml(designation)}</div>'
+        : '';
 
     return '''
 <!DOCTYPE html>
@@ -52,17 +67,18 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
   <div class="sidebar">
     <div class="header">
       <div class="name">${escapeHtml(name)}</div>
-      <div style="font-size:13px;color:#D4AF37;">Chief Executive Officer</div>
-      <div style="font-size:12px;color:#E2E8F0;margin-top:10px;">📧 ${escapeHtml(email)}</div>
-      <div style="font-size:12px;color:#E2E8F0;">📞 ${escapeHtml(phone)}</div>
-      <div style="font-size:12px;color:#E2E8F0;">📍 ${escapeHtml(location)}</div>
+      $desigHtml
+      ${email.isNotEmpty ? '<div style="font-size:12px;color:#E2E8F0;margin-top:10px;">📧 ${escapeHtml(email)}</div>' : ''}
+      ${phone.isNotEmpty ? '<div style="font-size:12px;color:#E2E8F0;">📞 ${escapeHtml(phone)}</div>' : ''}
+      ${location.isNotEmpty ? '<div style="font-size:12px;color:#E2E8F0;">📍 ${escapeHtml(location)}</div>' : ''}
     </div>
     <div class="section-title">Core Competencies</div>
     ${skills.map((s) => '<div class="item">${escapeHtml(s)}</div>').join('')}
     <div class="section-title">Education</div>
     ${education.map((e) {
       final x = pMap(e);
-      return '<div class="item"><strong>${escapeHtml(pStr(x['degree']))}</strong><br>${escapeHtml(pStr(x['institute']))} (${escapeHtml(pStr(x['year_of_passing']))})</div>';
+      final title = pEduTitle(x);
+      return '<div class="item"><strong>${escapeHtml(title)}</strong><br>${escapeHtml(pEduSubtitle(x))}</div>';
     }).join('')}
   </div>
   <div class="main">
@@ -93,112 +109,339 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
     final edu = pList(data['education']);
     final skills = pSkills(data['skills']);
     final certs = pList(data['certifications']);
+    final designation = pDesignation(data);
 
-    return Container(
-      color: Colors.white,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // SIDEBAR
-          Container(
-            width: 240,
-            color: _dark,
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Column(
-                    children: [
-                      Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _gold), textAlign: TextAlign.center),
-                      const SizedBox(height: 4),
-                      const Text("Chief Executive Officer", style: TextStyle(fontSize: 11, color: _gold)),
-                      const SizedBox(height: 10),
-                      Text("📧 $email", style: const TextStyle(fontSize: 11, color: Color(0xFFE2E8F0))),
-                      Text("📞 $phone", style: const TextStyle(fontSize: 11, color: Color(0xFFE2E8F0))),
-                      Text("📍 $location", style: const TextStyle(fontSize: 11, color: Color(0xFFE2E8F0))),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _sidebarTitle("CORE COMPETENCIES"),
-                ...skills.map((s) => _sidebarItem(s)),
-                const SizedBox(height: 16),
-                _sidebarTitle("EDUCATION"),
-                ...edu.map((e) => _sidebarEduCard(pMap(e))),
-              ],
-            ),
-          ),
-          // MAIN
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: Container(
+            color: Colors.white,
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _mainTitle("EXECUTIVE PROFILE"),
-                  pInfoBox(summary, bg: _cream, leftBorder: _gold, textStyle: const TextStyle(fontSize: 13, height: 1.6, fontStyle: FontStyle.italic, color: _dark)),
-                  const SizedBox(height: 20),
-                  _mainTitle("PROFESSIONAL EXPERIENCE"),
-                  ...exp.map((e) => _expCard(pMap(e))),
-                  const SizedBox(height: 20),
-                  _mainTitle("CERTIFICATIONS"),
-                  ...certs.map((c) => Padding(padding: const EdgeInsets.only(bottom: 4), child: Text("• ${pCert(pMap(c))}", style: const TextStyle(fontSize: 13, color: _dark)))),
+                  Container(
+                    width: constraints.maxWidth * 0.30,
+                    color: _dark,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Column(
+                            children: [
+                              Text(name,
+                                  style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: _gold),
+                                  textAlign: TextAlign.center),
+                              if (designation.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(designation,
+                                    style: const TextStyle(
+                                        fontSize: 11, color: _gold)),
+                              ],
+                              const SizedBox(height: 10),
+                              if (email.isNotEmpty)
+                                Text("📧 $email",
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFFE2E8F0))),
+                              if (phone.isNotEmpty)
+                                Text("📞 $phone",
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFFE2E8F0))),
+                              if (location.isNotEmpty)
+                                Text("📍 $location",
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFFE2E8F0))),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        if (skills.isNotEmpty) ...[
+                          _sidebarTitle("CORE COMPETENCIES"),
+                          ...skills.map((s) => _sidebarItem(s)),
+                          const SizedBox(height: 16),
+                        ],
+                        if (edu.isNotEmpty) ...[
+                          _sidebarTitle("EDUCATION"),
+                          ...edu.map((e) => _sidebarEduCard(pMap(e))),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (summary.isNotEmpty) ...[
+                            _mainTitle("EXECUTIVE PROFILE"),
+                            pInfoBox(summary,
+                                bg: _cream,
+                                leftBorder: _gold,
+                                textStyle: const TextStyle(
+                                    fontSize: 13,
+                                    height: 1.6,
+                                    fontStyle: FontStyle.italic,
+                                    color: _dark)),
+                            const SizedBox(height: 20),
+                          ],
+                          if (exp.isNotEmpty) ...[
+                            _mainTitle("PROFESSIONAL EXPERIENCE"),
+                            ...exp.map((e) => _expCard(pMap(e))),
+                            const SizedBox(height: 20),
+                          ],
+                          if (certs.isNotEmpty) ...[
+                            _mainTitle("CERTIFICATIONS"),
+                            ...certs.map((c) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text("• ${pCert(pMap(c))}",
+                                      style: const TextStyle(
+                                          fontSize: 13, color: _dark)),
+                                )),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _sidebarTitle(String title) => Padding(
-    padding: const EdgeInsets.only(bottom: 8, top: 4),
-    child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _gold, letterSpacing: 1)),
-  );
+        padding: const EdgeInsets.only(bottom: 8, top: 4),
+        child: Text(title,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: _gold,
+                letterSpacing: 1)),
+      );
 
   Widget _sidebarItem(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 6),
-    child: Text("• $text", style: const TextStyle(fontSize: 12, color: Color(0xFFE2E8F0))),
-  );
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text("• $text",
+            style: const TextStyle(fontSize: 12, color: Color(0xFFE2E8F0))),
+      );
 
   Widget _sidebarEduCard(Map<String, dynamic> edu) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(pStr(edu['degree'], 'Degree'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-        Text("${pStr(edu['institute'])} (${pStr(edu['year_of_passing'])})", style: const TextStyle(fontSize: 11, color: Color(0xFFE2E8F0))),
-      ],
-    ),
-  );
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(pEduTitle(edu),
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white)),
+            if (pEduSubtitle(edu).isNotEmpty)
+              Text(pEduSubtitle(edu),
+                  style: const TextStyle(
+                      fontSize: 11, color: Color(0xFFE2E8F0))),
+          ],
+        ),
+      );
 
   Widget _mainTitle(String title) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _dark, letterSpacing: 1)),
-        const SizedBox(height: 4),
-        Container(height: 2, width: 50, color: _gold),
-      ],
-    ),
-  );
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _dark,
+                    letterSpacing: 1)),
+            const SizedBox(height: 4),
+            Container(height: 2, width: 50, color: _gold),
+          ],
+        ),
+      );
 
   Widget _expCard(Map<String, dynamic> exp) => pCard(
-    bg: _cream, leftBorder: _gold, radius: 4,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+        bg: _cream,
+        leftBorder: _gold,
+        radius: 4,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(pStr(exp['role'], 'Role'),
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: _dark)),
+            const SizedBox(height: 2),
+            Text(
+                "${pStr(exp['company'])} | ${pStr(exp['start_date'])} - ${pStr(exp['end_date'], 'Present')}",
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: _dark2,
+                    fontStyle: FontStyle.italic)),
+            if (pStr(exp['description']).isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(pStr(exp['description']),
+                  style: const TextStyle(
+                      fontSize: 12, height: 1.5, color: _dark)),
+            ],
+          ],
+        ),
+      );
+
+  // ============================================================
+  // PDF CONTENT — Full page + ASCII bullets
+  // ============================================================
+  @override
+  pw.Widget buildPdfContent(
+    Map<String, dynamic> data,
+    PdfPageFormat pageFormat,
+  ) {
+    final dark = pdfColor('#2C1810');
+    final gold = pdfColor(color.isEmpty ? '#D4AF37' : color);
+    final cream = pdfColor('#FFF9EF');
+
+    final u = pdfMap(data['user_info']);
+    final c = pdfMap(data['contact_info']);
+    final name = pdfStr(u['full_name'], 'Your Name');
+    final desig = pdfDesignation(data);
+    final email = pdfStr(c['email']);
+    final phone = pdfStr(c['phone']);
+    final location = pdfLocation(data);
+    final summary = pdfStr(data['professional_summary']);
+    final edu = pdfList(data['education']);
+    final exp = pdfList(data['experience']);
+    final skills = pdfSkills(data['skills']);
+    final certs = pdfList(data['certifications']);
+
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
-        Text(pStr(exp['role'], 'Role'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _dark)),
-        const SizedBox(height: 2),
-        Text("${pStr(exp['company'])} | ${pStr(exp['start_date'])} - ${pStr(exp['end_date'], 'Present')}", style: const TextStyle(fontSize: 12, color: _dark2, fontStyle: FontStyle.italic)),
-        if (pStr(exp['description']).isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(pStr(exp['description']), style: const TextStyle(fontSize: 12, height: 1.5, color: _dark)),
-        ],
+        pw.Container(
+          width: 175,
+          color: dark,
+          padding: const pw.EdgeInsets.all(18),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Container(
+                padding: const pw.EdgeInsets.only(bottom: 12),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                      bottom: pw.BorderSide(color: gold, width: 1.5)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(pdfSafe(name),
+                        style: pw.TextStyle(
+                            fontSize: 16,
+                            fontWeight: pw.FontWeight.bold,
+                            color: gold)),
+                    if (desig.isNotEmpty)
+                      pw.Text(pdfSafe(desig),
+                          style: pw.TextStyle(fontSize: 9, color: gold)),
+                    pw.SizedBox(height: 8),
+                    if (email.isNotEmpty)
+                      pw.Text(pdfSafe(email),
+                          style: const pw.TextStyle(
+                              fontSize: 8, color: PdfColors.grey300)),
+                    if (phone.isNotEmpty)
+                      pw.Text(pdfSafe(phone),
+                          style: const pw.TextStyle(
+                              fontSize: 8, color: PdfColors.grey300)),
+                    if (location.isNotEmpty)
+                      pw.Text(pdfSafe(location),
+                          style: const pw.TextStyle(
+                              fontSize: 8, color: PdfColors.grey300)),
+                  ],
+                ),
+              ),
+              if (skills.isNotEmpty) ...[
+                pw.SizedBox(height: 14),
+                pdfSideTitle('CORE COMPETENCIES', gold),
+                ...skills
+                    .take(15)
+                    .map((s) => pdfSideItem('- ${pdfSafe(s)}', PdfColors.grey300)),
+              ],
+              if (edu.isNotEmpty) ...[
+                pw.SizedBox(height: 14),
+                pdfSideTitle('EDUCATION', gold),
+                ...edu.take(3).map((e) => pw.Padding(
+                      padding: const pw.EdgeInsets.only(bottom: 6),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            pdfSafe(pdfStr(e['degree'],
+                                pdfStr(e['level'], 'Degree'))),
+                            style: pw.TextStyle(
+                                fontSize: 9,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white),
+                          ),
+                          pw.Text(pdfSafe(pdfStr(e['institute'])),
+                              style: const pw.TextStyle(
+                                  fontSize: 8, color: PdfColors.grey300)),
+                        ],
+                      ),
+                    )),
+              ],
+            ],
+          ),
+        ),
+        pw.Expanded(
+          child: pw.Container(
+            padding: const pw.EdgeInsets.all(22),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                if (summary.isNotEmpty) ...[
+                  pdfMainTitle('EXECUTIVE PROFILE', dark),
+                  pw.Container(
+                    width: double.infinity,
+                    padding: const pw.EdgeInsets.all(12),
+                    decoration: pw.BoxDecoration(
+                      color: cream,
+                      border: pw.Border(
+                          left: pw.BorderSide(color: gold, width: 3)),
+                    ),
+                    child: pw.Text(pdfSafe(summary),
+                        style: pw.TextStyle(
+                            fontSize: 10,
+                            lineSpacing: 2,
+                            color: dark,
+                            fontStyle: pw.FontStyle.italic)),
+                  ),
+                  pw.SizedBox(height: 16),
+                ],
+                if (exp.isNotEmpty) ...[
+                  pdfMainTitle('PROFESSIONAL EXPERIENCE', dark),
+                  ...exp.map((e) => pdfExpBlockExecutive(e, gold, cream, dark)),
+                  pw.SizedBox(height: 12),
+                ],
+                if (certs.isNotEmpty) ...[
+                  pdfMainTitle('CERTIFICATIONS', dark),
+                  ...certs.take(8).map((crt) => pw.Text(
+                      '- ${pdfSafe(pdfStr(crt["name"]))}',
+                      style: pw.TextStyle(fontSize: 9, color: dark))),
+                ],
+              ],
+            ),
+          ),
+        ),
       ],
-    ),
-  );
+    );
+  }
 }

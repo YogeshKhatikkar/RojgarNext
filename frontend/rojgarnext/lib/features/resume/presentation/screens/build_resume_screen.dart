@@ -1,12 +1,16 @@
 // lib/features/resume/presentation/screens/build_resume_screen.dart
 // ✅ AI-BASED MODERN DESIGN - Matches ResumeScreen style
 // ✅ Complete with loading animation, glassmorphism, and stats
+// ✅ FIXED: Print / Download / Share now exports the EXACT format that was clicked
+// ✅ FIXED: Prevents double-tap, shows clear success/failure messages
+// ✅ FIXED: _selectedCategory now updates via setState so Quick Actions use the right format
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
+import 'package:rojgarnext/features/resume/services/resume_pdf_service.dart';
 import 'package:rojgarnext/features/resume/presentation/screens/format/resume_format_manager.dart';
 import 'package:rojgarnext/features/resume/presentation/screens/format/resume_format_popup.dart';
 import 'package:rojgarnext/features/resume/presentation/screens/format/resume_format_base.dart';
@@ -22,6 +26,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
     with TickerProviderStateMixin {
   bool _isLoading = true;
   bool _isDialogOpen = false;
+  bool _isGenerating = false; // ✅ prevents double-tap on print/download/share
   String _selectedCategory = 'classic';
   Map<String, dynamic> _resumeData = {};
   String? _errorMessage;
@@ -90,7 +95,9 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
         _fullName = userInfo['full_name']?.toString() ?? '';
         _firstName = userInfo['first_name']?.toString() ?? '';
         _lastName = userInfo['last_name']?.toString() ?? '';
-        _dateOfBirth = userInfo['date_of_birth']?.toString() ?? userInfo['dob']?.toString() ?? '';
+        _dateOfBirth = userInfo['date_of_birth']?.toString() ??
+            userInfo['dob']?.toString() ??
+            '';
         _gender = userInfo['gender']?.toString() ?? '';
 
         // Extract contact info
@@ -99,13 +106,17 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
         _phone = contactInfo['phone']?.toString() ?? '';
 
         // Extract address/location
-        final address = contactInfo['current_address'] as Map<String, dynamic>? ?? {};
+        final address =
+            contactInfo['current_address'] as Map<String, dynamic>? ?? {};
         final city = address['city']?.toString() ?? '';
         final state = address['state']?.toString() ?? '';
-        _location = city.isNotEmpty ? (state.isNotEmpty ? '$city, $state' : city) : (state.isNotEmpty ? state : 'India');
+        _location = city.isNotEmpty
+            ? (state.isNotEmpty ? '$city, $state' : city)
+            : (state.isNotEmpty ? state : 'India');
 
         // Extract professional summary
-        _professionalSummary = data['professional_summary']?.toString() ?? '';
+        _professionalSummary =
+            data['professional_summary']?.toString() ?? '';
         _careerObjective = data['career_objective']?.toString() ?? '';
 
         // Extract education
@@ -158,7 +169,8 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
         _buildResumeData();
         setState(() => _isLoading = false);
       } else {
-        _errorMessage = response.data['message'] ?? 'Failed to load resume data';
+        _errorMessage =
+            response.data['message'] ?? 'Failed to load resume data';
         setState(() => _isLoading = false);
       }
     } catch (e) {
@@ -197,8 +209,12 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
       'skills': {
         'all': _skills.map((s) => {'name': s}).toList(),
         'expert': _skills.take(3).map((s) => {'name': s}).toList(),
-        'advanced': _skills.length > 3 ? _skills.skip(3).take(3).map((s) => {'name': s}).toList() : [],
-        'intermediate': _skills.length > 6 ? _skills.skip(6).map((s) => {'name': s}).toList() : [],
+        'advanced': _skills.length > 3
+            ? _skills.skip(3).take(3).map((s) => {'name': s}).toList()
+            : [],
+        'intermediate': _skills.length > 6
+            ? _skills.skip(6).map((s) => {'name': s}).toList()
+            : [],
       },
       'certifications': _certifications,
       'projects': _projects,
@@ -262,8 +278,12 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
     return {
       'all': _skills.map((s) => {'name': s}).toList(),
       'expert': _skills.take(3).map((s) => {'name': s}).toList(),
-      'advanced': _skills.length > 3 ? _skills.skip(3).take(3).map((s) => {'name': s}).toList() : [],
-      'intermediate': _skills.length > 6 ? _skills.skip(6).map((s) => {'name': s}).toList() : [],
+      'advanced': _skills.length > 3
+          ? _skills.skip(3).take(3).map((s) => {'name': s}).toList()
+          : [],
+      'intermediate': _skills.length > 6
+          ? _skills.skip(6).map((s) => {'name': s}).toList()
+          : [],
     };
   }
 
@@ -305,7 +325,9 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
 
     if (_resumeData.isEmpty) {
       debugPrint('❌ Resume data is empty');
-      showMessage(context, 'No resume data available. Please complete your profile first.', isError: true);
+      showMessage(
+          context, 'No resume data available. Please complete your profile first.',
+          isError: true);
       return;
     }
 
@@ -338,10 +360,130 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
         debugPrint('❌ Error showing resume popup: $error');
         _isDialogOpen = false;
         if (mounted) {
-          showMessage(context, 'Error showing resume preview: $error', isError: true);
+          showMessage(context, 'Error showing resume preview: $error',
+              isError: true);
         }
       });
     });
+  }
+
+  // ==================== ACTIONS: PRINT / DOWNLOAD / SHARE ====================
+
+  /// ✅ Always use the CURRENTLY selected format
+  ResumeFormatBase get _currentFormat =>
+      ResumeFormatManager.getFormatById(_selectedCategory) ??
+      ResumeFormatManager.defaultFormat;
+
+  String get _fileNameBase =>
+      _fullName.isNotEmpty
+          ? _fullName.replaceAll(RegExp(r'[^\w]'), '_')
+          : 'Resume';
+
+  Future<void> _handlePrint() async {
+    if (_isGenerating) return;
+
+    try {
+      if (_resumeData.isEmpty) {
+        showMessage(context, 'No resume data available', isError: true);
+        return;
+      }
+
+      // ✅ Use the CURRENTLY selected format
+      final format = _currentFormat;
+      debugPrint('🖨️ BuildResume — Print clicked → '
+          'format=${format.id} styleKey=${format.styleKey} color=${format.color}');
+
+      setState(() => _isGenerating = true);
+
+      await ResumePdfService.print(
+        data: _resumeData,
+        styleKey: format.styleKey,
+        colorHex: format.color,
+      );
+
+      if (mounted) {
+        showMessage(context, "🖨️ Print dialog opened for ${format.name}");
+      }
+    } catch (e) {
+      debugPrint('❌ Print failed: $e');
+      if (mounted) {
+        showMessage(context, "❌ Print failed: $e", isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
+  }
+
+  Future<void> _handleDownload() async {
+    if (_isGenerating) return;
+
+    try {
+      if (_resumeData.isEmpty) {
+        showMessage(context, 'No resume data available', isError: true);
+        return;
+      }
+
+      // ✅ Use the CURRENTLY selected format
+      final format = _currentFormat;
+      debugPrint('📥 BuildResume — Download clicked → '
+          'format=${format.id} styleKey=${format.styleKey} color=${format.color}');
+
+      setState(() => _isGenerating = true);
+
+      await ResumePdfService.download(
+        fileNameBase: _fileNameBase,
+        data: _resumeData,
+        styleKey: format.styleKey,
+        colorHex: format.color,
+      );
+
+      if (mounted) {
+        showMessage(context, "✅ ${format.name} resume downloaded successfully");
+      }
+    } catch (e) {
+      debugPrint('❌ Download failed: $e');
+      if (mounted) {
+        showMessage(context, "❌ Download failed: $e", isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
+  }
+
+  Future<void> _handleShare() async {
+    if (_isGenerating) return;
+
+    try {
+      if (_resumeData.isEmpty) {
+        showMessage(context, 'No resume data available', isError: true);
+        return;
+      }
+
+      // ✅ Use the CURRENTLY selected format
+      final format = _currentFormat;
+      debugPrint('📤 BuildResume — Share clicked → '
+          'format=${format.id} styleKey=${format.styleKey} color=${format.color}');
+
+      setState(() => _isGenerating = true);
+
+      await ResumePdfService.share(
+        fileNameBase: _fileNameBase,
+        data: _resumeData,
+        styleKey: format.styleKey,
+        colorHex: format.color,
+      );
+
+      if (mounted) {
+        showMessage(context, "📤 ${format.name} resume ready to share");
+      }
+    } catch (e) {
+      debugPrint('❌ Share failed: $e');
+      if (mounted) {
+        showMessage(context, "❌ Share failed: $e", isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
   }
 
   // ==================== BUILD UI ====================
@@ -472,12 +614,34 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Quick Actions',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      const Text(
+                        'Quick Actions',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      // ✅ Show which format will be exported
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6C63FF).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _currentFormat.name,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF6C63FF),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -487,9 +651,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
                           icon: Icons.picture_as_pdf,
                           label: 'Download PDF',
                           color: Colors.red,
-                          onTap: () {
-                            showMessage(context, 'PDF download coming soon!');
-                          },
+                          onTap: _isGenerating ? null : _handleDownload,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -498,12 +660,40 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
                           icon: Icons.share,
                           label: 'Share Resume',
                           color: Colors.blue,
-                          onTap: () {
-                            showMessage(context, 'Share feature coming soon!');
-                          },
+                          onTap: _isGenerating ? null : _handleShare,
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isGenerating ? null : _handlePrint,
+                      icon: _isGenerating
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.print_outlined, size: 18),
+                      label: Text(
+                          _isGenerating ? "Generating..." : "Print Resume"),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.blueAccent,
+                        side: const BorderSide(color: Colors.blueAccent),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '💡 Tip: Tap any format card above to preview that specific layout. '
+                    'Quick Actions always use the last previewed format.',
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
                   ),
                 ],
               ),
@@ -766,13 +956,24 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
     final colorHex = format.color.replaceAll('#', '');
     final color = Color(int.parse('FF$colorHex', radix: 16));
 
+    // ✅ Highlight the currently selected format
+    final isSelected = _selectedCategory == format.id;
+
     return Card(
-      elevation: 2,
+      elevation: isSelected ? 6 : 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
+        side: isSelected
+            ? BorderSide(color: color, width: 2)
+            : BorderSide.none,
       ),
       child: InkWell(
-        onTap: () => _showResumePreview(format.id),
+        onTap: () {
+          // ✅ Use setState so Quick Actions reflect the new selection
+          setState(() => _selectedCategory = format.id);
+          debugPrint('🎯 Format selected: ${format.id} (${format.name})');
+          _showResumePreview(format.id);
+        },
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(12),
@@ -835,45 +1036,37 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
     required IconData icon,
     required String label,
     required Color color,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
+    final disabled = onTap == null;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.1)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: color,
-                fontWeight: FontWeight.w500,
+      child: Opacity(
+        opacity: disabled ? 0.5 : 1.0,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.1)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
-}
-
-// ==================== SHOW MESSAGE HELPER ====================
-void showMessage(BuildContext context, String message, {bool isError = false}) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(message),
-      backgroundColor: isError ? Colors.red : Colors.green,
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 3),
-    ),
-  );
 }

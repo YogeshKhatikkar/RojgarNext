@@ -1,22 +1,38 @@
 // lib/features/resume/presentation/screens/format/formats/fresher_format.dart
+// ✅ PROPER FresherFormat — Teal education-first layout
+// ✅ Full page coverage
+
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import '../resume_format_base.dart';
 
 class FresherFormat extends ResumeFormatBase {
-  @override String get id => 'fresher';
-  @override String get name => 'Fresher / Entry Level';
-  @override String get icon => '🎓';
-  @override String get description => 'Education-Focused Design';
-  @override String get color => '#00897B';
-  @override String get styleKey => 'fresher';
-  @override String get templateType => 'fresher';
-  @override String get badgeText => 'New Grad';
+  @override
+  String get id => 'fresher';
+  @override
+  String get name => 'Fresher / Entry Level';
+  @override
+  String get icon => '🎓';
+  @override
+  String get description => 'Perfect for freshers & interns';
+  @override
+  String get color => '#00897B';
+  @override
+  String get styleKey => 'fresher';
+  @override
+  String get templateType => 'fresher';
+  @override
+  String get badgeText => 'Fresher';
 
-  static const Color _primary = Color(0xFF00897B);
-  static const Color _secondary = Color(0xFF26A69A);
+  static const Color _teal = Color(0xFF00897B);
+  static const Color _teal2 = Color(0xFF26A69A);
   static const Color _bg = Color(0xFFE0F2F1);
   static const Color _bodyBg = Color(0xFFF1FDFB);
 
+  // ============================================================
+  // 1️⃣ HTML — for WebView / print
+  // ============================================================
   @override
   String generateHtml(Map<String, dynamic> resumeData) {
     final name = getString(resumeData, 'user_info', 'full_name');
@@ -29,55 +45,66 @@ class FresherFormat extends ResumeFormatBase {
     final skills = getSkills(resumeData);
     final certifications = getList(resumeData, 'certifications');
     final projects = getList(resumeData, 'projects');
+    final designation = pDesignation(resumeData);
+
+    final desigHtml = designation.isNotEmpty
+        ? '<div style="font-size:12px;color:rgba(255,255,255,.85);">${escapeHtml(designation)}</div>'
+        : '';
 
     return '''
 <!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>$name</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#e0f2f1,#b2dfdb);padding:30px 20px;line-height:1.6}
-.resume-container{max-width:1000px;margin:0 auto;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.1);display:flex}
-.left-panel{width:30%;background:#E0F2F1;padding:25px}
-.right-panel{width:70%;padding:25px}
-.header{background:linear-gradient(135deg,#00897B,#26A69A);padding:25px;color:#fff;text-align:center;border-radius:15px;margin-bottom:20px}
-.name{font-size:26px;font-weight:bold}
-.section-title{font-size:16px;font-weight:600;color:#00897B;border-bottom:2px solid #26A69A;padding-bottom:6px;margin:20px 0 12px 0}
-.card-item{padding:12px;margin-bottom:10px;background:#f5f5f5;border-radius:10px}
-.card-title{font-weight:bold;color:#00897B;font-size:14px}
-.card-subtitle{font-size:12px;color:#555}
-.summary-text{font-size:13px;line-height:1.6;padding:12px;background:#f5f5f5;border-radius:10px}
-.skill-bar{margin-bottom:6px}
-.bar-bg{height:5px;background:#B2DFDB;border-radius:3px;margin-top:2px}
-.bar-fill{height:5px;background:#00897B;border-radius:3px}
+body{font-family:'Inter','Segoe UI',sans-serif;background:#E0F2F1;padding:30px 20px;line-height:1.6;color:#1F2937}
+.resume-container{max-width:1000px;margin:0 auto;background:#F1FDFB;border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.08);display:flex}
+.sidebar{width:32%;background:#E0F2F1;padding:30px 22px}
+.main{width:68%;padding:30px 32px}
+.header{background:linear-gradient(135deg,#00897B 0%,#26A69A 100%);color:#fff;padding:24px;border-radius:12px;text-align:center;margin-bottom:20px}
+.name{font-size:26px;font-weight:800}
+.section-title{font-size:13px;font-weight:700;color:#00897B;text-transform:uppercase;letter-spacing:1.2px;margin:20px 0 12px 0;padding-bottom:6px;border-bottom:2px solid #26A69A}
+.section-title:first-child{margin-top:0}
+.skill-item{margin-bottom:8px}
+.skill-bar{height:4px;background:#00897B;border-radius:2px;margin-top:4px}
+.skill-name{font-size:11px;font-weight:600}
+.card-item{padding:12px;margin-bottom:10px;background:#fff;border-radius:10px;border-left:4px solid #00897B}
+.card-title{font-size:14px;font-weight:700;color:#00897B}
+.card-subtitle{font-size:11px;color:#6B7280;margin-top:2px}
+.summary-text{font-size:13px;line-height:1.7;padding:14px;background:#fff;border-left:4px solid #26A69A;border-radius:8px}
 </style></head><body>
 <div class="resume-container">
-  <div class="left-panel">
+  <div class="sidebar">
     <div class="header">
       <div class="name">${escapeHtml(name)}</div>
-      <div style="font-size:12px;margin-top:4px;">Fresher | ITI COPA</div>
-      <div style="font-size:11px;margin-top:8px;">📞 ${escapeHtml(phone)}</div>
-      <div style="font-size:11px;">📧 ${escapeHtml(email)}</div>
-      <div style="font-size:11px;">📍 ${escapeHtml(location)}</div>
+      $desigHtml
+      <div style="font-size:11px;margin-top:10px;line-height:1.6;">
+        ${email.isNotEmpty ? '📧 ${escapeHtml(email)}<br>' : ''}
+        ${phone.isNotEmpty ? '📞 ${escapeHtml(phone)}<br>' : ''}
+        ${location.isNotEmpty ? '📍 ${escapeHtml(location)}' : ''}
+      </div>
     </div>
     <div class="section-title">Key Skills</div>
-    ${skills.map((s) => '<div class="skill-bar"><div style="font-size:12px;">${escapeHtml(s)}</div><div class="bar-bg"><div class="bar-fill" style="width:80%"></div></div></div>').join('')}
-    <div class="section-title">Certifications</div>
-    ${certifications.map((c) => '<div style="font-size:12px;margin-bottom:4px;">• ${escapeHtml(pCert(pMap(c)))}</div>').join('')}
+    ${skills.map((s) => '<div class="skill-item"><div class="skill-name">${escapeHtml(s)}</div><div class="skill-bar"></div></div>').join('')}
+    ${certifications.isNotEmpty ? '<div class="section-title">Certifications</div>' : ''}
+    ${certifications.map((c) => '<div style="font-size:11px;padding:4px 0;">• ${escapeHtml(pCert(pMap(c)))}</div>').join('')}
   </div>
-  <div class="right-panel">
-    <div class="section-title">Career Objective</div>
-    <div class="summary-text">${escapeHtml(objective)}</div>
-    <div class="section-title">Education</div>
+  <div class="main">
+    ${objective.isNotEmpty ? '<div class="section-title">Career Objective</div><div class="summary-text">${escapeHtml(objective)}</div>' : ''}
+
+    ${education.isNotEmpty ? '<div class="section-title" style="margin-top:20px;">Education</div>' : ''}
     ${education.map((e) {
       final x = pMap(e);
-      return '<div class="card-item"><div class="card-title">${escapeHtml(pStr(x['degree']))}</div><div class="card-subtitle">${escapeHtml(pStr(x['institute']))} | ${escapeHtml(pStr(x['year_of_passing']))}</div></div>';
+      return '<div class="card-item"><div class="card-title">${escapeHtml(pEduTitle(x))}</div><div class="card-subtitle">${escapeHtml(pEduSubtitle(x))}</div></div>';
     }).join('')}
-    <div class="section-title">Projects</div>
+
+    ${projects.isNotEmpty ? '<div class="section-title" style="margin-top:20px;">Projects</div>' : ''}
     ${projects.map((p) {
       final x = pMap(p);
       return '<div class="card-item"><div class="card-title">${escapeHtml(pStr(x['title']))}</div><div style="font-size:12px;margin-top:4px;">${escapeHtml(pStr(x['description']))}</div></div>';
     }).join('')}
-    <div class="section-title">Internships / Experience</div>
+
+    ${experience.isNotEmpty ? '<div class="section-title" style="margin-top:20px;">Internships / Experience</div>' : ''}
     ${experience.map((e) {
       final x = pMap(e);
       return '<div class="card-item"><div class="card-title">${escapeHtml(pStr(x['role']))}</div><div class="card-subtitle">${escapeHtml(pStr(x['company']))} | ${escapeHtml(pStr(x['start_date']))} - ${escapeHtml(pStr(x['end_date'], 'Present'))}</div></div>';
@@ -87,6 +114,9 @@ body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#e0f2f1
 </body></html>''';
   }
 
+  // ============================================================
+  // 2️⃣ FLUTTER PREVIEW
+  // ============================================================
   @override
   Widget buildPreview(BuildContext context, Map<String, dynamic> data) {
     final u = pMap(data['user_info']);
@@ -96,70 +126,473 @@ body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#e0f2f1
     final phone = pStr(c['phone']);
     final location = pLocation(data);
     final objective = pStr(data['career_objective']);
-    final exp = pList(data['experience']);
     final edu = pList(data['education']);
+    final exp = pList(data['experience']);
     final skills = pSkills(data['skills']);
     final certs = pList(data['certifications']);
     final projects = pList(data['projects']);
+    final designation = pDesignation(data);
 
-    return Container(
-      color: _bodyBg,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // LEFT PANEL
-          Container(
-            width: 240,
-            color: _bg,
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [_primary, _secondary]),
-                    borderRadius: BorderRadius.circular(12),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: Container(
+            color: _bodyBg,
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    width: constraints.maxWidth * 0.32,
+                    color: _bg,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [_teal, _teal2],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(name,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white)),
+                              if (designation.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(designation,
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white70)),
+                              ],
+                              const SizedBox(height: 10),
+                              if (email.isNotEmpty)
+                                Text("📧 $email",
+                                    style: const TextStyle(
+                                        fontSize: 10, color: Colors.white)),
+                              if (phone.isNotEmpty)
+                                Text("📞 $phone",
+                                    style: const TextStyle(
+                                        fontSize: 10, color: Colors.white)),
+                              if (location.isNotEmpty)
+                                Text("📍 $location",
+                                    style: const TextStyle(
+                                        fontSize: 10, color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        _sideTitle("KEY SKILLS"),
+                        ...skills.map((s) => Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(s,
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    height: 3,
+                                    decoration: BoxDecoration(
+                                      color: _teal,
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )),
+                        if (certs.isNotEmpty) ...[
+                          const SizedBox(height: 20),
+                          _sideTitle("CERTIFICATIONS"),
+                          ...certs.map((c) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text("• ${pCert(pMap(c))}",
+                                    style: const TextStyle(fontSize: 11)),
+                              )),
+                        ],
+                      ],
+                    ),
                   ),
-                  child: Column(
+                  Expanded(
+                    child: Container(
+                      color: _bodyBg,
+                      padding: const EdgeInsets.all(22),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (objective.isNotEmpty) ...[
+                            _mainTitle("CAREER OBJECTIVE"),
+                            pInfoBox(objective,
+                                bg: Colors.white,
+                                leftBorder: _teal,
+                                textStyle: const TextStyle(
+                                    fontSize: 12, height: 1.6)),
+                            const SizedBox(height: 18),
+                          ],
+                          if (edu.isNotEmpty) ...[
+                            _mainTitle("EDUCATION"),
+                            ...edu.map((e) => _eduCard(pMap(e))),
+                            const SizedBox(height: 18),
+                          ],
+                          if (projects.isNotEmpty) ...[
+                            _mainTitle("PROJECTS"),
+                            ...projects.map((p) => _projCard(pMap(p))),
+                            const SizedBox(height: 18),
+                          ],
+                          if (exp.isNotEmpty) ...[
+                            _mainTitle("INTERNSHIPS / EXPERIENCE"),
+                            ...exp.map((e) => _expCard(pMap(e))),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _sideTitle(String t) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Text(t,
+            style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: _teal,
+                letterSpacing: 1.2)),
+      );
+
+  Widget _mainTitle(String t) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(t,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: _teal,
+                    letterSpacing: 1.2)),
+            const SizedBox(height: 4),
+            Container(height: 2, width: 40, color: _teal2),
+          ],
+        ),
+      );
+
+  Widget _eduCard(Map<String, dynamic> e) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(pEduTitle(e),
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.bold, color: _teal)),
+            const SizedBox(height: 2),
+            if (pEduSubtitle(e).isNotEmpty)
+              Text(pEduSubtitle(e),
+                  style: const TextStyle(fontSize: 11, color: Colors.black54)),
+          ],
+        ),
+      );
+
+  Widget _projCard(Map<String, dynamic> p) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(pStr(p['title'], 'Project'),
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.bold, color: _teal)),
+            if (pStr(p['description']).isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(pStr(p['description']),
+                  style: const TextStyle(fontSize: 11, height: 1.5)),
+            ],
+          ],
+        ),
+      );
+
+  Widget _expCard(Map<String, dynamic> e) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(pStr(e['role'], 'Role'),
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.bold, color: _teal)),
+            const SizedBox(height: 2),
+            Text(
+                "${pStr(e['company'])} | ${pStr(e['start_date'])} - ${pStr(e['end_date'], 'Present')}",
+                style: const TextStyle(fontSize: 11, color: Colors.black54)),
+          ],
+        ),
+      );
+
+  // ============================================================
+  // 3️⃣ PDF CONTENT — format owns its own layout
+  // ✅ FIXED: full page height + ASCII bullets
+  // ============================================================
+  @override
+  pw.Widget buildPdfContent(
+    Map<String, dynamic> data,
+    PdfPageFormat pageFormat,
+  ) {
+    final teal = pdfColor(color.isEmpty ? '#00897B' : color);
+    final teal2 = pdfColor('#26A69A');
+    final bg = pdfColor('#E0F2F1');
+    final bodyBg = pdfColor('#F1FDFB');
+
+    final u = pdfMap(data['user_info']);
+    final c = pdfMap(data['contact_info']);
+    final name = pdfStr(u['full_name'], 'Your Name');
+    final desig = pdfDesignation(data);
+    final email = pdfStr(c['email']);
+    final phone = pdfStr(c['phone']);
+    final location = pdfLocation(data);
+    final objective = pdfStr(data['career_objective']);
+    final edu = pdfList(data['education']);
+    final exp = pdfList(data['experience']);
+    final skills = pdfSkills(data['skills']);
+    final certs = pdfList(data['certifications']);
+    final projects = pdfList(data['projects']);
+
+    return pw.Container(
+      color: bodyBg,
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        children: [
+          pw.Container(
+            width: 180,
+            color: bg,
+            padding: const pw.EdgeInsets.all(16),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    gradient: pw.LinearGradient(
+                      colors: [teal, teal2],
+                      begin: pw.Alignment.topLeft,
+                      end: pw.Alignment.bottomRight,
+                    ),
+                    borderRadius: pw.BorderRadius.circular(10),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white), textAlign: TextAlign.center),
-                      const SizedBox(height: 4),
-                      const Text("Fresher | ITI COPA", style: TextStyle(fontSize: 11, color: Colors.white70)),
-                      const SizedBox(height: 8),
-                      Text("📞 $phone", style: const TextStyle(fontSize: 11, color: Colors.white)),
-                      Text("📧 $email", style: const TextStyle(fontSize: 11, color: Colors.white)),
-                      Text("📍 $location", style: const TextStyle(fontSize: 11, color: Colors.white)),
+                      pw.Text(pdfSafe(name),
+                          textAlign: pw.TextAlign.center,
+                          style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white)),
+                      if (desig.isNotEmpty) ...[
+                        pw.SizedBox(height: 3),
+                        pw.Text(pdfSafe(desig),
+                            style: const pw.TextStyle(
+                                fontSize: 9, color: PdfColors.white)),
+                      ],
+                      pw.SizedBox(height: 8),
+                      if (phone.isNotEmpty)
+                        pw.Text(pdfSafe(phone),
+                            style: const pw.TextStyle(
+                                fontSize: 8, color: PdfColors.white)),
+                      if (email.isNotEmpty)
+                        pw.Text(pdfSafe(email),
+                            style: const pw.TextStyle(
+                                fontSize: 8, color: PdfColors.white)),
+                      if (location.isNotEmpty)
+                        pw.Text(pdfSafe(location),
+                            style: const pw.TextStyle(
+                                fontSize: 8, color: PdfColors.white)),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                _sidebarTitle("KEY SKILLS"),
-                ...skills.map((s) => _skillBar(s)),
-                const SizedBox(height: 16),
-                _sidebarTitle("CERTIFICATIONS"),
-                ...certs.map((c) => Padding(padding: const EdgeInsets.only(bottom: 4), child: Text("• ${pCert(pMap(c))}", style: const TextStyle(fontSize: 12)))),
+                if (skills.isNotEmpty) ...[
+                  pw.SizedBox(height: 14),
+                  pdfSideTitle('KEY SKILLS', teal),
+                  ...skills.take(12).map((s) => pw.Padding(
+                        padding: const pw.EdgeInsets.only(bottom: 4),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(pdfSafe(s),
+                                style: const pw.TextStyle(fontSize: 9)),
+                            pw.SizedBox(height: 2),
+                            pw.Container(
+                              height: 3,
+                              decoration: pw.BoxDecoration(
+                                color: teal,
+                                borderRadius: pw.BorderRadius.circular(2),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+                if (certs.isNotEmpty) ...[
+                  pw.SizedBox(height: 14),
+                  pdfSideTitle('CERTIFICATIONS', teal),
+                  ...certs.take(6).map((crt) => pw.Padding(
+                        padding: const pw.EdgeInsets.only(bottom: 3),
+                        child: pw.Text('- ${pdfSafe(pdfStr(crt["name"]))}',
+                            style: const pw.TextStyle(fontSize: 8)),
+                      )),
+                ],
               ],
             ),
           ),
-          // RIGHT PANEL
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          pw.Expanded(
+            child: pw.Container(
+              color: bodyBg,
+              padding: const pw.EdgeInsets.all(20),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  _mainTitle("CAREER OBJECTIVE"),
-                  pInfoBox(objective, bg: _bg, radius: 12),
-                  const SizedBox(height: 20),
-                  _mainTitle("EDUCATION"),
-                  ...edu.map((e) => _eduCard(pMap(e))),
-                  const SizedBox(height: 20),
-                  _mainTitle("PROJECTS"),
-                  ...projects.map((p) => _projCard(pMap(p))),
-                  const SizedBox(height: 20),
-                  _mainTitle("INTERNSHIPS / EXPERIENCE"),
-                  ...exp.map((e) => _expCard(pMap(e))),
+                  if (objective.isNotEmpty) ...[
+                    pdfMainTitle('CAREER OBJECTIVE', teal),
+                    pw.Container(
+                      width: double.infinity,
+                      padding: const pw.EdgeInsets.all(10),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.white,
+                        border: pw.Border(
+                            left: pw.BorderSide(color: teal, width: 3)),
+                      ),
+                      child: pw.Text(pdfSafe(objective),
+                          style: const pw.TextStyle(
+                              fontSize: 10, lineSpacing: 2)),
+                    ),
+                    pw.SizedBox(height: 14),
+                  ],
+                  if (edu.isNotEmpty) ...[
+                    pdfMainTitle('EDUCATION', teal),
+                    ...edu.take(5).map((e) => pw.Container(
+                          margin: const pw.EdgeInsets.only(bottom: 6),
+                          padding: const pw.EdgeInsets.all(8),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.white,
+                            borderRadius: pw.BorderRadius.circular(6),
+                          ),
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text(
+                                pdfSafe(pdfStr(e['degree'],
+                                    pdfStr(e['level'], 'Education'))),
+                                style: pw.TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: teal),
+                              ),
+                              pw.SizedBox(height: 2),
+                              pw.Text(
+                                pdfSafe(
+                                  [
+                                    pdfStr(e['institute']),
+                                    pdfStr(e['year_of_passing'],
+                                        pdfStr(e['year'])),
+                                  ].where((x) => x.isNotEmpty).join(' | '),
+                                ),
+                                style: const pw.TextStyle(fontSize: 9),
+                              ),
+                            ],
+                          ),
+                        )),
+                    pw.SizedBox(height: 10),
+                  ],
+                  if (projects.isNotEmpty) ...[
+                    pdfMainTitle('PROJECTS', teal),
+                    ...projects.take(4).map((p) => pw.Container(
+                          margin: const pw.EdgeInsets.only(bottom: 6),
+                          padding: const pw.EdgeInsets.all(8),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.white,
+                            borderRadius: pw.BorderRadius.circular(6),
+                          ),
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text(pdfSafe(pdfStr(p['title'], 'Project')),
+                                  style: pw.TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: pw.FontWeight.bold,
+                                      color: teal)),
+                              if (pdfStr(p['description']).isNotEmpty) ...[
+                                pw.SizedBox(height: 3),
+                                pw.Text(pdfSafe(pdfStr(p['description'])),
+                                    style: const pw.TextStyle(
+                                        fontSize: 9, lineSpacing: 1.4)),
+                              ],
+                            ],
+                          ),
+                        )),
+                    pw.SizedBox(height: 10),
+                  ],
+                  if (exp.isNotEmpty) ...[
+                    pdfMainTitle('INTERNSHIPS / EXPERIENCE', teal),
+                    ...exp.take(3).map((e) => pw.Container(
+                          margin: const pw.EdgeInsets.only(bottom: 6),
+                          padding: const pw.EdgeInsets.all(8),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.white,
+                            borderRadius: pw.BorderRadius.circular(6),
+                          ),
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text(pdfSafe(pdfStr(e['role'], 'Role')),
+                                  style: pw.TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: pw.FontWeight.bold,
+                                      color: teal)),
+                              pw.SizedBox(height: 2),
+                              pw.Text(
+                                pdfSafe(
+                                  '${pdfStr(e["company"])} | ${pdfStr(e["start_date"])} - ${pdfStr(e["end_date"], "Present")}',
+                                ),
+                                style: const pw.TextStyle(fontSize: 9),
+                              ),
+                            ],
+                          ),
+                        )),
+                  ],
                 ],
               ),
             ),
@@ -168,71 +601,4 @@ body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#e0f2f1
       ),
     );
   }
-
-  Widget _sidebarTitle(String title) => Padding(
-    padding: const EdgeInsets.only(bottom: 8, top: 4),
-    child: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _primary, letterSpacing: 1)),
-  );
-
-  Widget _skillBar(String name) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(name, style: const TextStyle(fontSize: 12, color: Colors.black87)),
-        const SizedBox(height: 3),
-        LinearProgressIndicator(value: 0.8, backgroundColor: _secondary.withOpacity(0.3), color: _primary, minHeight: 5),
-      ],
-    ),
-  );
-
-  Widget _mainTitle(String title) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: _primary)),
-        const SizedBox(height: 4),
-        Container(height: 2, width: 50, color: _primary),
-      ],
-    ),
-  );
-
-  Widget _expCard(Map<String, dynamic> exp) => pCard(
-    bg: Colors.white, borderColor: _secondary.withOpacity(0.3), radius: 12,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(pStr(exp['role'], 'Role'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _primary)),
-        const SizedBox(height: 2),
-        Text("${pStr(exp['company'])} | ${pStr(exp['start_date'])} - ${pStr(exp['end_date'], 'Present')}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      ],
-    ),
-  );
-
-  Widget _eduCard(Map<String, dynamic> edu) => pCard(
-    bg: Colors.white, borderColor: _secondary.withOpacity(0.3), radius: 12,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(pStr(edu['degree'], 'Degree'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _primary)),
-        const SizedBox(height: 2),
-        Text("${pStr(edu['institute'])} | ${pStr(edu['year_of_passing'])}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      ],
-    ),
-  );
-
-  Widget _projCard(Map<String, dynamic> p) => pCard(
-    bg: Colors.white, borderColor: _secondary.withOpacity(0.3), radius: 12,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(pStr(p['title'], 'Project'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _primary)),
-        if (pStr(p['description']).isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text(pStr(p['description']), style: const TextStyle(fontSize: 12, height: 1.4)),
-        ],
-      ],
-    ),
-  );
 }

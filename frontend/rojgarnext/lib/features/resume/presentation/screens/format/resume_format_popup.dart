@@ -1,21 +1,24 @@
 // lib/features/resume/presentation/screens/format/resume_format_popup.dart
+// ✅ FIXED: Print / Download / Share now correctly use the CURRENT format
+// ✅ No more stuck spinner — proper state reset on error
+// ✅ Filename includes format name so you can verify the correct format is exported
+
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:printing/printing.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:rojgarnext/core/utils/app_snackbar.dart';
+import 'package:rojgarnext/features/resume/services/resume_pdf_service.dart';
 import 'resume_format_base.dart';
 
 class ResumeFormatPopup extends StatefulWidget {
   final ResumeFormatBase format;
   final Map<String, dynamic> resumeData;
-  final VoidCallback onClose;
+  final VoidCallback? onClose;
 
   const ResumeFormatPopup({
     super.key,
     required this.format,
     required this.resumeData,
-    required this.onClose,
+    this.onClose,
   });
 
   @override
@@ -23,561 +26,346 @@ class ResumeFormatPopup extends StatefulWidget {
 }
 
 class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
-  bool _isLoading = true;
-  bool _isExporting = false;
-  String? _errorMessage;
+  bool _isGenerating = false;
 
   @override
-  void initState() {
-    super.initState();
-    _prepare();
+  void dispose() {
+    widget.onClose?.call();
+    super.dispose();
   }
 
-  void _prepare() {
+  String get _nameBase {
+    final u = widget.resumeData['user_info'];
+    final name =
+        (u is Map ? (u['full_name'] ?? '') : '').toString().trim();
+    if (name.isEmpty) return 'Resume';
+    return name.replaceAll(RegExp(r'[^\w]'), '_');
+  }
+
+  /// ✅ Always use the CURRENT format's styleKey + color
+  String get _currentStyleKey => widget.format.styleKey;
+  String get _currentColor => widget.format.color;
+
+  Future<void> _handleDownload() async {
+    if (_isGenerating) return;
+    setState(() => _isGenerating = true);
+
+    debugPrint('📥 DOWNLOAD clicked → format=${widget.format.id} '
+        'styleKey=$_currentStyleKey color=$_currentColor');
+
     try {
-      if (widget.resumeData.isEmpty) {
-        throw Exception("Resume data is empty");
-      }
-      _errorMessage = null;
-    } catch (e) {
-      _errorMessage = 'Error: $e';
-    }
-    if (mounted) setState(() => _isLoading = false);
-  }
-
-  void _refresh() {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    _prepare();
-  }
-
-  Future<void> _exportPdf() async {
-    if (_isExporting) return;
-    setState(() => _isExporting = true);
-    try {
-      final pdf = await _buildPdf();
-      final bytes = await pdf.save();
-      final safe =
-          widget.format.name.replaceAll(RegExp(r'[^\w\s-]'), '').trim();
-      final fileName = 'Resume_${safe.isEmpty ? "Format" : safe}.pdf';
-      await Printing.layoutPdf(onLayout: (_) async => bytes, name: fileName);
+      await ResumePdfService.download(
+        fileNameBase: _nameBase,
+        data: widget.resumeData,
+        styleKey: _currentStyleKey,
+        colorHex: _currentColor,
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ PDF ready!'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.green,
-          ),
-        );
+        showMessage(context,
+            "✅ ${widget.format.name} resume downloaded successfully");
       }
     } catch (e) {
+      debugPrint('❌ Download failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('PDF export failed: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showMessage(context, "❌ Download failed: $e", isError: true);
       }
     } finally {
-      if (mounted) setState(() => _isExporting = false);
+      if (mounted) setState(() => _isGenerating = false);
     }
   }
 
-  Future<pw.Document> _buildPdf() async {
-    final pdf = pw.Document();
-    final data = widget.resumeData;
-    final u = _m(data['user_info']);
-    final c = _m(data['contact_info']);
-    final name = _s(u['full_name'], 'User');
-    final email = _s(c['email']);
-    final phone = _s(c['phone']);
-    final summary = _s(data['professional_summary']);
-    final edu = _l(data['education']);
-    final exp = _l(data['experience']);
-    final skills = _skills(data['skills']);
-    final certs = _l(data['certifications']);
-    final projects = _l(data['projects']);
+  Future<void> _handlePrint() async {
+    if (_isGenerating) return;
+    setState(() => _isGenerating = true);
 
-    PdfColor primary = PdfColors.blue900;
+    debugPrint('🖨️ PRINT clicked → format=${widget.format.id} '
+        'styleKey=$_currentStyleKey color=$_currentColor');
+
     try {
-      final hex = widget.format.color.replaceAll('#', '');
-      primary = PdfColor.fromHex(hex.length == 6 ? 'FF$hex' : hex);
-    } catch (_) {
-      primary = PdfColors.blue900;
+      await ResumePdfService.print(
+        data: widget.resumeData,
+        styleKey: _currentStyleKey,
+        colorHex: _currentColor,
+      );
+      if (mounted) {
+        showMessage(context,
+            "🖨️ Print dialog opened for ${widget.format.name}");
+      }
+    } catch (e) {
+      debugPrint('❌ Print failed: $e');
+      if (mounted) {
+        showMessage(context, "❌ Print failed: $e", isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
     }
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(36),
-        build: (ctx) => [
-          pw.Container(
-            padding: const pw.EdgeInsets.all(14),
-            decoration: pw.BoxDecoration(
-              color: primary,
-              borderRadius: pw.BorderRadius.circular(6),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  name,
-                  style: pw.TextStyle(
-                    fontSize: 22,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.white,
-                  ),
-                ),
-                pw.SizedBox(height: 6),
-                pw.Wrap(
-                  spacing: 14,
-                  children: [
-                    if (email.isNotEmpty)
-                      pw.Text('📧 $email',
-                          style: const pw.TextStyle(
-                              fontSize: 10, color: PdfColors.white)),
-                    if (phone.isNotEmpty)
-                      pw.Text('📞 $phone',
-                          style: const pw.TextStyle(
-                              fontSize: 10, color: PdfColors.white)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 16),
-          if (summary.isNotEmpty) ...[
-            _pdfTitle('Professional Summary', primary),
-            pw.Text(summary,
-                style: const pw.TextStyle(fontSize: 11, height: 1.4)),
-            pw.SizedBox(height: 12),
-          ],
-          if (exp.isNotEmpty) ...[
-            _pdfTitle('Work Experience', primary),
-            ...exp.map((e) {
-              final x = _m(e);
-              return pw.Padding(
-                padding: const pw.EdgeInsets.only(bottom: 10),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(_s(x['role'], 'Role'),
-                        style: pw.TextStyle(
-                            fontSize: 12, fontWeight: pw.FontWeight.bold)),
-                    pw.Text(_s(x['company'], 'Company'),
-                        style: const pw.TextStyle(
-                            fontSize: 10, color: PdfColors.grey700)),
-                    pw.Text(
-                        '${_s(x['start_date'])} - ${_s(x['end_date'], 'Present')}',
-                        style: const pw.TextStyle(
-                            fontSize: 9, color: PdfColors.grey600)),
-                    if (_s(x['description']).isNotEmpty)
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.only(top: 3),
-                        child: pw.Text(_s(x['description']),
-                            style: const pw.TextStyle(
-                                fontSize: 10, height: 1.3)),
-                      ),
-                  ],
-                ),
-              );
-            }),
-            pw.SizedBox(height: 8),
-          ],
-          if (edu.isNotEmpty) ...[
-            _pdfTitle('Education', primary),
-            ...edu.map((e) {
-              final x = _m(e);
-              return pw.Padding(
-                padding: const pw.EdgeInsets.only(bottom: 8),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(_s(x['degree'], 'Degree'),
-                        style: pw.TextStyle(
-                            fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                    pw.Text(_s(x['institute'], 'Institute'),
-                        style: const pw.TextStyle(fontSize: 10)),
-                  ],
-                ),
-              );
-            }),
-            pw.SizedBox(height: 8),
-          ],
-          if (skills.isNotEmpty) ...[
-            _pdfTitle('Skills', primary),
-            pw.Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: skills
-                  .map((s) => pw.Container(
-                        padding: const pw.EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: pw.BoxDecoration(
-                          color: PdfColors.blue50,
-                          borderRadius: pw.BorderRadius.circular(10),
-                        ),
-                        child: pw.Text(s,
-                            style: const pw.TextStyle(fontSize: 10)),
-                      ))
-                  .toList(),
-            ),
-            pw.SizedBox(height: 12),
-          ],
-          if (certs.isNotEmpty) ...[
-            _pdfTitle('Certifications', primary),
-            ...certs.map((c) {
-              final x = _m(c);
-              final t = [_s(x['name']), _s(x['issuer']), _s(x['year'])]
-                  .where((s) => s.isNotEmpty)
-                  .join(' - ');
-              return pw.Padding(
-                padding: const pw.EdgeInsets.only(bottom: 3),
-                child: pw.Text('• $t',
-                    style: const pw.TextStyle(fontSize: 10)),
-              );
-            }),
-            pw.SizedBox(height: 10),
-          ],
-          if (projects.isNotEmpty) ...[
-            _pdfTitle('Projects', primary),
-            ...projects.map((p) {
-              final x = _m(p);
-              return pw.Padding(
-                padding: const pw.EdgeInsets.only(bottom: 8),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(_s(x['title'], 'Project'),
-                        style: pw.TextStyle(
-                            fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                    if (_s(x['description']).isNotEmpty)
-                      pw.Text(_s(x['description']),
-                          style: const pw.TextStyle(
-                              fontSize: 10, height: 1.3)),
-                  ],
-                ),
-              );
-            }),
-            pw.SizedBox(height: 8),
-          ],
-        ],
-      ),
-    );
-    return pdf;
   }
 
-  pw.Widget _pdfTitle(String title, PdfColor color) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 6, top: 6),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            title.toUpperCase(),
-            style: pw.TextStyle(
-                fontSize: 12,
-                fontWeight: pw.FontWeight.bold,
-                color: color),
-          ),
-          pw.Container(
-              height: 1,
-              color: PdfColors.blue200,
-              margin: const pw.EdgeInsets.only(top: 3)),
-        ],
-      ),
-    );
-  }
+  Future<void> _handleShare() async {
+    if (_isGenerating) return;
+    setState(() => _isGenerating = true);
 
-  Map<String, dynamic> _m(dynamic v) {
-    if (v is Map<String, dynamic>) return v;
-    if (v is Map) return Map<String, dynamic>.from(v);
-    return {};
-  }
+    debugPrint('📤 SHARE clicked → format=${widget.format.id} '
+        'styleKey=$_currentStyleKey color=$_currentColor');
 
-  List<dynamic> _l(dynamic v) => v is List ? v : [];
-
-  String _s(dynamic v, [String fb = '']) {
-    if (v == null) return fb;
-    final t = v.toString();
-    return t.isEmpty ? fb : t;
-  }
-
-  List<String> _skills(dynamic v) {
-    if (v is! Map) return [];
-    final all = v['all'];
-    if (all is! List) return [];
-    return all
-        .map((e) => e is Map ? _s(e['name']) : e.toString())
-        .where((s) => s.isNotEmpty)
-        .toList();
+    try {
+      await ResumePdfService.share(
+        fileNameBase: _nameBase,
+        data: widget.resumeData,
+        styleKey: _currentStyleKey,
+        colorHex: _currentColor,
+      );
+      if (mounted) {
+        showMessage(context,
+            "📤 ${widget.format.name} resume ready to share");
+      }
+    } catch (e) {
+      debugPrint('❌ Share failed: $e');
+      if (mounted) {
+        showMessage(context, "❌ Share failed: $e", isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final small = size.width < 500;
+    final isNarrow = size.width < 600;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      insetPadding: EdgeInsets.all(small ? 8 : 16),
+      insetPadding: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: Colors.white,
       child: Container(
-        width: size.width * (small ? 0.98 : 0.92),
-        height: size.height * 0.9,
+        width: size.width * 0.95,
+        height: size.height * 0.92,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
           color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
           children: [
-            _buildHeader(),
-            Expanded(child: _buildBody()),
-            _buildFooter(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    final hex = widget.format.color.replaceAll('#', '');
-    Color color;
-    try {
-      color = Color(int.parse('FF$hex', radix: 16));
-    } catch (_) {
-      color = const Color(0xFF6C63FF);
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [color, color.withOpacity(0.75)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child:
-                Text(widget.format.icon, style: const TextStyle(fontSize: 24)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.format.name,
-                  style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  kIsWeb
-                      ? '🌐 Live Preview (Web)'
-                      : '📱 Live Preview (Mobile)',
-                  style: const TextStyle(fontSize: 11, color: Colors.white70),
-                ),
-              ],
-            ),
-          ),
-          if (widget.format.badgeText.isNotEmpty)
+            // HEADER
             Container(
-              margin: const EdgeInsets.only(right: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(20),
+                color: Colors.grey.shade100,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
               ),
-              child: Text(
-                widget.format.badgeText,
-                style: const TextStyle(
-                    fontSize: 9,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold),
-              ),
+              child: isNarrow
+                  ? _buildNarrowHeader()
+                  : _buildWideHeader(),
             ),
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white, size: 22),
-            onPressed: _refresh,
-            tooltip: 'Refresh',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.white, size: 26),
-            onPressed: () {
-              widget.onClose();
-              Navigator.pop(context);
-            },
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // ✅ FIXED _buildBody() — Uses IntrinsicHeight + LayoutBuilder
-  //    to properly constrain the Row/Expanded layout in the preview.
-  // ============================================================
-  Widget _buildBody() {
-    if (_isLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 60,
-              height: 60,
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  _parseColor(widget.format.color),
+            const Divider(height: 1),
+            // PREVIEW
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
                 ),
-                strokeWidth: 4,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text('Generating ${widget.format.name}...',
-                style: const TextStyle(fontSize: 15, color: Colors.grey)),
-            const SizedBox(height: 6),
-            const Text('Please wait while we prepare your resume',
-                style: TextStyle(fontSize: 12, color: Colors.grey)),
-          ],
-        ),
-      );
-    }
-
-    if (_errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 60, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(_errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14, color: Colors.grey)),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _refresh,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C63FF),
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // ✅ The main fix: Use LayoutBuilder to get bounded width,
-    //    then wrap the preview in IntrinsicHeight + ConstrainedBox
-    //    inside a SingleChildScrollView.
-    return Container(
-      margin: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300, width: 1),
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.white,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight > 500
-                      ? constraints.maxHeight
-                      : 500,
-                  maxWidth: constraints.maxWidth,
-                ),
-                child: IntrinsicHeight(
-                  child: SizedBox(
-                    width: constraints.maxWidth,
-                    child: widget.format
-                        .buildPreview(context, widget.resumeData),
+                child: Container(
+                  color: Colors.white,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.zero,
+                    child: widget.format.buildPreview(
+                      context,
+                      widget.resumeData,
+                    ),
                   ),
                 ),
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildFooter() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 48,
-        child: ElevatedButton.icon(
-          onPressed: _isExporting ? null : _exportPdf,
-          icon: _isExporting
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
-                )
-              : const Icon(Icons.picture_as_pdf, size: 20),
-          label: Text(
-            _isExporting ? 'Exporting...' : 'Download PDF',
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+  // ============================================================
+  // WIDE HEADER (desktop / tablet)
+  // ============================================================
+  Widget _buildWideHeader() {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(10),
           ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.redAccent,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-            elevation: 0,
+          child:
+              Text(widget.format.icon, style: const TextStyle(fontSize: 22)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.format.name,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(widget.format.description,
+                  style:
+                      const TextStyle(fontSize: 11, color: Colors.grey)),
+            ],
           ),
         ),
-      ),
+        // PRINT
+        Tooltip(
+          message: "Print this ${widget.format.name}",
+          child: IconButton(
+            icon: const Icon(Icons.print_outlined,
+                color: Colors.blueAccent, size: 24),
+            onPressed: _isGenerating ? null : _handlePrint,
+          ),
+        ),
+        // DOWNLOAD PDF
+        Tooltip(
+          message: "Download this ${widget.format.name}",
+          child: IconButton(
+            icon: _isGenerating
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.download_rounded,
+                    color: Colors.green, size: 26),
+            onPressed: _isGenerating ? null : _handleDownload,
+          ),
+        ),
+        // SHARE
+        Tooltip(
+          message: "Share this ${widget.format.name}",
+          child: IconButton(
+            icon: const Icon(Icons.share_outlined,
+                color: Colors.purple, size: 24),
+            onPressed: _isGenerating ? null : _handleShare,
+          ),
+        ),
+        // CLOSE
+        IconButton(
+          icon: const Icon(Icons.close, size: 24),
+          onPressed: () => Navigator.pop(context),
+          tooltip: "Close",
+        ),
+      ],
     );
   }
 
-  Color _parseColor(String hex) {
-    try {
-      final c = hex.replaceAll('#', '');
-      return Color(int.parse('FF$c', radix: 16));
-    } catch (_) {
-      return const Color(0xFF6C63FF);
-    }
+  // ============================================================
+  // NARROW HEADER (phone) — wraps buttons to second row
+  // ============================================================
+  Widget _buildNarrowHeader() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(widget.format.icon,
+                  style: const TextStyle(fontSize: 20)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.format.name,
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.bold)),
+                  Text(widget.format.description,
+                      style: const TextStyle(
+                          fontSize: 10, color: Colors.grey)),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, size: 22),
+              onPressed: () => Navigator.pop(context),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _actionChip(
+              icon: Icons.print_outlined,
+              label: "Print",
+              color: Colors.blueAccent,
+              onTap: _isGenerating ? null : _handlePrint,
+            ),
+            _actionChip(
+              icon: Icons.download_rounded,
+              label: "Download",
+              color: Colors.green,
+              onTap: _isGenerating ? null : _handleDownload,
+              loading: _isGenerating,
+            ),
+            _actionChip(
+              icon: Icons.share_outlined,
+              label: "Share",
+              color: Colors.purple,
+              onTap: _isGenerating ? null : _handleShare,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _actionChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback? onTap,
+    bool loading = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (loading)
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: color),
+              )
+            else
+              Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: color)),
+          ],
+        ),
+      ),
+    );
   }
 }
