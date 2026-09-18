@@ -3,6 +3,7 @@
 // ✅ Cache-First Strategy + Background Refresh
 // ✅ AI-Based Modern Design (matches all other screens)
 // ✅ FIXED: Infinity error in shimmer + visible AI loading (600ms min)
+// ✅ Documents shown with View buttons (same as admin screen)
 
 import 'dart:convert';
 import 'dart:typed_data';
@@ -50,6 +51,25 @@ class _UserServiceApplicationScreenState
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+
+  // ==================== DOCUMENT LABEL MAP (fallback labels) ====================
+  static const List<Map<String, String>> _documentKeyMap = [
+    {'key': 'resume_url', 'label': 'Resume / CV'},
+    {'key': 'profile_photo_url', 'label': 'Profile Photo'},
+    {'key': 'aadhaar_url', 'label': 'Aadhaar Card'},
+    {'key': 'pan_url', 'label': 'PAN Card'},
+    {'key': 'passport_url', 'label': 'Passport'},
+    {'key': 'driving_license_url', 'label': 'Driving License'},
+    {'key': 'voter_id_url', 'label': 'Voter ID'},
+    {'key': 'degree_certificate_url', 'label': 'Degree Certificate'},
+    {'key': 'experience_letter_url', 'label': 'Experience Letter'},
+    {'key': 'salary_slip_url', 'label': 'Salary Slip'},
+    {'key': 'offer_letter_url', 'label': 'Offer Letter'},
+    {'key': 'disability_certificate_url', 'label': 'Disability Certificate'},
+    {'key': 'caste_certificate_url', 'label': 'Caste Certificate'},
+    {'key': 'income_certificate_url', 'label': 'Income Certificate'},
+    {'key': 'other_document_url', 'label': 'Other Document'},
+  ];
 
   static const List<Map<String, dynamic>> _filterButtons = [
     {'value': 'all', 'label': 'All', 'icon': Icons.list, 'color': Colors.grey},
@@ -106,7 +126,6 @@ class _UserServiceApplicationScreenState
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // ⚡ Unified loading with minimum AI loading time
     _loadWithMinDelay();
   }
 
@@ -120,13 +139,11 @@ class _UserServiceApplicationScreenState
   Future<void> _loadWithMinDelay() async {
     final startTime = DateTime.now().millisecondsSinceEpoch;
 
-    // Start cache + fresh fetch in parallel
     await Future.wait([
       _loadFromCacheInstant(),
       _refreshInBackground(),
     ]);
 
-    // Ensure AI loading shows at least 600ms
     final elapsed = DateTime.now().millisecondsSinceEpoch - startTime;
     if (elapsed < _minLoadingMs) {
       await Future.delayed(Duration(milliseconds: _minLoadingMs - elapsed));
@@ -151,7 +168,6 @@ class _UserServiceApplicationScreenState
         if (mounted && cachedList.isNotEmpty) {
           setState(() {
             _applications = cachedList;
-            // ⚠️ Do NOT set _isLoading=false — controlled by _loadWithMinDelay
             _applyFilter(fast: true);
           });
           debugPrint("⚡ Loaded ${cachedList.length} apps from CACHE!");
@@ -246,7 +262,6 @@ class _UserServiceApplicationScreenState
 
       setState(() {
         _applications = enrichedApps;
-        // ⚠️ Do NOT set _isLoading=false — controlled by _loadWithMinDelay
         _isRefreshing = false;
         _filterCache.clear();
       });
@@ -680,6 +695,336 @@ class _UserServiceApplicationScreenState
     );
   }
 
+  // ====================================================================
+  // ✅ NEW: Open a document inside FileViewerScreen popup
+  // ====================================================================
+  Future<void> _openDocumentViewer(
+    String url, {
+    String title = 'Document',
+    String? downloadUrl,
+    String? fileType,
+  }) async {
+    if (url.isEmpty) {
+      showMessage(context, "Document URL not available", isError: true);
+      return;
+    }
+
+    String finalUrl = url.trim();
+    if (!finalUrl.startsWith('http') &&
+        !finalUrl.startsWith('file') &&
+        !finalUrl.startsWith('blob:')) {
+      finalUrl = 'https://$finalUrl';
+    }
+
+    debugPrint("📄 Opening document viewer: $finalUrl");
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        insetPadding: EdgeInsets.zero,
+        child: Container(
+          width: MediaQuery.of(dialogContext).size.width * 0.95,
+          height: MediaQuery.of(dialogContext).size.height * 0.9,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+          ),
+          child: FileViewerScreen(
+            url: finalUrl,
+            title: title,
+            downloadUrl: downloadUrl ?? finalUrl,
+            fileType: fileType,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ====================================================================
+  // ✅ NEW: icon/color/fileType helpers
+  // ====================================================================
+  IconData _iconForUrl(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('.pdf') || u.contains('/raw/')) {
+      return Icons.picture_as_pdf;
+    }
+    if (u.contains('.jpg') ||
+        u.contains('.jpeg') ||
+        u.contains('.png') ||
+        u.contains('.webp') ||
+        u.contains('.gif') ||
+        u.contains('/image/')) {
+      return Icons.image;
+    }
+    if (u.contains('.doc')) return Icons.description;
+    if (u.contains('.xls')) return Icons.table_chart;
+    return Icons.insert_drive_file;
+  }
+
+  Color _colorForUrl(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('.pdf') || u.contains('/raw/')) return Colors.red;
+    if (u.contains('.jpg') ||
+        u.contains('.jpeg') ||
+        u.contains('.png') ||
+        u.contains('.webp') ||
+        u.contains('.gif') ||
+        u.contains('/image/')) {
+      return Colors.blue;
+    }
+    if (u.contains('.doc')) return Colors.indigo;
+    if (u.contains('.xls')) return Colors.green;
+    return Colors.blueGrey;
+  }
+
+  String _fileTypeForUrl(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('.pdf') || u.contains('/raw/')) return 'pdf';
+    if (u.contains('.jpg') ||
+        u.contains('.jpeg') ||
+        u.contains('.png') ||
+        u.contains('.webp') ||
+        u.contains('.gif') ||
+        u.contains('/image/')) {
+      return 'image';
+    }
+    if (u.contains('.doc')) return 'word';
+    if (u.contains('.xls')) return 'excel';
+    return 'file';
+  }
+
+  // ====================================================================
+  // ✅ NEW: "Uploaded Documents" section — application-attached docs only
+  // ====================================================================
+  Widget _buildDocumentsSection(Map<String, dynamic> app) {
+    final List<Map<String, dynamic>> allDocs = [];
+
+    final submittedUrl = app['submitted_document_url'];
+    if (submittedUrl != null &&
+        submittedUrl.toString().isNotEmpty &&
+        submittedUrl.toString() != 'null') {
+      allDocs.add({
+        'key': 'submitted_document_url',
+        'label': app['submitted_document_name']?.toString() ??
+            'Submitted Document (Review)',
+        'url': submittedUrl.toString(),
+        'download_url': app['submitted_document_download_url'],
+        'source': 'application',
+        'is_application_doc': true,
+      });
+    }
+
+    final finalUrl = app['final_document_url'];
+    if (finalUrl != null &&
+        finalUrl.toString().isNotEmpty &&
+        finalUrl.toString() != 'null') {
+      allDocs.add({
+        'key': 'final_document_url',
+        'label': app['final_document_name']?.toString() ??
+            'Final Submitted Document',
+        'url': finalUrl.toString(),
+        'download_url': app['final_document_download_url'],
+        'source': 'application',
+        'is_application_doc': true,
+      });
+    }
+
+    final receiptUrl = app['payment_receipt_url'];
+    if (receiptUrl != null &&
+        receiptUrl.toString().isNotEmpty &&
+        receiptUrl.toString() != 'null') {
+      allDocs.add({
+        'key': 'payment_receipt_url',
+        'label': 'Payment Receipt',
+        'url': receiptUrl.toString(),
+        'download_url': app['payment_receipt_download_url'],
+        'source': 'application',
+        'is_application_doc': true,
+      });
+    }
+
+    final screenshotUrl = app['screenshot_url'];
+    if (screenshotUrl != null &&
+        screenshotUrl.toString().isNotEmpty &&
+        screenshotUrl.toString() != 'null') {
+      allDocs.add({
+        'key': 'screenshot_url',
+        'label': 'Payment Screenshot',
+        'url': screenshotUrl.toString(),
+        'source': 'application',
+        'is_application_doc': true,
+      });
+    }
+
+    final docUrl = app['document_url'];
+    if (docUrl != null &&
+        docUrl.toString().isNotEmpty &&
+        docUrl.toString() != 'null') {
+      allDocs.add({
+        'key': 'document_url',
+        'label': 'Uploaded Document',
+        'url': docUrl.toString(),
+        'source': 'application',
+        'is_application_doc': true,
+      });
+    }
+
+    if (allDocs.isEmpty) return const SizedBox();
+
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.folder_copy,
+                    color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  "Uploaded Documents",
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.indigo.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "${allDocs.length} Files",
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.indigo,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Column(
+            children: allDocs
+                .asMap()
+                .entries
+                .map((entry) => _buildDocumentRow(entry.key, entry.value))
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentRow(int index, Map<String, dynamic> doc) {
+    final String label = doc['label']?.toString() ?? 'Document ${index + 1}';
+    final String url = doc['url']?.toString() ?? '';
+    final String? downloadUrl = doc['download_url']?.toString();
+    final bool isAppDoc = doc['is_application_doc'] == true;
+
+    final icon = _iconForUrl(url);
+    final color = _colorForUrl(url);
+    final fileType = _fileTypeForUrl(url);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isAppDoc ? Colors.blue.shade50 : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isAppDoc ? Colors.blue.shade200 : Colors.grey.shade300,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    if (isAppDoc)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade200,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          "APPLICATION",
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    if (isAppDoc) const SizedBox(width: 6),
+                    Text(
+                      fileType.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.visibility, color: Colors.blue),
+            tooltip: "View",
+            onPressed: () => _openDocumentViewer(
+              url,
+              title: label,
+              downloadUrl: downloadUrl,
+              fileType: fileType,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ==================== STATUS HELPERS (CACHED MAPS) ====================
   static const Map<String, Color> _statusColors = {
     'payment_pending': Colors.purple,
@@ -875,7 +1220,6 @@ class _UserServiceApplicationScreenState
       return _buildApplicationDetailView(_selectedApplication!);
     }
 
-    // ✅ Show AI loading screen
     if (_isLoading && _applications.isEmpty) {
       return _buildAILoadingScreen();
     }
@@ -1601,6 +1945,11 @@ class _UserServiceApplicationScreenState
                         _buildViewAcknowledgmentReceiptButton(),
                         const SizedBox(height: 16),
                       ],
+
+                      // ✅ NEW: All application-attached docs with View buttons
+                      _buildDocumentsSection(app),
+                      const SizedBox(height: 16),
+
                       if (status == 'review_application' ||
                           status == 'under_review') ...[
                         _buildUserActionButtons(app['_id'], status),
@@ -1917,20 +2266,558 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ==================== FIELDS CARD ====================
+  // ====================================================================
+  // ✅ FIELDS CARD — separates documents + clean field rows
+  // ====================================================================
   Widget _buildFieldsCard(Map<String, dynamic> fields) {
     if (fields.isEmpty) return const SizedBox();
+
+    final List<Map<String, dynamic>> flatFields = [];
+    final List<Map<String, dynamic>> documentEntries = [];
+
+    fields.forEach((key, value) {
+      if (_isDocumentField(key, value)) {
+        documentEntries.addAll(_parseDocumentEntries(value));
+        return;
+      }
+
+      final entries = _expandFieldValue(value);
+
+      if (entries.length == 1 && entries.first['key'].toString().isEmpty) {
+        flatFields.add({
+          'key': key,
+          'value': entries.first['value'],
+        });
+      } else {
+        flatFields.add({
+          'key': key,
+          'value': null,
+          'group': entries,
+        });
+      }
+    });
+
+    if (flatFields.isEmpty && documentEntries.isEmpty) return const SizedBox();
 
     return _buildGlassContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionHeader("Submitted Information", Icons.description_outlined),
-          ...fields.entries.map(
-            (entry) => _buildInfoRow(
-              Icons.info_outline,
-              entry.key.replaceAll('_', ' ').toUpperCase(),
-              entry.value?.toString() ?? '',
+
+          // Normal info rows
+          ...flatFields.map((f) {
+            if (f['group'] != null) {
+              return _buildFieldGroupBlock(
+                  f['key'].toString(), f['group'] as List<Map<String, String>>);
+            }
+            return _buildFieldInfoRow(
+                f['key'].toString(), f['value']?.toString() ?? '');
+          }),
+
+          // Documents sub-section
+          if (documentEntries.isNotEmpty) ...[
+            if (flatFields.isNotEmpty) const SizedBox(height: 12),
+            const Divider(height: 20),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.folder_copy,
+                      color: Colors.white, size: 14),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    "Uploaded Documents",
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    "${documentEntries.length} Files",
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...documentEntries
+                .asMap()
+                .entries
+                .map((e) => _buildFieldDocumentRow(e.key, e.value)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ---- Single field row (label + value) ----
+  Widget _buildFieldInfoRow(String key, String value) {
+    final label = _prettyFieldLabel(key);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.label_outline,
+                color: Colors.white, size: 12),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value.isEmpty ? 'N/A' : value,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---- Group block (header + children) ----
+  Widget _buildFieldGroupBlock(
+      String groupKey, List<Map<String, String>> items) {
+    final label = _prettyFieldLabel(groupKey);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF6C63FF).withOpacity(0.05),
+            const Color(0xFFFF6588).withOpacity(0.03),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF6C63FF).withOpacity(0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.list_alt,
+                    color: Colors.white, size: 12),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade700,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...items.asMap().entries.map((e) {
+            final item = e.value;
+            final k = item['key']?.toString() ?? '';
+            final v = item['value']?.toString() ?? '';
+            return Padding(
+              padding: EdgeInsets.only(
+                  bottom: e.key == items.length - 1 ? 0 : 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(width: 22),
+                  Container(
+                    width: 6,
+                    height: 6,
+                    margin: const EdgeInsets.only(top: 6),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF6C63FF),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _prettyFieldLabel(k).toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          v.isEmpty ? 'N/A' : v,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // ---- Expand nested Map / stringified Map into rows ----
+  List<Map<String, String>> _expandFieldValue(dynamic value) {
+    final result = <Map<String, String>>[];
+    if (value == null) return result;
+
+    if (value is Map) {
+      value.forEach((k, v) {
+        result.add({
+          'key': k.toString(),
+          'value': v?.toString() ?? '',
+        });
+      });
+      return result;
+    }
+
+    if (value is List) {
+      for (final item in value) {
+        if (item is Map) {
+          final k = item['key']?.toString() ??
+              item['name']?.toString() ??
+              item['label']?.toString() ??
+              '';
+          final v = item['value']?.toString() ??
+              item['text']?.toString() ??
+              item.toString();
+          result.add({'key': k, 'value': v});
+        } else {
+          result.add({'key': '', 'value': item.toString()});
+        }
+      }
+      return result;
+    }
+
+    final str = value.toString().trim();
+    if (str.startsWith('{') && str.endsWith('}') && str.contains(': ')) {
+      try {
+        final decoded = jsonDecode(str);
+        if (decoded is Map) {
+          decoded.forEach((k, v) {
+            result.add({'key': k.toString(), 'value': v?.toString() ?? ''});
+          });
+          return result;
+        }
+      } catch (_) {}
+
+      final inner = str.substring(1, str.length - 1);
+      final parts = inner.split(', ');
+      for (final part in parts) {
+        final idx = part.indexOf(': ');
+        if (idx > 0) {
+          final k = part.substring(0, idx).trim();
+          final v = part.substring(idx + 2).trim();
+          result.add({'key': k, 'value': v});
+        } else if (part.trim().isNotEmpty) {
+          result.add({'key': '', 'value': part.trim()});
+        }
+      }
+      return result;
+    }
+
+    result.add({'key': '', 'value': str});
+    return result;
+  }
+
+  String _prettyFieldLabel(String key) {
+    if (key.isEmpty) return '';
+    return key
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1))
+        .join(' ');
+  }
+
+  // ==================== DETECT DOCUMENT FIELD ====================
+  bool _isDocumentField(String key, dynamic value) {
+    if (value == null) return false;
+
+    final keyLower = key.toLowerCase();
+
+    if (keyLower == 'documents' ||
+        keyLower == 'document' ||
+        keyLower.endsWith('_documents') ||
+        keyLower.endsWith('_document') ||
+        keyLower.contains('uploaded_documents')) {
+      return true;
+    }
+
+    if (value is Map) {
+      for (final v in value.values) {
+        final s = v?.toString() ?? '';
+        if (s.contains('http://') || s.contains('https://')) return true;
+      }
+    }
+
+    final str = value.toString();
+    if (str.contains('http://') || str.contains('https://')) {
+      if (str.contains('cloudinary') ||
+          str.contains('/documents/') ||
+          str.contains('/uploads/') ||
+          str.contains('/raw/upload/') ||
+          str.contains('/image/upload/') ||
+          str.contains('/auto/upload/')) {
+        if (str.contains(': ') && (str.contains('{') || str.contains(', '))) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  // ==================== PARSE DOCUMENT ENTRIES ====================
+  List<Map<String, dynamic>> _parseDocumentEntries(dynamic value) {
+    final docs = <Map<String, dynamic>>[];
+    if (value == null) return docs;
+
+    if (value is Map) {
+      value.forEach((k, v) {
+        if (v != null && v.toString().trim().isNotEmpty) {
+          docs.add({
+            'name': _prettyDocName(k.toString()),
+            'url': v.toString().trim(),
+          });
+        }
+      });
+      return docs;
+    }
+
+    if (value is List) {
+      for (final item in value) {
+        if (item is Map) {
+          final url = item['url']?.toString() ??
+              item['doc_url']?.toString() ??
+              item['file_url']?.toString() ??
+              '';
+          final name = item['name']?.toString() ??
+              item['doc_name']?.toString() ??
+              item['label']?.toString() ??
+              'Document';
+          if (url.isNotEmpty) {
+            docs.add({'name': _prettyDocName(name), 'url': url});
+          }
+        } else if (item is String && item.contains('http')) {
+          docs.add({
+            'name': _prettyDocName(_extractNameFromUrl(item)),
+            'url': item,
+          });
+        }
+      }
+      return docs;
+    }
+
+    String str = value.toString().trim();
+    if (str.isEmpty) return docs;
+
+    try {
+      final decoded = jsonDecode(str);
+      if (decoded is Map) {
+        decoded.forEach((k, v) {
+          if (v != null && v.toString().trim().isNotEmpty) {
+            docs.add({
+              'name': _prettyDocName(k.toString()),
+              'url': v.toString().trim(),
+            });
+          }
+        });
+        return docs;
+      } else if (decoded is List) {
+        return _parseDocumentEntries(decoded);
+      }
+    } catch (_) {}
+
+    if (str.startsWith('{')) str = str.substring(1);
+    if (str.endsWith('}')) str = str.substring(0, str.length - 1);
+
+    final parts = str.split(', ');
+    for (final part in parts) {
+      final trimmed = part.trim();
+      if (trimmed.isEmpty) continue;
+      final idx = trimmed.indexOf(': ');
+      if (idx > 0) {
+        final name = trimmed.substring(0, idx).trim();
+        final url = trimmed.substring(idx + 2).trim();
+        if (name.isNotEmpty && url.isNotEmpty) {
+          docs.add({'name': _prettyDocName(name), 'url': url});
+        }
+      } else if (trimmed.contains('http')) {
+        docs.add({
+          'name': _prettyDocName(_extractNameFromUrl(trimmed)),
+          'url': trimmed,
+        });
+      }
+    }
+    return docs;
+  }
+
+  String _prettyDocName(String raw) {
+    if (raw.isEmpty) return 'Document';
+    String s = raw.replaceAll(RegExp(r'_url$', caseSensitive: false), '');
+    s = s.replaceAll('_', ' ');
+    return s
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1))
+        .join(' ');
+  }
+
+  String _extractNameFromUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      final segments = uri.pathSegments;
+      if (segments.isNotEmpty) {
+        final last = segments.last;
+        final dot = last.lastIndexOf('.');
+        if (dot > 0) {
+          return _prettyDocName(last.substring(0, dot));
+        }
+        return _prettyDocName(last);
+      }
+    } catch (_) {}
+    return 'Document';
+  }
+
+  Widget _buildFieldDocumentRow(int index, Map<String, dynamic> doc) {
+    final String name = doc['name']?.toString() ?? 'Document ${index + 1}';
+    final String url = doc['url']?.toString() ?? '';
+
+    final icon = _iconForUrl(url);
+    final color = _colorForUrl(url);
+    final fileType = _fileTypeForUrl(url);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  fileType.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.visibility, color: Colors.blue),
+            tooltip: "View",
+            onPressed: () => _openDocumentViewer(
+              url,
+              title: name,
+              fileType: fileType,
             ),
           ),
         ],

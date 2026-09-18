@@ -1,6 +1,7 @@
 // lib/features/jobs/presentation/screens/applications_screen.dart
 // ✅ AI-BASED MODERN REDESIGN – Glassmorphism, Gradients, Animated Loading
 // ✅ Preserves all original functionality (status updates, file uploads, payments, profile navigation)
+// ✅ NEW: Documents Section – shows ALL user-uploaded documents with VIEW icon only
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -39,6 +40,29 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   bool _isUpdatingStatus = false;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+
+  // ✅ NEW: All user documents fetched from backend
+  List<Map<String, dynamic>> _userDocuments = [];
+  bool _isLoadingDocuments = false;
+
+  // ✅ NEW: Document keys mapping for pretty labels
+  static const List<Map<String, String>> _documentKeyMap = [
+    {'key': 'resume_url', 'label': 'Resume / CV'},
+    {'key': 'profile_photo_url', 'label': 'Profile Photo'},
+    {'key': 'aadhaar_url', 'label': 'Aadhaar Card'},
+    {'key': 'pan_url', 'label': 'PAN Card'},
+    {'key': 'passport_url', 'label': 'Passport'},
+    {'key': 'driving_license_url', 'label': 'Driving License'},
+    {'key': 'voter_id_url', 'label': 'Voter ID'},
+    {'key': 'degree_certificate_url', 'label': 'Degree Certificate'},
+    {'key': 'experience_letter_url', 'label': 'Experience Letter'},
+    {'key': 'salary_slip_url', 'label': 'Salary Slip'},
+    {'key': 'offer_letter_url', 'label': 'Offer Letter'},
+    {'key': 'disability_certificate_url', 'label': 'Disability Certificate'},
+    {'key': 'caste_certificate_url', 'label': 'Caste Certificate'},
+    {'key': 'income_certificate_url', 'label': 'Income Certificate'},
+    {'key': 'other_document_url', 'label': 'Other Document'},
+  ];
 
   // Filter buttons - all statuses for filtering
   final List<Map<String, dynamic>> _filterButtons = [
@@ -318,6 +342,509 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     } catch (e) {
       debugPrint("Error fetching user profile: $e");
     }
+  }
+
+  // ====================================================================
+  // ✅ NEW: Fetch ALL documents uploaded by the logged-in user
+  // ====================================================================
+  Future<void> _fetchUserDocuments(String email) async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingDocuments = true;
+      _userDocuments = [];
+    });
+
+    final List<Map<String, dynamic>> docs = [];
+
+    try {
+      // ---------- 1) Fetch from /user/get-documents ----------
+      try {
+        final res = await DioClient.dio.get('/user/get-documents');
+        if (res.data is Map) {
+          final data = res.data;
+          Map<String, dynamic> docsMap = {};
+          if (data.containsKey('data') && data['data'] is Map) {
+            docsMap = Map<String, dynamic>.from(data['data']);
+          } else if (data.containsKey('documents') &&
+              data['documents'] is Map) {
+            docsMap = Map<String, dynamic>.from(data['documents']);
+          }
+
+          docsMap.forEach((key, value) {
+            if (value != null && value.toString().isNotEmpty) {
+              final label = _labelForKey(key);
+              docs.add({
+                'key': key,
+                'label': label,
+                'url': value.toString(),
+                'source': 'profile_documents',
+              });
+            }
+          });
+        }
+      } catch (e) {
+        debugPrint("⚠️ /user/get-documents failed: $e");
+      }
+
+      // ---------- 2) Fetch from user profile (additional_details) ----------
+      try {
+        final res = await DioClient.dio.get(
+          '/user/user-profile-by-email',
+          queryParameters: {'email': email},
+        );
+        if (res.data is Map) {
+          Map<String, dynamic> profile = {};
+          if (res.data.containsKey('data') && res.data['data'] is Map) {
+            profile = Map<String, dynamic>.from(res.data['data']);
+          } else {
+            profile = Map<String, dynamic>.from(res.data);
+          }
+
+          // additional_details object
+          final additional =
+              profile['additional_details'] as Map<String, dynamic>? ?? {};
+          additional.forEach((key, value) {
+            if (value != null && value.toString().isNotEmpty) {
+              final label = _labelForKey(key);
+              // Avoid duplicates
+              if (!docs.any((d) => d['url'] == value.toString())) {
+                docs.add({
+                  'key': key,
+                  'label': label,
+                  'url': value.toString(),
+                  'source': 'profile_additional',
+                });
+              }
+            }
+          });
+
+          // Top-level resume_url / profile_photo_url
+          for (final key in ['resume_url', 'profile_photo_url']) {
+            final v = profile[key];
+            if (v != null &&
+                v.toString().isNotEmpty &&
+                !docs.any((d) => d['url'] == v.toString())) {
+              docs.add({
+                'key': key,
+                'label': _labelForKey(key),
+                'url': v.toString(),
+                'source': 'profile_root',
+              });
+            }
+          }
+
+          // Documents array (structured)
+          final docsList = profile['documents'];
+          if (docsList is Map && docsList['documents'] is List) {
+            for (final d in (docsList['documents'] as List)) {
+              if (d is Map) {
+                final url = d['doc_url']?.toString() ?? '';
+                if (url.isNotEmpty && !docs.any((x) => x['url'] == url)) {
+                  docs.add({
+                    'key': d['doc_type']?.toString() ?? 'document',
+                    'label': d['doc_name']?.toString() ??
+                        _labelForKey(d['doc_type']?.toString() ?? 'document'),
+                    'url': url,
+                    'source': 'profile_documents_array',
+                  });
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint("⚠️ user-profile-by-email failed: $e");
+      }
+    } catch (e) {
+      debugPrint("❌ _fetchUserDocuments error: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _userDocuments = docs;
+          _isLoadingDocuments = false;
+        });
+      }
+    }
+  }
+
+  String _labelForKey(String key) {
+    for (final entry in _documentKeyMap) {
+      if (entry['key'] == key) return entry['label']!;
+    }
+    // Fallback: prettify the key
+    return key
+        .replaceAll('_url', '')
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1))
+        .join(' ')
+        .trim();
+  }
+
+  // ====================================================================
+  // ✅ NEW: Open a document inside the FileViewerScreen popup
+  // ====================================================================
+  Future<void> _openDocumentViewer(
+    String url, {
+    String title = 'Document',
+    String? downloadUrl,
+    String? fileType,
+  }) async {
+    if (url.isEmpty) {
+      showMessage(context, "Document URL not available", isError: true);
+      return;
+    }
+
+    String finalUrl = url.trim();
+    if (!finalUrl.startsWith('http') &&
+        !finalUrl.startsWith('file') &&
+        !finalUrl.startsWith('blob:')) {
+      finalUrl = 'https://$finalUrl';
+    }
+
+    debugPrint("📄 Opening document viewer: $finalUrl");
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        insetPadding: EdgeInsets.zero,
+        child: Container(
+          width: MediaQuery.of(dialogContext).size.width * 0.95,
+          height: MediaQuery.of(dialogContext).size.height * 0.9,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+          ),
+          child: FileViewerScreen(
+            url: finalUrl,
+            title: title,
+            downloadUrl: downloadUrl ?? finalUrl,
+            fileType: fileType,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ====================================================================
+  // ✅ NEW: Show ALL documents (user profile + application docs)
+  // ====================================================================
+  Widget _buildDocumentsSection(Map<String, dynamic> app) {
+    // Combine user-uploaded documents + application-specific documents
+    final List<Map<String, dynamic>> allDocs = [];
+
+    // 1) User profile documents (fetched)
+    allDocs.addAll(_userDocuments);
+
+    // 2) Application submitted document (customadmin review)
+    final submittedUrl = app['submitted_document_url'];
+    if (submittedUrl != null && submittedUrl.toString().isNotEmpty) {
+      final urlStr = submittedUrl.toString();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'submitted_document_url',
+          'label': 'Submitted Document (Review)',
+          'url': urlStr,
+          'download_url': app['submitted_document_download_url'],
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
+    }
+
+    // 3) Final submitted document
+    final finalUrl = app['final_document_url'];
+    if (finalUrl != null && finalUrl.toString().isNotEmpty) {
+      final urlStr = finalUrl.toString();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'final_document_url',
+          'label': 'Final Submitted Document',
+          'url': urlStr,
+          'download_url': app['final_document_download_url'],
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
+    }
+
+    // 4) Payment receipt
+    final receiptUrl = app['payment_receipt_url'];
+    if (receiptUrl != null && receiptUrl.toString().isNotEmpty) {
+      final urlStr = receiptUrl.toString();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'payment_receipt_url',
+          'label': 'Payment Receipt',
+          'url': urlStr,
+          'download_url': app['payment_receipt_download_url'],
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
+    }
+
+    // 5) Application resume URL
+    final appResume = app['resume_url'];
+    if (appResume != null && appResume.toString().isNotEmpty) {
+      final urlStr = appResume.toString();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'resume_url',
+          'label': 'Resume (Application)',
+          'url': urlStr,
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
+    }
+
+    // ========================================================================
+    // Build the UI
+    // ========================================================================
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ----- Header -----
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.folder_copy,
+                    color: Colors.indigo,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    "Uploaded Documents",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    "${allDocs.length} Files",
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // ----- Body -----
+            if (_isLoadingDocuments)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (allDocs.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.folder_off, size: 40, color: Colors.grey),
+                    SizedBox(height: 8),
+                    Text(
+                      "No documents uploaded by this user",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Column(
+                children: allDocs.asMap().entries.map((entry) {
+                  return _buildDocumentRow(entry.key, entry.value);
+                }).toList(),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ====================================================================
+  // ✅ NEW: Single document row (View icon only)
+  // ====================================================================
+  Widget _buildDocumentRow(int index, Map<String, dynamic> doc) {
+    final String label = doc['label']?.toString() ?? 'Document ${index + 1}';
+    final String url = doc['url']?.toString() ?? '';
+    final String? downloadUrl = doc['download_url']?.toString();
+    final bool isAppDoc = doc['is_application_doc'] == true;
+
+    // Determine icon and color from URL
+    final icon = _iconForUrl(url);
+    final color = _colorForUrl(url);
+    final fileType = _fileTypeForUrl(url);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isAppDoc ? Colors.blue.shade50 : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isAppDoc ? Colors.blue.shade200 : Colors.grey.shade300,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Icon
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 12),
+
+          // Label + badge
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    if (isAppDoc)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade200,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          "APPLICATION",
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    if (isAppDoc) const SizedBox(width: 6),
+                    Text(
+                      fileType.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // View button (ONLY)
+          IconButton(
+            icon: const Icon(Icons.visibility, color: Colors.blue),
+            tooltip: "View",
+            onPressed: () => _openDocumentViewer(
+              url,
+              title: label,
+              downloadUrl: downloadUrl,
+              fileType: fileType,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---- Helpers for icons/colors ----
+  IconData _iconForUrl(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('.pdf') || u.contains('/raw/')) {
+      return Icons.picture_as_pdf;
+    }
+    if (u.contains('.jpg') ||
+        u.contains('.jpeg') ||
+        u.contains('.png') ||
+        u.contains('.webp') ||
+        u.contains('.gif') ||
+        u.contains('/image/')) {
+      return Icons.image;
+    }
+    if (u.contains('.doc')) return Icons.description;
+    if (u.contains('.xls')) return Icons.table_chart;
+    return Icons.insert_drive_file;
+  }
+
+  Color _colorForUrl(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('.pdf') || u.contains('/raw/')) return Colors.red;
+    if (u.contains('.jpg') ||
+        u.contains('.jpeg') ||
+        u.contains('.png') ||
+        u.contains('.webp') ||
+        u.contains('.gif') ||
+        u.contains('/image/')) {
+      return Colors.blue;
+    }
+    if (u.contains('.doc')) return Colors.indigo;
+    if (u.contains('.xls')) return Colors.green;
+    return Colors.blueGrey;
+  }
+
+  String _fileTypeForUrl(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('.pdf') || u.contains('/raw/')) return 'pdf';
+    if (u.contains('.jpg') ||
+        u.contains('.jpeg') ||
+        u.contains('.png') ||
+        u.contains('.webp') ||
+        u.contains('.gif') ||
+        u.contains('/image/')) {
+      return 'image';
+    }
+    if (u.contains('.doc')) return 'word';
+    if (u.contains('.xls')) return 'excel';
+    return 'file';
   }
 
   // ==================== VIEW APPLICATION UPDATES DIALOG ====================
@@ -1217,10 +1744,17 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     setState(() {
       _selectedApplication = app;
       _userProfile = null;
+      _userDocuments = [];
     });
 
     showMessage(context, "Loading candidate profile...", isError: false);
-    await _fetchUserProfile(app['applicant_email']);
+
+    final applicantEmail = app['applicant_email']?.toString() ?? '';
+
+    await Future.wait([
+      _fetchUserProfile(applicantEmail),
+      _fetchUserDocuments(applicantEmail),
+    ]);
 
     if (mounted) {
       setState(() {});
@@ -1237,6 +1771,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     setState(() {
       _selectedApplication = null;
       _userProfile = null;
+      _userDocuments = [];
     });
   }
 
@@ -2051,6 +2586,9 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             const SizedBox(height: 16),
             _buildPaymentVerificationSection(app),
             const SizedBox(height: 16),
+            // ✅ NEW: Show ALL uploaded documents
+            _buildDocumentsSection(app),
+            const SizedBox(height: 16),
             // ==================== VIEW UPDATES BUTTON IN DETAIL VIEW ====================
             if (hasUpdates && status.toLowerCase() == 'update_application')
               _buildViewUpdatesButton(app),
@@ -2754,14 +3292,17 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                       onTap: _pickFile,
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 20, horizontal: 16),
                         decoration: BoxDecoration(
                           color: _selectedFileName != null
                               ? Colors.orange.shade50
                               : Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: _selectedFileName != null ? Colors.orange : Colors.blue,
+                            color: _selectedFileName != null
+                                ? Colors.orange
+                                : Colors.blue,
                             width: 2,
                           ),
                         ),
@@ -2811,7 +3352,8 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                     // Review Notes
                     const Text(
                       "Review Notes (Optional)",
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 8),
                     TextField(
@@ -2836,12 +3378,14 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.info_outline, size: 18, color: Colors.orange),
+                          Icon(Icons.info_outline,
+                              size: 18, color: Colors.orange),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               "ℹ️ After review, the application status will change to REVIEW_APPLICATION. Both user and admin will receive notifications.",
-                              style: TextStyle(fontSize: 11, color: Colors.orange),
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.orange),
                             ),
                           ),
                         ],
@@ -2916,7 +3460,8 @@ class _FinalSubmitDialogContent extends StatefulWidget {
       _FinalSubmitDialogContentState();
 }
 
-class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
+class _FinalSubmitDialogContentState
+    extends State<_FinalSubmitDialogContent> {
   String? _selectedFileName;
   Uint8List? _selectedFileBytes;
 
@@ -3021,7 +3566,8 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
                     // File Upload Section
                     const Text(
                       "📄 Upload Final Document (PDF or Image)",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
                     const Text(
@@ -3035,14 +3581,17 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
                       onTap: _pickFile,
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 20, horizontal: 16),
                         decoration: BoxDecoration(
                           color: _selectedFileName != null
                               ? Colors.deepPurple.shade50
                               : Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: _selectedFileName != null ? Colors.deepPurple : Colors.blue,
+                            color: _selectedFileName != null
+                                ? Colors.deepPurple
+                                : Colors.blue,
                             width: 2,
                           ),
                         ),
@@ -3092,7 +3641,8 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
                     // Additional Notes
                     const Text(
                       "Additional Notes (Optional)",
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 8),
                     TextField(
@@ -3117,12 +3667,14 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.info_outline, size: 18, color: Colors.deepPurple),
+                          Icon(Icons.info_outline,
+                              size: 18, color: Colors.deepPurple),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               "⚠️ This is FINAL submission. After this, no further changes are allowed.",
-                              style: TextStyle(fontSize: 11, color: Colors.deepPurple),
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.deepPurple),
                             ),
                           ),
                         ],

@@ -1782,6 +1782,47 @@ async def get_user_documents(
         "documents": documents
     }
 
+@router.get("/user-documents-by-email")
+async def get_user_documents_by_email(
+    email: str = Query(..., description="User email"),
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """
+    Get ALL documents of a user by email - for admin/customadmin.
+    Returns { 'documents': { key: url } }
+    """
+    user_role = current_user.get("role", "").lower()
+    allowed = ["admin", "customadmin", "super_admin", "superadmin"]
+    if user_role not in allowed:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    profile = await db.profile.find_one({"email": email})
+    if not profile:
+        # Fallback to auth to avoid breaking UI
+        auth_user = await db.auth.find_one({"email": email})
+        if not auth_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"success": True, "documents": {}}
+
+    additional = profile.get("additional_details", {}) or {}
+
+    doc_keys = [
+        "resume_url", "profile_photo_url", "aadhaar_url", "pan_url",
+        "passport_url", "driving_license_url", "voter_id_url",
+        "degree_certificate_url", "experience_letter_url",
+        "salary_slip_url", "offer_letter_url",
+        "disability_certificate_url", "caste_certificate_url",
+        "income_certificate_url", "other_document_url",
+    ]
+
+    documents = {}
+    for key in doc_keys:
+        val = additional.get(key) or profile.get(key)
+        if val:
+            documents[key] = val
+
+    return {"success": True, "documents": documents}
 
 # ================= END OF FILE =================
 print("✅ User routes loaded with Ultra AI features + DELETE education/experience")

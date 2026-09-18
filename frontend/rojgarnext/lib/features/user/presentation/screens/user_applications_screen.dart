@@ -2,6 +2,7 @@
 // ✅ AI‑BASED MODERN DESIGN – Back button removed from detail header
 // ✅ FULLY FUNCTIONAL: List, Detail, Confirm, Update, Document viewing
 // ✅ AI LOADING ANIMATION on all loading states
+// ✅ NEW: Uploaded Documents section with View buttons for all user documents
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
@@ -92,9 +93,7 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
         child: SafeArea(
           child: Column(
             children: [
-              // Header
               if (widget.showAppBar) _buildHeader(),
-              // Body
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: _refresh,
@@ -119,10 +118,6 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
       ),
     );
   }
-
-  // ============================================================
-  // DESIGN HELPERS
-  // ============================================================
 
   BoxDecoration _buildGradientBackground() {
     return const BoxDecoration(
@@ -160,9 +155,6 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
     );
   }
 
-  // ============================================================
-  // HEADER
-  // ============================================================
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -238,9 +230,6 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
     );
   }
 
-  // ============================================================
-  // LOADING SCREEN – AI Animation
-  // ============================================================
   Widget _buildLoadingScreen() {
     return Center(
       child: Column(
@@ -302,9 +291,6 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
     );
   }
 
-  // ============================================================
-  // EMPTY STATE
-  // ============================================================
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -349,9 +335,6 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
     );
   }
 
-  // ============================================================
-  // APPLICATION CARD
-  // ============================================================
   Widget _buildApplicationCard(Map<String, dynamic> app) {
     final status = app['status'] ?? 'pending';
     final statusColor = _getStatusColor(status);
@@ -520,9 +503,6 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
     );
   }
 
-  // ============================================================
-  // STATUS HELPERS
-  // ============================================================
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'submitted':
@@ -645,6 +625,29 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
+  // ✅ NEW: Uploaded documents state
+  List<Map<String, dynamic>> _userDocuments = [];
+  bool _isLoadingDocuments = false;
+
+  // ✅ NEW: Document key map for pretty labels
+  static const List<Map<String, String>> _documentKeyMap = [
+    {'key': 'resume_url', 'label': 'Resume / CV'},
+    {'key': 'profile_photo_url', 'label': 'Profile Photo'},
+    {'key': 'aadhaar_url', 'label': 'Aadhaar Card'},
+    {'key': 'pan_url', 'label': 'PAN Card'},
+    {'key': 'passport_url', 'label': 'Passport'},
+    {'key': 'driving_license_url', 'label': 'Driving License'},
+    {'key': 'voter_id_url', 'label': 'Voter ID'},
+    {'key': 'degree_certificate_url', 'label': 'Degree Certificate'},
+    {'key': 'experience_letter_url', 'label': 'Experience Letter'},
+    {'key': 'salary_slip_url', 'label': 'Salary Slip'},
+    {'key': 'offer_letter_url', 'label': 'Offer Letter'},
+    {'key': 'disability_certificate_url', 'label': 'Disability Certificate'},
+    {'key': 'caste_certificate_url', 'label': 'Caste Certificate'},
+    {'key': 'income_certificate_url', 'label': 'Income Certificate'},
+    {'key': 'other_document_url', 'label': 'Other Document'},
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -657,6 +660,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
     _animationController.forward();
     _fetchJobDetails();
+    // ✅ NEW: fetch user documents
+    _fetchAllDocuments();
   }
 
   @override
@@ -682,7 +687,540 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   // ============================================================
-  // STATUS HELPERS (same as above)
+  // ✅ NEW: FETCH ALL USER DOCUMENTS
+  // ============================================================
+  Future<void> _fetchAllDocuments() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingDocuments = true;
+      _userDocuments = [];
+    });
+
+    final List<Map<String, dynamic>> docs = [];
+    final email = widget.application['applicant_email']?.toString() ?? '';
+
+    try {
+      // ---------- 1) Fetch from /user/get-documents ----------
+      try {
+        final res = await DioClient.dio.get('/user/get-documents');
+        if (res.data is Map) {
+          final data = res.data;
+          Map<String, dynamic> docsMap = {};
+          if (data.containsKey('data') && data['data'] is Map) {
+            docsMap = Map<String, dynamic>.from(data['data']);
+          } else if (data.containsKey('documents') &&
+              data['documents'] is Map) {
+            docsMap = Map<String, dynamic>.from(data['documents']);
+          }
+
+          docsMap.forEach((key, value) {
+            if (value != null && value.toString().isNotEmpty) {
+              docs.add({
+                'key': key,
+                'label': _labelForKey(key),
+                'url': value.toString(),
+                'source': 'profile_documents',
+              });
+            }
+          });
+        }
+      } catch (e) {
+        debugPrint("⚠️ /user/get-documents failed: $e");
+      }
+
+      // ---------- 2) Fetch from user profile ----------
+      if (email.isNotEmpty) {
+        try {
+          final res = await DioClient.dio.get(
+            '/user/user-profile-by-email',
+            queryParameters: {'email': email},
+          );
+          if (res.data is Map) {
+            Map<String, dynamic> profile = {};
+            if (res.data.containsKey('data') && res.data['data'] is Map) {
+              profile = Map<String, dynamic>.from(res.data['data']);
+            } else {
+              profile = Map<String, dynamic>.from(res.data);
+            }
+
+            // additional_details object
+            final additional =
+                profile['additional_details'] as Map<String, dynamic>? ?? {};
+            additional.forEach((key, value) {
+              if (value != null && value.toString().isNotEmpty) {
+                if (!docs.any((d) => d['url'] == value.toString())) {
+                  docs.add({
+                    'key': key,
+                    'label': _labelForKey(key),
+                    'url': value.toString(),
+                    'source': 'profile_additional',
+                  });
+                }
+              }
+            });
+
+            // Top-level resume_url / profile_photo_url
+            for (final key in ['resume_url', 'profile_photo_url']) {
+              final v = profile[key];
+              if (v != null &&
+                  v.toString().isNotEmpty &&
+                  !docs.any((d) => d['url'] == v.toString())) {
+                docs.add({
+                  'key': key,
+                  'label': _labelForKey(key),
+                  'url': v.toString(),
+                  'source': 'profile_root',
+                });
+              }
+            }
+
+            // Documents array (structured)
+            final docsList = profile['documents'];
+            if (docsList is Map && docsList['documents'] is List) {
+              for (final d in (docsList['documents'] as List)) {
+                if (d is Map) {
+                  final url = d['doc_url']?.toString() ?? '';
+                  if (url.isNotEmpty && !docs.any((x) => x['url'] == url)) {
+                    docs.add({
+                      'key': d['doc_type']?.toString() ?? 'document',
+                      'label': d['doc_name']?.toString() ??
+                          _labelForKey(
+                              d['doc_type']?.toString() ?? 'document'),
+                      'url': url,
+                      'source': 'profile_documents_array',
+                    });
+                  }
+                }
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint("⚠️ user-profile-by-email failed: $e");
+        }
+      }
+    } catch (e) {
+      debugPrint("❌ _fetchAllDocuments error: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _userDocuments = docs;
+          _isLoadingDocuments = false;
+        });
+      }
+    }
+  }
+
+  String _labelForKey(String key) {
+    for (final entry in _documentKeyMap) {
+      if (entry['key'] == key) return entry['label']!;
+    }
+    return key
+        .replaceAll('_url', '')
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1))
+        .join(' ')
+        .trim();
+  }
+
+  // ============================================================
+  // ✅ NEW: Open document inside FileViewerScreen popup
+  // ============================================================
+  Future<void> _openDocumentViewer(
+    String url, {
+    String title = 'Document',
+    String? downloadUrl,
+    String? fileType,
+  }) async {
+    if (url.isEmpty) {
+      showMessage(context, "Document URL not available", isError: true);
+      return;
+    }
+
+    String finalUrl = url.trim();
+    if (!finalUrl.startsWith('http') &&
+        !finalUrl.startsWith('file') &&
+        !finalUrl.startsWith('blob:')) {
+      finalUrl = 'https://$finalUrl';
+    }
+
+    debugPrint("📄 Opening document viewer: $finalUrl");
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        insetPadding: EdgeInsets.zero,
+        child: Container(
+          width: MediaQuery.of(dialogContext).size.width * 0.95,
+          height: MediaQuery.of(dialogContext).size.height * 0.9,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+          ),
+          child: FileViewerScreen(
+            url: finalUrl,
+            title: title,
+            downloadUrl: downloadUrl ?? finalUrl,
+            fileType: fileType,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // ✅ NEW: Icon / color / filetype helpers
+  // ============================================================
+  IconData _iconForUrl(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('.pdf') || u.contains('/raw/')) {
+      return Icons.picture_as_pdf;
+    }
+    if (u.contains('.jpg') ||
+        u.contains('.jpeg') ||
+        u.contains('.png') ||
+        u.contains('.webp') ||
+        u.contains('.gif') ||
+        u.contains('/image/')) {
+      return Icons.image;
+    }
+    if (u.contains('.doc')) return Icons.description;
+    if (u.contains('.xls')) return Icons.table_chart;
+    return Icons.insert_drive_file;
+  }
+
+  Color _colorForUrl(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('.pdf') || u.contains('/raw/')) return Colors.red;
+    if (u.contains('.jpg') ||
+        u.contains('.jpeg') ||
+        u.contains('.png') ||
+        u.contains('.webp') ||
+        u.contains('.gif') ||
+        u.contains('/image/')) {
+      return Colors.blue;
+    }
+    if (u.contains('.doc')) return Colors.indigo;
+    if (u.contains('.xls')) return Colors.green;
+    return Colors.blueGrey;
+  }
+
+  String _fileTypeForUrl(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('.pdf') || u.contains('/raw/')) return 'pdf';
+    if (u.contains('.jpg') ||
+        u.contains('.jpeg') ||
+        u.contains('.png') ||
+        u.contains('.webp') ||
+        u.contains('.gif') ||
+        u.contains('/image/')) {
+      return 'image';
+    }
+    if (u.contains('.doc')) return 'word';
+    if (u.contains('.xls')) return 'excel';
+    return 'file';
+  }
+
+  // ============================================================
+  // ✅ NEW: Build "Uploaded Documents" section
+  // ============================================================
+  Widget _buildDocumentsSection(Map<String, dynamic> app) {
+    final List<Map<String, dynamic>> allDocs = [];
+
+    // 1) User profile documents (fetched)
+    allDocs.addAll(_userDocuments);
+
+    // 2) Application submitted document (review)
+    final submittedUrl = app['submitted_document_url'];
+    if (submittedUrl != null &&
+        submittedUrl.toString().isNotEmpty &&
+        submittedUrl.toString() != 'null') {
+      final urlStr = submittedUrl.toString();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'submitted_document_url',
+          'label': app['submitted_document_name']?.toString() ??
+              'Submitted Document (Review)',
+          'url': urlStr,
+          'download_url': app['submitted_document_download_url'],
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
+    }
+
+    // 3) Final submitted document
+    final finalUrl = app['final_document_url'];
+    if (finalUrl != null &&
+        finalUrl.toString().isNotEmpty &&
+        finalUrl.toString() != 'null') {
+      final urlStr = finalUrl.toString();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'final_document_url',
+          'label': app['final_document_name']?.toString() ??
+              'Final Submitted Document',
+          'url': urlStr,
+          'download_url': app['final_document_download_url'],
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
+    }
+
+    // 4) Payment receipt
+    final receiptUrl = app['payment_receipt_url'];
+    if (receiptUrl != null &&
+        receiptUrl.toString().isNotEmpty &&
+        receiptUrl.toString() != 'null') {
+      final urlStr = receiptUrl.toString();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'payment_receipt_url',
+          'label': 'Payment Receipt',
+          'url': urlStr,
+          'download_url': app['payment_receipt_download_url'],
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
+    }
+
+    // 5) Payment screenshot
+    final screenshotUrl = app['screenshot_url'];
+    if (screenshotUrl != null &&
+        screenshotUrl.toString().isNotEmpty &&
+        screenshotUrl.toString() != 'null') {
+      final urlStr = screenshotUrl.toString();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'screenshot_url',
+          'label': 'Payment Screenshot',
+          'url': urlStr,
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
+    }
+
+    // 6) Application document (document_url)
+    final docUrl = app['document_url'];
+    if (docUrl != null &&
+        docUrl.toString().isNotEmpty &&
+        docUrl.toString() != 'null') {
+      final urlStr = docUrl.toString();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'document_url',
+          'label': 'Uploaded Document',
+          'url': urlStr,
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
+    }
+
+    // 7) Application resume URL
+    final appResume = app['resume_url'];
+    if (appResume != null &&
+        appResume.toString().isNotEmpty &&
+        appResume.toString() != 'null') {
+      final urlStr = appResume.toString();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'resume_url',
+          'label': 'Resume (Application)',
+          'url': urlStr,
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
+    }
+
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.folder_copy,
+                    color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  "Uploaded Documents",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.indigo.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "${allDocs.length} Files",
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.indigo,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (_isLoadingDocuments)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (allDocs.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.folder_off, size: 40, color: Colors.grey),
+                  SizedBox(height: 8),
+                  Text(
+                    "No documents uploaded",
+                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
+                ],
+              ),
+            )
+          else
+            Column(
+              children: allDocs
+                  .asMap()
+                  .entries
+                  .map((entry) => _buildDocumentRow(entry.key, entry.value))
+                  .toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // ✅ NEW: Single document row (View button)
+  // ============================================================
+  Widget _buildDocumentRow(int index, Map<String, dynamic> doc) {
+    final String label = doc['label']?.toString() ?? 'Document ${index + 1}';
+    final String url = doc['url']?.toString() ?? '';
+    final String? downloadUrl = doc['download_url']?.toString();
+    final bool isAppDoc = doc['is_application_doc'] == true;
+
+    final icon = _iconForUrl(url);
+    final color = _colorForUrl(url);
+    final fileType = _fileTypeForUrl(url);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isAppDoc ? Colors.blue.shade50 : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isAppDoc ? Colors.blue.shade200 : Colors.grey.shade300,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    if (isAppDoc)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade200,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          "APPLICATION",
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    if (isAppDoc) const SizedBox(width: 6),
+                    Text(
+                      fileType.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.visibility, color: Colors.blue),
+            tooltip: "View",
+            onPressed: () => _openDocumentViewer(
+              url,
+              title: label,
+              downloadUrl: downloadUrl,
+              fileType: fileType,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // STATUS HELPERS
   // ============================================================
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
@@ -1062,7 +1600,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
         child: SafeArea(
           child: Column(
             children: [
-              _buildDetailHeader(), // ✅ No back button here
+              _buildDetailHeader(),
               Expanded(
                 child: _isLoading
                     ? _buildLoadingScreen()
@@ -1093,13 +1631,20 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                               paymentCategory,
                             ),
                             const SizedBox(height: 16),
+                            // ✅ NEW: Uploaded Documents section
+                            _buildDocumentsSection(app),
+                            const SizedBox(height: 16),
                             SizedBox(
                               width: double.infinity,
                               height: 50,
                               child: _buildGradientButton(
                                 text: "View Full Job Details",
                                 icon: Icons.visibility,
-                                onTap: () => widget.onViewJob(_jobDetails!),
+                                onTap: () {
+                                  if (_jobDetails != null) {
+                                    widget.onViewJob(_jobDetails!);
+                                  }
+                                },
                               ),
                             ),
                             const SizedBox(height: 20),
@@ -1153,9 +1698,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // DETAIL HEADER – ✅ No Back Button
-  // ============================================================
   Widget _buildDetailHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1233,9 +1775,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // LOADING SCREEN – AI Animation
-  // ============================================================
   Widget _buildLoadingScreen() {
     return Center(
       child: Column(
@@ -1297,9 +1836,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // STATUS CARD
-  // ============================================================
   Widget _buildStatusCard(String status, Color statusColor) {
     String statusSubtitle = "";
 
@@ -1446,9 +1982,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // UNDER REVIEW SECTION
-  // ============================================================
   Widget _buildUnderReviewSection() {
     final documentUrl = _getSubmittedDocumentUrl();
     final hasDocument = documentUrl != null && documentUrl.isNotEmpty;
@@ -1692,9 +2225,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // FINAL SUBMIT SECTION
-  // ============================================================
   Widget _buildFinalSubmitSection() {
     final documentUrl = _getSubmittedDocumentUrl();
     final hasDocument = documentUrl != null && documentUrl.isNotEmpty;
@@ -1821,9 +2351,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // JOB INFO CARD
-  // ============================================================
   Widget _buildJobInfoCard() {
     final app = widget.application;
     final jobTitle = app['job_title'] ?? _jobDetails?['post_name'] ?? 'Job Title';
@@ -1856,16 +2383,11 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // APPLICATION DETAILS CARD
-  // ============================================================
   Widget _buildApplicationDetailsCard() {
     final app = widget.application;
     final applicantName = app['applicant_name'] ?? 'N/A';
     final applicantEmail = app['applicant_email'] ?? 'N/A';
     final coverLetter = app['cover_letter'] ?? 'No cover letter provided';
-    final documentUrl = _getSubmittedDocumentUrl();
-    final documentName = _getSubmittedDocumentName();
 
     return _buildGlassContainer(
       child: Column(
@@ -1879,81 +2401,11 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
           const Divider(height: 24),
           _buildInfoRow(Icons.description, "Cover Letter", coverLetter,
               isLongText: true),
-          if (documentUrl != null && documentUrl.isNotEmpty) ...[
-            const Divider(height: 24),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.teal.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.teal.shade200),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.upload_file, color: Colors.teal, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Submitted Document",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: Colors.teal,
-                          ),
-                        ),
-                        if (documentName != null)
-                          Text(
-                            documentName,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  Material(
-                    borderRadius: BorderRadius.circular(20),
-                    color: Colors.teal,
-                    child: InkWell(
-                      onTap: _viewApplicationDocument,
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.visibility, size: 18, color: Colors.white),
-                            SizedBox(width: 4),
-                            Text(
-                              "View",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
       ),
     );
   }
 
-  // ============================================================
-  // PAYMENT INFORMATION CARD
-  // ============================================================
   Widget _buildPaymentInformationCard(
     String transactionId,
     String transactionDate,
