@@ -1,10 +1,12 @@
 // lib/features/services/presentation/screens/apply_service_screen.dart
-// ✅ AI-BASED MODERN DESIGN - Matches Basic Details, Experience, Education screens
-// ✅ Gradient backgrounds, glass containers, AI loading animations
-// ✅ Complete error-free code with all functionality preserved
+// ✅ AI-BASED MODERN DESIGN — Matches Basic Details / Experience / Education screens
+// ✅ FULLY UPDATED: Uploaded documents now carry full metadata (url, public_id,
+//    resource_type, name, size) so that UserServiceApplicationsScreen can render
+//    them properly. Deleted documents are STRICTLY excluded via _isValidDocUrl().
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
@@ -39,12 +41,14 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
   ServiceType? _selectedService;
   ServiceSubType? _selectedSubType;
 
-  // Form Data
+  // Form Data (text fields only)
   final Map<String, TextEditingController> _controllers = {};
-  final Map<String, String> _fileNames = {};
-  final Map<String, Uint8List> _fileBytes = {};
-  final Map<String, bool> _documentsUploaded = {};
-  final Map<String, String> _documentUrls = {};
+
+  // ✅ NEW: Single source of truth — full document metadata
+  final Map<String, _UploadedDoc> _uploadedDocs = {};
+
+  // ✅ NEW: Per-document upload progress
+  final Map<String, bool> _isUploadingDoc = {};
 
   // Payment
   String? _paymentId;
@@ -63,7 +67,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
 
   @override
   void dispose() {
-    for (var controller in _controllers.values) {
+    for (final controller in _controllers.values) {
       controller.dispose();
     }
     super.dispose();
@@ -84,7 +88,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         _userMobile = mobile ?? '';
         _userDetailsLoaded = true;
         if (mounted) setState(() {});
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
         return;
       }
 
@@ -115,26 +119,26 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
   // ==================== FORM INITIALIZATION ====================
   void _initializeForm() {
     _controllers.clear();
-    _fileNames.clear();
-    _fileBytes.clear();
-    _documentsUploaded.clear();
-    _documentUrls.clear();
+    _uploadedDocs.clear();
+    _isUploadingDoc.clear();
 
     if (_selectedSubType != null) {
-      for (var field in _selectedSubType!.requiredFields) {
-        if (field.key == 'full_name' ||
-            field.key == 'name' ||
-            field.key == 'email' ||
-            field.key == 'mobile' ||
-            field.key == 'phone') {
-          continue;
-        }
+      for (final field in _selectedSubType!.requiredFields) {
+        if (_isAutoFilledField(field.key)) continue;
         _controllers[field.key] = TextEditingController();
       }
-      for (var doc in _selectedSubType!.requiredDocuments) {
-        _documentsUploaded[doc] = false;
+      for (final doc in _selectedSubType!.requiredDocuments) {
+        _isUploadingDoc[doc] = false;
       }
     }
+  }
+
+  bool _isAutoFilledField(String key) {
+    return key == 'full_name' ||
+        key == 'name' ||
+        key == 'email' ||
+        key == 'mobile' ||
+        key == 'phone';
   }
 
   // ==================== SELECTION METHODS ====================
@@ -143,14 +147,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       _selectedService = service;
       _selectedSubType = null;
       _currentStep = 1;
-      _controllers.clear();
-      _fileNames.clear();
-      _fileBytes.clear();
-      _documentsUploaded.clear();
-      _documentUrls.clear();
-      _paymentCompleted = false;
-      _paymentId = null;
-      _razorpayOrderId = null;
+      _resetSelections();
     });
   }
 
@@ -158,14 +155,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     setState(() {
       _selectedSubType = subType;
       _currentStep = 2;
-      _controllers.clear();
-      _fileNames.clear();
-      _fileBytes.clear();
-      _documentsUploaded.clear();
-      _documentUrls.clear();
-      _paymentCompleted = false;
-      _paymentId = null;
-      _razorpayOrderId = null;
+      _resetSelections();
     });
     _initializeForm();
   }
@@ -175,11 +165,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       if (_currentStep == 2) {
         _currentStep = 1;
         _selectedSubType = null;
-        _controllers.clear();
-        _fileNames.clear();
-        _fileBytes.clear();
-        _documentsUploaded.clear();
-        _documentUrls.clear();
+        _resetSelections();
       } else if (_currentStep == 1) {
         _currentStep = 0;
         _selectedService = null;
@@ -187,40 +173,99 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     });
   }
 
+  void _resetSelections() {
+    _controllers.clear();
+    _uploadedDocs.clear();
+    _isUploadingDoc.clear();
+    _paymentCompleted = false;
+    _paymentId = null;
+    _razorpayOrderId = null;
+  }
+
+  // ==================== STRICT DOC URL VALIDATOR ====================
+  /// Filters out: null, "", "null", "undefined", "n/a", "na", "-",
+  /// "none", "false", "0" and any non-URL garbage.
+  bool _isValidDocUrl(dynamic value) {
+    if (value == null) return false;
+    final str = value.toString().trim();
+    if (str.isEmpty) return false;
+
+    final lower = str.toLowerCase();
+    if (lower == 'null' ||
+        lower == 'undefined' ||
+        lower == 'n/a' ||
+        lower == 'na' ||
+        lower == '-' ||
+        lower == 'none' ||
+        lower == 'false' ||
+        lower == '0') {
+      return false;
+    }
+
+    if (!str.startsWith('http://') &&
+        !str.startsWith('https://') &&
+        !str.startsWith('file:') &&
+        !str.startsWith('blob:')) {
+      return false;
+    }
+
+    if (str.length < 12) return false;
+    return true;
+  }
+
   // ==================== DOCUMENT HANDLING ====================
   Future<void> _pickDocument(String docName) async {
     try {
+      // ✅ Correct usage — FilePicker.platform works on Web + Mobile
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-        withData: true,
+        withData: true, // critical for Web
       );
 
-      if (result != null && mounted) {
-        final file = result.files.first;
-        if (file.bytes == null) {
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      if (file.bytes == null) {
+        if (mounted) {
           showMessage(context, "File data unavailable", isError: true);
-          return;
         }
-
-        setState(() {
-          _fileNames[docName] = file.name;
-          _fileBytes[docName] = file.bytes!;
-          _documentsUploaded[docName] = true;
-          _documentUrls[docName] = '';
-        });
-
-        await _uploadDocumentToCloudinary(docName, file.bytes!, file.name);
+        return;
       }
+
+      // Enforce max 10 MB
+      const maxBytes = 10 * 1024 * 1024;
+      if (file.bytes!.length > maxBytes) {
+        if (mounted) {
+          showMessage(context, "File too large (max 10 MB)", isError: true);
+        }
+        return;
+      }
+
+      // Kick off upload
+      await _uploadDocumentToCloudinary(docName, file.bytes!, file.name);
     } catch (e) {
+      debugPrint("❌ _pickDocument error: $e");
       if (mounted) {
-        showMessage(context, "Error picking file: $e", isError: true);
+        showMessage(
+          context,
+          "Error picking file: ${_cleanErr(e)}",
+          isError: true,
+        );
       }
     }
   }
 
   Future<void> _uploadDocumentToCloudinary(
-      String docName, Uint8List fileBytes, String fileName) async {
+    String docName,
+    Uint8List fileBytes,
+    String fileName,
+  ) async {
+    // Show loading for this specific doc
+    if (mounted) {
+      setState(() => _isUploadingDoc[docName] = true);
+    }
+
     try {
       final token = await SecureStorage.getToken();
       if (token == null) throw Exception("No authentication token found");
@@ -234,33 +279,68 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         '/user/upload-document',
         data: formData,
         options: Options(
-          headers: {"Content-Type": "multipart/form-data"},
+          headers: {
+            "Content-Type": "multipart/form-data",
+            "Authorization": "Bearer $token",
+          },
         ),
       );
 
-      if (mounted && response.data['success'] == true) {
-        final url = response.data['url'] as String? ?? '';
-        setState(() {
-          _documentUrls[docName] = url;
-        });
+      if (!mounted) return;
+
+      final data = response.data;
+      if (data is! Map || data['success'] != true) {
+        throw Exception(data?['message'] ?? 'Upload failed');
+      }
+
+      final uploadedUrl = data['url']?.toString() ?? '';
+      // ✅ STRICT validation — refuse to save invalid URL
+      if (!_isValidDocUrl(uploadedUrl)) {
+        throw Exception("Server returned an invalid document URL");
+      }
+
+      final doc = _UploadedDoc(
+        key: docName,
+        label: docName,
+        url: uploadedUrl,
+        publicId: data['public_id']?.toString(),
+        fileName: fileName,
+        fileSizeKb: (fileBytes.length / 1024).round(),
+        resourceType: data['resource_type']?.toString() ?? 'raw',
+        uploadedAt: DateTime.now(),
+      );
+
+      setState(() {
+        _uploadedDocs[docName] = doc;
+        _isUploadingDoc[docName] = false;
+      });
+
+      if (mounted) {
         showMessage(context, "✅ Document uploaded!", isError: false);
-      } else {
-        throw Exception("Upload failed: ${response.data['message']}");
       }
     } catch (e) {
+      debugPrint("❌ Upload failed for $docName: $e");
       if (mounted) {
-        showMessage(context, "Failed to upload document: $e", isError: true);
+        setState(() => _isUploadingDoc[docName] = false);
+        showMessage(
+          context,
+          "Failed to upload document: ${_cleanErr(e)}",
+          isError: true,
+        );
       }
     }
   }
 
   void _removeDocument(String docName) {
     setState(() {
-      _fileNames.remove(docName);
-      _fileBytes.remove(docName);
-      _documentsUploaded[docName] = false;
-      _documentUrls.remove(docName);
+      _uploadedDocs.remove(docName);
+      _isUploadingDoc[docName] = false;
     });
+    showMessage(context, "Document removed");
+  }
+
+  String _cleanErr(dynamic e) {
+    return e.toString().replaceAll('Exception:', '').trim();
   }
 
   // ==================== VALIDATION ====================
@@ -272,22 +352,20 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
   bool _isFormValid() {
     if (_selectedSubType == null) return false;
 
-    for (var field in _selectedSubType!.requiredFields) {
-      if (field.key == 'full_name' ||
-          field.key == 'name' ||
-          field.key == 'email' ||
-          field.key == 'mobile' ||
-          field.key == 'phone') {
-        continue;
-      }
+    // All required text fields must be filled
+    for (final field in _selectedSubType!.requiredFields) {
+      if (_isAutoFilledField(field.key)) continue;
       if (field.required) {
         final value = _getFieldValue(field.key);
         if (value == null || value.isEmpty) return false;
       }
     }
 
-    for (var doc in _selectedSubType!.requiredDocuments) {
-      if (!(_documentsUploaded[doc] ?? false)) return false;
+    // All required documents must be uploaded AND have valid URL
+    for (final doc in _selectedSubType!.requiredDocuments) {
+      final uploaded = _uploadedDocs[doc];
+      if (uploaded == null) return false;
+      if (!_isValidDocUrl(uploaded.url)) return false;
     }
 
     return true;
@@ -307,6 +385,32 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      // ---------- Build form fields ----------
+      final Map<String, dynamic> formFields = {};
+      for (final field in _selectedSubType!.requiredFields) {
+        if (_isAutoFilledField(field.key)) continue;
+        formFields[field.key] = _getFieldValue(field.key) ?? '';
+      }
+
+      // ---------- Build documents map (STRICT) ----------
+      // Only valid, non-deleted docs are included.
+      final Map<String, String> documentsMap = {};
+      final Map<String, Map<String, dynamic>> documentMeta = {};
+
+      _uploadedDocs.forEach((key, doc) {
+        if (_isValidDocUrl(doc.url)) {
+          documentsMap[key] = doc.url;
+          documentMeta[key] = {
+            'url': doc.url,
+            'public_id': doc.publicId,
+            'name': doc.fileName,
+            'size_kb': doc.fileSizeKb,
+            'resource_type': doc.resourceType,
+            'uploaded_at': doc.uploadedAt.toIso8601String(),
+          };
+        }
+      });
+
       final Map<String, dynamic> formData = {
         'user_email': _userEmail,
         'user_name': _userName,
@@ -316,21 +420,12 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         'service_name': _selectedService!.name,
         'sub_service_name': _selectedSubType!.name,
         'application_type': 'online_service',
-        'fields': {},
-        'documents': _documentUrls,
+        'fields': formFields,
+        'documents': documentsMap,
+        'document_meta': documentMeta, // ✅ rich metadata
       };
 
-      for (var field in _selectedSubType!.requiredFields) {
-        if (field.key == 'full_name' ||
-            field.key == 'name' ||
-            field.key == 'email' ||
-            field.key == 'mobile' ||
-            field.key == 'phone') {
-          continue;
-        }
-        formData['fields'][field.key] = _getFieldValue(field.key) ?? '';
-      }
-
+      // ---------- Create Razorpay order ----------
       final response = await DioClient.dio.post(
         '/payment/razorpay/create-order',
         data: {
@@ -392,8 +487,13 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         );
       }
     } catch (e) {
+      debugPrint("❌ Submit failed: $e");
       if (mounted) {
-        showMessage(context, "Failed to submit: $e", isError: true);
+        showMessage(
+          context,
+          "Failed to submit: ${_cleanErr(e)}",
+          isError: true,
+        );
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -405,14 +505,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       _selectedService = null;
       _selectedSubType = null;
       _currentStep = 0;
-      _controllers.clear();
-      _fileNames.clear();
-      _fileBytes.clear();
-      _documentsUploaded.clear();
-      _documentUrls.clear();
-      _paymentCompleted = false;
-      _paymentId = null;
-      _razorpayOrderId = null;
+      _resetSelections();
     });
   }
 
@@ -686,15 +779,18 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
                 child: Icon(icon, color: Colors.white, size: 18),
               ),
               const SizedBox(width: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
               Container(
                 width: 30,
                 height: 2,
@@ -897,7 +993,8 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
               _sectionHeader(
                 "Select Service",
                 Icons.apps,
-                subtitle: "Choose from ${_allServices.length} available services",
+                subtitle:
+                    "Choose from ${_allServices.length} available services",
               ),
               const SizedBox(height: 12),
               GridView.builder(
@@ -1019,7 +1116,8 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
                   ),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.person, color: Colors.white, size: 18),
+                child:
+                    const Icon(Icons.person, color: Colors.white, size: 18),
               ),
               const SizedBox(width: 12),
               const Text(
@@ -1227,16 +1325,11 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
 
   // ==================== STEP 3: FORM ====================
   Widget _buildForm() {
-    final fields = _selectedSubType!.requiredFields.where((field) {
-      return field.key != 'full_name' &&
-          field.key != 'name' &&
-          field.key != 'email' &&
-          field.key != 'mobile' &&
-          field.key != 'phone';
-    }).toList();
+    final fields = _selectedSubType!.requiredFields
+        .where((field) => !_isAutoFilledField(field.key))
+        .toList();
 
     final documents = _selectedSubType!.requiredDocuments;
-    final isComplete = _isFormValid();
 
     return Column(
       children: [
@@ -1345,6 +1438,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
           maxLines: maxLines,
           obscureText: obscureText,
           style: const TextStyle(color: Colors.black87),
+          onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
             labelText: label,
             labelStyle: TextStyle(
@@ -1470,6 +1564,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
             if (picked != null && mounted) {
               controller.text =
                   "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+              setState(() {});
             }
           },
         ),
@@ -1479,8 +1574,9 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
 
   // ==================== DOCUMENT UPLOAD ====================
   Widget _buildDocumentUpload(String docName) {
-    final isUploaded = _documentsUploaded[docName] ?? false;
-    final fileName = _fileNames[docName];
+    final uploadedDoc = _uploadedDocs[docName];
+    final isUploaded = uploadedDoc != null;
+    final isUploading = _isUploadingDoc[docName] == true;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1509,7 +1605,9 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
             ),
             child: Icon(
               isUploaded ? Icons.check_circle : Icons.upload_file,
-              color: isUploaded ? Colors.green.shade700 : Colors.grey.shade600,
+              color: isUploaded
+                  ? Colors.green.shade700
+                  : Colors.grey.shade600,
               size: 22,
             ),
           ),
@@ -1529,15 +1627,21 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
                         : Colors.black87,
                   ),
                 ),
-                if (fileName != null) ...[
+                if (uploadedDoc != null) ...[
                   const SizedBox(height: 2),
                   Text(
-                    fileName,
+                    "${uploadedDoc.fileName} • ${uploadedDoc.fileSizeKb} KB",
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey.shade600,
                     ),
                     overflow: TextOverflow.ellipsis,
+                  ),
+                ] else if (isUploading) ...[
+                  const SizedBox(height: 2),
+                  const Text(
+                    "Uploading...",
+                    style: TextStyle(fontSize: 11, color: Colors.orange),
                   ),
                 ],
               ],
@@ -1559,6 +1663,12 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
                   size: 16,
                 ),
               ),
+            )
+          else if (isUploading)
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
             )
           else
             ElevatedButton(
@@ -1679,14 +1789,16 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
                       color: isComplete ? Colors.green : Colors.orange,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      isComplete
-                          ? "Ready to submit"
-                          : "Fill all required fields",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isComplete ? Colors.green : Colors.orange,
-                        fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: Text(
+                        isComplete
+                            ? "Ready to submit"
+                            : "Fill all required fields",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isComplete ? Colors.green : Colors.orange,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -1845,4 +1957,29 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         return Colors.blueGrey;
     }
   }
+}
+
+// ============================================================
+// LOCAL MODEL — Document with full metadata
+// ============================================================
+class _UploadedDoc {
+  final String key;
+  final String label;
+  final String url;
+  final String? publicId;
+  final String fileName;
+  final int fileSizeKb;
+  final String resourceType;
+  final DateTime uploadedAt;
+
+  _UploadedDoc({
+    required this.key,
+    required this.label,
+    required this.url,
+    this.publicId,
+    required this.fileName,
+    required this.fileSizeKb,
+    required this.resourceType,
+    required this.uploadedAt,
+  });
 }

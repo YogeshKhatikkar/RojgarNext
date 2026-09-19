@@ -2,8 +2,7 @@
 // ⚡ ULTRA-FAST VERSION - Loads in < 200ms
 // ✅ Cache-First Strategy + Background Refresh
 // ✅ AI-Based Modern Design (matches all other screens)
-// ✅ FIXED: Infinity error in shimmer + visible AI loading (600ms min)
-// ✅ Documents shown with View buttons (same as admin screen)
+// ✅ FIXED: Payment status now correctly reads from payment_verification_status and status fields
 
 import 'dart:convert';
 import 'dart:typed_data';
@@ -18,6 +17,62 @@ import 'package:rojgarnext/core/widgets/file_viewer_screen.dart';
 import 'package:rojgarnext/features/services/models/service_types.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
 import 'package:rojgarnext/features/services/data/service_repository.dart';
+
+// ============================================================
+// HELPERS — Normalize payment + application status
+// ============================================================
+class AppStatusHelper {
+  /// Extracts the raw payment verification status from an app map
+  static String paymentStatus(Map<String, dynamic> app) {
+    // 1. Check payment_verification_status first (from DB)
+    final raw = (app['payment_verification_status'] ?? '').toString().trim().toLowerCase();
+    if (['approved', 'verified', 'success', 'completed'].contains(raw)) return 'approved';
+    if (['pending', 'pending_verification', 'under_review'].contains(raw)) return 'pending';
+    if (['rejected', 'failed', 'declined'].contains(raw)) return 'rejected';
+
+    // 2. Fallback to payment_status (if available)
+    final raw2 = (app['payment_status'] ?? '').toString().trim().toLowerCase();
+    if (['approved', 'verified', 'success', 'completed'].contains(raw2)) return 'approved';
+    if (['pending', 'pending_verification', 'under_review'].contains(raw2)) return 'pending';
+    if (['rejected', 'failed', 'declined'].contains(raw2)) return 'rejected';
+
+    // 3. Fallback to main status
+    final mainStatus = (app['status'] ?? '').toString().trim().toLowerCase();
+    if (['payment_verified', 'approved', 'verification_successful'].contains(mainStatus)) return 'approved';
+    if (['pending_verification', 'payment_pending'].contains(mainStatus)) return 'pending';
+    if (['verification_rejected', 'rejected'].contains(mainStatus)) return 'rejected';
+
+    return 'not_submitted';
+  }
+
+  static String displayPaymentStatus(Map<String, dynamic> app) {
+    final status = paymentStatus(app);
+    switch (status) {
+      case 'approved':
+        return 'VERIFIED';
+      case 'pending':
+        return 'PENDING';
+      case 'rejected':
+        return 'REJECTED';
+      default:
+        return 'NOT SUBMITTED';
+    }
+  }
+
+  static Color paymentStatusColor(Map<String, dynamic> app) {
+    final status = paymentStatus(app);
+    switch (status) {
+      case 'approved':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+}
 
 class UserServiceApplicationScreen extends StatefulWidget {
   const UserServiceApplicationScreen({super.key});
@@ -52,7 +107,7 @@ class _UserServiceApplicationScreenState
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
-  // ==================== DOCUMENT LABEL MAP (fallback labels) ====================
+  // ==================== DOCUMENT LABEL MAP ====================
   static const List<Map<String, String>> _documentKeyMap = [
     {'key': 'resume_url', 'label': 'Resume / CV'},
     {'key': 'profile_photo_url', 'label': 'Profile Photo'},
@@ -517,7 +572,7 @@ class _UserServiceApplicationScreenState
     }
   }
 
-  // ==================== BELL NOTIFICATION (FIRE-AND-FORGET) ====================
+  // ==================== BELL NOTIFICATION ====================
   Future<void> _sendBellNotification({
     required String applicationId,
     required String status,
@@ -695,9 +750,6 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ====================================================================
-  // ✅ NEW: Open a document inside FileViewerScreen popup
-  // ====================================================================
   Future<void> _openDocumentViewer(
     String url, {
     String title = 'Document',
@@ -741,9 +793,6 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ====================================================================
-  // ✅ NEW: icon/color/fileType helpers
-  // ====================================================================
   IconData _iconForUrl(String url) {
     final u = url.toLowerCase();
     if (u.contains('.pdf') || u.contains('/raw/')) {
@@ -794,9 +843,6 @@ class _UserServiceApplicationScreenState
     return 'file';
   }
 
-  // ====================================================================
-  // ✅ NEW: "Uploaded Documents" section — application-attached docs only
-  // ====================================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> allDocs = [];
 
@@ -1025,7 +1071,7 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ==================== STATUS HELPERS (CACHED MAPS) ====================
+  // ==================== STATUS HELPERS ====================
   static const Map<String, Color> _statusColors = {
     'payment_pending': Colors.purple,
     'pending_verification': Colors.orange,
@@ -1096,7 +1142,7 @@ class _UserServiceApplicationScreenState
   String _getStatusDescription(String status) {
     switch (status.toLowerCase()) {
       case 'payment_pending':
-        return 'Waiting for you to complete payment';
+        return 'Waiting for user to complete payment';
       case 'pending_verification':
         return 'Payment receipt submitted, waiting for verification';
       case 'under_review':
@@ -1266,7 +1312,6 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ==================== ✅ AI LOADING SCREEN ====================
   Widget _buildAILoadingScreen() {
     return Scaffold(
       body: Container(
@@ -1328,7 +1373,6 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ==================== ERROR SCREEN ====================
   Widget _buildErrorScreen() {
     return Scaffold(
       body: Container(
@@ -1386,7 +1430,6 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ==================== HEADER ====================
   Widget _buildHeader() {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -1465,7 +1508,6 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ==================== FILTER CHIPS ====================
   Widget _buildFilterChips() {
     return Container(
       height: 56,
@@ -1523,7 +1565,6 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ==================== EMPTY STATE ====================
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -1565,7 +1606,6 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ==================== APPLICATION CARD ====================
   Widget _buildApplicationCard(Map<String, dynamic> app, int index) {
     final serviceName =
         app['display_service_name'] ?? app['service_name'] ?? 'Service';
@@ -1578,7 +1618,11 @@ class _UserServiceApplicationScreenState
     final status = app['status'] ?? 'payment_pending';
     final statusColor = _getStatusColor(status);
     final appliedDate = _formatDate(app['applied_at'] ?? app['created_at']);
-    final paymentStatus = app['payment_status'] ?? 'pending';
+    
+    // ✅ FIXED: Use AppStatusHelper to get correct payment status
+    final paymentStatusText = AppStatusHelper.displayPaymentStatus(app);
+    final paymentStatusColor = AppStatusHelper.paymentStatusColor(app);
+    
     final amount = app['amount'] ?? app['payment_amount'];
 
     final hasSubmittedDocument = app['submitted_document_url'] != null &&
@@ -1757,9 +1801,10 @@ class _UserServiceApplicationScreenState
                   if (amount != null)
                     _buildInfoChip(Icons.currency_rupee, "Fee", "₹$amount",
                         Colors.green),
+                  // ✅ FIXED: Use correct payment status text and color
                   _buildInfoChip(Icons.payment, "Payment",
-                      paymentStatus.toUpperCase(),
-                      _getPaymentStatusColor(paymentStatus)),
+                      paymentStatusText,
+                      paymentStatusColor),
                   if (hasReceipt)
                     _buildInfoChip(Icons.receipt_long, "Receipt", "Ready",
                         Colors.indigo),
@@ -1855,7 +1900,11 @@ class _UserServiceApplicationScreenState
         app['screenshot_url'].toString().isNotEmpty;
     final fields = app['fields'] as Map<String, dynamic>? ?? {};
 
-    final paymentStatus = app['payment_status']?.toString() ?? 'pending';
+    // ✅ FIXED: Use AppStatusHelper for accurate payment status
+    final paymentStatus = AppStatusHelper.paymentStatus(app);
+    final paymentStatusText = AppStatusHelper.displayPaymentStatus(app);
+    final paymentStatusColor = AppStatusHelper.paymentStatusColor(app);
+    
     final transactionId = app['razorpay_payment_id']?.toString() ??
         app['transaction_id']?.toString() ??
         'N/A';
@@ -1876,17 +1925,8 @@ class _UserServiceApplicationScreenState
         app['payment_receipt_url'] ??
         app['receipt_url'];
 
-    String verificationStatus = 'not_submitted';
-    if (paymentStatus.toLowerCase() == 'completed' &&
-        (status.toLowerCase() == 'payment_verified' ||
-            status.toLowerCase() == 'approved' ||
-            status.toLowerCase() == 'completed')) {
-      verificationStatus = 'approved';
-    } else if (paymentStatus.toLowerCase() == 'pending') {
-      verificationStatus = 'pending';
-    } else if (status.toLowerCase() == 'rejected') {
-      verificationStatus = 'rejected';
-    }
+    // ✅ FIXED: verificationStatus now uses the helper directly
+    final verificationStatus = AppStatusHelper.paymentStatus(app);
 
     final rejectionReason =
         app['rejection_reason'] ?? app['verification_notes'];
@@ -1924,13 +1964,13 @@ class _UserServiceApplicationScreenState
                       if (fields.isNotEmpty) const SizedBox(height: 16),
                       _buildPaymentInformationCard(
                         paymentStatus: paymentStatus,
+                        paymentStatusText: paymentStatusText,
+                        paymentStatusColor: paymentStatusColor,
                         transactionId: transactionId,
                         transactionDate: transactionDate,
-                        paymentAmount: paymentAmount,
                         paymentReceiptUrl: paymentReceiptUrl,
-                        verificationStatus: verificationStatus,
-                        rejectionReason: rejectionReason,
-                        paymentMethod: paymentMethod,
+                        paymentAmount: paymentAmount,
+                        paymentCategory: paymentMethod,
                       ),
                       const SizedBox(height: 16),
                       if (hasScreenshot) ...[
@@ -2608,7 +2648,6 @@ class _UserServiceApplicationScreenState
         .join(' ');
   }
 
-  // ==================== DETECT DOCUMENT FIELD ====================
   bool _isDocumentField(String key, dynamic value) {
     if (value == null) return false;
 
@@ -2646,7 +2685,6 @@ class _UserServiceApplicationScreenState
     return false;
   }
 
-  // ==================== PARSE DOCUMENT ENTRIES ====================
   List<Map<String, dynamic>> _parseDocumentEntries(dynamic value) {
     final docs = <Map<String, dynamic>>[];
     if (value == null) return docs;
@@ -2828,57 +2866,28 @@ class _UserServiceApplicationScreenState
   // ==================== PAYMENT INFORMATION CARD ====================
   Widget _buildPaymentInformationCard({
     required String paymentStatus,
+    required String paymentStatusText,
+    required Color paymentStatusColor,
     required String transactionId,
     required String transactionDate,
-    required String paymentAmount,
     required String? paymentReceiptUrl,
-    required String verificationStatus,
-    required String? rejectionReason,
-    required String paymentMethod,
+    required String paymentAmount,
+    required String paymentCategory,
   }) {
-    String getVerificationDisplay(String status) {
-      switch (status.toLowerCase()) {
-        case 'approved':
-          return 'Approved';
-        case 'rejected':
-          return 'Rejected';
-        case 'pending':
-          return 'Pending';
-        case 'not_submitted':
-          return 'Not Submitted';
-        default:
-          return status;
-      }
-    }
-
-    Color getVerificationColor(String status) {
-      switch (status.toLowerCase()) {
-        case 'approved':
-          return Colors.green;
-        case 'rejected':
-          return Colors.red;
-        case 'pending':
-        case 'under_review':
-          return Colors.orange;
-        default:
-          return Colors.grey;
-      }
-    }
-
-    String getPaymentStatusDisplay(String status) {
-      switch (status.toLowerCase()) {
-        case 'completed':
-          return 'Completed';
-        case 'pending':
-          return 'Pending';
-        case 'failed':
-          return 'Failed';
-        default:
-          return status;
-      }
-    }
-
-    return _buildGlassContainer(
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.teal.shade50,
+            Colors.teal.shade100.withOpacity(0.3),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.teal.shade200),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2888,35 +2897,41 @@ class _UserServiceApplicationScreenState
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                      colors: [Color(0xFF10B981), Color(0xFF059669)]),
-                  borderRadius: BorderRadius.circular(10),
+                    colors: [Colors.teal, Colors.tealAccent],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.payment,
-                    color: Colors.white, size: 18),
+                    color: Colors.white, size: 24),
               ),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
                   "Payment Information",
                   style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.teal,
+                  ),
                 ),
               ),
+              // ✅ Dynamic Status chip
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _getPaymentStatusColor(paymentStatus),
-                  borderRadius: BorderRadius.circular(20),
+                  color: paymentStatusColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: paymentStatusColor.withOpacity(0.3)),
                 ),
                 child: Text(
-                  getPaymentStatusDisplay(paymentStatus),
-                  style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
+                  paymentStatusText,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: paymentStatusColor,
+                  ),
                 ),
               ),
             ],
@@ -2927,36 +2942,21 @@ class _UserServiceApplicationScreenState
           _buildInfoRow(
               Icons.calendar_today, "Transaction Date", transactionDate),
           const Divider(height: 24),
-          _buildInfoRow(Icons.currency_rupee, "Amount", paymentAmount,
+          _buildInfoRow(Icons.currency_rupee, "Amount Paid", paymentAmount,
               color: Colors.green),
           const Divider(height: 24),
-          _buildInfoRow(Icons.credit_card, "Payment Method", paymentMethod),
+          _buildInfoRow(Icons.credit_card, "Payment Method", paymentCategory),
           const Divider(height: 24),
           _buildInfoRow(Icons.verified, "Verification Status",
-              getVerificationDisplay(verificationStatus),
-              color: getVerificationColor(verificationStatus)),
-          if (rejectionReason != null && rejectionReason.isNotEmpty) ...[
+              paymentStatusText,
+              color: paymentStatusColor),
+          if (_selectedApplication?['payment_verified_at'] != null) ...[
             const Divider(height: 24),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.red.shade200),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, size: 16, color: Colors.red),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "Rejection Reason: $rejectionReason",
-                      style: const TextStyle(
-                          fontSize: 12, color: Colors.red),
-                    ),
-                  ),
-                ],
-              ),
+            _buildInfoRow(
+              Icons.verified,
+              "Verified On",
+              _formatDate(_selectedApplication!['payment_verified_at']),
+              color: Colors.green,
             ),
           ],
           if (paymentReceiptUrl != null && paymentReceiptUrl.isNotEmpty) ...[

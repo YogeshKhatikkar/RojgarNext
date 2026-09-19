@@ -1,7 +1,10 @@
 // lib/features/jobs/presentation/screens/applications_screen.dart
 // ✅ AI-BASED MODERN REDESIGN – Glassmorphism, Gradients, Animated Loading
 // ✅ Preserves all original functionality (status updates, file uploads, payments, profile navigation)
-// ✅ NEW: Documents Section – shows ALL user-uploaded documents with VIEW icon only
+// ✅ NEW: Documents Section – SAME documents as user_applications_screen
+// ✅ FIXED: Whitelist-only keys → deleted / null / stale docs NEVER show
+// ✅ FIXED: /user/full-profile with email param is PRIMARY source (matches user side)
+// ✅ FIXED: Admin viewing candidate docs now correctly fetches CANDIDATE documents (not admin's)
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -41,30 +44,146 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
-  // ✅ NEW: All user documents fetched from backend
+  // ✅ All user documents fetched from backend
   List<Map<String, dynamic>> _userDocuments = [];
   bool _isLoadingDocuments = false;
 
-  // ✅ NEW: Document keys mapping for pretty labels
+  // ============================================================
+  // ✅ COMPLETE Document Key Map — SAME as user_applications_screen
+  // 100+ document types — same names, same labels
+  // ============================================================
   static const List<Map<String, String>> _documentKeyMap = [
-    {'key': 'resume_url', 'label': 'Resume / CV'},
+    // ==================== IDENTITY ====================
     {'key': 'profile_photo_url', 'label': 'Profile Photo'},
+    {'key': 'aadhaar_front', 'label': 'Aadhaar Card (Front)'},
+    {'key': 'aadhaar_back', 'label': 'Aadhaar Card (Back)'},
     {'key': 'aadhaar_url', 'label': 'Aadhaar Card'},
     {'key': 'pan_url', 'label': 'PAN Card'},
     {'key': 'passport_url', 'label': 'Passport'},
-    {'key': 'driving_license_url', 'label': 'Driving License'},
     {'key': 'voter_id_url', 'label': 'Voter ID'},
-    {'key': 'degree_certificate_url', 'label': 'Degree Certificate'},
+    {'key': 'driving_license_url', 'label': 'Driving License'},
+    {'key': 'ration_card', 'label': 'Ration Card'},
+    {'key': 'npr_card', 'label': 'NPR Card'},
+
+    // ==================== EDUCATION ====================
+    {'key': 'tenth_marksheet', 'label': '10th Marksheet'},
+    {'key': 'tenth_certificate', 'label': '10th Certificate'},
+    {'key': 'twelfth_marksheet', 'label': '12th Marksheet'},
+    {'key': 'twelfth_certificate', 'label': '12th Certificate'},
+    {'key': 'diploma_certificate', 'label': 'Diploma Certificate'},
+    {'key': 'diploma_marksheet', 'label': 'Diploma Marksheet'},
+    {'key': 'graduation_degree', 'label': 'Graduation Degree'},
+    {'key': 'graduation_marksheet', 'label': 'Graduation Marksheet'},
+    {'key': 'post_graduation_degree', 'label': 'Post Graduation Degree'},
+    {'key': 'post_graduation_marksheet', 'label': 'Post Graduation Marksheet'},
+    {'key': 'phd_certificate', 'label': 'PhD Certificate'},
+    {'key': 'phd_thesis', 'label': 'PhD Thesis'},
+    {'key': 'iti_certificate', 'label': 'ITI Certificate'},
+    {'key': 'vocational_certificate', 'label': 'Vocational Training Certificate'},
+    {'key': 'skill_development_certificate', 'label': 'Skill Development Certificate'},
+
+    // ==================== PROFESSIONAL ====================
+    {'key': 'resume_url', 'label': 'Resume / CV'},
+    {'key': 'experience_certificate', 'label': 'Experience Certificate'},
     {'key': 'experience_letter_url', 'label': 'Experience Letter'},
-    {'key': 'salary_slip_url', 'label': 'Salary Slip'},
+    {'key': 'previous_employment_proof', 'label': 'Previous Employment Proof'},
+    {'key': 'service_certificate', 'label': 'Service Certificate'},
     {'key': 'offer_letter_url', 'label': 'Offer Letter'},
-    {'key': 'disability_certificate_url', 'label': 'Disability Certificate'},
+    {'key': 'appointment_letter', 'label': 'Appointment Letter'},
+    {'key': 'salary_slip_url', 'label': 'Salary Slip'},
+    {'key': 'salary_certificate', 'label': 'Salary Certificate'},
+    {'key': 'relieving_letter', 'label': 'Relieving Letter'},
+    {'key': 'promotion_letter', 'label': 'Promotion Letter'},
+    {'key': 'increment_letter', 'label': 'Increment Letter'},
+    {'key': 'training_certificate', 'label': 'Training Certificate'},
+    {'key': 'internship_certificate', 'label': 'Internship Certificate'},
+    {'key': 'apprenticeship_certificate', 'label': 'Apprenticeship Certificate'},
+
+    // ==================== CASTE ====================
+    {'key': 'caste_certificate_general', 'label': 'Caste Certificate (General/UR)'},
+    {'key': 'caste_certificate_obc', 'label': 'Caste Certificate (OBC)'},
+    {'key': 'caste_certificate_sc', 'label': 'Caste Certificate (SC)'},
+    {'key': 'caste_certificate_st', 'label': 'Caste Certificate (ST)'},
     {'key': 'caste_certificate_url', 'label': 'Caste Certificate'},
+    {'key': 'ews_certificate', 'label': 'EWS Certificate'},
+    {'key': 'non_creamy_layer', 'label': 'Non-Creamy Layer Certificate'},
+    {'key': 'caste_validity', 'label': 'Caste Validity Certificate'},
+
+    // ==================== DISABILITY ====================
+    {'key': 'disability_certificate_url', 'label': 'Disability Certificate'},
+    {'key': 'medical_certificate_physical', 'label': 'Medical Certificate (Physical)'},
+    {'key': 'hearing_disability', 'label': 'Hearing Disability Certificate'},
+    {'key': 'visual_disability', 'label': 'Visual Disability Certificate'},
+    {'key': 'learning_disability', 'label': 'Learning Disability Certificate'},
+    {'key': 'mental_disability', 'label': 'Mental Disability Certificate'},
+    {'key': 'multiple_disability', 'label': 'Multiple Disability Certificate'},
+    {'key': 'disability_id_card', 'label': 'Disability ID Card'},
+
+    // ==================== INCOME ====================
     {'key': 'income_certificate_url', 'label': 'Income Certificate'},
+    {'key': 'income_tax_return', 'label': 'Income Tax Return (ITR)'},
+    {'key': 'form_16', 'label': 'Form 16'},
+    {'key': 'bank_statement', 'label': 'Bank Passbook/Statement'},
+    {'key': 'pension_certificate', 'label': 'Pension Certificate'},
+    {'key': 'fd_certificate', 'label': 'Fixed Deposit Certificate'},
+
+    // ==================== RESIDENCE ====================
+    {'key': 'domicile_certificate', 'label': 'Domicile Certificate'},
+    {'key': 'residence_certificate', 'label': 'Residence Certificate'},
+    {'key': 'electricity_bill', 'label': 'Electricity Bill'},
+    {'key': 'water_bill', 'label': 'Water Bill'},
+    {'key': 'gas_bill', 'label': 'Gas Bill'},
+    {'key': 'rent_agreement', 'label': 'Rent Agreement'},
+    {'key': 'property_document', 'label': 'Property Document'},
+
+    // ==================== FAMILY ====================
+    {'key': 'birth_certificate', 'label': 'Birth Certificate'},
+    {'key': 'marriage_certificate', 'label': 'Marriage Certificate'},
+    {'key': 'family_member_id', 'label': 'Family Member ID'},
+    {'key': 'dependent_certificate', 'label': 'Dependent Certificate'},
+    {'key': 'family_pension', 'label': 'Family Pension Certificate'},
+    {'key': 'survivor_certificate', 'label': 'Survivor Certificate'},
+
+    // ==================== GOVERNMENT ====================
+    {'key': 'job_seeker_registration', 'label': 'Job Seeker Registration'},
+    {'key': 'employment_exchange_card', 'label': 'Employment Exchange Card'},
+    {'key': 'ncs_id', 'label': 'National Career Service ID'},
+    {'key': 'nrega_card', 'label': 'NREGA Job Card'},
+    {'key': 'pmay_certificate', 'label': 'PMAY Certificate'},
+    {'key': 'pmjjby_certificate', 'label': 'PMJJBY Certificate'},
+    {'key': 'pmsby_certificate', 'label': 'PMSBY Certificate'},
+    {'key': 'apy_enrollment', 'label': 'APY Enrollment'},
+
+    // ==================== CERTIFICATIONS ====================
+    {'key': 'professional_certification', 'label': 'Professional Certification'},
+    {'key': 'skill_certificate', 'label': 'Skill Development Certificate'},
+    {'key': 'computer_certificate', 'label': 'Computer Course Certificate'},
+    {'key': 'language_certificate', 'label': 'Language Proficiency Certificate'},
+    {'key': 'soft_skills_certificate', 'label': 'Soft Skills Certificate'},
+    {'key': 'leadership_certificate', 'label': 'Leadership Certificate'},
+    {'key': 'project_management_certificate', 'label': 'Project Management Certificate'},
+    {'key': 'digital_marketing_certificate', 'label': 'Digital Marketing Certificate'},
+    {'key': 'data_science_certificate', 'label': 'Data Science Certificate'},
+    {'key': 'cloud_computing_certificate', 'label': 'Cloud Computing Certificate'},
+    {'key': 'cybersecurity_certificate', 'label': 'Cybersecurity Certificate'},
+
+    // ==================== MISCELLANEOUS ====================
+    {'key': 'gap_certificate', 'label': 'Gap Certificate'},
+    {'key': 'skip_certificate', 'label': 'Skip Certificate'},
+    {'key': 'skip_year_certificate', 'label': 'Skip Year Certificate'},
+    {'key': 'education_gap_certificate', 'label': 'Education Gap Certificate'},
+    {'key': 'character_certificate', 'label': 'Character Certificate'},
+    {'key': 'migration_certificate', 'label': 'Migration Certificate'},
+    {'key': 'transfer_certificate', 'label': 'Transfer Certificate'},
+    {'key': 'bonafide_certificate', 'label': 'Bonafide Certificate'},
+    {'key': 'conduct_certificate', 'label': 'Conduct Certificate'},
+    {'key': 'medical_fitness_certificate', 'label': 'Medical Fitness Certificate'},
+    {'key': 'antecedent_certificate', 'label': 'Antecedent Certificate'},
+    {'key': 'noc_certificate', 'label': 'No Objection Certificate (NOC)'},
     {'key': 'other_document_url', 'label': 'Other Document'},
   ];
 
-  // Filter buttons - all statuses for filtering
+  // Filter buttons
   final List<Map<String, dynamic>> _filterButtons = [
     {'value': 'all', 'label': 'All', 'icon': Icons.list, 'color': Colors.grey},
     {
@@ -123,7 +242,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     },
   ];
 
-  // Status buttons for updating - ONLY THESE BUTTONS
+  // Status buttons for updating
   final List<Map<String, dynamic>> _statusButtons = [
     {
       'value': 'pending',
@@ -162,6 +281,64 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       'icon': Icons.send_and_archive,
     },
   ];
+
+  // ============================================================
+  // ✅ ULTRA-STRICT document URL validator
+  // Filters out: null, "", "null", "undefined", "-", "n/a",
+  // "not found", "deleted", "removed", {}, [], placeholder URLs
+  // ============================================================
+  bool _isValidDocUrl(dynamic value) {
+    if (value == null) return false;
+
+    // Reject empty maps / lists
+    if (value is Map && value.isEmpty) return false;
+    if (value is List && value.isEmpty) return false;
+
+    final str = value.toString().trim();
+    if (str.isEmpty) return false;
+
+    final lower = str.toLowerCase();
+    if (lower == 'null' ||
+        lower == 'undefined' ||
+        lower == 'n/a' ||
+        lower == 'na' ||
+        lower == '-' ||
+        lower == 'none' ||
+        lower == 'false' ||
+        lower == 'true' ||
+        lower == '0' ||
+        lower == 'not found' ||
+        lower == 'notfound' ||
+        lower == 'not_found' ||
+        lower == 'deleted' ||
+        lower == 'removed' ||
+        lower == 'empty' ||
+        lower == '{}' ||
+        lower == '[]') {
+      return false;
+    }
+
+    // Reject non-URL strings
+    if (!str.startsWith('http://') &&
+        !str.startsWith('https://') &&
+        !str.startsWith('file:') &&
+        !str.startsWith('blob:')) {
+      return false;
+    }
+
+    if (str.length < 12) return false;
+
+    // Reject placeholder URLs
+    if (lower.contains('not-found') ||
+        lower.contains('notfound') ||
+        lower.contains('placeholder') ||
+        lower.contains('example.com/dummy') ||
+        lower.contains('undefined')) {
+      return false;
+    }
+
+    return true;
+  }
 
   @override
   void initState() {
@@ -344,11 +521,20 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     }
   }
 
-  // ====================================================================
-  // ✅ NEW: Fetch ALL documents uploaded by the logged-in user
-  // ====================================================================
+  // ============================================================
+  // ✅ FETCH ALL USER DOCUMENTS (SAME as user_documents_screen)
+  // ✅ CRITICAL FIX: Now passes the CANDIDATE's email as query param
+  //    → backend returns CANDIDATE's profile (not admin's own)
+  // ✅ Whitelist-only keys → deleted docs NEVER show
+  // ✅ Multiple fallbacks: /user/full-profile?email=X then /user/user-profile-by-email?email=X
+  // ============================================================
   Future<void> _fetchUserDocuments(String email) async {
     if (!mounted) return;
+    if (email.isEmpty) {
+      debugPrint("⚠️ _fetchUserDocuments: empty email, skipping");
+      return;
+    }
+
     setState(() {
       _isLoadingDocuments = true;
       _userDocuments = [];
@@ -356,42 +542,53 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
 
     final List<Map<String, dynamic>> docs = [];
 
-    try {
-      // ---------- 1) Fetch from /user/get-documents ----------
-      try {
-        final res = await DioClient.dio.get('/user/get-documents');
-        if (res.data is Map) {
-          final data = res.data;
-          Map<String, dynamic> docsMap = {};
-          if (data.containsKey('data') && data['data'] is Map) {
-            docsMap = Map<String, dynamic>.from(data['data']);
-          } else if (data.containsKey('documents') &&
-              data['documents'] is Map) {
-            docsMap = Map<String, dynamic>.from(data['documents']);
-          }
+    // ✅ Safe add helper — strict filter + duplicate skip
+    void addDoc(String key, String label, dynamic value) {
+      if (!_isValidDocUrl(value)) return;
+      final url = value.toString().trim();
+      if (docs.any((d) => d['url'] == url)) return;
+      docs.add({
+        'key': key,
+        'label': label,
+        'url': url,
+      });
+    }
 
-          docsMap.forEach((key, value) {
-            if (value != null && value.toString().isNotEmpty) {
-              final label = _labelForKey(key);
-              docs.add({
-                'key': key,
-                'label': label,
-                'url': value.toString(),
-                'source': 'profile_documents',
-              });
-            }
-          });
+    // ✅ Helper to process a profile map and extract documents
+    void processProfileMap(Map<String, dynamic> profile) {
+      final additional = profile['additional_details'] as Map? ?? {};
+
+      for (final entry in _documentKeyMap) {
+        final key = entry['key']!;
+        final label = entry['label']!;
+
+        // Check in additional_details first, then top-level profile
+        final value = additional[key] ?? profile[key];
+        if (value != null) {
+          addDoc(key, label, value);
         }
-      } catch (e) {
-        debugPrint("⚠️ /user/get-documents failed: $e");
       }
 
-      // ---------- 2) Fetch from user profile (additional_details) ----------
+      // Top-level fallbacks
+      for (final key in ['resume_url', 'profile_photo_url']) {
+        final v = profile[key];
+        if (v != null) {
+          addDoc(key, _labelForKey(key), v);
+        }
+      }
+    }
+
+    try {
+      // ============================================================
+      // ✅ PRIMARY: /user/full-profile?email=<candidate_email>
+      //    Backend returns the candidate's complete profile
+      // ============================================================
       try {
+        debugPrint("📄 Fetching candidate docs from /user/full-profile?email=$email");
         final res = await DioClient.dio.get(
-          '/user/user-profile-by-email',
-          queryParameters: {'email': email},
+          '/user/full-profile?email=$email',
         );
+
         if (res.data is Map) {
           Map<String, dynamic> profile = {};
           if (res.data.containsKey('data') && res.data['data'] is Map) {
@@ -400,61 +597,42 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             profile = Map<String, dynamic>.from(res.data);
           }
 
-          // additional_details object
-          final additional =
-              profile['additional_details'] as Map<String, dynamic>? ?? {};
-          additional.forEach((key, value) {
-            if (value != null && value.toString().isNotEmpty) {
-              final label = _labelForKey(key);
-              // Avoid duplicates
-              if (!docs.any((d) => d['url'] == value.toString())) {
-                docs.add({
-                  'key': key,
-                  'label': label,
-                  'url': value.toString(),
-                  'source': 'profile_additional',
-                });
-              }
-            }
-          });
+          debugPrint("📄 Profile keys: ${profile.keys.toList()}");
+          final additional = profile['additional_details'] as Map? ?? {};
+          debugPrint("📄 additional_details keys: ${additional.keys.toList()}");
 
-          // Top-level resume_url / profile_photo_url
-          for (final key in ['resume_url', 'profile_photo_url']) {
-            final v = profile[key];
-            if (v != null &&
-                v.toString().isNotEmpty &&
-                !docs.any((d) => d['url'] == v.toString())) {
-              docs.add({
-                'key': key,
-                'label': _labelForKey(key),
-                'url': v.toString(),
-                'source': 'profile_root',
-              });
-            }
-          }
-
-          // Documents array (structured)
-          final docsList = profile['documents'];
-          if (docsList is Map && docsList['documents'] is List) {
-            for (final d in (docsList['documents'] as List)) {
-              if (d is Map) {
-                final url = d['doc_url']?.toString() ?? '';
-                if (url.isNotEmpty && !docs.any((x) => x['url'] == url)) {
-                  docs.add({
-                    'key': d['doc_type']?.toString() ?? 'document',
-                    'label': d['doc_name']?.toString() ??
-                        _labelForKey(d['doc_type']?.toString() ?? 'document'),
-                    'url': url,
-                    'source': 'profile_documents_array',
-                  });
-                }
-              }
-            }
-          }
+          processProfileMap(profile);
         }
       } catch (e) {
-        debugPrint("⚠️ user-profile-by-email failed: $e");
+        debugPrint("⚠️ /user/full-profile?email=$email failed: $e");
       }
+
+      // ============================================================
+      // ✅ FALLBACK: /user/user-profile-by-email?email=<candidate_email>
+      //    Used by candidate_profile_screen.dart - returns same data
+      // ============================================================
+      if (docs.isEmpty) {
+        try {
+          debugPrint("📄 Fallback: /user/user-profile-by-email?email=$email");
+          final res2 = await DioClient.dio.get(
+            '/user/user-profile-by-email?email=$email',
+          );
+
+          if (res2.data is Map) {
+            Map<String, dynamic> profile2 = {};
+            if (res2.data.containsKey('data') && res2.data['data'] is Map) {
+              profile2 = Map<String, dynamic>.from(res2.data['data']);
+            } else {
+              profile2 = Map<String, dynamic>.from(res2.data);
+            }
+            processProfileMap(profile2);
+          }
+        } catch (e) {
+          debugPrint("⚠️ /user/user-profile-by-email fallback failed: $e");
+        }
+      }
+
+      debugPrint("✅ Total documents collected: ${docs.length}");
     } catch (e) {
       debugPrint("❌ _fetchUserDocuments error: $e");
     } finally {
@@ -471,7 +649,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     for (final entry in _documentKeyMap) {
       if (entry['key'] == key) return entry['label']!;
     }
-    // Fallback: prettify the key
     return key
         .replaceAll('_url', '')
         .replaceAll('_', ' ')
@@ -482,7 +659,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   }
 
   // ====================================================================
-  // ✅ NEW: Open a document inside the FileViewerScreen popup
+  // ✅ Open a document inside the FileViewerScreen popup
   // ====================================================================
   Future<void> _openDocumentViewer(
     String url, {
@@ -528,19 +705,19 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   }
 
   // ====================================================================
-  // ✅ NEW: Show ALL documents (user profile + application docs)
+  // ✅ Show ALL documents (user profile + application docs)
+  // ✅ FIXED: Strict filter — deleted docs NEVER show
   // ====================================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
-    // Combine user-uploaded documents + application-specific documents
     final List<Map<String, dynamic>> allDocs = [];
 
-    // 1) User profile documents (fetched)
+    // 1) User profile documents (already filtered by _fetchUserDocuments)
     allDocs.addAll(_userDocuments);
 
     // 2) Application submitted document (customadmin review)
     final submittedUrl = app['submitted_document_url'];
-    if (submittedUrl != null && submittedUrl.toString().isNotEmpty) {
-      final urlStr = submittedUrl.toString();
+    if (_isValidDocUrl(submittedUrl)) {
+      final urlStr = submittedUrl.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
         allDocs.add({
           'key': 'submitted_document_url',
@@ -555,8 +732,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
 
     // 3) Final submitted document
     final finalUrl = app['final_document_url'];
-    if (finalUrl != null && finalUrl.toString().isNotEmpty) {
-      final urlStr = finalUrl.toString();
+    if (_isValidDocUrl(finalUrl)) {
+      final urlStr = finalUrl.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
         allDocs.add({
           'key': 'final_document_url',
@@ -571,8 +748,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
 
     // 4) Payment receipt
     final receiptUrl = app['payment_receipt_url'];
-    if (receiptUrl != null && receiptUrl.toString().isNotEmpty) {
-      final urlStr = receiptUrl.toString();
+    if (_isValidDocUrl(receiptUrl)) {
+      final urlStr = receiptUrl.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
         allDocs.add({
           'key': 'payment_receipt_url',
@@ -587,8 +764,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
 
     // 5) Application resume URL
     final appResume = app['resume_url'];
-    if (appResume != null && appResume.toString().isNotEmpty) {
-      final urlStr = appResume.toString();
+    if (_isValidDocUrl(appResume)) {
+      final urlStr = appResume.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
         allDocs.add({
           'key': 'resume_url',
@@ -694,7 +871,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   }
 
   // ====================================================================
-  // ✅ NEW: Single document row (View icon only)
+  // ✅ Single document row (View icon only)
   // ====================================================================
   Widget _buildDocumentRow(int index, Map<String, dynamic> doc) {
     final String label = doc['label']?.toString() ?? 'Document ${index + 1}';
@@ -702,7 +879,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     final String? downloadUrl = doc['download_url']?.toString();
     final bool isAppDoc = doc['is_application_doc'] == true;
 
-    // Determine icon and color from URL
     final icon = _iconForUrl(url);
     final color = _colorForUrl(url);
     final fileType = _fileTypeForUrl(url);
@@ -1001,7 +1177,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                         ),
                       const SizedBox(height: 20),
 
-                      // Update Notes (if any)
+                      // Update Notes
                       if (updateNotes != null && updateNotes.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -1202,7 +1378,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     }
   }
 
-  // ==================== REVIEW APPLICATION DIALOG (WITH FILE UPLOAD) - FIXED ====================
+  // ==================== REVIEW DIALOG ====================
   Future<void> _showReviewDialog(String applicationId) async {
     final TextEditingController notesController = TextEditingController();
     String? selectedFileName;
@@ -1228,7 +1404,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       final basePath = _getApiBasePath();
       final notes = notesController.text.trim();
 
-      // Upload file if selected
       if (selectedFileBytes != null && selectedFileName != null) {
         final formData = FormData.fromMap({
           'file': MultipartFile.fromBytes(
@@ -1255,7 +1430,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         }
       }
 
-      // Update status to review_application
       final response = await DioClient.dio.put(
         '$basePath/applications/$applicationId/status',
         queryParameters: {
@@ -1301,7 +1475,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     }
   }
 
-  // ==================== FINAL SUBMIT DIALOG (WITH FILE UPLOAD) - FIXED ====================
+  // ==================== FINAL SUBMIT DIALOG ====================
   Future<void> _showFinalSubmitDialog(String applicationId) async {
     final TextEditingController notesController = TextEditingController();
     String? selectedFileName;
@@ -1327,7 +1501,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       final basePath = _getApiBasePath();
       final notes = notesController.text.trim();
 
-      // Upload file if selected
       if (selectedFileBytes != null && selectedFileName != null) {
         final formData = FormData.fromMap({
           'file': MultipartFile.fromBytes(
@@ -1354,7 +1527,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         }
       }
 
-      // Update status to final_submit
       final response = await DioClient.dio.put(
         '$basePath/applications/$applicationId/status',
         queryParameters: {
@@ -1458,7 +1630,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     }
   }
 
-  // ==================== PAYMENT VERIFICATION METHODS ====================
+  // ==================== PAYMENT VERIFICATION ====================
   Future<void> _approvePayment(String paymentId, String applicationId) async {
     if (!mounted) return;
     setState(() => _isUpdatingStatus = true);
@@ -2586,10 +2758,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             const SizedBox(height: 16),
             _buildPaymentVerificationSection(app),
             const SizedBox(height: 16),
-            // ✅ NEW: Show ALL uploaded documents
             _buildDocumentsSection(app),
             const SizedBox(height: 16),
-            // ==================== VIEW UPDATES BUTTON IN DETAIL VIEW ====================
             if (hasUpdates && status.toLowerCase() == 'update_application')
               _buildViewUpdatesButton(app),
             const SizedBox(height: 16),
@@ -2601,7 +2771,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     );
   }
 
-  // ==================== VIEW UPDATES BUTTON ====================
   Widget _buildViewUpdatesButton(Map<String, dynamic> app) {
     return Card(
       elevation: 2,
@@ -2683,7 +2852,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     );
   }
 
-  // ==================== STATUS CARD ====================
   Widget _buildStatusCard(String appId, String currentStatus) {
     final statusColor = _getStatusColor(currentStatus);
 
@@ -2800,7 +2968,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     );
   }
 
-  // ==================== QUICK ACTION BUTTONS ====================
   Widget _buildQuickActionButtons(String appId, String currentStatus) {
     final filteredButtons =
         _statusButtons.where((s) => s['value'] != currentStatus).toList();
@@ -3027,7 +3194,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     );
   }
 
-  // ==================== COMPLETE PROFILE BUTTON ====================
   Widget _buildCompleteProfileButton() {
     final applicantEmail = _selectedApplication?['applicant_email'] ?? '';
     final applicantName =
@@ -3159,7 +3325,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   }
 }
 
-// ==================== REVIEW DIALOG CONTENT (WITH FILE UPLOAD) - FIXED ====================
+// ==================== REVIEW DIALOG CONTENT (WITH FILE UPLOAD) ====================
 class _ReviewDialogContent extends StatefulWidget {
   final TextEditingController notesController;
   final Function(String, Uint8List) onFileSelected;
@@ -3216,7 +3382,6 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ==================== HEADER ====================
             Row(
               children: [
                 Container(
@@ -3246,7 +3411,6 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
             ),
             const Divider(height: 24),
 
-            // ==================== INFO BOX ====================
             Container(
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 16),
@@ -3269,13 +3433,11 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
               ),
             ),
 
-            // ==================== SCROLLABLE CONTENT ====================
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // File Upload Section
                     const Text(
                       "📄 Upload Document (PDF or Image)",
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -3287,7 +3449,6 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                     ),
                     const SizedBox(height: 12),
 
-                    // File Picker Gesture
                     GestureDetector(
                       onTap: _pickFile,
                       child: Container(
@@ -3349,7 +3510,6 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Review Notes
                     const Text(
                       "Review Notes (Optional)",
                       style:
@@ -3369,7 +3529,6 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Bottom Info Box
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -3397,7 +3556,6 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
               ),
             ),
 
-            // ==================== BUTTONS (ALWAYS VISIBLE AT BOTTOM) ====================
             Row(
               children: [
                 Expanded(
@@ -3445,7 +3603,7 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
   }
 }
 
-// ==================== FINAL SUBMIT DIALOG CONTENT (WITH FILE UPLOAD) - FIXED ====================
+// ==================== FINAL SUBMIT DIALOG CONTENT ====================
 class _FinalSubmitDialogContent extends StatefulWidget {
   final TextEditingController notesController;
   final Function(String, Uint8List) onFileSelected;
@@ -3504,7 +3662,6 @@ class _FinalSubmitDialogContentState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ==================== HEADER ====================
             Row(
               children: [
                 Container(
@@ -3534,7 +3691,6 @@ class _FinalSubmitDialogContentState
             ),
             const Divider(height: 24),
 
-            // ==================== WARNING BOX ====================
             Container(
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 16),
@@ -3557,13 +3713,11 @@ class _FinalSubmitDialogContentState
               ),
             ),
 
-            // ==================== SCROLLABLE CONTENT ====================
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // File Upload Section
                     const Text(
                       "📄 Upload Final Document (PDF or Image)",
                       style:
@@ -3576,7 +3730,6 @@ class _FinalSubmitDialogContentState
                     ),
                     const SizedBox(height: 12),
 
-                    // File Picker Gesture
                     GestureDetector(
                       onTap: _pickFile,
                       child: Container(
@@ -3638,7 +3791,6 @@ class _FinalSubmitDialogContentState
                     ),
                     const SizedBox(height: 20),
 
-                    // Additional Notes
                     const Text(
                       "Additional Notes (Optional)",
                       style:
@@ -3658,7 +3810,6 @@ class _FinalSubmitDialogContentState
                     ),
                     const SizedBox(height: 16),
 
-                    // Bottom Info Box
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -3686,7 +3837,6 @@ class _FinalSubmitDialogContentState
               ),
             ),
 
-            // ==================== BUTTONS (ALWAYS VISIBLE AT BOTTOM) ====================
             Row(
               children: [
                 Expanded(

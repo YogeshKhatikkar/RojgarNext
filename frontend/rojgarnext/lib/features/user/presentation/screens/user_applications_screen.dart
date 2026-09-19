@@ -1,8 +1,10 @@
 // lib/features/user/presentation/screens/user_applications_screen.dart
-// ✅ AI‑BASED MODERN DESIGN – Back button removed from detail header
+// ✅ AI‑BASED MODERN DESIGN
 // ✅ FULLY FUNCTIONAL: List, Detail, Confirm, Update, Document viewing
 // ✅ AI LOADING ANIMATION on all loading states
-// ✅ NEW: Uploaded Documents section with View buttons for all user documents
+// ✅ NEW: Uploaded Documents section — SAME documents as user_documents_screen
+// ✅ FIXED: Deleted documents (null / "null" / "" / undefined) STRICTLY filtered
+// ✅ FIXED: Uses /user/full-profile as PRIMARY source (matches user_documents_screen)
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
@@ -144,14 +146,6 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
           spreadRadius: 5,
         ),
       ],
-    );
-  }
-
-  Widget _buildGlassContainer({required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _buildGlassContainerDecoration(),
-      child: child,
     );
   }
 
@@ -598,7 +592,7 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
 }
 
 // ============================================================
-// APPLICATION DETAIL SCREEN – No Back Button in Header
+// APPLICATION DETAIL SCREEN
 // ============================================================
 class ApplicationDetailScreen extends StatefulWidget {
   final Map<String, dynamic> application;
@@ -625,28 +619,201 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  // ✅ NEW: Uploaded documents state
+  // ✅ Uploaded documents state
   List<Map<String, dynamic>> _userDocuments = [];
   bool _isLoadingDocuments = false;
 
-  // ✅ NEW: Document key map for pretty labels
+  // ============================================================
+  // ✅ COMPLETE Document Key Map — SAME as user_documents_screen
+  // 100+ document types supported
+  // ============================================================
   static const List<Map<String, String>> _documentKeyMap = [
-    {'key': 'resume_url', 'label': 'Resume / CV'},
+    // ==================== IDENTITY ====================
     {'key': 'profile_photo_url', 'label': 'Profile Photo'},
+    {'key': 'aadhaar_front', 'label': 'Aadhaar Card (Front)'},
+    {'key': 'aadhaar_back', 'label': 'Aadhaar Card (Back)'},
     {'key': 'aadhaar_url', 'label': 'Aadhaar Card'},
     {'key': 'pan_url', 'label': 'PAN Card'},
     {'key': 'passport_url', 'label': 'Passport'},
-    {'key': 'driving_license_url', 'label': 'Driving License'},
     {'key': 'voter_id_url', 'label': 'Voter ID'},
-    {'key': 'degree_certificate_url', 'label': 'Degree Certificate'},
+    {'key': 'driving_license_url', 'label': 'Driving License'},
+    {'key': 'ration_card', 'label': 'Ration Card'},
+    {'key': 'npr_card', 'label': 'NPR Card'},
+
+    // ==================== EDUCATION ====================
+    {'key': 'tenth_marksheet', 'label': '10th Marksheet'},
+    {'key': 'tenth_certificate', 'label': '10th Certificate'},
+    {'key': 'twelfth_marksheet', 'label': '12th Marksheet'},
+    {'key': 'twelfth_certificate', 'label': '12th Certificate'},
+    {'key': 'diploma_certificate', 'label': 'Diploma Certificate'},
+    {'key': 'diploma_marksheet', 'label': 'Diploma Marksheet'},
+    {'key': 'graduation_degree', 'label': 'Graduation Degree'},
+    {'key': 'graduation_marksheet', 'label': 'Graduation Marksheet'},
+    {'key': 'post_graduation_degree', 'label': 'Post Graduation Degree'},
+    {'key': 'post_graduation_marksheet', 'label': 'Post Graduation Marksheet'},
+    {'key': 'phd_certificate', 'label': 'PhD Certificate'},
+    {'key': 'phd_thesis', 'label': 'PhD Thesis'},
+    {'key': 'iti_certificate', 'label': 'ITI Certificate'},
+    {'key': 'vocational_certificate', 'label': 'Vocational Training Certificate'},
+    {'key': 'skill_development_certificate', 'label': 'Skill Development Certificate'},
+
+    // ==================== PROFESSIONAL ====================
+    {'key': 'resume_url', 'label': 'Resume / CV'},
+    {'key': 'experience_certificate', 'label': 'Experience Certificate'},
     {'key': 'experience_letter_url', 'label': 'Experience Letter'},
-    {'key': 'salary_slip_url', 'label': 'Salary Slip'},
+    {'key': 'previous_employment_proof', 'label': 'Previous Employment Proof'},
+    {'key': 'service_certificate', 'label': 'Service Certificate'},
     {'key': 'offer_letter_url', 'label': 'Offer Letter'},
+    {'key': 'appointment_letter', 'label': 'Appointment Letter'},
+    {'key': 'salary_slip_url', 'label': 'Salary Slip'},
+    {'key': 'salary_certificate', 'label': 'Salary Certificate'},
+    {'key': 'relieving_letter', 'label': 'Relieving Letter'},
+    {'key': 'promotion_letter', 'label': 'Promotion Letter'},
+    {'key': 'increment_letter', 'label': 'Increment Letter'},
+    {'key': 'training_certificate', 'label': 'Training Certificate'},
+    {'key': 'internship_certificate', 'label': 'Internship Certificate'},
+    {'key': 'apprenticeship_certificate', 'label': 'Apprenticeship Certificate'},
+
+    // ==================== CASTE ====================
+    {'key': 'caste_certificate_general', 'label': 'Caste Certificate (General/UR)'},
+    {'key': 'caste_certificate_obc', 'label': 'Caste Certificate (OBC)'},
+    {'key': 'caste_certificate_sc', 'label': 'Caste Certificate (SC)'},
+    {'key': 'caste_certificate_st', 'label': 'Caste Certificate (ST)'},
+    {'key': 'ews_certificate', 'label': 'EWS Certificate'},
+    {'key': 'non_creamy_layer', 'label': 'Non-Creamy Layer Certificate'},
+    {'key': 'caste_validity', 'label': 'Caste Validity Certificate'},
+
+    // ==================== DISABILITY ====================
     {'key': 'disability_certificate_url', 'label': 'Disability Certificate'},
-    {'key': 'caste_certificate_url', 'label': 'Caste Certificate'},
+    {'key': 'medical_certificate_physical', 'label': 'Medical Certificate (Physical)'},
+    {'key': 'hearing_disability', 'label': 'Hearing Disability Certificate'},
+    {'key': 'visual_disability', 'label': 'Visual Disability Certificate'},
+    {'key': 'learning_disability', 'label': 'Learning Disability Certificate'},
+    {'key': 'mental_disability', 'label': 'Mental Disability Certificate'},
+    {'key': 'multiple_disability', 'label': 'Multiple Disability Certificate'},
+    {'key': 'disability_id_card', 'label': 'Disability ID Card'},
+
+    // ==================== INCOME ====================
     {'key': 'income_certificate_url', 'label': 'Income Certificate'},
+    {'key': 'income_tax_return', 'label': 'Income Tax Return (ITR)'},
+    {'key': 'form_16', 'label': 'Form 16'},
+    {'key': 'bank_statement', 'label': 'Bank Passbook/Statement'},
+    {'key': 'pension_certificate', 'label': 'Pension Certificate'},
+    {'key': 'fd_certificate', 'label': 'Fixed Deposit Certificate'},
+
+    // ==================== RESIDENCE ====================
+    {'key': 'domicile_certificate', 'label': 'Domicile Certificate'},
+    {'key': 'residence_certificate', 'label': 'Residence Certificate'},
+    {'key': 'electricity_bill', 'label': 'Electricity Bill'},
+    {'key': 'water_bill', 'label': 'Water Bill'},
+    {'key': 'gas_bill', 'label': 'Gas Bill'},
+    {'key': 'rent_agreement', 'label': 'Rent Agreement'},
+    {'key': 'property_document', 'label': 'Property Document'},
+
+    // ==================== FAMILY ====================
+    {'key': 'birth_certificate', 'label': 'Birth Certificate'},
+    {'key': 'marriage_certificate', 'label': 'Marriage Certificate'},
+    {'key': 'family_member_id', 'label': 'Family Member ID'},
+    {'key': 'dependent_certificate', 'label': 'Dependent Certificate'},
+    {'key': 'family_pension', 'label': 'Family Pension Certificate'},
+    {'key': 'survivor_certificate', 'label': 'Survivor Certificate'},
+
+    // ==================== GOVERNMENT ====================
+    {'key': 'job_seeker_registration', 'label': 'Job Seeker Registration'},
+    {'key': 'employment_exchange_card', 'label': 'Employment Exchange Card'},
+    {'key': 'ncs_id', 'label': 'National Career Service ID'},
+    {'key': 'nrega_card', 'label': 'NREGA Job Card'},
+    {'key': 'pmay_certificate', 'label': 'PMAY Certificate'},
+    {'key': 'pmjjby_certificate', 'label': 'PMJJBY Certificate'},
+    {'key': 'pmsby_certificate', 'label': 'PMSBY Certificate'},
+    {'key': 'apy_enrollment', 'label': 'APY Enrollment'},
+
+    // ==================== CERTIFICATIONS ====================
+    {'key': 'professional_certification', 'label': 'Professional Certification'},
+    {'key': 'skill_certificate', 'label': 'Skill Development Certificate'},
+    {'key': 'computer_certificate', 'label': 'Computer Course Certificate'},
+    {'key': 'language_certificate', 'label': 'Language Proficiency Certificate'},
+    {'key': 'soft_skills_certificate', 'label': 'Soft Skills Certificate'},
+    {'key': 'leadership_certificate', 'label': 'Leadership Certificate'},
+    {'key': 'project_management_certificate', 'label': 'Project Management Certificate'},
+    {'key': 'digital_marketing_certificate', 'label': 'Digital Marketing Certificate'},
+    {'key': 'data_science_certificate', 'label': 'Data Science Certificate'},
+    {'key': 'cloud_computing_certificate', 'label': 'Cloud Computing Certificate'},
+    {'key': 'cybersecurity_certificate', 'label': 'Cybersecurity Certificate'},
+
+    // ==================== MISCELLANEOUS ====================
+    {'key': 'gap_certificate', 'label': 'Gap Certificate'},
+    {'key': 'skip_certificate', 'label': 'Skip Certificate'},
+    {'key': 'skip_year_certificate', 'label': 'Skip Year Certificate'},
+    {'key': 'education_gap_certificate', 'label': 'Education Gap Certificate'},
+    {'key': 'character_certificate', 'label': 'Character Certificate'},
+    {'key': 'migration_certificate', 'label': 'Migration Certificate'},
+    {'key': 'transfer_certificate', 'label': 'Transfer Certificate'},
+    {'key': 'bonafide_certificate', 'label': 'Bonafide Certificate'},
+    {'key': 'conduct_certificate', 'label': 'Conduct Certificate'},
+    {'key': 'medical_fitness_certificate', 'label': 'Medical Fitness Certificate'},
+    {'key': 'antecedent_certificate', 'label': 'Antecedent Certificate'},
+    {'key': 'noc_certificate', 'label': 'No Objection Certificate (NOC)'},
     {'key': 'other_document_url', 'label': 'Other Document'},
   ];
+
+// ============================================================
+// ✅ STRICT document URL validator
+// Filters out: null, "", "null", "undefined", "-", "n/a",
+// "not found", "deleted", "removed", {} empty maps, [] empty lists
+// ============================================================
+bool _isValidDocUrl(dynamic value) {
+  if (value == null) return false;
+
+  // Reject empty maps / lists
+  if (value is Map && value.isEmpty) return false;
+  if (value is List && value.isEmpty) return false;
+
+  final str = value.toString().trim();
+  if (str.isEmpty) return false;
+
+  final lower = str.toLowerCase();
+  if (lower == 'null' ||
+      lower == 'undefined' ||
+      lower == 'n/a' ||
+      lower == 'na' ||
+      lower == '-' ||
+      lower == 'none' ||
+      lower == 'false' ||
+      lower == 'true' ||
+      lower == '0' ||
+      lower == 'not found' ||
+      lower == 'notfound' ||
+      lower == 'not_found' ||
+      lower == 'deleted' ||
+      lower == 'removed' ||
+      lower == 'empty' ||
+      lower == '{}' ||
+      lower == '[]') {
+    return false;
+  }
+
+  // Reject non-URL strings
+  if (!str.startsWith('http://') &&
+      !str.startsWith('https://') &&
+      !str.startsWith('file:') &&
+      !str.startsWith('blob:')) {
+    return false;
+  }
+
+  if (str.length < 12) return false;
+
+  // Reject placeholder URLs
+  if (lower.contains('not-found') ||
+      lower.contains('notfound') ||
+      lower.contains('placeholder') ||
+      lower.contains('example.com/dummy') ||
+      lower.contains('undefined')) {
+    return false;
+  }
+
+  return true;
+}
 
   @override
   void initState() {
@@ -660,7 +827,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
     _animationController.forward();
     _fetchJobDetails();
-    // ✅ NEW: fetch user documents
     _fetchAllDocuments();
   }
 
@@ -686,129 +852,88 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     }
   }
 
-  // ============================================================
-  // ✅ NEW: FETCH ALL USER DOCUMENTS
-  // ============================================================
-  Future<void> _fetchAllDocuments() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoadingDocuments = true;
-      _userDocuments = [];
+// ============================================================
+// ✅ FETCH ALL USER DOCUMENTS
+// ✅ SAME whitelist approach as user_documents_screen
+// ✅ Deleted / removed documents NEVER show
+// ✅ Only uses /user/full-profile (SINGLE source of truth)
+// ============================================================
+Future<void> _fetchAllDocuments() async {
+  if (!mounted) return;
+  setState(() {
+    _isLoadingDocuments = true;
+    _userDocuments = [];
+  });
+
+  final List<Map<String, dynamic>> docs = [];
+
+  // ✅ Safe add helper — strict filter
+  void addDoc(String key, String label, dynamic value) {
+    if (!_isValidDocUrl(value)) return;
+    final url = value.toString().trim();
+    if (docs.any((d) => d['url'] == url)) return;
+    docs.add({
+      'key': key,
+      'label': label,
+      'url': url,
     });
+  }
 
-    final List<Map<String, dynamic>> docs = [];
-    final email = widget.application['applicant_email']?.toString() ?? '';
+  try {
+    // ============================================================
+    // ✅ ONLY /user/full-profile — SAME as user_documents_screen
+    // (Removed /user/get-documents and /user/user-profile-by-email
+    //  because they return stale data from other collections)
+    // ============================================================
+    final res = await DioClient.dio.get('/user/full-profile');
 
-    try {
-      // ---------- 1) Fetch from /user/get-documents ----------
-      try {
-        final res = await DioClient.dio.get('/user/get-documents');
-        if (res.data is Map) {
-          final data = res.data;
-          Map<String, dynamic> docsMap = {};
-          if (data.containsKey('data') && data['data'] is Map) {
-            docsMap = Map<String, dynamic>.from(data['data']);
-          } else if (data.containsKey('documents') &&
-              data['documents'] is Map) {
-            docsMap = Map<String, dynamic>.from(data['documents']);
-          }
-
-          docsMap.forEach((key, value) {
-            if (value != null && value.toString().isNotEmpty) {
-              docs.add({
-                'key': key,
-                'label': _labelForKey(key),
-                'url': value.toString(),
-                'source': 'profile_documents',
-              });
-            }
-          });
-        }
-      } catch (e) {
-        debugPrint("⚠️ /user/get-documents failed: $e");
+    if (res.data is Map) {
+      Map<String, dynamic> profile = {};
+      if (res.data.containsKey('data') && res.data['data'] is Map) {
+        profile = Map<String, dynamic>.from(res.data['data']);
+      } else {
+        profile = Map<String, dynamic>.from(res.data);
       }
 
-      // ---------- 2) Fetch from user profile ----------
-      if (email.isNotEmpty) {
-        try {
-          final res = await DioClient.dio.get(
-            '/user/user-profile-by-email',
-            queryParameters: {'email': email},
-          );
-          if (res.data is Map) {
-            Map<String, dynamic> profile = {};
-            if (res.data.containsKey('data') && res.data['data'] is Map) {
-              profile = Map<String, dynamic>.from(res.data['data']);
-            } else {
-              profile = Map<String, dynamic>.from(res.data);
-            }
+      final additional = profile['additional_details'] as Map? ?? {};
 
-            // additional_details object
-            final additional =
-                profile['additional_details'] as Map<String, dynamic>? ?? {};
-            additional.forEach((key, value) {
-              if (value != null && value.toString().isNotEmpty) {
-                if (!docs.any((d) => d['url'] == value.toString())) {
-                  docs.add({
-                    'key': key,
-                    'label': _labelForKey(key),
-                    'url': value.toString(),
-                    'source': 'profile_additional',
-                  });
-                }
-              }
-            });
+      // ============================================================
+      // ✅ WHITELIST LOOP ONLY
+      // Sirf _documentKeyMap me define kiye gaye keys check karo.
+      // additional_details me jo bhi EXTRA keys hain (including deleted
+      // / stale / "no found" wale), unhe IGNORE kar do.
+      // ============================================================
+      for (final entry in _documentKeyMap) {
+        final key = entry['key']!;
+        final label = entry['label']!;
 
-            // Top-level resume_url / profile_photo_url
-            for (final key in ['resume_url', 'profile_photo_url']) {
-              final v = profile[key];
-              if (v != null &&
-                  v.toString().isNotEmpty &&
-                  !docs.any((d) => d['url'] == v.toString())) {
-                docs.add({
-                  'key': key,
-                  'label': _labelForKey(key),
-                  'url': v.toString(),
-                  'source': 'profile_root',
-                });
-              }
-            }
+        // ✅ Check in additional_details first, then top-level profile
+        final value = additional[key] ?? profile[key];
 
-            // Documents array (structured)
-            final docsList = profile['documents'];
-            if (docsList is Map && docsList['documents'] is List) {
-              for (final d in (docsList['documents'] as List)) {
-                if (d is Map) {
-                  final url = d['doc_url']?.toString() ?? '';
-                  if (url.isNotEmpty && !docs.any((x) => x['url'] == url)) {
-                    docs.add({
-                      'key': d['doc_type']?.toString() ?? 'document',
-                      'label': d['doc_name']?.toString() ??
-                          _labelForKey(
-                              d['doc_type']?.toString() ?? 'document'),
-                      'url': url,
-                      'source': 'profile_documents_array',
-                    });
-                  }
-                }
-              }
-            }
-          }
-        } catch (e) {
-          debugPrint("⚠️ user-profile-by-email failed: $e");
+        if (value != null) {
+          addDoc(key, label, value);
         }
       }
-    } catch (e) {
-      debugPrint("❌ _fetchAllDocuments error: $e");
-    } finally {
-      if (mounted) {
-        setState(() {
-          _userDocuments = docs;
-          _isLoadingDocuments = false;
-        });
+
+      // ✅ Top-level fallbacks (whitelist me hain)
+      for (final key in ['resume_url', 'profile_photo_url']) {
+        final v = profile[key];
+        if (v != null) {
+          addDoc(key, _labelForKey(key), v);
+        }
       }
     }
+  } catch (e) {
+    debugPrint("⚠️ /user/full-profile failed: $e");
   }
+
+  if (mounted) {
+    setState(() {
+      _userDocuments = docs;
+      _isLoadingDocuments = false;
+    });
+  }
+}
 
   String _labelForKey(String key) {
     for (final entry in _documentKeyMap) {
@@ -824,7 +949,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   // ============================================================
-  // ✅ NEW: Open document inside FileViewerScreen popup
+  // ✅ Open document inside FileViewerScreen popup
   // ============================================================
   Future<void> _openDocumentViewer(
     String url, {
@@ -870,7 +995,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   // ============================================================
-  // ✅ NEW: Icon / color / filetype helpers
+  // ✅ Icon / color / filetype helpers
   // ============================================================
   IconData _iconForUrl(String url) {
     final u = url.toLowerCase();
@@ -923,20 +1048,18 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   // ============================================================
-  // ✅ NEW: Build "Uploaded Documents" section
+  // ✅ Build "Uploaded Documents" section (STRICT filter)
   // ============================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> allDocs = [];
 
-    // 1) User profile documents (fetched)
+    // 1) User profile documents (already filtered)
     allDocs.addAll(_userDocuments);
 
-    // 2) Application submitted document (review)
+    // 2) Application submitted document
     final submittedUrl = app['submitted_document_url'];
-    if (submittedUrl != null &&
-        submittedUrl.toString().isNotEmpty &&
-        submittedUrl.toString() != 'null') {
-      final urlStr = submittedUrl.toString();
+    if (_isValidDocUrl(submittedUrl)) {
+      final urlStr = submittedUrl.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
         allDocs.add({
           'key': 'submitted_document_url',
@@ -952,10 +1075,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
 
     // 3) Final submitted document
     final finalUrl = app['final_document_url'];
-    if (finalUrl != null &&
-        finalUrl.toString().isNotEmpty &&
-        finalUrl.toString() != 'null') {
-      final urlStr = finalUrl.toString();
+    if (_isValidDocUrl(finalUrl)) {
+      final urlStr = finalUrl.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
         allDocs.add({
           'key': 'final_document_url',
@@ -971,10 +1092,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
 
     // 4) Payment receipt
     final receiptUrl = app['payment_receipt_url'];
-    if (receiptUrl != null &&
-        receiptUrl.toString().isNotEmpty &&
-        receiptUrl.toString() != 'null') {
-      final urlStr = receiptUrl.toString();
+    if (_isValidDocUrl(receiptUrl)) {
+      final urlStr = receiptUrl.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
         allDocs.add({
           'key': 'payment_receipt_url',
@@ -989,10 +1108,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
 
     // 5) Payment screenshot
     final screenshotUrl = app['screenshot_url'];
-    if (screenshotUrl != null &&
-        screenshotUrl.toString().isNotEmpty &&
-        screenshotUrl.toString() != 'null') {
-      final urlStr = screenshotUrl.toString();
+    if (_isValidDocUrl(screenshotUrl)) {
+      final urlStr = screenshotUrl.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
         allDocs.add({
           'key': 'screenshot_url',
@@ -1006,10 +1123,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
 
     // 6) Application document (document_url)
     final docUrl = app['document_url'];
-    if (docUrl != null &&
-        docUrl.toString().isNotEmpty &&
-        docUrl.toString() != 'null') {
-      final urlStr = docUrl.toString();
+    if (_isValidDocUrl(docUrl)) {
+      final urlStr = docUrl.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
         allDocs.add({
           'key': 'document_url',
@@ -1023,10 +1138,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
 
     // 7) Application resume URL
     final appResume = app['resume_url'];
-    if (appResume != null &&
-        appResume.toString().isNotEmpty &&
-        appResume.toString() != 'null') {
-      final urlStr = appResume.toString();
+    if (_isValidDocUrl(appResume)) {
+      final urlStr = appResume.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
         allDocs.add({
           'key': 'resume_url',
@@ -1123,7 +1236,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   // ============================================================
-  // ✅ NEW: Single document row (View button)
+  // ✅ Single document row (View button)
   // ============================================================
   Widget _buildDocumentRow(int index, Map<String, dynamic> doc) {
     final String label = doc['label']?.toString() ?? 'Document ${index + 1}';
@@ -1167,7 +1280,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
                   ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
@@ -1331,8 +1444,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
         widget.application['document_url'] ??
         widget.application['documentUrl'];
 
-    if (url != null && url.toString().isNotEmpty && url.toString() != 'null') {
-      return url.toString();
+    if (_isValidDocUrl(url)) {
+      return url.toString().trim();
     }
     return null;
   }
@@ -1631,7 +1744,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                               paymentCategory,
                             ),
                             const SizedBox(height: 16),
-                            // ✅ NEW: Uploaded Documents section
                             _buildDocumentsSection(app),
                             const SizedBox(height: 16),
                             SizedBox(
@@ -1862,7 +1974,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
         statusSubtitle = "Your update has been submitted for admin review";
         break;
       case 'final_submit':
-        statusSubtitle = "Final submission completed! Your application is now complete.";
+        statusSubtitle =
+            "Final submission completed! Your application is now complete.";
         break;
       case 'shortlisted':
         statusSubtitle = "Congratulations! You've been shortlisted";
@@ -1932,51 +2045,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
               ),
             ],
           ),
-          if (status.toLowerCase() == 'verification_rejected')
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: _buildGradientButton(
-                  text: "Re-apply for this Job",
-                  icon: Icons.refresh,
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (dialogContext) => AlertDialog(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        title: const Text("Re-apply for this Job"),
-                        content: const Text(
-                            "Your payment verification was rejected. You can re-apply for this job with correct payment details.\n\nNote: You will need to make a new payment."),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(dialogContext),
-                            child: const Text("Cancel"),
-                          ),
-                          ElevatedButton(
-                            onPressed: () {
-                              Navigator.pop(dialogContext);
-                              if (_jobDetails != null) {
-                                widget.onViewJob(_jobDetails!);
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text("Re-apply Now"),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -2050,7 +2118,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.visibility, size: 20, color: Colors.white),
+                      const Icon(Icons.visibility,
+                          size: 20, color: Colors.white),
                       const SizedBox(width: 8),
                       Text(
                         hasDocument
@@ -2075,32 +2144,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                 "Document: $documentName",
                 style: const TextStyle(fontSize: 12, color: Colors.teal),
                 textAlign: TextAlign.center,
-              ),
-            ),
-          if (!hasDocument)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber, size: 16, color: Colors.orange),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        "No document attached to this application.",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange.shade800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ),
           const SizedBox(height: 20),
@@ -2196,30 +2239,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline, size: 16, color: Colors.orange),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    "✅ CONFIRM: Accept the application as is\n"
-                    "✏️ UPDATE: Provide additional information or corrections",
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.orange.shade800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -2293,7 +2312,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.visibility, size: 20, color: Colors.white),
+                      const Icon(Icons.visibility,
+                          size: 20, color: Colors.white),
                       const SizedBox(width: 8),
                       Text(
                         hasDocument
@@ -2316,34 +2336,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
               padding: const EdgeInsets.only(top: 8),
               child: Text(
                 "Document: $documentName",
-                style: const TextStyle(fontSize: 12, color: Colors.deepPurple),
+                style:
+                    const TextStyle(fontSize: 12, color: Colors.deepPurple),
                 textAlign: TextAlign.center,
-              ),
-            ),
-          if (!hasDocument)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber, size: 16, color: Colors.orange),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        "No document attached to this application.",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange.shade800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ),
         ],
@@ -2354,7 +2349,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   Widget _buildJobInfoCard() {
     final app = widget.application;
     final jobTitle = app['job_title'] ?? _jobDetails?['post_name'] ?? 'Job Title';
-    final organization = app['organization'] ?? _jobDetails?['organization'] ?? 'Company';
+    final organization =
+        app['organization'] ?? _jobDetails?['organization'] ?? 'Company';
     final appliedDate = _formatDate(app['applied_at']);
     final matchScore = app['match_score'];
 
@@ -2440,7 +2436,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.payment, color: Colors.white, size: 24),
+                child:
+                    const Icon(Icons.payment, color: Colors.white, size: 24),
               ),
               const SizedBox(width: 12),
               const Text(
@@ -2456,7 +2453,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
           const SizedBox(height: 16),
           _buildInfoRow(Icons.receipt, "Transaction ID", transactionId),
           const Divider(height: 24),
-          _buildInfoRow(Icons.calendar_today, "Transaction Date", transactionDate),
+          _buildInfoRow(
+              Icons.calendar_today, "Transaction Date", transactionDate),
           if (paymentAmount != null) ...[
             const Divider(height: 24),
             _buildInfoRow(
@@ -2518,29 +2516,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, size: 16, color: Colors.orange),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "Click 'View Receipt' to see your payment screenshot",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.orange.shade800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ],
@@ -2754,6 +2729,12 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
   }
 
   @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -2778,7 +2759,8 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                     ),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(Icons.edit_note, color: Colors.white, size: 28),
+                  child: const Icon(Icons.edit_note,
+                      color: Colors.white, size: 28),
                 ),
                 const SizedBox(width: 14),
                 const Expanded(
@@ -2810,7 +2792,8 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, color: Color(0xFF6C63FF), size: 18),
+                  const Icon(Icons.info_outline,
+                      color: Color(0xFF6C63FF), size: 18),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -2828,50 +2811,6 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
               child: SingleChildScrollView(
                 child: Column(
                   children: [
-                    const Text(
-                      "Fields to Update",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: const [
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              "Field Name",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              "Value",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 40),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
                     ..._fields.asMap().entries.map((entry) {
                       final index = entry.key;
                       final field = entry.value;
@@ -2888,12 +2827,13 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                                 decoration: BoxDecoration(
                                   color: Colors.grey.shade100,
                                   borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: Colors.grey.shade300),
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
                                 ),
                                 child: TextFormField(
                                   initialValue: field['name'],
                                   decoration: const InputDecoration(
-                                    hintText: "e.g., Enter Field Name",
+                                    hintText: "Field Name",
                                     border: InputBorder.none,
                                     contentPadding: EdgeInsets.symmetric(
                                       horizontal: 12,
@@ -2912,12 +2852,13 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                                 decoration: BoxDecoration(
                                   color: Colors.grey.shade100,
                                   borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: Colors.grey.shade300),
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
                                 ),
                                 child: TextFormField(
                                   initialValue: field['value'],
                                   decoration: const InputDecoration(
-                                    hintText: "Enter Correct Value",
+                                    hintText: "Enter Value",
                                     border: InputBorder.none,
                                     contentPadding: EdgeInsets.symmetric(
                                       horizontal: 12,
@@ -2968,15 +2909,15 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                       );
                     }),
                     const SizedBox(height: 16),
-                    const Text(
-                      "Additional Notes (Optional)",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text("Additional Notes (Optional)",
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87)),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.grey.shade100,
@@ -2987,7 +2928,8 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                         controller: _notesController,
                         maxLines: 3,
                         decoration: const InputDecoration(
-                          hintText: "Add any additional information or comments...",
+                          hintText:
+                              "Add any additional information or comments...",
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.all(12),
                         ),
@@ -3016,61 +2958,57 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildSubmitButton(),
+                  child: ElevatedButton(
+                    onPressed: _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Ink(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6C63FF).withOpacity(0.3),
+                            blurRadius: 10,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        alignment: Alignment.center,
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.send, size: 18, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text(
+                              "Submit Update",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubmitButton() {
-    return ElevatedButton(
-      onPressed: _submit,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        padding: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      child: Ink(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF6C63FF).withOpacity(0.3),
-              blurRadius: 10,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          alignment: Alignment.center,
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.send, size: 18, color: Colors.white),
-              SizedBox(width: 8),
-              Text(
-                "Submit Update",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

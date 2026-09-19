@@ -1,5 +1,8 @@
-# app/modules/user/routes.py - COMPLETE FIXED VERSION WITH MIME TYPE CHECKING
+# app/modules/user/routes.py - COMPLETE FIXED VERSION
+# ✅ FIXED: /full-profile now accepts optional email param for admin viewing candidate
+# ✅ FIXED: Null/empty/deleted documents are STRIPPED from response (never returned to frontend)
 # ✅ Added: DELETE /education/{id}  ✅ Added: DELETE /experience/{id}
+# ✅ All original functionality preserved
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, BackgroundTasks, UploadFile, File, Form
 from typing import Optional, List, Dict, Any
@@ -24,6 +27,133 @@ async def get_profile_service(db=Depends(get_db)):
     return ProfileService(db)
 
 
+# ================= ✅ DOCUMENT CLEANING HELPERS =================
+# These helpers ensure that null / empty / deleted documents
+# are NEVER returned to the frontend.
+
+# Every document key that should exist in a user profile
+DOCUMENT_KEYS = {
+    "profile_photo_url", "aadhaar_front", "aadhaar_back", "aadhaar_url",
+    "pan_url", "passport_url", "voter_id_url", "driving_license_url",
+    "ration_card", "npr_card",
+    "tenth_marksheet", "tenth_certificate", "twelfth_marksheet", "twelfth_certificate",
+    "diploma_certificate", "diploma_marksheet",
+    "graduation_degree", "graduation_marksheet",
+    "post_graduation_degree", "post_graduation_marksheet",
+    "phd_certificate", "phd_thesis",
+    "iti_certificate", "vocational_certificate", "skill_development_certificate",
+    "resume_url", "experience_certificate", "experience_letter_url",
+    "previous_employment_proof", "service_certificate", "offer_letter_url",
+    "appointment_letter", "salary_slip_url", "salary_certificate",
+    "relieving_letter", "promotion_letter", "increment_letter",
+    "training_certificate", "internship_certificate", "apprenticeship_certificate",
+    "caste_certificate_general", "caste_certificate_obc", "caste_certificate_sc",
+    "caste_certificate_st", "caste_certificate_url",
+    "ews_certificate", "non_creamy_layer", "caste_validity",
+    "disability_certificate_url", "medical_certificate_physical",
+    "hearing_disability", "visual_disability", "learning_disability",
+    "mental_disability", "multiple_disability", "disability_id_card",
+    "income_certificate_url", "income_tax_return", "form_16",
+    "bank_statement", "pension_certificate", "fd_certificate",
+    "domicile_certificate", "residence_certificate",
+    "electricity_bill", "water_bill", "gas_bill",
+    "rent_agreement", "property_document",
+    "birth_certificate", "marriage_certificate", "family_member_id",
+    "dependent_certificate", "family_pension", "survivor_certificate",
+    "job_seeker_registration", "employment_exchange_card", "ncs_id",
+    "nrega_card", "pmay_certificate", "pmjjby_certificate",
+    "pmsby_certificate", "apy_enrollment",
+    "professional_certification", "skill_certificate", "computer_certificate",
+    "language_certificate", "soft_skills_certificate", "leadership_certificate",
+    "project_management_certificate", "digital_marketing_certificate",
+    "data_science_certificate", "cloud_computing_certificate", "cybersecurity_certificate",
+    "gap_certificate", "skip_certificate", "skip_year_certificate",
+    "education_gap_certificate", "character_certificate", "migration_certificate",
+    "transfer_certificate", "bonafide_certificate", "conduct_certificate",
+    "medical_fitness_certificate", "antecedent_certificate",
+    "noc_certificate", "other_document_url",
+}
+
+# Values that should NEVER be treated as a valid document URL
+INVALID_DOC_VALUES = {
+    None, "", "null", "undefined", "n/a", "na", "-", "none",
+    "false", "true", "0", "not found", "notfound", "not_found",
+    "deleted", "removed", "empty", "{}", "[]"
+}
+
+
+def _is_valid_doc_url(value: Any) -> bool:
+    """Strict validator — same rules as frontend."""
+    if value is None:
+        return False
+
+    # Reject empty dicts / lists
+    if isinstance(value, (dict, list)) and len(value) == 0:
+        return False
+
+    s = str(value).strip()
+    if not s:
+        return False
+
+    lower = s.lower()
+
+    if lower in INVALID_DOC_VALUES:
+        return False
+
+    if not (
+        s.startswith("http://")
+        or s.startswith("https://")
+        or s.startswith("file:")
+        or s.startswith("blob:")
+    ):
+        return False
+
+    if len(s) < 12:
+        return False
+
+    # Reject placeholder URLs
+    for placeholder in ("not-found", "notfound", "placeholder",
+                        "example.com/dummy", "undefined"):
+        if placeholder in lower:
+            return False
+
+    return True
+
+
+def _clean_documents_in_profile(profile: dict) -> dict:
+    """
+    Remove every null / empty / deleted document URL from profile
+    BEFORE returning it to the frontend.
+
+    Also removes stale keys that no longer map to valid URLs.
+    """
+    if not profile or not isinstance(profile, dict):
+        return profile
+
+    # ---------- Top-level document keys ----------
+    for key in DOCUMENT_KEYS:
+        if key in profile:
+            if not _is_valid_doc_url(profile[key]):
+                # Delete invalid URL completely
+                del profile[key]
+
+    # ---------- additional_details.* document keys ----------
+    additional = profile.get("additional_details")
+    if isinstance(additional, dict):
+        # Iterate over a copy so we can safely delete
+        for key in list(additional.keys()):
+            # Only strip keys that look like document keys
+            if key in DOCUMENT_KEYS or key.endswith("_url") or key.endswith("_certificate"):
+                if not _is_valid_doc_url(additional[key]):
+                    del additional[key]
+
+        # If additional_details becomes empty, keep it as {} — frontend handles it
+        if not additional:
+            profile["additional_details"] = {}
+
+    return profile
+
+
 # ================= CONTACT DETAILS =================
 @router.get("/contact-details")
 async def get_contact_details(
@@ -46,17 +176,77 @@ async def get_contact_details(
     }
 
 
-# ================= FULL PROFILE =================
+# ================= ✅ FULL PROFILE (FIXED — accepts email param for admins) =================
 @router.get("/full-profile")
 async def get_full_profile(
+    email: Optional[str] = Query(
+        None,
+        description="(Admin only) Fetch profile of another user by email"
+    ),
     service: ProfileService = Depends(get_profile_service),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db)
 ):
-    """Get complete user profile with all fields"""
-    email = current_user.get("email")
-    if not email:
+    """
+    Get complete user profile with all fields.
+
+    - Normal user → returns own profile (email param ignored).
+    - Admin / CustomAdmin / SuperAdmin → if `email` param is given,
+      returns THAT user's profile instead.
+    """
+    caller_email = current_user.get("email")
+    caller_role = (current_user.get("role") or "").lower()
+
+    if not caller_email:
         raise HTTPException(status_code=400, detail="User email not found")
-    return await service.get_full_profile(email)
+
+    # Decide which profile to return
+    target_email = caller_email
+
+    if email and email.strip() and email.strip().lower() != caller_email.lower():
+        # Someone is requesting another user's profile
+        admin_roles = {"admin", "customadmin", "custom_admin", "superadmin"}
+        if caller_role not in admin_roles:
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied. Only admins can view other users' profiles."
+            )
+        target_email = email.strip()
+
+    # Fetch the profile
+    result = await service.get_full_profile(target_email)
+
+    # ✅ STRIP all null / deleted / empty documents before returning
+    if isinstance(result, dict):
+        # Some services wrap in {"data": {...}} — handle both
+        if "data" in result and isinstance(result["data"], dict):
+            result["data"] = _clean_documents_in_profile(result["data"])
+        else:
+            result = _clean_documents_in_profile(result)
+
+        # Also pull from DB and merge in case ProfileService strips documents
+        raw = await db.profile.find_one({"email": target_email}) or {}
+        cleaned_raw = _clean_documents_in_profile(dict(raw))
+
+        # Expose cleaned additional_details explicitly so frontend always finds it
+        if isinstance(result, dict):
+            if "data" in result and isinstance(result["data"], dict):
+                result["data"]["additional_details"] = cleaned_raw.get(
+                    "additional_details", {}
+                )
+                # Also mirror top-level document keys
+                for k in DOCUMENT_KEYS:
+                    if k in cleaned_raw:
+                        result["data"][k] = cleaned_raw[k]
+            else:
+                result["additional_details"] = cleaned_raw.get(
+                    "additional_details", {}
+                )
+                for k in DOCUMENT_KEYS:
+                    if k in cleaned_raw:
+                        result[k] = cleaned_raw[k]
+
+    return result
 
 
 @router.post("/full-profile")
@@ -609,7 +799,7 @@ async def update_education(
     return await service.update_education(email, qual_id, qualification)
 
 
-# ✅ NEW: DELETE education record
+# ✅ DELETE education record
 @router.delete("/education/{qual_id}")
 async def delete_education(
     qual_id: str,
@@ -667,7 +857,7 @@ async def update_experience(
     return await service.update_experience(email, exp_id, experience)
 
 
-# ✅ NEW: DELETE experience record
+# ✅ DELETE experience record
 @router.delete("/experience/{exp_id}")
 async def delete_experience(
     exp_id: str,
@@ -1394,6 +1584,7 @@ async def get_user_profile_by_email(
     """
     Get any user's profile by email - For Admin/CustomAdmin only
     This endpoint allows admin/customadmin to view candidate profiles
+    ✅ Null / deleted documents are STRIPPED before returning.
     """
     # Check if user has admin access
     user_role = current_user.get("role", "").lower()
@@ -1427,6 +1618,9 @@ async def get_user_profile_by_email(
 
     # Ensure all fields exist with defaults
     profile = _ensure_profile_defaults(profile)
+
+    # ✅ STRIP all null / deleted / empty documents
+    profile = _clean_documents_in_profile(profile)
 
     return {
         "success": True,
@@ -1521,7 +1715,7 @@ def _ensure_profile_defaults(profile: dict) -> dict:
     return profile
 
 
-# ==================== DOCUMENT MANAGEMENT ENDPOINTS (FIXED) ====================
+# ==================== DOCUMENT MANAGEMENT ENDPOINTS ====================
 
 # Allowed MIME types for document uploads
 ALLOWED_MIME_TYPES = {
@@ -1568,7 +1762,7 @@ async def upload_user_document_endpoint(
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="Document file is required")
 
-    # ✅ FIXED: Check by MIME type first (more reliable)
+    # Check by MIME type first (more reliable)
     content_type = file.content_type
     file_ext = file.filename.split('.')[-1].lower() if file.filename else ''
 
@@ -1714,7 +1908,9 @@ async def delete_document(
     db=Depends(get_db)
 ):
     """
-    Delete document URL from profile (remove reference)
+    Delete document URL from profile (remove reference completely).
+    Uses $unset so the key is REMOVED from MongoDB — not set to null.
+    Also removes the file from Cloudinary for full cleanup.
     """
     email = current_user.get("email")
     if not email:
@@ -1725,11 +1921,61 @@ async def delete_document(
     if not document_key:
         raise HTTPException(status_code=400, detail="Document key is required")
 
-    # Remove the document URL from profile
+    # Fetch existing URL & public_id first (for Cloudinary cleanup)
+    profile = await db.profile.find_one({"email": email})
+    additional = (profile or {}).get("additional_details", {}) or {}
+    old_url = additional.get(document_key) or (profile or {}).get(document_key)
+    old_public_id = additional.get(f"{document_key}_public_id")
+
+    # Try deleting from Cloudinary (best-effort)
+    if old_public_id or old_url:
+        try:
+            from app.core.services.cloudinary import delete_from_cloudinary
+
+            public_id = old_public_id
+            resource_type = "raw"
+
+            if not public_id and old_url:
+                # Try to infer public_id from URL
+                # Cloudinary URLs look like:
+                # https://res.cloudinary.com/xxx/raw/upload/v123/folder/file.pdf
+                try:
+                    parts = old_url.split("/upload/")
+                    if len(parts) == 2:
+                        tail = parts[1]
+                        # Remove version prefix v1234/
+                        if tail.startswith("v"):
+                            slash = tail.find("/")
+                            if slash != -1:
+                                tail = tail[slash + 1:]
+                        # Remove extension for raw
+                        if tail.endswith(".pdf"):
+                            tail = tail[:-4]
+                        public_id = tail
+
+                    if "/image/upload/" in old_url:
+                        resource_type = "image"
+                except Exception as infer_err:
+                    logger.warning(f"Could not infer Cloudinary public_id: {infer_err}")
+
+            if public_id:
+                await delete_from_cloudinary(public_id, resource_type=resource_type)
+                logger.info(f"🗑️ Deleted Cloudinary file: {public_id} ({resource_type})")
+        except Exception as e:
+            logger.warning(f"Cloudinary delete skipped: {e}")
+
+    # ✅ $unset — this REMOVES the key from MongoDB
+    # Deleted documents will NEVER appear in subsequent API responses
+    unset_fields = {
+        f"additional_details.{document_key}": "",
+        f"additional_details.{document_key}_public_id": "",
+        document_key: "",
+    }
+
     result = await db.profile.update_one(
         {"email": email},
         {
-            "$unset": {f"additional_details.{document_key}": ""},
+            "$unset": unset_fields,
             "$set": {"updated_at": datetime.utcnow()}
         }
     )
@@ -1747,7 +1993,8 @@ async def get_user_documents(
     db=Depends(get_db)
 ):
     """
-    Get all documents for the current user
+    Get all documents for the current user.
+    ✅ Null / deleted documents are automatically stripped.
     """
     email = current_user.get("email")
     if not email:
@@ -1758,29 +2005,24 @@ async def get_user_documents(
     if not profile:
         return {"success": True, "documents": {}}
 
+    # ✅ Strip null/deleted docs before returning
+    profile = _clean_documents_in_profile(dict(profile))
+
     # Extract all document URLs from additional_details
-    additional = profile.get("additional_details", {})
+    additional = profile.get("additional_details", {}) or {}
 
-    # Document keys to look for
-    document_keys = [
-        'resume_url', 'profile_photo_url', 'aadhaar_url', 'pan_url',
-        'passport_url', 'driving_license_url', 'voter_id_url',
-        'degree_certificate_url', 'experience_letter_url', 'salary_slip_url',
-        'offer_letter_url', 'disability_certificate_url', 'caste_certificate_url',
-        'income_certificate_url', 'other_document_url'
-    ]
-
+    # Every document key we care about
     documents = {}
-    for key in document_keys:
-        if key in additional and additional[key]:
-            documents[key] = additional[key]
-        elif key in profile and profile[key]:
-            documents[key] = profile[key]
+    for key in DOCUMENT_KEYS:
+        val = additional.get(key) or profile.get(key)
+        if _is_valid_doc_url(val):
+            documents[key] = val
 
     return {
         "success": True,
         "documents": documents
     }
+
 
 @router.get("/user-documents-by-email")
 async def get_user_documents_by_email(
@@ -1790,6 +2032,7 @@ async def get_user_documents_by_email(
 ):
     """
     Get ALL documents of a user by email - for admin/customadmin.
+    ✅ Null / deleted documents are automatically stripped.
     Returns { 'documents': { key: url } }
     """
     user_role = current_user.get("role", "").lower()
@@ -1805,24 +2048,21 @@ async def get_user_documents_by_email(
             raise HTTPException(status_code=404, detail="User not found")
         return {"success": True, "documents": {}}
 
+    # ✅ Strip null/deleted docs before returning
+    profile = _clean_documents_in_profile(dict(profile))
+
     additional = profile.get("additional_details", {}) or {}
 
-    doc_keys = [
-        "resume_url", "profile_photo_url", "aadhaar_url", "pan_url",
-        "passport_url", "driving_license_url", "voter_id_url",
-        "degree_certificate_url", "experience_letter_url",
-        "salary_slip_url", "offer_letter_url",
-        "disability_certificate_url", "caste_certificate_url",
-        "income_certificate_url", "other_document_url",
-    ]
-
     documents = {}
-    for key in doc_keys:
+    for key in DOCUMENT_KEYS:
         val = additional.get(key) or profile.get(key)
-        if val:
+        if _is_valid_doc_url(val):
             documents[key] = val
 
     return {"success": True, "documents": documents}
 
+
 # ================= END OF FILE =================
 print("✅ User routes loaded with Ultra AI features + DELETE education/experience")
+print("✅ /full-profile now accepts optional email param for admin viewing candidate")
+print("✅ Null / deleted documents are STRIPPED from every response")

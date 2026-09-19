@@ -4,6 +4,7 @@
 // ✅ AI-Based Modern Design
 // ✅ Documents section — only app-attached docs, with View buttons
 // ✅ Submitted Information — clean field rows, nested maps expanded
+// ✅ FIXED: Deleted documents (null / "null" / "" / undefined) are STRICTLY filtered out
 
 import 'dart:convert';
 import 'dart:typed_data';
@@ -80,6 +81,41 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   ];
 
   String _selectedFilter = 'all';
+
+  // ====================================================================
+  // ✅ NEW HELPER: STRICT document URL validator
+  // Filters out: null, "", "null", "undefined", "-", "n/a",
+  // and any non-URL garbage. Only real http(s)/file/blob URLs pass.
+  // ====================================================================
+  bool _isValidDocUrl(dynamic value) {
+    if (value == null) return false;
+
+    final str = value.toString().trim();
+    if (str.isEmpty) return false;
+
+    final lower = str.toLowerCase();
+    if (lower == 'null' ||
+        lower == 'undefined' ||
+        lower == 'n/a' ||
+        lower == 'na' ||
+        lower == '-' ||
+        lower == 'none' ||
+        lower == 'false' ||
+        lower == '0') {
+      return false;
+    }
+
+    if (!str.startsWith('http://') &&
+        !str.startsWith('https://') &&
+        !str.startsWith('file:') &&
+        !str.startsWith('blob:')) {
+      return false;
+    }
+
+    if (str.length < 12) return false;
+
+    return true;
+  }
 
   // ==================== LIFECYCLE ====================
   @override
@@ -797,16 +833,22 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
 
   void _viewAcknowledgmentReceipt() {
     final app = _selectedApplication!;
-    final documentUrl =
-        app['submitted_document_url'] ?? app['final_document_url'];
+    // ✅ FIXED: strict validator
+    final documentUrl = _isValidDocUrl(app['submitted_document_url'])
+        ? app['submitted_document_url']
+        : _isValidDocUrl(app['final_document_url'])
+            ? app['final_document_url']
+            : null;
+
     final documentName = app['submitted_document_name'] ??
         app['final_document_name'] ??
         'Service Document';
-    if (documentUrl == null || documentUrl.isEmpty) {
+
+    if (documentUrl == null || documentUrl.toString().isEmpty) {
       showMessage(context, "No document available.", isError: true);
       return;
     }
-    _showFileDialog(documentUrl, documentName);
+    _showFileDialog(documentUrl.toString(), documentName);
   }
 
   void _showFileDialog(String url, String title) {
@@ -892,78 +934,89 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
 
   // ====================================================================
   // ✅ "Uploaded Documents" section — only application-attached docs
+  // ✅ FIXED: strict filter — deleted docs NEVER show
   // ====================================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> allDocs = [];
 
     final submittedUrl = app['submitted_document_url'];
-    if (submittedUrl != null &&
-        submittedUrl.toString().isNotEmpty &&
-        submittedUrl.toString() != 'null') {
-      allDocs.add({
-        'key': 'submitted_document_url',
-        'label': app['submitted_document_name']?.toString() ??
-            'Submitted Document (Review)',
-        'url': submittedUrl.toString(),
-        'download_url': app['submitted_document_download_url'],
-        'source': 'application',
-        'is_application_doc': true,
-      });
+    // ✅ FIXED
+    if (_isValidDocUrl(submittedUrl)) {
+      final urlStr = submittedUrl.toString().trim();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'submitted_document_url',
+          'label': app['submitted_document_name']?.toString() ??
+              'Submitted Document (Review)',
+          'url': urlStr,
+          'download_url': app['submitted_document_download_url'],
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
     }
 
     final finalUrl = app['final_document_url'];
-    if (finalUrl != null &&
-        finalUrl.toString().isNotEmpty &&
-        finalUrl.toString() != 'null') {
-      allDocs.add({
-        'key': 'final_document_url',
-        'label': app['final_document_name']?.toString() ??
-            'Final Submitted Document',
-        'url': finalUrl.toString(),
-        'download_url': app['final_document_download_url'],
-        'source': 'application',
-        'is_application_doc': true,
-      });
+    // ✅ FIXED
+    if (_isValidDocUrl(finalUrl)) {
+      final urlStr = finalUrl.toString().trim();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'final_document_url',
+          'label': app['final_document_name']?.toString() ??
+              'Final Submitted Document',
+          'url': urlStr,
+          'download_url': app['final_document_download_url'],
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
     }
 
     final receiptUrl = app['payment_receipt_url'];
-    if (receiptUrl != null &&
-        receiptUrl.toString().isNotEmpty &&
-        receiptUrl.toString() != 'null') {
-      allDocs.add({
-        'key': 'payment_receipt_url',
-        'label': 'Payment Receipt',
-        'url': receiptUrl.toString(),
-        'download_url': app['payment_receipt_download_url'],
-        'source': 'application',
-        'is_application_doc': true,
-      });
+    // ✅ FIXED
+    if (_isValidDocUrl(receiptUrl)) {
+      final urlStr = receiptUrl.toString().trim();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'payment_receipt_url',
+          'label': 'Payment Receipt',
+          'url': urlStr,
+          'download_url': app['payment_receipt_download_url'],
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
     }
 
     final screenshotUrl = app['screenshot_url'];
-    if (screenshotUrl != null &&
-        screenshotUrl.toString().isNotEmpty &&
-        screenshotUrl.toString() != 'null') {
-      allDocs.add({
-        'key': 'screenshot_url',
-        'label': 'Payment Screenshot',
-        'url': screenshotUrl.toString(),
-        'source': 'application',
-        'is_application_doc': true,
-      });
+    // ✅ FIXED
+    if (_isValidDocUrl(screenshotUrl)) {
+      final urlStr = screenshotUrl.toString().trim();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'screenshot_url',
+          'label': 'Payment Screenshot',
+          'url': urlStr,
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
     }
 
     final docUrl = app['document_url'];
-    if (docUrl != null &&
-        docUrl.toString().isNotEmpty &&
-        docUrl.toString() != 'null') {
-      allDocs.add({
-        'key': 'document_url',
-        'label': 'Uploaded Document',
-        'url': docUrl.toString(),
-        'source': 'application',
-        'is_application_doc': true,
-      });
+    // ✅ FIXED
+    if (_isValidDocUrl(docUrl)) {
+      final urlStr = docUrl.toString().trim();
+      if (!allDocs.any((d) => d['url'] == urlStr)) {
+        allDocs.add({
+          'key': 'document_url',
+          'label': 'Uploaded Document',
+          'url': urlStr,
+          'source': 'application',
+          'is_application_doc': true,
+        });
+      }
     }
 
     if (allDocs.isEmpty) return const SizedBox();
@@ -1684,17 +1737,11 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     final appliedDate = _formatDate(app['applied_at'] ?? app['created_at']);
     final paymentStatus = app['payment_status'] ?? 'pending';
     final amount = app['amount'] ?? app['payment_amount'];
-    final hasScreenshot = app['screenshot_url'] != null &&
-        app['screenshot_url'].toString().isNotEmpty;
-    final hasDocument = app['document_url'] != null &&
-        app['document_url'].toString().isNotEmpty;
+    final hasScreenshot = _isValidDocUrl(app['screenshot_url']);
+    final hasDocument = _isValidDocUrl(app['document_url']);
 
-    final hasSubmittedDocument = app['submitted_document_url'] != null &&
-        app['submitted_document_url'].toString().isNotEmpty &&
-        app['submitted_document_url'] != 'null';
-    final hasFinalDocument = app['final_document_url'] != null &&
-        app['final_document_url'].toString().isNotEmpty &&
-        app['final_document_url'] != 'null';
+    final hasSubmittedDocument = _isValidDocUrl(app['submitted_document_url']);
+    final hasFinalDocument = _isValidDocUrl(app['final_document_url']);
     final hasReceipt = hasSubmittedDocument || hasFinalDocument;
 
     return GestureDetector(
@@ -1962,18 +2009,12 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     final userName = app['user_name'] ?? 'Unknown';
     final userEmail = app['user_email'] ?? 'N/A';
     final appliedDate = _formatDate(app['applied_at'] ?? app['created_at']);
-    final hasDocument = app['document_url'] != null &&
-        app['document_url'].toString().isNotEmpty;
-    final hasScreenshot = app['screenshot_url'] != null &&
-        app['screenshot_url'].toString().isNotEmpty;
+    final hasDocument = _isValidDocUrl(app['document_url']);
+    final hasScreenshot = _isValidDocUrl(app['screenshot_url']);
     final fields = app['fields'] as Map<String, dynamic>? ?? {};
 
-    final hasSubmittedDocument = app['submitted_document_url'] != null &&
-        app['submitted_document_url'].toString().isNotEmpty &&
-        app['submitted_document_url'] != 'null';
-    final hasFinalDocument = app['final_document_url'] != null &&
-        app['final_document_url'].toString().isNotEmpty &&
-        app['final_document_url'] != 'null';
+    final hasSubmittedDocument = _isValidDocUrl(app['submitted_document_url']);
+    final hasFinalDocument = _isValidDocUrl(app['final_document_url']);
     final hasAnyDocument = hasSubmittedDocument || hasFinalDocument;
 
     return Scaffold(
@@ -2572,7 +2613,8 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   }
 
   // ====================================================================
-  // ✅ FIELDS CARD — clean key/value rows + document view buttons
+  // ✅ FIELDS CARD — clean field rows + document view buttons
+  // ✅ FIXED: uses _isValidDocUrl for strict filtering
   // ====================================================================
   Widget _buildFieldsCard(Map<String, dynamic> fields) {
     if (fields.isEmpty) return const SizedBox();
@@ -2586,18 +2628,14 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
         return;
       }
 
-      // Expand nested maps / stringified maps into individual rows
       final entries = _expandFieldValue(value);
 
       if (entries.length == 1 && entries.first['key'].toString().isEmpty) {
-        // simple value
         flatFields.add({
           'key': key,
           'value': entries.first['value'],
         });
       } else {
-        // grouped values (e.g. pan_number, aadhar_number)
-        // Show a nice header row for the group, then each child
         flatFields.add({
           'key': key,
           'value': null,
@@ -2614,7 +2652,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
         children: [
           _sectionHeader("Submitted Information", Icons.description_outlined),
 
-          // ---- Normal info rows ----
           ...flatFields.map((f) {
             if (f['group'] != null) {
               return _buildFieldGroupBlock(
@@ -2624,7 +2661,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
                 f['key'].toString(), f['value']?.toString() ?? '');
           }),
 
-          // ---- Documents sub-section ----
           if (documentEntries.isNotEmpty) ...[
             if (flatFields.isNotEmpty) const SizedBox(height: 12),
             const Divider(height: 20),
@@ -2681,7 +2717,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     );
   }
 
-  // ---- Single field row (label + value) ----
   Widget _buildFieldInfoRow(String key, String value) {
     final label = _prettyFieldLabel(key);
     return Container(
@@ -2738,7 +2773,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     );
   }
 
-  // ---- Group block (header + children) ----
   Widget _buildFieldGroupBlock(String groupKey, List<Map<String, String>> items) {
     final label = _prettyFieldLabel(groupKey);
     return Container(
@@ -2841,12 +2875,10 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     );
   }
 
-  // ---- Expand nested Map / stringified Map into rows ----
   List<Map<String, String>> _expandFieldValue(dynamic value) {
     final result = <Map<String, String>>[];
     if (value == null) return result;
 
-    // Plain Map
     if (value is Map) {
       value.forEach((k, v) {
         result.add({
@@ -2857,7 +2889,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       return result;
     }
 
-    // List
     if (value is List) {
       for (final item in value) {
         if (item is Map) {
@@ -2876,11 +2907,9 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       return result;
     }
 
-    // Stringified Map like "{pan_number: 1651651, aadhar_number: 156165156}"
     final str = value.toString().trim();
     if (str.startsWith('{') && str.endsWith('}') && str.contains(': ')) {
       try {
-        // Try JSON decode first
         final decoded = jsonDecode(str);
         if (decoded is Map) {
           decoded.forEach((k, v) {
@@ -2888,12 +2917,9 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
           });
           return result;
         }
-      } catch (_) {
-        // not JSON — manual split
-      }
+      } catch (_) {}
 
       final inner = str.substring(1, str.length - 1);
-      // split on ", " but only outside of URLs — URLs contain "://", not ", "
       final parts = inner.split(', ');
       for (final part in parts) {
         final idx = part.indexOf(': ');
@@ -2908,7 +2934,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       return result;
     }
 
-    // Fallback: single value
     result.add({'key': '', 'value': str});
     return result;
   }
@@ -2924,7 +2949,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
         .join(' ');
   }
 
-  // ==================== DETECT DOCUMENT FIELD ====================
   bool _isDocumentField(String key, dynamic value) {
     if (value == null) return false;
 
@@ -2962,18 +2986,24 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     return false;
   }
 
-  // ==================== PARSE DOCUMENT ENTRIES ====================
+  // ====================================================================
+  // ✅ PARSE DOCUMENT ENTRIES — STRICT filtering
+  // ====================================================================
   List<Map<String, dynamic>> _parseDocumentEntries(dynamic value) {
     final docs = <Map<String, dynamic>>[];
     if (value == null) return docs;
 
     if (value is Map) {
       value.forEach((k, v) {
-        if (v != null && v.toString().trim().isNotEmpty) {
-          docs.add({
-            'name': _prettyDocName(k.toString()),
-            'url': v.toString().trim(),
-          });
+        // ✅ FIXED: strict validator
+        if (_isValidDocUrl(v)) {
+          final urlStr = v.toString().trim();
+          if (!docs.any((d) => d['url'] == urlStr)) {
+            docs.add({
+              'name': _prettyDocName(k.toString()),
+              'url': urlStr,
+            });
+          }
         }
       });
       return docs;
@@ -2990,13 +3020,17 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
               item['doc_name']?.toString() ??
               item['label']?.toString() ??
               'Document';
-          if (url.isNotEmpty) {
-            docs.add({'name': _prettyDocName(name), 'url': url});
+          // ✅ FIXED: strict validator
+          if (_isValidDocUrl(url)) {
+            final urlStr = url.trim();
+            if (!docs.any((d) => d['url'] == urlStr)) {
+              docs.add({'name': _prettyDocName(name), 'url': urlStr});
+            }
           }
-        } else if (item is String && item.contains('http')) {
+        } else if (item is String && _isValidDocUrl(item)) {
           docs.add({
             'name': _prettyDocName(_extractNameFromUrl(item)),
-            'url': item,
+            'url': item.trim(),
           });
         }
       }
@@ -3010,11 +3044,15 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       final decoded = jsonDecode(str);
       if (decoded is Map) {
         decoded.forEach((k, v) {
-          if (v != null && v.toString().trim().isNotEmpty) {
-            docs.add({
-              'name': _prettyDocName(k.toString()),
-              'url': v.toString().trim(),
-            });
+          // ✅ FIXED: strict validator
+          if (_isValidDocUrl(v)) {
+            final urlStr = v.toString().trim();
+            if (!docs.any((d) => d['url'] == urlStr)) {
+              docs.add({
+                'name': _prettyDocName(k.toString()),
+                'url': urlStr,
+              });
+            }
           }
         });
         return docs;
@@ -3034,14 +3072,20 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       if (idx > 0) {
         final name = trimmed.substring(0, idx).trim();
         final url = trimmed.substring(idx + 2).trim();
-        if (name.isNotEmpty && url.isNotEmpty) {
-          docs.add({'name': _prettyDocName(name), 'url': url});
+        // ✅ FIXED: strict validator
+        if (name.isNotEmpty && _isValidDocUrl(url)) {
+          if (!docs.any((d) => d['url'] == url)) {
+            docs.add({'name': _prettyDocName(name), 'url': url});
+          }
         }
       } else if (trimmed.contains('http')) {
-        docs.add({
-          'name': _prettyDocName(_extractNameFromUrl(trimmed)),
-          'url': trimmed,
-        });
+        // ✅ FIXED: strict validator
+        if (_isValidDocUrl(trimmed)) {
+          docs.add({
+            'name': _prettyDocName(_extractNameFromUrl(trimmed)),
+            'url': trimmed,
+          });
+        }
       }
     }
     return docs;

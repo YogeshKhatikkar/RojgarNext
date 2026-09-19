@@ -1,4 +1,5 @@
-# app/modules/services/service.py - UPDATED FOR UNIFIED APPLICATIONS
+# app/modules/services/service.py - COMPLETE UPDATED VERSION
+# ✅ FIXED: Payment status now returns clear fields for frontend
 # ✅ Uses unified 'applications' collection with application_type='service'
 
 from fastapi import HTTPException, BackgroundTasks
@@ -33,17 +34,119 @@ class ServiceService:
     
     def __init__(self, db):
         self.db = db
-        self.applications = db.applications  # ✅ Unified collection
+        self.applications = db.applications
         self.auth = db.auth
         self.profile = db.profile
         self.notifications = db.notifications
     
     async def _get_db(self):
-        """Get database instance"""
         return self.db
-    
+
+    # ============================================================
+    # ✅ NEW HELPER: Enrich application with clear payment fields
+    # ============================================================
+    def _enrich_application_for_frontend(self, app: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Normalize & add clear status fields so frontend NEVER confuses
+        payment_verification_status with application status.
+        """
+        if not app:
+            return app
+
+        # ---- Read raw fields safely ----
+        raw_payment_status = (app.get("payment_verification_status") or "not_submitted")
+        raw_payment_status = str(raw_payment_status).strip().lower()
+        raw_app_status = str(app.get("status") or "payment_pending").strip().lower()
+
+        # ---- Normalize payment verification status ----
+        if raw_payment_status in ("approved", "verified", "success", "completed"):
+            normalized_payment = "approved"
+            is_verified = True
+            is_pending = False
+            is_rejected = False
+        elif raw_payment_status in ("pending", "pending_verification", "under_review"):
+            normalized_payment = "pending"
+            is_verified = False
+            is_pending = True
+            is_rejected = False
+        elif raw_payment_status in ("rejected", "failed", "declined"):
+            normalized_payment = "rejected"
+            is_verified = False
+            is_pending = False
+            is_rejected = True
+        else:
+            normalized_payment = "not_submitted"
+            is_verified = False
+            is_pending = False
+            is_rejected = False
+
+        app["payment_verification_status"] = normalized_payment
+
+        # ---- Add clear boolean flags ----
+        app["is_payment_verified"] = is_verified
+        app["is_payment_pending"] = is_pending
+        app["is_payment_rejected"] = is_rejected
+        app["is_payment_not_submitted"] = (normalized_payment == "not_submitted")
+
+        # ---- Add human-readable display status ----
+        if is_verified:
+            display_status = "Payment Verified"
+            display_status_key = "verified"
+            display_color = "green"
+        elif is_rejected:
+            display_status = "Payment Rejected"
+            display_status_key = "rejected"
+            display_color = "red"
+        elif is_pending:
+            display_status = "Payment Pending Verification"
+            display_status_key = "pending"
+            display_color = "orange"
+        else:
+            # Fall back to application status
+            display_status = raw_app_status.replace("_", " ").title()
+            display_status_key = raw_app_status
+            display_color = "grey"
+
+        app["display_status"] = display_status
+        app["display_status_key"] = display_status_key
+        app["display_status_color"] = display_color
+
+        # ---- Ensure status field exists ----
+        if "status" not in app or not app["status"]:
+            app["status"] = "payment_pending"
+
+        # ---- Timestamp formatting ----
+        for ts_field in ("payment_verified_at", "paid_at", "updated_at", "created_at",
+                         "applied_at", "submitted_at", "final_submitted_at",
+                         "transaction_date"):
+            if app.get(ts_field) and isinstance(app[ts_field], datetime):
+                app[ts_field] = app[ts_field].isoformat()
+
+        # ---- Ensure payment receipt URL is present ----
+        if not app.get("payment_receipt_url"):
+            app["payment_receipt_url"] = app.get("screenshot_url")
+
+        # ---- Ensure application_type ----
+        app["application_type"] = "service"
+
+        return app
+
+    # ============================================================
+    # ✅ Helper: Return raw application by ID (no permission check)
+    # ============================================================
+    async def get_application_by_id(self, application_id: str) -> Optional[Dict[str, Any]]:
+        """Fetch raw application from DB by ID (service type only)"""
+        if not ObjectId.is_valid(application_id):
+            return None
+        return await self.applications.find_one({
+            "_id": ObjectId(application_id),
+            "application_type": "service"
+        })
+
+    # ============================================================
+    # Service display helper
+    # ============================================================
     def _get_service_display_details(self, service_id: str, sub_type_id: str) -> Dict[str, str]:
-        """Get display details for service"""
         service_names = {
             "pan": "PAN Card",
             "aadhar": "Aadhaar",
@@ -59,32 +162,23 @@ class ServiceService:
             "bonafide": "Bonafide Certificate",
             "gap_certificate": "Gap Certificate",
         }
-        
         service_icons = {
-            "pan": "🪪",
-            "aadhar": "🪪",
-            "epf": "🏦",
-            "passport": "🛂",
-            "driving_license": "🚗",
-            "voter_id": "🗳️",
-            "ration_card": "🪪",
-            "income_certificate": "💵",
-            "caste_certificate": "📜",
-            "domicile": "🏠",
-            "disability": "♿",
-            "bonafide": "📄",
+            "pan": "🪪", "aadhar": "🪪", "epf": "🏦", "passport": "🛂",
+            "driving_license": "🚗", "voter_id": "🗳️", "ration_card": "🪪",
+            "income_certificate": "💵", "caste_certificate": "📜",
+            "domicile": "🏠", "disability": "♿", "bonafide": "📄",
             "gap_certificate": "⏳",
         }
-        
         return {
             "service_name": service_names.get(service_id, service_id),
             "service_icon": service_icons.get(service_id, "📄"),
             "sub_service_name": sub_type_id.replace("_", " ").title(),
             "sub_service_description": "",
         }
-    
-    # ==================== CREATE APPLICATION ====================
-    
+
+    # ============================================================
+    # CREATE APPLICATION
+    # ============================================================
     async def create_application(
         self,
         data: ServiceApplicationCreateSchema,
@@ -92,22 +186,20 @@ class ServiceService:
         user_name: str,
         user_id: str
     ) -> Dict[str, Any]:
-        """Create a new service application - uses unified collection"""
         try:
             profile = await self.profile.find_one({"email": user_email})
             user_category = profile.get("category", "General/UR") if profile else "General/UR"
-            
+
             disability = profile.get("disability", {}) if profile else {}
             is_disabled = disability.get("is_disabled", False) if isinstance(disability, dict) else False
-            
+
             fee = await self._calculate_service_fee(
                 service_type=data.service_type,
                 sub_type_id=data.service_sub_type,
                 user_category=user_category,
                 is_disabled=is_disabled
             )
-            
-            # ✅ CREATE UNIFIED APPLICATION with application_type='service'
+
             application = UnifiedApplicationModel(
                 application_type="service",
                 user_email=user_email,
@@ -128,11 +220,10 @@ class ServiceService:
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
-            
-            # ✅ Insert into unified applications collection
+
             result = await self.applications.insert_one(application.to_dict())
             application_id = str(result.inserted_id)
-            
+
             qr_response = None
             if fee > 0:
                 qr_response = await self._generate_payment_qr(
@@ -144,7 +235,7 @@ class ServiceService:
                     form_data=data.fields,
                     documents=data.documents
                 )
-                
+
                 await self.applications.update_one(
                     {"_id": ObjectId(application_id)},
                     {
@@ -160,7 +251,7 @@ class ServiceService:
                         }
                     }
                 )
-            
+
             return {
                 "success": True,
                 "application_id": application_id,
@@ -174,13 +265,14 @@ class ServiceService:
                 "status": "payment_pending",
                 "message": "Application created. Complete payment to submit."
             }
-            
+
         except Exception as e:
             module_logger.error(f"Failed to create service application: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to create application: {str(e)}")
 
-    # ==================== SUBMIT VERIFICATION ====================
-    
+    # ============================================================
+    # SUBMIT VERIFICATION
+    # ============================================================
     async def submit_verification(
         self,
         application_id: str,
@@ -190,24 +282,22 @@ class ServiceService:
         screenshot_public_id: str,
         user_email: str
     ) -> Dict[str, Any]:
-        """Submit verification - Application becomes active"""
         if not ObjectId.is_valid(application_id):
             raise HTTPException(status_code=400, detail="Invalid application ID")
-        
+
         application = await self.applications.find_one({
             "_id": ObjectId(application_id),
             "application_type": "service"
         })
         if not application:
             raise HTTPException(status_code=404, detail="Application not found")
-        
+
         if application.get("user_email") != user_email:
             raise HTTPException(status_code=403, detail="Unauthorized")
-        
+
         if application.get("payment_verification_status") == "pending":
             raise HTTPException(status_code=400, detail="Verification already submitted")
-        
-        # ✅ Update unified application
+
         update_data = {
             "transaction_id": transaction_id.strip(),
             "transaction_date": datetime.fromisoformat(transaction_date),
@@ -217,13 +307,12 @@ class ServiceService:
             "status": "pending_verification",
             "updated_at": datetime.utcnow()
         }
-        
+
         await self.applications.update_one(
             {"_id": ObjectId(application_id)},
             {"$set": update_data}
         )
-        
-        # Send notifications
+
         await central_notification.send_notification(
             user_ids=[user_email],
             notification_type="application_status",
@@ -240,7 +329,7 @@ class ServiceService:
             send_email=True,
             send_websocket=True
         )
-        
+
         await self._notify_admins(
             application_id=application_id,
             service_name=application.get("service_name"),
@@ -251,7 +340,7 @@ class ServiceService:
             transaction_id=transaction_id,
             action="verify"
         )
-        
+
         return {
             "success": True,
             "message": "Verification submitted. Application pending admin approval.",
@@ -260,8 +349,9 @@ class ServiceService:
             "status": "pending_verification"
         }
 
-    # ==================== VERIFY PAYMENT ====================
-    
+    # ============================================================
+    # VERIFY PAYMENT (ADMIN)
+    # ============================================================
     async def verify_payment(
         self,
         application_id: str,
@@ -269,17 +359,16 @@ class ServiceService:
         admin_email: str,
         notes: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Verify payment for a service application - updates unified collection"""
         if not ObjectId.is_valid(application_id):
             raise HTTPException(status_code=400, detail="Invalid application ID")
-        
+
         application = await self.applications.find_one({
             "_id": ObjectId(application_id),
             "application_type": "service"
         })
         if not application:
             raise HTTPException(status_code=404, detail="Application not found")
-        
+
         current_status = application.get("status")
         if current_status in ["approved", "rejected", "completed"]:
             return {
@@ -287,15 +376,14 @@ class ServiceService:
                 "message": f"Application already {current_status}",
                 "application_id": application_id
             }
-        
+
         user_email = application.get("user_email")
         service_name = application.get("service_name")
         sub_service_name = application.get("sub_service_name")
         amount = application.get("payment_amount", 0)
         transaction_id = application.get("transaction_id")
-        
+
         if action == "approve":
-            # ✅ Update unified application
             update_data = {
                 "status": "approved",
                 "payment_verification_status": "approved",
@@ -305,13 +393,12 @@ class ServiceService:
                 "payment_verification_notes": notes or "Payment approved",
                 "updated_at": datetime.utcnow()
             }
-            
+
             await self.applications.update_one(
                 {"_id": ObjectId(application_id)},
                 {"$set": update_data}
             )
-            
-            # Notify user
+
             await central_notification.send_notification(
                 user_ids=[user_email],
                 notification_type="application_status",
@@ -328,9 +415,9 @@ class ServiceService:
                 send_email=True,
                 send_websocket=True
             )
-            
+
             module_logger.info(f"✅ Payment approved for {application_id} by {admin_email}")
-            
+
             return {
                 "success": True,
                 "message": "Payment approved successfully",
@@ -338,11 +425,11 @@ class ServiceService:
                 "application_type": "service",
                 "status": "approved"
             }
-            
+
         else:  # reject
             if not notes:
                 notes = "Payment rejected by admin - Please contact support"
-            
+
             update_data = {
                 "status": "rejected",
                 "payment_verification_status": "rejected",
@@ -352,13 +439,12 @@ class ServiceService:
                 "payment_verification_notes": notes,
                 "updated_at": datetime.utcnow()
             }
-            
+
             await self.applications.update_one(
                 {"_id": ObjectId(application_id)},
                 {"$set": update_data}
             )
-            
-            # Notify user
+
             await central_notification.send_notification(
                 user_ids=[user_email],
                 notification_type="application_status",
@@ -376,9 +462,9 @@ class ServiceService:
                 send_email=True,
                 send_websocket=True
             )
-            
+
             module_logger.info(f"❌ Payment rejected for {application_id} by {admin_email}")
-            
+
             return {
                 "success": True,
                 "message": f"Payment rejected. Reason: {notes}",
@@ -387,45 +473,48 @@ class ServiceService:
                 "status": "rejected"
             }
 
-    # ==================== GET USER APPLICATIONS ====================
-    
+    # ============================================================
+    # ✅ GET USER APPLICATIONS (FIXED!)
+    # ============================================================
     async def get_user_applications(self, user_email: str) -> List[Dict[str, Any]]:
-        """Get all service applications for a user"""
+        """Get all service applications for a user - WITH ENRICHED STATUS"""
         try:
             applications = await self.applications.find({
                 "user_email": user_email,
-                "application_type": "service"  # ✅ Only service applications
+                "application_type": "service"
             }).sort("created_at", -1).to_list(100)
-            
+
+            enriched = []
             for app in applications:
+                # Stringify IDs
                 app["_id"] = str(app["_id"])
                 if app.get("payment_id"):
                     app["payment_id"] = str(app["payment_id"])
-                
-                if "status" not in app:
-                    app["status"] = "payment_pending"
-                
-                # Ensure document fields
-                app["submitted_document_url"] = app.get("submitted_document_url")
-                app["submitted_document_name"] = app.get("submitted_document_name")
-                app["final_document_url"] = app.get("final_document_url")
-                
+
+                # ✅ Enrich with clear status fields
+                app = self._enrich_application_for_frontend(app)
+
+                # Add display details
                 service_id = app.get("service_id", "")
                 sub_type_id = app.get("sub_type_id", "")
                 details = self._get_service_display_details(service_id, sub_type_id)
                 app["display_service_name"] = details.get("service_name", service_id)
                 app["display_service_icon"] = details.get("service_icon", "📄")
                 app["display_sub_service_name"] = details.get("sub_service_name", sub_type_id)
-                
-                app["application_type"] = "service"
-            
-            return applications
+
+                enriched.append(app)
+
+            module_logger.info(
+                f"📋 Fetched {len(enriched)} service applications for {user_email}"
+            )
+            return enriched
         except Exception as e:
             module_logger.error(f"Failed to get user applications: {e}")
             return []
 
-    # ==================== GET ALL APPLICATIONS (ADMIN) ====================
-    
+    # ============================================================
+    # ✅ GET ALL APPLICATIONS (ADMIN)
+    # ============================================================
     async def get_all_applications(
         self,
         admin_email: str,
@@ -433,40 +522,37 @@ class ServiceService:
         limit: int = 100,
         skip: int = 0
     ) -> Dict[str, Any]:
-        """Get all service applications (ADMIN ONLY)"""
         try:
             user = await self.auth.find_one({"email": admin_email})
             if user.get("role") not in ["admin", "customadmin", "superadmin"]:
                 raise HTTPException(status_code=403, detail="Access denied")
-            
-            query = {"application_type": "service"}  # ✅ Only service applications
+
+            query = {"application_type": "service"}
             if status:
                 query["status"] = status
-            
-            applications = await self.applications.find(query).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
-            
+
+            applications = await self.applications.find(query).sort(
+                "created_at", -1
+            ).skip(skip).limit(limit).to_list(limit)
+
+            enriched = []
             for app in applications:
                 app["_id"] = str(app["_id"])
-                if "status" not in app:
-                    app["status"] = "payment_pending"
-                
-                app["submitted_document_url"] = app.get("submitted_document_url")
-                app["submitted_document_name"] = app.get("submitted_document_name")
-                app["final_document_url"] = app.get("final_document_url")
-                
+                app = self._enrich_application_for_frontend(app)
+
                 service_id = app.get("service_id", "")
                 sub_type_id = app.get("sub_type_id", "")
                 details = self._get_service_display_details(service_id, sub_type_id)
                 app["display_service_name"] = details.get("service_name", service_id)
                 app["display_service_icon"] = details.get("service_icon", "📄")
                 app["display_sub_service_name"] = details.get("sub_service_name", sub_type_id)
-                
-                app["application_type"] = "service"
-            
+
+                enriched.append(app)
+
             total = await self.applications.count_documents(query)
-            
+
             return {
-                "applications": applications,
+                "applications": enriched,
                 "total": total,
                 "skip": skip,
                 "limit": limit
@@ -475,47 +561,83 @@ class ServiceService:
             module_logger.error(f"Failed to get all applications: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    # ==================== GET APPLICATION DETAIL ====================
-    
+    # ============================================================
+    # ✅ GET APPLICATION DETAIL (FIXED!)
+    # ============================================================
     async def get_application_detail(self, application_id: str, user_email: str) -> Dict[str, Any]:
-        """Get detailed service application"""
         if not ObjectId.is_valid(application_id):
             raise HTTPException(status_code=400, detail="Invalid application ID")
-        
+
         application = await self.applications.find_one({
             "_id": ObjectId(application_id),
             "application_type": "service"
         })
         if not application:
             raise HTTPException(status_code=404, detail="Application not found")
-        
+
         is_owner = application.get("user_email") == user_email
         if not is_owner:
             user = await self.auth.find_one({"email": user_email})
             if user.get("role") not in ["admin", "customadmin", "superadmin"]:
                 raise HTTPException(status_code=403, detail="Access denied")
-        
+
         application["_id"] = str(application["_id"])
-        if "status" not in application:
-            application["status"] = "payment_pending"
-        
-        application["submitted_document_url"] = application.get("submitted_document_url")
-        application["submitted_document_name"] = application.get("submitted_document_name")
-        application["final_document_url"] = application.get("final_document_url")
-        
+
+        # ✅ Enrich
+        application = self._enrich_application_for_frontend(application)
+
         service_id = application.get("service_id", "")
         sub_type_id = application.get("sub_type_id", "")
         details = self._get_service_display_details(service_id, sub_type_id)
         application["display_service_name"] = details.get("service_name", service_id)
         application["display_service_icon"] = details.get("service_icon", "📄")
         application["display_sub_service_name"] = details.get("sub_service_name", sub_type_id)
-        
-        application["application_type"] = "service"
-        
+
         return application
 
-    # ==================== UPDATE APPLICATION STATUS ====================
-    
+    # ============================================================
+    # ✅ GET PAYMENT STATUS ONLY (Fast endpoint)
+    # ============================================================
+    async def get_payment_status(self, application_id: str, user_email: str) -> Dict[str, Any]:
+        """Lightweight payment status fetcher (for polling)"""
+        if not ObjectId.is_valid(application_id):
+            raise HTTPException(status_code=400, detail="Invalid application ID")
+
+        application = await self.applications.find_one({
+            "_id": ObjectId(application_id),
+            "application_type": "service"
+        })
+        if not application:
+            raise HTTPException(status_code=404, detail="Application not found")
+
+        is_owner = application.get("user_email") == user_email
+        if not is_owner:
+            user = await self.auth.find_one({"email": user_email})
+            if user.get("role") not in ["admin", "customadmin", "superadmin"]:
+                raise HTTPException(status_code=403, detail="Access denied")
+
+        enriched = self._enrich_application_for_frontend(application)
+
+        return {
+            "success": True,
+            "application_id": str(application["_id"]),
+            "payment_verification_status": enriched.get("payment_verification_status"),
+            "status": enriched.get("status"),
+            "is_payment_verified": enriched.get("is_payment_verified"),
+            "is_payment_pending": enriched.get("is_payment_pending"),
+            "is_payment_rejected": enriched.get("is_payment_rejected"),
+            "display_status": enriched.get("display_status"),
+            "display_status_key": enriched.get("display_status_key"),
+            "display_status_color": enriched.get("display_status_color"),
+            "payment_amount": application.get("payment_amount"),
+            "payment_verified_at": enriched.get("payment_verified_at"),
+            "payment_verified_by": application.get("payment_verified_by"),
+            "updated_at": enriched.get("updated_at"),
+        }
+
+    # ============================================================
+    # UPDATE APPLICATION STATUS (ADMIN)
+    # ============================================================
     async def update_application_status(
         self,
         application_id: str,
@@ -523,35 +645,33 @@ class ServiceService:
         admin_email: str,
         admin_notes: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Update service application status - uses unified collection"""
         if not ObjectId.is_valid(application_id):
             raise HTTPException(status_code=400, detail="Invalid application ID")
-        
+
         application = await self.applications.find_one({
             "_id": ObjectId(application_id),
             "application_type": "service"
         })
         if not application:
             raise HTTPException(status_code=404, detail="Application not found")
-        
+
         old_status = application.get("status")
-        
+
         update_data = {
             "status": status,
             "admin_notes": admin_notes,
             "updated_at": datetime.utcnow(),
             "last_updated_by": admin_email
         }
-        
+
         result = await self.applications.update_one(
             {"_id": ObjectId(application_id)},
             {"$set": update_data}
         )
-        
+
         if result.modified_count == 0:
             raise HTTPException(status_code=404, detail="Application not found or status unchanged")
-        
-        # Send notification
+
         user_email = application.get("user_email")
         if user_email:
             status_messages = {
@@ -564,9 +684,9 @@ class ServiceService:
                 "confirmed_application": "✅ Your application has been confirmed successfully!",
                 "update_application": "📝 Your application update has been submitted for admin review.",
             }
-            
+
             service_name = application.get("service_name", "Service")
-            
+
             await central_notification.send_notification(
                 user_ids=[user_email],
                 notification_type="application_status",
@@ -589,7 +709,7 @@ class ServiceService:
                 send_email=True,
                 send_websocket=True
             )
-        
+
         return {
             "success": True,
             "message": f"Application status updated to {status}",
@@ -600,55 +720,55 @@ class ServiceService:
             "updated_by": admin_email
         }
 
-    # ==================== USER CONFIRM APPLICATION ====================
-    
+    # ============================================================
+    # USER CONFIRM APPLICATION
+    # ============================================================
     async def user_confirm_application(
         self,
         application_id: str,
         user_email: str,
         notes: Optional[str] = None
     ) -> Dict[str, Any]:
-        """USER: Confirm their application"""
         if not ObjectId.is_valid(application_id):
             raise HTTPException(status_code=400, detail="Invalid application ID")
-        
+
         application = await self.applications.find_one({
             "_id": ObjectId(application_id),
             "application_type": "service"
         })
         if not application:
             raise HTTPException(status_code=404, detail="Application not found")
-        
+
         if application.get("user_email") != user_email:
             raise HTTPException(status_code=403, detail="Unauthorized")
-        
+
         current_status = application.get("status", "")
         if current_status not in ["review_application", "under_review"]:
             raise HTTPException(
                 status_code=400,
                 detail=f"Cannot confirm application in '{current_status}' status."
             )
-        
+
         update_data = {
             "status": "confirmed_application",
             "confirmed_at": datetime.utcnow(),
             "confirmed_by": user_email,
             "updated_at": datetime.utcnow()
         }
-        
+
         if notes:
             update_data["confirmation_notes"] = notes
-        
+
         result = await self.applications.update_one(
             {"_id": ObjectId(application_id)},
             {"$set": update_data}
         )
-        
+
         if result.modified_count == 0:
             raise HTTPException(status_code=404, detail="Application not found")
-        
+
         service_name = application.get("service_name", "Service")
-        
+
         await central_notification.send_notification(
             user_ids=[user_email],
             notification_type="application_status",
@@ -665,7 +785,7 @@ class ServiceService:
             send_email=True,
             send_websocket=True
         )
-        
+
         return {
             "success": True,
             "message": "Application confirmed successfully",
@@ -674,8 +794,9 @@ class ServiceService:
             "status": "confirmed_application"
         }
 
-    # ==================== INTERNAL HELPERS ====================
-    
+    # ============================================================
+    # INTERNAL HELPERS
+    # ============================================================
     async def _calculate_service_fee(
         self,
         service_type: ServiceType,
@@ -683,7 +804,6 @@ class ServiceService:
         user_category: str,
         is_disabled: bool
     ) -> int:
-        """Calculate service fee"""
         base_fees = {
             ServiceType.PAN: 100,
             ServiceType.AADHAAR: 50,
@@ -699,14 +819,11 @@ class ServiceService:
             ServiceType.BONAFIDE: 75,
             ServiceType.GAP_CERTIFICATE: 80,
         }
-        
         base_fee = base_fees.get(service_type, 100)
-        
         if is_disabled:
             return max(10, int(base_fee * 0.5))
-        
         return base_fee
-    
+
     async def _generate_payment_qr(
         self,
         application_id: str,
@@ -717,16 +834,15 @@ class ServiceService:
         form_data: Dict = None,
         documents: Dict = None
     ) -> Dict[str, Any]:
-        """Generate payment QR code"""
         from app.modules.payment.routes import generate_qr_code_html
-        
+
         payment_id = str(ObjectId())
         order_id = f"SVC{payment_id[-8:]}{int(datetime.utcnow().timestamp())}"
-        
+
         upi_id = getattr(settings, 'UPI_ID', 'your-upi-id@okhdfcbank')
         upi_text = f"upi://pay?pa={upi_id}&pn=RojgarNext&am={amount}&cu=INR&tn={order_id}&tid={order_id}"
         qr_image_url = generate_qr_code_html(upi_text, amount, order_id)
-        
+
         qr_data = {
             "type": "upi_qr",
             "upi_text": upi_text,
@@ -737,9 +853,9 @@ class ServiceService:
             "sub_type": sub_type_id,
             "expires_in_minutes": 30
         }
-        
+
         qr_code_data = base64.b64encode(json.dumps(qr_data).encode()).decode()
-        
+
         return {
             "payment_id": payment_id,
             "qr_code_data": qr_code_data,
@@ -748,7 +864,7 @@ class ServiceService:
             "order_id": order_id,
             "expires_at": datetime.utcnow() + timedelta(minutes=30)
         }
-    
+
     async def _notify_admins(
         self,
         application_id: str,
@@ -761,15 +877,14 @@ class ServiceService:
         action: str = "new",
         update_count: int = 0
     ):
-        """Notify admins about service application"""
         try:
             admins = await self.auth.find({
                 "role": {"$in": ["admin", "customadmin", "superadmin"]},
                 "is_active": True
             }).to_list(100)
-            
+
             admin_emails = [admin.get("email") for admin in admins if admin.get("email")]
-            
+
             if admin_emails:
                 if action == "new":
                     title = f"📋 New Service Application: {service_name}"
@@ -783,7 +898,7 @@ class ServiceService:
                 else:
                     title = f"💰 Payment Verification: {service_name}"
                     message = f"{user_name} ({user_email}) has submitted payment verification for {sub_service_name}.\nTransaction ID: {transaction_id}\nAmount: ₹{amount}"
-                
+
                 await central_notification.send_notification(
                     user_ids=admin_emails,
                     notification_type="admin_alert",
@@ -809,7 +924,5 @@ class ServiceService:
 
 
 print("=" * 70)
-print("✅ Service Service Updated - Uses Unified Applications Collection")
-print("   ✅ application_type='service' for all service applications")
-print("   ✅ All data stored in unified 'applications' collection")
+print("✅ Service Service Updated - Enriched payment status fields")
 print("=" * 70)
