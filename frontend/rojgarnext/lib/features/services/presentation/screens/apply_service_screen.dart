@@ -1,8 +1,10 @@
 // lib/features/services/presentation/screens/apply_service_screen.dart
-// ✅ AI-BASED MODERN DESIGN — Matches Basic Details / Experience / Education screens
-// ✅ FULLY UPDATED: Uploaded documents now carry full metadata (url, public_id,
-//    resource_type, name, size) so that UserServiceApplicationsScreen can render
-//    them properly. Deleted documents are STRICTLY excluded via _isValidDocUrl().
+// ✅ AI-BASED MODERN DESIGN
+// ✅ Documents are linked to application_id in the `applications` collection
+// ✅ Upload endpoint: /services/application/{application_id}/upload-document
+// ✅ Draft application created when user selects a sub-service
+// ✅ After payment, draft finalized via /services/application/{id}/finalize
+// ✅ NO cross-contamination with user_documents_screen uploads
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -41,13 +43,16 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
   ServiceType? _selectedService;
   ServiceSubType? _selectedSubType;
 
-  // Form Data (text fields only)
+  // ✅ Draft application id (links all uploads to one record)
+  String? _draftApplicationId;
+
+  // Form controllers
   final Map<String, TextEditingController> _controllers = {};
 
-  // ✅ NEW: Single source of truth — full document metadata
+  // ✅ Uploaded docs (per doc-type, for this application)
   final Map<String, _UploadedDoc> _uploadedDocs = {};
 
-  // ✅ NEW: Per-document upload progress
+  // ✅ Per-doc upload progress
   final Map<String, bool> _isUploadingDoc = {};
 
   // Payment
@@ -67,8 +72,8 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
 
   @override
   void dispose() {
-    for (final controller in _controllers.values) {
-      controller.dispose();
+    for (final c in _controllers.values) {
+      c.dispose();
     }
     super.dispose();
   }
@@ -76,7 +81,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
   // ==================== USER DETAILS ====================
   Future<void> _loadUserDetails() async {
     if (!mounted) return;
-
     try {
       final email = await SecureStorage.getEmail();
       final name = await SecureStorage.getName();
@@ -116,7 +120,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     }
   }
 
-  // ==================== FORM INITIALIZATION ====================
+  // ==================== FORM INIT ====================
   void _initializeForm() {
     _controllers.clear();
     _uploadedDocs.clear();
@@ -141,12 +145,52 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         key == 'phone';
   }
 
-  // ==================== SELECTION METHODS ====================
+  // ==================== DRAFT APPLICATION ====================
+  Future<void> _ensureDraftApplication() async {
+    if (_draftApplicationId != null && _draftApplicationId!.isNotEmpty) return;
+    if (_selectedService == null || _selectedSubType == null) return;
+
+    try {
+      final response = await DioClient.dio.post(
+        '/services/application/draft',
+        data: {
+          'service_id': _selectedService!.id,
+          'sub_type_id': _selectedSubType!.id,
+          'service_name': _selectedService!.name,
+          'sub_service_name': _selectedSubType!.name,
+        },
+      );
+
+      if (!mounted) return;
+
+      if (response.data['success'] == true) {
+        final appId = response.data['application_id']?.toString() ?? '';
+        if (appId.isNotEmpty) {
+          setState(() => _draftApplicationId = appId);
+          debugPrint('✅ Draft application created: $appId');
+        }
+      } else {
+        debugPrint('⚠️ Draft creation returned: ${response.data}');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to create draft: $e');
+      if (mounted) {
+        showMessage(
+          context,
+          "Failed to initialize application: ${_cleanErr(e)}",
+          isError: true,
+        );
+      }
+    }
+  }
+
+  // ==================== SELECTION ====================
   void _selectService(ServiceType service) {
     setState(() {
       _selectedService = service;
       _selectedSubType = null;
       _currentStep = 1;
+      _draftApplicationId = null;
       _resetSelections();
     });
   }
@@ -155,9 +199,11 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     setState(() {
       _selectedSubType = subType;
       _currentStep = 2;
+      _draftApplicationId = null;
       _resetSelections();
     });
     _initializeForm();
+    _ensureDraftApplication();
   }
 
   void _goBack() {
@@ -165,10 +211,12 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       if (_currentStep == 2) {
         _currentStep = 1;
         _selectedSubType = null;
+        _draftApplicationId = null;
         _resetSelections();
       } else if (_currentStep == 1) {
         _currentStep = 0;
         _selectedService = null;
+        _draftApplicationId = null;
       }
     });
   }
@@ -182,9 +230,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     _razorpayOrderId = null;
   }
 
-  // ==================== STRICT DOC URL VALIDATOR ====================
-  /// Filters out: null, "", "null", "undefined", "n/a", "na", "-",
-  /// "none", "false", "0" and any non-URL garbage.
+  // ==================== STRICT URL VALIDATOR ====================
   bool _isValidDocUrl(dynamic value) {
     if (value == null) return false;
     final str = value.toString().trim();
@@ -213,18 +259,16 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     return true;
   }
 
-  // ==================== DOCUMENT HANDLING ====================
+  // ==================== DOC PICK / UPLOAD / REMOVE ====================
   Future<void> _pickDocument(String docName) async {
     try {
-      // ✅ Correct usage — FilePicker.platform works on Web + Mobile
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-        withData: true, // critical for Web
+        withData: true,
       );
 
       if (result == null || result.files.isEmpty) return;
-
       final file = result.files.first;
       if (file.bytes == null) {
         if (mounted) {
@@ -233,7 +277,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         return;
       }
 
-      // Enforce max 10 MB
       const maxBytes = 10 * 1024 * 1024;
       if (file.bytes!.length > maxBytes) {
         if (mounted) {
@@ -242,7 +285,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         return;
       }
 
-      // Kick off upload
       await _uploadDocumentToCloudinary(docName, file.bytes!, file.name);
     } catch (e) {
       debugPrint("❌ _pickDocument error: $e");
@@ -261,7 +303,20 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     Uint8List fileBytes,
     String fileName,
   ) async {
-    // Show loading for this specific doc
+    if (_draftApplicationId == null || _draftApplicationId!.isEmpty) {
+      await _ensureDraftApplication();
+      if (_draftApplicationId == null || _draftApplicationId!.isEmpty) {
+        if (mounted) {
+          showMessage(
+            context,
+            "Cannot upload — application not initialized. Please retry.",
+            isError: true,
+          );
+        }
+        return;
+      }
+    }
+
     if (mounted) {
       setState(() => _isUploadingDoc[docName] = true);
     }
@@ -270,13 +325,20 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       final token = await SecureStorage.getToken();
       if (token == null) throw Exception("No authentication token found");
 
+      final docTypeSafe = docName
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+          .replaceAll(RegExp(r'_+'), '_')
+          .replaceAll(RegExp(r'^_|_$'), '');
+
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(fileBytes, filename: fileName),
-        'document_type': docName,
+        'document_type': docTypeSafe,
+        'document_label': docName,
       });
 
       final response = await DioClient.dio.post(
-        '/user/upload-document',
+        '/services/application/$_draftApplicationId/upload-document',
         data: formData,
         options: Options(
           headers: {
@@ -293,20 +355,21 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         throw Exception(data?['message'] ?? 'Upload failed');
       }
 
-      final uploadedUrl = data['url']?.toString() ?? '';
-      // ✅ STRICT validation — refuse to save invalid URL
+      final docData = data['document'] as Map<String, dynamic>? ?? {};
+      final uploadedUrl = docData['url']?.toString() ?? '';
+
       if (!_isValidDocUrl(uploadedUrl)) {
         throw Exception("Server returned an invalid document URL");
       }
 
       final doc = _UploadedDoc(
-        key: docName,
+        key: docTypeSafe,
         label: docName,
         url: uploadedUrl,
-        publicId: data['public_id']?.toString(),
+        publicId: docData['public_id']?.toString(),
         fileName: fileName,
         fileSizeKb: (fileBytes.length / 1024).round(),
-        resourceType: data['resource_type']?.toString() ?? 'raw',
+        resourceType: docData['resource_type']?.toString() ?? 'raw',
         uploadedAt: DateTime.now(),
       );
 
@@ -331,12 +394,26 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     }
   }
 
-  void _removeDocument(String docName) {
+  Future<void> _removeDocument(String docName) async {
+    final uploaded = _uploadedDocs[docName];
+    if (uploaded == null) return;
+
     setState(() {
       _uploadedDocs.remove(docName);
       _isUploadingDoc[docName] = false;
     });
-    showMessage(context, "Document removed");
+
+    if (_draftApplicationId != null && _draftApplicationId!.isNotEmpty) {
+      try {
+        await DioClient.dio.delete(
+          '/services/application/$_draftApplicationId/document/${uploaded.key}',
+        );
+      } catch (e) {
+        debugPrint("⚠️ Backend removal failed (non-fatal): $e");
+      }
+    }
+
+    if (mounted) showMessage(context, "Document removed");
   }
 
   String _cleanErr(dynamic e) {
@@ -345,14 +422,12 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
 
   // ==================== VALIDATION ====================
   String? _getFieldValue(String key) {
-    final controller = _controllers[key];
-    return controller?.text.trim();
+    return _controllers[key]?.text.trim();
   }
 
   bool _isFormValid() {
     if (_selectedSubType == null) return false;
 
-    // All required text fields must be filled
     for (final field in _selectedSubType!.requiredFields) {
       if (_isAutoFilledField(field.key)) continue;
       if (field.required) {
@@ -361,7 +436,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       }
     }
 
-    // All required documents must be uploaded AND have valid URL
     for (final doc in _selectedSubType!.requiredDocuments) {
       final uploaded = _uploadedDocs[doc];
       if (uploaded == null) return false;
@@ -382,50 +456,23 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       return;
     }
 
+    if (_draftApplicationId == null || _draftApplicationId!.isEmpty) {
+      await _ensureDraftApplication();
+      if (_draftApplicationId == null || _draftApplicationId!.isEmpty) {
+        showMessage(context, "Application not initialized", isError: true);
+        return;
+      }
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
-      // ---------- Build form fields ----------
       final Map<String, dynamic> formFields = {};
       for (final field in _selectedSubType!.requiredFields) {
         if (_isAutoFilledField(field.key)) continue;
         formFields[field.key] = _getFieldValue(field.key) ?? '';
       }
 
-      // ---------- Build documents map (STRICT) ----------
-      // Only valid, non-deleted docs are included.
-      final Map<String, String> documentsMap = {};
-      final Map<String, Map<String, dynamic>> documentMeta = {};
-
-      _uploadedDocs.forEach((key, doc) {
-        if (_isValidDocUrl(doc.url)) {
-          documentsMap[key] = doc.url;
-          documentMeta[key] = {
-            'url': doc.url,
-            'public_id': doc.publicId,
-            'name': doc.fileName,
-            'size_kb': doc.fileSizeKb,
-            'resource_type': doc.resourceType,
-            'uploaded_at': doc.uploadedAt.toIso8601String(),
-          };
-        }
-      });
-
-      final Map<String, dynamic> formData = {
-        'user_email': _userEmail,
-        'user_name': _userName,
-        'user_mobile': _userMobile,
-        'service_type': _selectedService!.id,
-        'service_sub_type': _selectedSubType!.id,
-        'service_name': _selectedService!.name,
-        'sub_service_name': _selectedSubType!.name,
-        'application_type': 'online_service',
-        'fields': formFields,
-        'documents': documentsMap,
-        'document_meta': documentMeta, // ✅ rich metadata
-      };
-
-      // ---------- Create Razorpay order ----------
       final response = await DioClient.dio.post(
         '/payment/razorpay/create-order',
         data: {
@@ -435,9 +482,13 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
           "service_type": _selectedService!.name,
           "sub_type_id": _selectedSubType!.id,
           "sub_service_name": _selectedSubType!.name,
-          "form_data": formData,
+          "form_data": {
+            'fields': formFields,
+            'application_id': _draftApplicationId,
+          },
           "user_email": _userEmail,
           "user_name": _userName,
+          "draft_application_id": _draftApplicationId,
         },
       );
 
@@ -460,7 +511,10 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
             serviceType: _selectedService!.name,
             serviceSubType: _selectedSubType!.id,
             subServiceName: _selectedSubType!.name,
-            formData: formData,
+            formData: {
+              'fields': formFields,
+              'application_id': _draftApplicationId,
+            },
             userEmail: _userEmail,
             userName: _userName,
             userMobile: _userMobile,
@@ -476,6 +530,16 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         );
 
         if (paymentResult == true && mounted) {
+          try {
+            await DioClient.dio.post(
+              '/services/application/$_draftApplicationId/finalize',
+              data: {'fields': formFields},
+            );
+            debugPrint("✅ Draft finalized: $_draftApplicationId");
+          } catch (e) {
+            debugPrint("⚠️ Finalize failed (non-fatal): $e");
+          }
+
           await _showAISuccessDialog();
           _resetForm();
         }
@@ -505,11 +569,12 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       _selectedService = null;
       _selectedSubType = null;
       _currentStep = 0;
+      _draftApplicationId = null;
       _resetSelections();
     });
   }
 
-  // ==================== AI SUCCESS DIALOG ====================
+  // ==================== SUCCESS DIALOG ====================
   Future<void> _showAISuccessDialog() async {
     return showDialog(
       context: context,
@@ -659,7 +724,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     }
   }
 
-  // ==================== AI LOADING SCREEN ====================
+  // ==================== LOADING ====================
   Widget _buildLoadingScreen() {
     return Scaffold(
       body: Container(
@@ -979,7 +1044,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     );
   }
 
-  // ==================== STEP 1: SERVICE SELECTION ====================
+  // ==================== STEP 1 ====================
   Widget _buildServiceSelection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1200,7 +1265,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     );
   }
 
-  // ==================== STEP 2: SUB-TYPE SELECTION ====================
+  // ==================== STEP 2 ====================
   Widget _buildSubTypeSelection() {
     return _buildGlassContainer(
       child: Column(
@@ -1323,7 +1388,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     );
   }
 
-  // ==================== STEP 3: FORM ====================
+  // ==================== STEP 3 ====================
   Widget _buildForm() {
     final fields = _selectedSubType!.requiredFields
         .where((field) => !_isAutoFilledField(field.key))
@@ -1407,7 +1472,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     );
   }
 
-  // ==================== AI TEXT FIELD ====================
   Widget _buildAITextField(
     TextEditingController ctrl,
     String label, {
@@ -1461,7 +1525,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     );
   }
 
-  // ==================== AI DROPDOWN FIELD ====================
   Widget _buildDropdownField(
       RequiredField field, TextEditingController controller) {
     final options = _getDropdownOptions(field.key);
@@ -1518,7 +1581,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     );
   }
 
-  // ==================== AI DATE FIELD ====================
   Widget _buildDateField(
       RequiredField field, TextEditingController controller) {
     return Padding(
@@ -1572,7 +1634,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     );
   }
 
-  // ==================== DOCUMENT UPLOAD ====================
   Widget _buildDocumentUpload(String docName) {
     final uploadedDoc = _uploadedDocs[docName];
     final isUploaded = uploadedDoc != null;
@@ -1694,7 +1755,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     );
   }
 
-  // ==================== FEE CARD ====================
   Widget _buildFeeCard() {
     return _buildGlassContainer(
       child: Row(
@@ -1872,7 +1932,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     );
   }
 
-  // ==================== UTILITY METHODS ====================
+  // ==================== UTILITIES ====================
   TextInputType _getKeyboardType(FieldType type) {
     switch (type) {
       case FieldType.number:
@@ -1960,7 +2020,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
 }
 
 // ============================================================
-// LOCAL MODEL — Document with full metadata
+// LOCAL MODEL
 // ============================================================
 class _UploadedDoc {
   final String key;

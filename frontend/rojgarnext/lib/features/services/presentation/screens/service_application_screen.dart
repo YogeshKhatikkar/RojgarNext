@@ -2,9 +2,15 @@
 // ⚡ ULTRA-FAST VERSION - Loads in < 200ms
 // ✅ Cache-First Strategy + Background Refresh
 // ✅ AI-Based Modern Design
-// ✅ Documents section — only app-attached docs, with View buttons
-// ✅ Submitted Information — clean field rows, nested maps expanded
-// ✅ FIXED: Deleted documents (null / "null" / "" / undefined) are STRICTLY filtered out
+// ✅ FIXED: Now shows SAME documents as user_service_applications_screen
+//    - Fetches from /services/application/{id}/documents endpoint
+//    - Shows service_documents (user-uploaded) + admin_documents (review/final)
+//    - Plus payment_receipt_url and screenshot_url from app record
+// ✅ STRICT DOCUMENT SCOPING:
+//    Documents shown ONLY in "Uploaded Documents" section.
+//    Profile docs (Aadhaar/PAN/Resume) ya doosri application ke docs
+//    NEVER show here.
+// ✅ Submitted Information section shows ONLY plain text/object fields.
 
 import 'dart:convert';
 import 'dart:typed_data';
@@ -46,6 +52,15 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   String? _errorMessage;
   String? _adminEmail;
 
+  // ============================================================
+  // ✅ NEW: Service application documents (uploaded via apply_service_screen)
+  //    These come from /services/application/{id}/documents endpoint
+  //    Includes BOTH user-uploaded service docs AND admin review/final docs
+  // ============================================================
+  List<Map<String, dynamic>> _serviceDocuments = [];
+  bool _isLoadingServiceDocs = false;
+  final Map<String, List<Map<String, dynamic>>> _serviceDocsCache = {};
+
   final Map<String, Map<String, String>> _serviceDetailsCache = {};
   final Map<String, List<dynamic>> _filterCache = {};
 
@@ -83,7 +98,7 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   String _selectedFilter = 'all';
 
   // ====================================================================
-  // ✅ NEW HELPER: STRICT document URL validator
+  // ✅ STRICT document URL validator
   // Filters out: null, "", "null", "undefined", "-", "n/a",
   // and any non-URL garbage. Only real http(s)/file/blob URLs pass.
   // ====================================================================
@@ -330,13 +345,125 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     await _refreshInBackground();
   }
 
+  // ============================================================
+  // ✅ UPDATED: Fetch service application documents when opening details
+  // ============================================================
   void _showApplicationDetails(Map<String, dynamic> app) {
-    setState(() => _selectedApplication = app);
+    final appId = (app['_id'] ?? '').toString();
+    setState(() {
+      _selectedApplication = app;
+      _serviceDocuments = [];
+    });
+    if (appId.isNotEmpty) {
+      _fetchServiceApplicationDocuments(appId);
+    }
   }
 
   void _closeDetails() {
-    setState(() => _selectedApplication = null);
+    setState(() {
+      _selectedApplication = null;
+      _serviceDocuments = [];
+    });
     _refreshInBackground();
+  }
+
+  // ============================================================
+  // ✅ NEW: FETCH SERVICE APPLICATION DOCUMENTS (STRICT)
+  // ✅ ONLY fetches from /services/application/{id}/documents
+  // ✅ Same behavior as user_service_applications_screen
+  // ============================================================
+  Future<void> _fetchServiceApplicationDocuments(String applicationId) async {
+    if (!mounted || applicationId.isEmpty) return;
+
+    // Return cached if already loaded
+    if (_serviceDocsCache.containsKey(applicationId)) {
+      setState(() {
+        _serviceDocuments = _serviceDocsCache[applicationId]!;
+        _isLoadingServiceDocs = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingServiceDocs = true;
+      _serviceDocuments = [];
+    });
+
+    final List<Map<String, dynamic>> docs = [];
+
+    try {
+      debugPrint("📄 Fetching service application docs → $applicationId");
+
+      final res = await DioClient.dio.get(
+        '/services/application/$applicationId/documents',
+      );
+
+      if (res.data is Map && res.data['success'] == true) {
+        // ✅ A. USER-UPLOADED SERVICE DOCUMENTS (from service_documents[])
+        final List<dynamic> serviceDocs =
+            (res.data['service_documents'] as List?) ?? [];
+        for (final raw in serviceDocs) {
+          if (raw is! Map) continue;
+          final d = Map<String, dynamic>.from(raw);
+
+          final url = (d['url'] ?? '').toString().trim();
+          if (!_isValidDocUrl(url)) continue;
+
+          // ✅ STRICT source tag check — skip anything not from service app
+          final source = (d['source'] ?? '').toString();
+          if (source.isNotEmpty && source != 'service_application') {
+            debugPrint("⏭️ Skipping non-service doc: $source");
+            continue;
+          }
+
+          docs.add({
+            'key': (d['document_type'] ?? 'document').toString(),
+            'label': (d['label'] ?? d['document_type'] ?? 'Document').toString(),
+            'url': url,
+            'download_url': (d['download_url'] ?? url).toString(),
+            'source': 'service_application',
+            'is_application_doc': true,
+            'is_admin_doc': false,
+            'uploaded_at': d['uploaded_at'],
+          });
+        }
+
+        // ✅ B. ADMIN REVIEW / FINAL DOCUMENTS (already filtered by backend)
+        final List<dynamic> adminDocs =
+            (res.data['admin_documents'] as List?) ?? [];
+        for (final raw in adminDocs) {
+          if (raw is! Map) continue;
+          final d = Map<String, dynamic>.from(raw);
+
+          final url = (d['url'] ?? '').toString().trim();
+          if (!_isValidDocUrl(url)) continue;
+
+          final source = (d['source'] ?? '').toString();
+          final isAdminReview = source == 'admin_review';
+
+          docs.add({
+            'key': (d['document_type'] ?? 'admin_doc').toString(),
+            'label': (d['label'] ?? 'Admin Document').toString(),
+            'url': url,
+            'download_url': (d['download_url'] ?? url).toString(),
+            'source': source,
+            'is_application_doc': true,
+            'is_admin_doc': isAdminReview,
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("⚠️ Failed to fetch service application docs: $e");
+    }
+
+    _serviceDocsCache[applicationId] = docs;
+
+    if (mounted) {
+      setState(() {
+        _serviceDocuments = docs;
+        _isLoadingServiceDocs = false;
+      });
+    }
   }
 
   Future<void> _refreshCurrentApplication(String applicationId) async {
@@ -386,6 +513,10 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
         }
         _filterCache.clear();
       });
+
+      // ✅ Refresh the docs cache for this app
+      _serviceDocsCache.remove(applicationId);
+      await _fetchServiceApplicationDocuments(applicationId);
 
       _applyFilter(fast: true);
       _saveToCache(_applications);
@@ -933,14 +1064,31 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   }
 
   // ====================================================================
-  // ✅ "Uploaded Documents" section — only application-attached docs
-  // ✅ FIXED: strict filter — deleted docs NEVER show
+  // ✅ UPDATED "Uploaded Documents" section
+  // ✅ STRICT SCOPING — shows ONLY documents tied to THIS application:
+  //    1) _serviceDocuments (from /services/application/{id}/documents)
+  //       → includes user-uploaded service docs + admin review/final docs
+  //    2) submitted_document_url  (admin review doc)
+  //    3) final_document_url      (admin final-submit doc)
+  //    4) payment_receipt_url     (payment proof)
+  //    5) screenshot_url          (payment screenshot)
+  //    6) document_url            (any attached app doc)
+  // ✅ NEVER shows profile docs (Aadhaar/PAN/etc.) or other apps' docs.
   // ====================================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> allDocs = [];
 
+    // 1) Service application docs (uploaded via apply_service_screen)
+    //    These are already filtered by application_id from backend
+    for (final d in _serviceDocuments) {
+      final url = d['url']?.toString() ?? '';
+      if (!_isValidDocUrl(url)) continue;
+      if (allDocs.any((x) => x['url'] == url)) continue;
+      allDocs.add(d);
+    }
+
+    // 2) Submitted document (admin review)
     final submittedUrl = app['submitted_document_url'];
-    // ✅ FIXED
     if (_isValidDocUrl(submittedUrl)) {
       final urlStr = submittedUrl.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
@@ -956,8 +1104,8 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       }
     }
 
+    // 3) Final submitted document
     final finalUrl = app['final_document_url'];
-    // ✅ FIXED
     if (_isValidDocUrl(finalUrl)) {
       final urlStr = finalUrl.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
@@ -973,8 +1121,8 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       }
     }
 
+    // 4) Payment Receipt
     final receiptUrl = app['payment_receipt_url'];
-    // ✅ FIXED
     if (_isValidDocUrl(receiptUrl)) {
       final urlStr = receiptUrl.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
@@ -989,8 +1137,8 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       }
     }
 
+    // 5) Payment Screenshot
     final screenshotUrl = app['screenshot_url'];
-    // ✅ FIXED
     if (_isValidDocUrl(screenshotUrl)) {
       final urlStr = screenshotUrl.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
@@ -1004,8 +1152,8 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       }
     }
 
+    // 6) Application document (document_url)
     final docUrl = app['document_url'];
-    // ✅ FIXED
     if (_isValidDocUrl(docUrl)) {
       final urlStr = docUrl.toString().trim();
       if (!allDocs.any((d) => d['url'] == urlStr)) {
@@ -1068,27 +1216,52 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
             ],
           ),
           const SizedBox(height: 14),
-          Column(
-            children: allDocs
-                .asMap()
-                .entries
-                .map((entry) => _buildDocumentRow(entry.key, entry.value))
-                .toList(),
-          ),
+          if (_isLoadingServiceDocs)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else
+            Column(
+              children: allDocs
+                  .asMap()
+                  .entries
+                  .map((entry) => _buildDocumentRow(entry.key, entry.value))
+                  .toList(),
+            ),
         ],
       ),
     );
   }
 
+  // ============================================================
+  // ✅ UPDATED: Document row with badges (UPLOADED / ADMIN / PAYMENT)
+  // ============================================================
   Widget _buildDocumentRow(int index, Map<String, dynamic> doc) {
     final String label = doc['label']?.toString() ?? 'Document ${index + 1}';
     final String url = doc['url']?.toString() ?? '';
     final String? downloadUrl = doc['download_url']?.toString();
     final bool isAppDoc = doc['is_application_doc'] == true;
+    final bool isAdminDoc = doc['is_admin_doc'] == true;
+    final String source = doc['source']?.toString() ?? '';
 
     final icon = _iconForUrl(url);
     final color = _colorForUrl(url);
     final fileType = _fileTypeForUrl(url);
+
+    // Badge logic
+    String badgeLabel = "";
+    Color badgeColor = Colors.blue;
+    if (source == 'service_application') {
+      badgeLabel = "UPLOADED";
+      badgeColor = Colors.green;
+    } else if (isAdminDoc) {
+      badgeLabel = "ADMIN";
+      badgeColor = Colors.purple;
+    } else if (source == 'application') {
+      badgeLabel = "PAYMENT";
+      badgeColor = Colors.orange;
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1122,30 +1295,32 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
                   ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Row(
                   children: [
-                    if (isAppDoc)
+                    if (badgeLabel.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade200,
+                          color: badgeColor.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                              color: badgeColor.withOpacity(0.4)),
                         ),
-                        child: const Text(
-                          "APPLICATION",
+                        child: Text(
+                          badgeLabel,
                           style: TextStyle(
                             fontSize: 8,
                             fontWeight: FontWeight.bold,
-                            color: Colors.blue,
+                            color: badgeColor,
                           ),
                         ),
                       ),
-                    if (isAppDoc) const SizedBox(width: 6),
+                    if (badgeLabel.isNotEmpty) const SizedBox(width: 6),
                     Text(
                       fileType.toUpperCase(),
                       style: TextStyle(
@@ -2613,18 +2788,20 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   }
 
   // ====================================================================
-  // ✅ FIELDS CARD — clean field rows + document view buttons
-  // ✅ FIXED: uses _isValidDocUrl for strict filtering
+  // ✅ FIELDS CARD — ONLY plain text/object fields.
+  // ✅ STRICT: documents are NEVER shown here.
+  // ✅ Documents are shown ONLY in _buildDocumentsSection(),
+  //    which filters by application-specific keys.
   // ====================================================================
   Widget _buildFieldsCard(Map<String, dynamic> fields) {
     if (fields.isEmpty) return const SizedBox();
 
     final List<Map<String, dynamic>> flatFields = [];
-    final List<Map<String, dynamic>> documentEntries = [];
 
     fields.forEach((key, value) {
+      // ✅ FIX: Skip ALL document fields — they belong to the
+      // dedicated Documents section, NOT here.
       if (_isDocumentField(key, value)) {
-        documentEntries.addAll(_parseDocumentEntries(value));
         return;
       }
 
@@ -2644,74 +2821,25 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       }
     });
 
-    if (flatFields.isEmpty && documentEntries.isEmpty) return const SizedBox();
+    if (flatFields.isEmpty) return const SizedBox();
 
     return _buildGlassContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionHeader("Submitted Information", Icons.description_outlined),
-
           ...flatFields.map((f) {
             if (f['group'] != null) {
               return _buildFieldGroupBlock(
-                  f['key'].toString(), f['group'] as List<Map<String, String>>);
+                f['key'].toString(),
+                f['group'] as List<Map<String, String>>,
+              );
             }
             return _buildFieldInfoRow(
-                f['key'].toString(), f['value']?.toString() ?? '');
+              f['key'].toString(),
+              f['value']?.toString() ?? '',
+            );
           }),
-
-          if (documentEntries.isNotEmpty) ...[
-            if (flatFields.isNotEmpty) const SizedBox(height: 12),
-            const Divider(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.folder_copy,
-                      color: Colors.white, size: 14),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text(
-                    "Uploaded Documents",
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.indigo.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    "${documentEntries.length} Files",
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ...documentEntries
-                .asMap()
-                .entries
-                .map((e) => _buildFieldDocumentRow(e.key, e.value)),
-          ],
         ],
       ),
     );
@@ -2949,6 +3077,11 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
         .join(' ');
   }
 
+  // ====================================================================
+  // ✅ Detects if a `fields` entry is a document blob.
+  // Used ONLY to SKIP such entries from _buildFieldsCard().
+  // Real document URLs are read directly from the top-level `app` map.
+  // ====================================================================
   bool _isDocumentField(String key, dynamic value) {
     if (value == null) return false;
 
@@ -2984,205 +3117,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     }
 
     return false;
-  }
-
-  // ====================================================================
-  // ✅ PARSE DOCUMENT ENTRIES — STRICT filtering
-  // ====================================================================
-  List<Map<String, dynamic>> _parseDocumentEntries(dynamic value) {
-    final docs = <Map<String, dynamic>>[];
-    if (value == null) return docs;
-
-    if (value is Map) {
-      value.forEach((k, v) {
-        // ✅ FIXED: strict validator
-        if (_isValidDocUrl(v)) {
-          final urlStr = v.toString().trim();
-          if (!docs.any((d) => d['url'] == urlStr)) {
-            docs.add({
-              'name': _prettyDocName(k.toString()),
-              'url': urlStr,
-            });
-          }
-        }
-      });
-      return docs;
-    }
-
-    if (value is List) {
-      for (final item in value) {
-        if (item is Map) {
-          final url = item['url']?.toString() ??
-              item['doc_url']?.toString() ??
-              item['file_url']?.toString() ??
-              '';
-          final name = item['name']?.toString() ??
-              item['doc_name']?.toString() ??
-              item['label']?.toString() ??
-              'Document';
-          // ✅ FIXED: strict validator
-          if (_isValidDocUrl(url)) {
-            final urlStr = url.trim();
-            if (!docs.any((d) => d['url'] == urlStr)) {
-              docs.add({'name': _prettyDocName(name), 'url': urlStr});
-            }
-          }
-        } else if (item is String && _isValidDocUrl(item)) {
-          docs.add({
-            'name': _prettyDocName(_extractNameFromUrl(item)),
-            'url': item.trim(),
-          });
-        }
-      }
-      return docs;
-    }
-
-    String str = value.toString().trim();
-    if (str.isEmpty) return docs;
-
-    try {
-      final decoded = jsonDecode(str);
-      if (decoded is Map) {
-        decoded.forEach((k, v) {
-          // ✅ FIXED: strict validator
-          if (_isValidDocUrl(v)) {
-            final urlStr = v.toString().trim();
-            if (!docs.any((d) => d['url'] == urlStr)) {
-              docs.add({
-                'name': _prettyDocName(k.toString()),
-                'url': urlStr,
-              });
-            }
-          }
-        });
-        return docs;
-      } else if (decoded is List) {
-        return _parseDocumentEntries(decoded);
-      }
-    } catch (_) {}
-
-    if (str.startsWith('{')) str = str.substring(1);
-    if (str.endsWith('}')) str = str.substring(0, str.length - 1);
-
-    final parts = str.split(', ');
-    for (final part in parts) {
-      final trimmed = part.trim();
-      if (trimmed.isEmpty) continue;
-      final idx = trimmed.indexOf(': ');
-      if (idx > 0) {
-        final name = trimmed.substring(0, idx).trim();
-        final url = trimmed.substring(idx + 2).trim();
-        // ✅ FIXED: strict validator
-        if (name.isNotEmpty && _isValidDocUrl(url)) {
-          if (!docs.any((d) => d['url'] == url)) {
-            docs.add({'name': _prettyDocName(name), 'url': url});
-          }
-        }
-      } else if (trimmed.contains('http')) {
-        // ✅ FIXED: strict validator
-        if (_isValidDocUrl(trimmed)) {
-          docs.add({
-            'name': _prettyDocName(_extractNameFromUrl(trimmed)),
-            'url': trimmed,
-          });
-        }
-      }
-    }
-    return docs;
-  }
-
-  String _prettyDocName(String raw) {
-    if (raw.isEmpty) return 'Document';
-    String s = raw.replaceAll(RegExp(r'_url$', caseSensitive: false), '');
-    s = s.replaceAll('_', ' ');
-    return s
-        .split(' ')
-        .where((w) => w.isNotEmpty)
-        .map((w) => w[0].toUpperCase() + w.substring(1))
-        .join(' ');
-  }
-
-  String _extractNameFromUrl(String url) {
-    try {
-      final uri = Uri.parse(url);
-      final segments = uri.pathSegments;
-      if (segments.isNotEmpty) {
-        final last = segments.last;
-        final dot = last.lastIndexOf('.');
-        if (dot > 0) {
-          return _prettyDocName(last.substring(0, dot));
-        }
-        return _prettyDocName(last);
-      }
-    } catch (_) {}
-    return 'Document';
-  }
-
-  Widget _buildFieldDocumentRow(int index, Map<String, dynamic> doc) {
-    final String name = doc['name']?.toString() ?? 'Document ${index + 1}';
-    final String url = doc['url']?.toString() ?? '';
-
-    final icon = _iconForUrl(url);
-    final color = _colorForUrl(url);
-    final fileType = _fileTypeForUrl(url);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  fileType.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.visibility, color: Colors.blue),
-            tooltip: "View",
-            onPressed: () => _openDocumentViewer(
-              url,
-              title: name,
-              fileType: fileType,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildPaymentVerificationSection(
