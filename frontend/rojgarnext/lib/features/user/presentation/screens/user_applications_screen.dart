@@ -5,6 +5,7 @@
 // ✅ NEW: Uploaded Documents section — SAME documents as user_documents_screen
 // ✅ FIXED: Deleted documents (null / "null" / "" / undefined) STRICTLY filtered
 // ✅ FIXED: Uses /user/full-profile as PRIMARY source (matches user_documents_screen)
+// ✅ UPDATED: Admin review/final docs shown SEPARATELY near Confirm/Update buttons
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
@@ -757,63 +758,58 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'other_document_url', 'label': 'Other Document'},
   ];
 
-// ============================================================
-// ✅ STRICT document URL validator
-// Filters out: null, "", "null", "undefined", "-", "n/a",
-// "not found", "deleted", "removed", {} empty maps, [] empty lists
-// ============================================================
-bool _isValidDocUrl(dynamic value) {
-  if (value == null) return false;
+  // ============================================================
+  // ✅ STRICT document URL validator
+  // ============================================================
+  bool _isValidDocUrl(dynamic value) {
+    if (value == null) return false;
 
-  // Reject empty maps / lists
-  if (value is Map && value.isEmpty) return false;
-  if (value is List && value.isEmpty) return false;
+    if (value is Map && value.isEmpty) return false;
+    if (value is List && value.isEmpty) return false;
 
-  final str = value.toString().trim();
-  if (str.isEmpty) return false;
+    final str = value.toString().trim();
+    if (str.isEmpty) return false;
 
-  final lower = str.toLowerCase();
-  if (lower == 'null' ||
-      lower == 'undefined' ||
-      lower == 'n/a' ||
-      lower == 'na' ||
-      lower == '-' ||
-      lower == 'none' ||
-      lower == 'false' ||
-      lower == 'true' ||
-      lower == '0' ||
-      lower == 'not found' ||
-      lower == 'notfound' ||
-      lower == 'not_found' ||
-      lower == 'deleted' ||
-      lower == 'removed' ||
-      lower == 'empty' ||
-      lower == '{}' ||
-      lower == '[]') {
-    return false;
+    final lower = str.toLowerCase();
+    if (lower == 'null' ||
+        lower == 'undefined' ||
+        lower == 'n/a' ||
+        lower == 'na' ||
+        lower == '-' ||
+        lower == 'none' ||
+        lower == 'false' ||
+        lower == 'true' ||
+        lower == '0' ||
+        lower == 'not found' ||
+        lower == 'notfound' ||
+        lower == 'not_found' ||
+        lower == 'deleted' ||
+        lower == 'removed' ||
+        lower == 'empty' ||
+        lower == '{}' ||
+        lower == '[]') {
+      return false;
+    }
+
+    if (!str.startsWith('http://') &&
+        !str.startsWith('https://') &&
+        !str.startsWith('file:') &&
+        !str.startsWith('blob:')) {
+      return false;
+    }
+
+    if (str.length < 12) return false;
+
+    if (lower.contains('not-found') ||
+        lower.contains('notfound') ||
+        lower.contains('placeholder') ||
+        lower.contains('example.com/dummy') ||
+        lower.contains('undefined')) {
+      return false;
+    }
+
+    return true;
   }
-
-  // Reject non-URL strings
-  if (!str.startsWith('http://') &&
-      !str.startsWith('https://') &&
-      !str.startsWith('file:') &&
-      !str.startsWith('blob:')) {
-    return false;
-  }
-
-  if (str.length < 12) return false;
-
-  // Reject placeholder URLs
-  if (lower.contains('not-found') ||
-      lower.contains('notfound') ||
-      lower.contains('placeholder') ||
-      lower.contains('example.com/dummy') ||
-      lower.contains('undefined')) {
-    return false;
-  }
-
-  return true;
-}
 
   @override
   void initState() {
@@ -852,88 +848,71 @@ bool _isValidDocUrl(dynamic value) {
     }
   }
 
-// ============================================================
-// ✅ FETCH ALL USER DOCUMENTS
-// ✅ SAME whitelist approach as user_documents_screen
-// ✅ Deleted / removed documents NEVER show
-// ✅ Only uses /user/full-profile (SINGLE source of truth)
-// ============================================================
-Future<void> _fetchAllDocuments() async {
-  if (!mounted) return;
-  setState(() {
-    _isLoadingDocuments = true;
-    _userDocuments = [];
-  });
-
-  final List<Map<String, dynamic>> docs = [];
-
-  // ✅ Safe add helper — strict filter
-  void addDoc(String key, String label, dynamic value) {
-    if (!_isValidDocUrl(value)) return;
-    final url = value.toString().trim();
-    if (docs.any((d) => d['url'] == url)) return;
-    docs.add({
-      'key': key,
-      'label': label,
-      'url': url,
-    });
-  }
-
-  try {
-    // ============================================================
-    // ✅ ONLY /user/full-profile — SAME as user_documents_screen
-    // (Removed /user/get-documents and /user/user-profile-by-email
-    //  because they return stale data from other collections)
-    // ============================================================
-    final res = await DioClient.dio.get('/user/full-profile');
-
-    if (res.data is Map) {
-      Map<String, dynamic> profile = {};
-      if (res.data.containsKey('data') && res.data['data'] is Map) {
-        profile = Map<String, dynamic>.from(res.data['data']);
-      } else {
-        profile = Map<String, dynamic>.from(res.data);
-      }
-
-      final additional = profile['additional_details'] as Map? ?? {};
-
-      // ============================================================
-      // ✅ WHITELIST LOOP ONLY
-      // Sirf _documentKeyMap me define kiye gaye keys check karo.
-      // additional_details me jo bhi EXTRA keys hain (including deleted
-      // / stale / "no found" wale), unhe IGNORE kar do.
-      // ============================================================
-      for (final entry in _documentKeyMap) {
-        final key = entry['key']!;
-        final label = entry['label']!;
-
-        // ✅ Check in additional_details first, then top-level profile
-        final value = additional[key] ?? profile[key];
-
-        if (value != null) {
-          addDoc(key, label, value);
-        }
-      }
-
-      // ✅ Top-level fallbacks (whitelist me hain)
-      for (final key in ['resume_url', 'profile_photo_url']) {
-        final v = profile[key];
-        if (v != null) {
-          addDoc(key, _labelForKey(key), v);
-        }
-      }
-    }
-  } catch (e) {
-    debugPrint("⚠️ /user/full-profile failed: $e");
-  }
-
-  if (mounted) {
+  // ============================================================
+  // ✅ FETCH ALL USER DOCUMENTS
+  // ============================================================
+  Future<void> _fetchAllDocuments() async {
+    if (!mounted) return;
     setState(() {
-      _userDocuments = docs;
-      _isLoadingDocuments = false;
+      _isLoadingDocuments = true;
+      _userDocuments = [];
     });
+
+    final List<Map<String, dynamic>> docs = [];
+
+    void addDoc(String key, String label, dynamic value) {
+      if (!_isValidDocUrl(value)) return;
+      final url = value.toString().trim();
+      if (docs.any((d) => d['url'] == url)) return;
+      docs.add({
+        'key': key,
+        'label': label,
+        'url': url,
+      });
+    }
+
+    try {
+      final res = await DioClient.dio.get('/user/full-profile');
+
+      if (res.data is Map) {
+        Map<String, dynamic> profile = {};
+        if (res.data.containsKey('data') && res.data['data'] is Map) {
+          profile = Map<String, dynamic>.from(res.data['data']);
+        } else {
+          profile = Map<String, dynamic>.from(res.data);
+        }
+
+        final additional = profile['additional_details'] as Map? ?? {};
+
+        for (final entry in _documentKeyMap) {
+          final key = entry['key']!;
+          final label = entry['label']!;
+
+          final value = additional[key] ?? profile[key];
+
+          if (value != null) {
+            addDoc(key, label, value);
+          }
+        }
+
+        for (final key in ['resume_url', 'profile_photo_url']) {
+          final v = profile[key];
+          if (v != null) {
+            addDoc(key, _labelForKey(key), v);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("⚠️ /user/full-profile failed: $e");
+    }
+
+    if (mounted) {
+      setState(() {
+        _userDocuments = docs;
+        _isLoadingDocuments = false;
+      });
+    }
   }
-}
 
   String _labelForKey(String key) {
     for (final entry in _documentKeyMap) {
@@ -1048,7 +1027,7 @@ Future<void> _fetchAllDocuments() async {
   }
 
   // ============================================================
-  // ✅ Build "Uploaded Documents" section (STRICT filter)
+  // ✅ "Your Uploaded Documents" section (user's own docs only)
   // ============================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> allDocs = [];
@@ -1056,41 +1035,7 @@ Future<void> _fetchAllDocuments() async {
     // 1) User profile documents (already filtered)
     allDocs.addAll(_userDocuments);
 
-    // 2) Application submitted document
-    final submittedUrl = app['submitted_document_url'];
-    if (_isValidDocUrl(submittedUrl)) {
-      final urlStr = submittedUrl.toString().trim();
-      if (!allDocs.any((d) => d['url'] == urlStr)) {
-        allDocs.add({
-          'key': 'submitted_document_url',
-          'label': app['submitted_document_name']?.toString() ??
-              'Submitted Document (Review)',
-          'url': urlStr,
-          'download_url': app['submitted_document_download_url'],
-          'source': 'application',
-          'is_application_doc': true,
-        });
-      }
-    }
-
-    // 3) Final submitted document
-    final finalUrl = app['final_document_url'];
-    if (_isValidDocUrl(finalUrl)) {
-      final urlStr = finalUrl.toString().trim();
-      if (!allDocs.any((d) => d['url'] == urlStr)) {
-        allDocs.add({
-          'key': 'final_document_url',
-          'label': app['final_document_name']?.toString() ??
-              'Final Submitted Document',
-          'url': urlStr,
-          'download_url': app['final_document_download_url'],
-          'source': 'application',
-          'is_application_doc': true,
-        });
-      }
-    }
-
-    // 4) Payment receipt
+    // 2) Payment receipt
     final receiptUrl = app['payment_receipt_url'];
     if (_isValidDocUrl(receiptUrl)) {
       final urlStr = receiptUrl.toString().trim();
@@ -1106,7 +1051,7 @@ Future<void> _fetchAllDocuments() async {
       }
     }
 
-    // 5) Payment screenshot
+    // 3) Payment screenshot
     final screenshotUrl = app['screenshot_url'];
     if (_isValidDocUrl(screenshotUrl)) {
       final urlStr = screenshotUrl.toString().trim();
@@ -1121,7 +1066,7 @@ Future<void> _fetchAllDocuments() async {
       }
     }
 
-    // 6) Application document (document_url)
+    // 4) Application document (document_url - user uploaded)
     final docUrl = app['document_url'];
     if (_isValidDocUrl(docUrl)) {
       final urlStr = docUrl.toString().trim();
@@ -1136,7 +1081,7 @@ Future<void> _fetchAllDocuments() async {
       }
     }
 
-    // 7) Application resume URL
+    // 5) Application resume URL
     final appResume = app['resume_url'];
     if (_isValidDocUrl(appResume)) {
       final urlStr = appResume.toString().trim();
@@ -1150,6 +1095,10 @@ Future<void> _fetchAllDocuments() async {
         });
       }
     }
+
+    // NOTE: Admin review / final docs (submitted_document_url, final_document_url)
+    // are intentionally EXCLUDED here — they appear in
+    // _buildAdminDocumentsSection() only.
 
     return _buildGlassContainer(
       child: Column(
@@ -1171,7 +1120,7 @@ Future<void> _fetchAllDocuments() async {
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
-                  "Uploaded Documents",
+                  "Your Uploaded Documents",
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -1236,7 +1185,7 @@ Future<void> _fetchAllDocuments() async {
   }
 
   // ============================================================
-  // ✅ Single document row (View button)
+  // ✅ Single document row (user docs)
   // ============================================================
   Widget _buildDocumentRow(int index, Map<String, dynamic> doc) {
     final String label = doc['label']?.toString() ?? 'Document ${index + 1}';
@@ -1304,6 +1253,219 @@ Future<void> _fetchAllDocuments() async {
                         ),
                       ),
                     if (isAppDoc) const SizedBox(width: 6),
+                    Text(
+                      fileType.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.visibility, color: Colors.blue),
+            tooltip: "View",
+            onPressed: () => _openDocumentViewer(
+              url,
+              title: label,
+              downloadUrl: downloadUrl,
+              fileType: fileType,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // ✅ NEW: Admin Documents Section
+  // Shows ONLY documents uploaded by Admin/CustomAdmin during
+  // REVIEW and FINAL SUBMIT. Displayed near Confirm/Update area.
+  // ============================================================
+  Widget _buildAdminDocumentsSection(Map<String, dynamic> app) {
+    final List<Map<String, dynamic>> adminDocs = [];
+
+    // 1) Admin REVIEW document (uploaded when admin clicks Review)
+    final submittedUrl = app['submitted_document_url'];
+    if (_isValidDocUrl(submittedUrl)) {
+      adminDocs.add({
+        'key': 'submitted_document_url',
+        'label': app['submitted_document_name']?.toString() ??
+            'Review Document (from Admin)',
+        'url': submittedUrl.toString().trim(),
+        'download_url': app['submitted_document_download_url'],
+        'badge': 'ADMIN REVIEW',
+        'badgeColor': Colors.orange,
+      });
+    }
+
+    // 2) Admin FINAL SUBMIT document (uploaded when admin clicks Final Submit)
+    final finalUrl = app['final_document_url'];
+    if (_isValidDocUrl(finalUrl)) {
+      adminDocs.add({
+        'key': 'final_document_url',
+        'label': app['final_document_name']?.toString() ??
+            'Final Submission Document (from Admin)',
+        'url': finalUrl.toString().trim(),
+        'download_url': app['final_document_download_url'],
+        'badge': 'ADMIN FINAL',
+        'badgeColor': Colors.deepPurple,
+      });
+    }
+
+    if (adminDocs.isEmpty) return const SizedBox();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.orange.shade50, Colors.deepPurple.shade50],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.orange.shade300, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withOpacity(0.1),
+            blurRadius: 12,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Colors.orange, Colors.deepPurple],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.admin_panel_settings,
+                    color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Documents from Admin",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    Text(
+                      "Uploaded during review / final submission",
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "${adminDocs.length} File${adminDocs.length > 1 ? 's' : ''}",
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...adminDocs.map((doc) => _buildAdminDocumentRow(doc)),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // ✅ NEW: Admin Document Row (distinct style + badge)
+  // ============================================================
+  Widget _buildAdminDocumentRow(Map<String, dynamic> doc) {
+    final String label = doc['label'] as String;
+    final String url = doc['url'] as String;
+    final String? downloadUrl = doc['download_url'] as String?;
+    final String badge = doc['badge'] as String;
+    final Color badgeColor = doc['badgeColor'] as Color;
+
+    final icon = _iconForUrl(url);
+    final color = _colorForUrl(url);
+    final fileType = _fileTypeForUrl(url);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: badgeColor.withOpacity(0.35), width: 1.5),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: badgeColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: badgeColor.withOpacity(0.4)),
+                      ),
+                      child: Text(
+                        badge,
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          color: badgeColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
                     Text(
                       fileType.toUpperCase(),
                       style: TextStyle(
@@ -2051,6 +2213,7 @@ Future<void> _fetchAllDocuments() async {
   }
 
   Widget _buildUnderReviewSection() {
+    final app = widget.application;
     final documentUrl = _getSubmittedDocumentUrl();
     final hasDocument = documentUrl != null && documentUrl.isNotEmpty;
     final documentName = _getSubmittedDocumentName();
@@ -2089,12 +2252,14 @@ Future<void> _fetchAllDocuments() async {
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                "Application Under Review",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange,
+              const Expanded(
+                child: Text(
+                  "Application Under Review",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
                 ),
               ),
             ],
@@ -2104,48 +2269,54 @@ Future<void> _fetchAllDocuments() async {
             "Your application is currently under review. You can view your submitted document and take action below:",
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: Material(
-              borderRadius: BorderRadius.circular(12),
-              color: hasDocument ? Colors.teal : Colors.grey.shade400,
-              child: InkWell(
-                onTap: hasDocument ? _viewApplicationDocument : null,
+          if (hasDocument) ...[
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: Material(
                 borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.visibility,
-                          size: 20, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Text(
-                        hasDocument
-                            ? "VIEW APPLICATION DOCUMENT"
-                            : "NO DOCUMENT AVAILABLE",
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                color: Colors.teal,
+                child: InkWell(
+                  onTap: _viewApplicationDocument,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.visibility, size: 20, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text(
+                          "VIEW APPLICATION DOCUMENT",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          if (hasDocument && documentName != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                "Document: $documentName",
-                style: const TextStyle(fontSize: 12, color: Colors.teal),
-                textAlign: TextAlign.center,
+            if (documentName != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  "Document: $documentName",
+                  style: const TextStyle(fontSize: 12, color: Colors.teal),
+                  textAlign: TextAlign.center,
+                ),
               ),
-            ),
+          ],
+
+          // ============================================================
+          // ✅ NEW: ADMIN-UPLOADED DOCUMENTS SHOWN HERE
+          // ============================================================
+          const SizedBox(height: 20),
+          _buildAdminDocumentsSection(app),
+
           const SizedBox(height: 20),
           const Divider(),
           const SizedBox(height: 16),
@@ -2245,6 +2416,7 @@ Future<void> _fetchAllDocuments() async {
   }
 
   Widget _buildFinalSubmitSection() {
+    final app = widget.application;
     final documentUrl = _getSubmittedDocumentUrl();
     final hasDocument = documentUrl != null && documentUrl.isNotEmpty;
     final documentName = _getSubmittedDocumentName();
@@ -2283,12 +2455,14 @@ Future<void> _fetchAllDocuments() async {
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                "Final Submission Completed",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepPurple,
+              const Expanded(
+                child: Text(
+                  "Final Submission Completed",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple,
+                  ),
                 ),
               ),
             ],
@@ -2298,49 +2472,54 @@ Future<void> _fetchAllDocuments() async {
             "Your application has been successfully submitted. You can view your submitted document below:",
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: Material(
-              borderRadius: BorderRadius.circular(12),
-              color: hasDocument ? Colors.deepPurple : Colors.grey.shade400,
-              child: InkWell(
-                onTap: hasDocument ? _viewApplicationDocument : null,
+          if (hasDocument) ...[
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: Material(
                 borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.visibility,
-                          size: 20, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Text(
-                        hasDocument
-                            ? "VIEW APPLICATION DOCUMENT"
-                            : "NO DOCUMENT AVAILABLE",
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                color: Colors.deepPurple,
+                child: InkWell(
+                  onTap: _viewApplicationDocument,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.visibility, size: 20, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text(
+                          "VIEW APPLICATION DOCUMENT",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          if (hasDocument && documentName != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                "Document: $documentName",
-                style:
-                    const TextStyle(fontSize: 12, color: Colors.deepPurple),
-                textAlign: TextAlign.center,
+            if (documentName != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  "Document: $documentName",
+                  style: const TextStyle(
+                      fontSize: 12, color: Colors.deepPurple),
+                  textAlign: TextAlign.center,
+                ),
               ),
-            ),
+          ],
+
+          // ============================================================
+          // ✅ NEW: ADMIN DOCUMENTS SHOWN HERE
+          // ============================================================
+          const SizedBox(height: 20),
+          _buildAdminDocumentsSection(app),
         ],
       ),
     );

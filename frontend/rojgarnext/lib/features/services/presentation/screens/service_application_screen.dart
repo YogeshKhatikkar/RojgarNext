@@ -4,12 +4,13 @@
 // ✅ AI-Based Modern Design
 // ✅ FIXED: Now shows SAME documents as user_service_applications_screen
 //    - Fetches from /services/application/{id}/documents endpoint
-//    - Shows service_documents (user-uploaded) + admin_documents (review/final)
-//    - Plus payment_receipt_url and screenshot_url from app record
+//    - TWO SEPARATE SECTIONS:
+//        1) ADMIN UPLOADED DOCUMENTS  → from Review / Final Submit buttons
+//        2) USER UPLOADED DOCUMENTS   → uploaded by user for this application
+//    - Plus payment_receipt_url and screenshot_url from app record (user section)
 // ✅ STRICT DOCUMENT SCOPING:
-//    Documents shown ONLY in "Uploaded Documents" section.
-//    Profile docs (Aadhaar/PAN/Resume) ya doosri application ke docs
-//    NEVER show here.
+//    Documents shown ONLY in their respective sections.
+//    Profile docs (Aadhaar/PAN/Resume) ya doosri application ke docs NEVER show here.
 // ✅ Submitted Information section shows ONLY plain text/object fields.
 
 import 'dart:convert';
@@ -53,11 +54,14 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   String? _adminEmail;
 
   // ============================================================
-  // ✅ NEW: Service application documents (uploaded via apply_service_screen)
-  //    These come from /services/application/{id}/documents endpoint
-  //    Includes BOTH user-uploaded service docs AND admin review/final docs
+  // ✅ TWO SEPARATE DOCUMENT LISTS
+  // ------------------------------------------------------------
+  // _adminDocuments → uploaded by ADMIN via Review / Final Submit
+  // _userDocuments  → uploaded by USER for this application
   // ============================================================
-  List<Map<String, dynamic>> _serviceDocuments = [];
+  List<Map<String, dynamic>> _adminDocuments = [];
+  List<Map<String, dynamic>> _userDocuments = [];
+
   bool _isLoadingServiceDocs = false;
   final Map<String, List<Map<String, dynamic>>> _serviceDocsCache = {};
 
@@ -99,8 +103,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
 
   // ====================================================================
   // ✅ STRICT document URL validator
-  // Filters out: null, "", "null", "undefined", "-", "n/a",
-  // and any non-URL garbage. Only real http(s)/file/blob URLs pass.
   // ====================================================================
   bool _isValidDocUrl(dynamic value) {
     if (value == null) return false;
@@ -346,13 +348,14 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   }
 
   // ============================================================
-  // ✅ UPDATED: Fetch service application documents when opening details
+  // ✅ UPDATED: Fetch service application documents — SPLIT IN TWO
   // ============================================================
   void _showApplicationDetails(Map<String, dynamic> app) {
     final appId = (app['_id'] ?? '').toString();
     setState(() {
       _selectedApplication = app;
-      _serviceDocuments = [];
+      _adminDocuments = [];
+      _userDocuments = [];
     });
     if (appId.isNotEmpty) {
       _fetchServiceApplicationDocuments(appId);
@@ -362,13 +365,14 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   void _closeDetails() {
     setState(() {
       _selectedApplication = null;
-      _serviceDocuments = [];
+      _adminDocuments = [];
+      _userDocuments = [];
     });
     _refreshInBackground();
   }
 
   // ============================================================
-  // ✅ NEW: FETCH SERVICE APPLICATION DOCUMENTS (STRICT)
+  // ✅ FETCH SERVICE APPLICATION DOCUMENTS — SPLIT INTO TWO LISTS
   // ✅ ONLY fetches from /services/application/{id}/documents
   // ✅ Same behavior as user_service_applications_screen
   // ============================================================
@@ -377,8 +381,16 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
 
     // Return cached if already loaded
     if (_serviceDocsCache.containsKey(applicationId)) {
+      final cached = _serviceDocsCache[applicationId]!;
       setState(() {
-        _serviceDocuments = _serviceDocsCache[applicationId]!;
+        _userDocuments = cached
+            .where((d) => d['is_admin_doc'] != true)
+            .map((d) => Map<String, dynamic>.from(d))
+            .toList();
+        _adminDocuments = cached
+            .where((d) => d['is_admin_doc'] == true)
+            .map((d) => Map<String, dynamic>.from(d))
+            .toList();
         _isLoadingServiceDocs = false;
       });
       return;
@@ -386,10 +398,12 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
 
     setState(() {
       _isLoadingServiceDocs = true;
-      _serviceDocuments = [];
+      _adminDocuments = [];
+      _userDocuments = [];
     });
 
-    final List<Map<String, dynamic>> docs = [];
+    final List<Map<String, dynamic>> userDocs = [];
+    final List<Map<String, dynamic>> adminDocs = [];
 
     try {
       debugPrint("📄 Fetching service application docs → $applicationId");
@@ -416,7 +430,7 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
             continue;
           }
 
-          docs.add({
+          userDocs.add({
             'key': (d['document_type'] ?? 'document').toString(),
             'label': (d['label'] ?? d['document_type'] ?? 'Document').toString(),
             'url': url,
@@ -424,14 +438,15 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
             'source': 'service_application',
             'is_application_doc': true,
             'is_admin_doc': false,
+            'is_user_doc': true,
             'uploaded_at': d['uploaded_at'],
           });
         }
 
         // ✅ B. ADMIN REVIEW / FINAL DOCUMENTS (already filtered by backend)
-        final List<dynamic> adminDocs =
+        final List<dynamic> adminRaw =
             (res.data['admin_documents'] as List?) ?? [];
-        for (final raw in adminDocs) {
+        for (final raw in adminRaw) {
           if (raw is! Map) continue;
           final d = Map<String, dynamic>.from(raw);
 
@@ -440,15 +455,17 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
 
           final source = (d['source'] ?? '').toString();
           final isAdminReview = source == 'admin_review';
+          final isAdminFinal = source == 'admin_final';
 
-          docs.add({
+          adminDocs.add({
             'key': (d['document_type'] ?? 'admin_doc').toString(),
             'label': (d['label'] ?? 'Admin Document').toString(),
             'url': url,
             'download_url': (d['download_url'] ?? url).toString(),
             'source': source,
             'is_application_doc': true,
-            'is_admin_doc': isAdminReview,
+            'is_admin_doc': isAdminReview || isAdminFinal,
+            'uploaded_at': d['uploaded_at'],
           });
         }
       }
@@ -456,11 +473,16 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       debugPrint("⚠️ Failed to fetch service application docs: $e");
     }
 
-    _serviceDocsCache[applicationId] = docs;
+    // ✅ Cache combined (both admin + user)
+    final combined = <Map<String, dynamic>>[];
+    combined.addAll(userDocs);
+    combined.addAll(adminDocs);
+    _serviceDocsCache[applicationId] = combined;
 
     if (mounted) {
       setState(() {
-        _serviceDocuments = docs;
+        _userDocuments = userDocs;
+        _adminDocuments = adminDocs;
         _isLoadingServiceDocs = false;
       });
     }
@@ -512,6 +534,9 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
           _selectedApplication = enrichedApp;
         }
         _filterCache.clear();
+        // ✅ Clear both doc lists before refetching
+        _adminDocuments = [];
+        _userDocuments = [];
       });
 
       // ✅ Refresh the docs cache for this app
@@ -964,7 +989,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
 
   void _viewAcknowledgmentReceipt() {
     final app = _selectedApplication!;
-    // ✅ FIXED: strict validator
     final documentUrl = _isValidDocUrl(app['submitted_document_url'])
         ? app['submitted_document_url']
         : _isValidDocUrl(app['final_document_url'])
@@ -1064,110 +1088,108 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   }
 
   // ====================================================================
-  // ✅ UPDATED "Uploaded Documents" section
-  // ✅ STRICT SCOPING — shows ONLY documents tied to THIS application:
-  //    1) _serviceDocuments (from /services/application/{id}/documents)
-  //       → includes user-uploaded service docs + admin review/final docs
-  //    2) submitted_document_url  (admin review doc)
-  //    3) final_document_url      (admin final-submit doc)
-  //    4) payment_receipt_url     (payment proof)
-  //    5) screenshot_url          (payment screenshot)
-  //    6) document_url            (any attached app doc)
-  // ✅ NEVER shows profile docs (Aadhaar/PAN/etc.) or other apps' docs.
+  // ✅ TWO SEPARATE DOCUMENT SECTIONS
+  // ------------------------------------------------------------
+  // SECTION 1 → ADMIN UPLOADED DOCUMENTS (from Review / Final Submit)
+  // SECTION 2 → USER UPLOADED DOCUMENTS  (uploaded by user for this app)
   // ====================================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
-    final List<Map<String, dynamic>> allDocs = [];
-
-    // 1) Service application docs (uploaded via apply_service_screen)
-    //    These are already filtered by application_id from backend
-    for (final d in _serviceDocuments) {
+    // ---- Build ADMIN documents ----
+    final List<Map<String, dynamic>> adminDocs = <Map<String, dynamic>>[];
+    for (final d in _adminDocuments) {
       final url = d['url']?.toString() ?? '';
       if (!_isValidDocUrl(url)) continue;
-      if (allDocs.any((x) => x['url'] == url)) continue;
-      allDocs.add(d);
+      if (adminDocs.any((x) => x['url'] == url)) continue;
+      adminDocs.add(d);
     }
 
-    // 2) Submitted document (admin review)
-    final submittedUrl = app['submitted_document_url'];
-    if (_isValidDocUrl(submittedUrl)) {
-      final urlStr = submittedUrl.toString().trim();
-      if (!allDocs.any((d) => d['url'] == urlStr)) {
-        allDocs.add({
-          'key': 'submitted_document_url',
-          'label': app['submitted_document_name']?.toString() ??
-              'Submitted Document (Review)',
-          'url': urlStr,
-          'download_url': app['submitted_document_download_url'],
-          'source': 'application',
-          'is_application_doc': true,
-        });
-      }
+    // ---- Build USER documents ----
+    final List<Map<String, dynamic>> userDocs = <Map<String, dynamic>>[];
+    // From service API
+    for (final d in _userDocuments) {
+      final url = d['url']?.toString() ?? '';
+      if (!_isValidDocUrl(url)) continue;
+      if (userDocs.any((x) => x['url'] == url)) continue;
+      userDocs.add(d);
     }
 
-    // 3) Final submitted document
-    final finalUrl = app['final_document_url'];
-    if (_isValidDocUrl(finalUrl)) {
-      final urlStr = finalUrl.toString().trim();
-      if (!allDocs.any((d) => d['url'] == urlStr)) {
-        allDocs.add({
-          'key': 'final_document_url',
-          'label': app['final_document_name']?.toString() ??
-              'Final Submitted Document',
-          'url': urlStr,
-          'download_url': app['final_document_download_url'],
-          'source': 'application',
-          'is_application_doc': true,
-        });
-      }
-    }
-
-    // 4) Payment Receipt
+    // From app record: payment receipt
     final receiptUrl = app['payment_receipt_url'];
     if (_isValidDocUrl(receiptUrl)) {
       final urlStr = receiptUrl.toString().trim();
-      if (!allDocs.any((d) => d['url'] == urlStr)) {
-        allDocs.add({
+      if (!userDocs.any((d) => d['url'] == urlStr)) {
+        userDocs.add({
           'key': 'payment_receipt_url',
           'label': 'Payment Receipt',
           'url': urlStr,
           'download_url': app['payment_receipt_download_url'],
-          'source': 'application',
+          'source': 'user_application',
           'is_application_doc': true,
+          'is_user_doc': true,
         });
       }
     }
 
-    // 5) Payment Screenshot
+    // From app record: payment screenshot
     final screenshotUrl = app['screenshot_url'];
     if (_isValidDocUrl(screenshotUrl)) {
       final urlStr = screenshotUrl.toString().trim();
-      if (!allDocs.any((d) => d['url'] == urlStr)) {
-        allDocs.add({
+      if (!userDocs.any((d) => d['url'] == urlStr)) {
+        userDocs.add({
           'key': 'screenshot_url',
           'label': 'Payment Screenshot',
           'url': urlStr,
-          'source': 'application',
+          'source': 'user_application',
           'is_application_doc': true,
+          'is_user_doc': true,
         });
       }
     }
 
-    // 6) Application document (document_url)
+    // From app record: generic document_url
     final docUrl = app['document_url'];
     if (_isValidDocUrl(docUrl)) {
       final urlStr = docUrl.toString().trim();
-      if (!allDocs.any((d) => d['url'] == urlStr)) {
-        allDocs.add({
+      if (!userDocs.any((d) => d['url'] == urlStr)) {
+        userDocs.add({
           'key': 'document_url',
           'label': 'Uploaded Document',
           'url': urlStr,
-          'source': 'application',
+          'source': 'user_application',
           'is_application_doc': true,
+          'is_user_doc': true,
         });
       }
     }
 
-    if (allDocs.isEmpty) return const SizedBox();
+    // Nothing at all?
+    if (adminDocs.isEmpty && userDocs.isEmpty && !_isLoadingServiceDocs) {
+      return const SizedBox();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ------------------------------------------------------------
+        // SECTION 1 — ADMIN UPLOADED DOCUMENTS
+        // ------------------------------------------------------------
+        _buildAdminDocumentsCard(adminDocs),
+
+        const SizedBox(height: 16),
+
+        // ------------------------------------------------------------
+        // SECTION 2 — USER UPLOADED DOCUMENTS
+        // ------------------------------------------------------------
+        _buildUserDocumentsCard(userDocs),
+      ],
+    );
+  }
+
+  // ====================================================================
+  // ✅ ADMIN DOCUMENTS CARD (Review + Final Submit uploads)
+  // ====================================================================
+  Widget _buildAdminDocumentsCard(List<Map<String, dynamic>> adminDocs) {
+    final int count = adminDocs.length;
 
     return _buildGlassContainer(
       child: Column(
@@ -1179,37 +1201,47 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                    colors: [Color(0xFF7C3AED), Color(0xFFA855F7)],
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.folder_copy,
+                child: const Icon(Icons.admin_panel_settings,
                     color: Colors.white, size: 22),
               ),
               const SizedBox(width: 12),
               const Expanded(
-                child: Text(
-                  "Uploaded Documents",
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Admin Uploaded Documents",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      "Uploaded via Review / Final Submit",
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
                 ),
               ),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.indigo.shade50,
+                  color: Colors.purple.shade50,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  "${allDocs.length} Files",
+                  "$count ${count == 1 ? 'File' : 'Files'}",
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Colors.indigo,
+                    color: Colors.purple,
                   ),
                 ),
               ),
@@ -1221,12 +1253,37 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
               padding: EdgeInsets.symmetric(vertical: 20),
               child: Center(child: CircularProgressIndicator()),
             )
+          else if (count == 0)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.folder_off, size: 40, color: Colors.grey),
+                  SizedBox(height: 8),
+                  Text(
+                    "No admin documents uploaded yet",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    "Documents uploaded via Review or Final Submit will appear here",
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            )
           else
             Column(
-              children: allDocs
+              children: adminDocs
                   .asMap()
                   .entries
-                  .map((entry) => _buildDocumentRow(entry.key, entry.value))
+                  .map((e) => _buildAdminDocumentRow(e.key, e.value))
                   .toList(),
             ),
         ],
@@ -1234,31 +1291,248 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     );
   }
 
-  // ============================================================
-  // ✅ UPDATED: Document row with badges (UPLOADED / ADMIN / PAYMENT)
-  // ============================================================
-  Widget _buildDocumentRow(int index, Map<String, dynamic> doc) {
+  // ====================================================================
+  // ✅ USER DOCUMENTS CARD (uploaded by user for this application)
+  // ====================================================================
+  Widget _buildUserDocumentsCard(List<Map<String, dynamic>> userDocs) {
+    final int count = userDocs.length;
+
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2563EB), Color(0xFF60A5FA)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.person,
+                    color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "User Uploaded Documents",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      "Uploaded by user for this application",
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "$count ${count == 1 ? 'File' : 'Files'}",
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (_isLoadingServiceDocs)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (count == 0)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.folder_off, size: 40, color: Colors.grey),
+                  SizedBox(height: 8),
+                  Text(
+                    "No user documents uploaded yet",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    "Documents uploaded by the user will appear here",
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            )
+          else
+            Column(
+              children: userDocs
+                  .asMap()
+                  .entries
+                  .map((e) => _buildUserDocumentRow(e.key, e.value))
+                  .toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ====================================================================
+  // ✅ ADMIN document row
+  // ====================================================================
+  Widget _buildAdminDocumentRow(int index, Map<String, dynamic> doc) {
+    final String label =
+        doc['label']?.toString() ?? 'Admin Document ${index + 1}';
+    final String url = doc['url']?.toString() ?? '';
+    final String? downloadUrl = doc['download_url']?.toString();
+    final String source = doc['source']?.toString() ?? '';
+    final dynamic uploadedAt = doc['uploaded_at'];
+
+    final icon = _iconForUrl(url);
+    final color = _colorForUrl(url);
+    final fileType = _fileTypeForUrl(url);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.purple.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.purple.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.purple,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        "ADMIN",
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      fileType.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    if (source.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        "• $source",
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (uploadedAt != null) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    "At: $uploadedAt",
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.visibility, color: Colors.purple),
+            tooltip: "View",
+            onPressed: () => _openDocumentViewer(
+              url,
+              title: label,
+              downloadUrl: downloadUrl,
+              fileType: fileType,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ====================================================================
+  // ✅ USER document row
+  // ====================================================================
+  Widget _buildUserDocumentRow(int index, Map<String, dynamic> doc) {
     final String label = doc['label']?.toString() ?? 'Document ${index + 1}';
     final String url = doc['url']?.toString() ?? '';
     final String? downloadUrl = doc['download_url']?.toString();
     final bool isAppDoc = doc['is_application_doc'] == true;
-    final bool isAdminDoc = doc['is_admin_doc'] == true;
     final String source = doc['source']?.toString() ?? '';
 
     final icon = _iconForUrl(url);
     final color = _colorForUrl(url);
     final fileType = _fileTypeForUrl(url);
 
-    // Badge logic
-    String badgeLabel = "";
-    Color badgeColor = Colors.blue;
+    String badgeLabel = "USER";
+    Color badgeColor = Colors.green;
     if (source == 'service_application') {
       badgeLabel = "UPLOADED";
       badgeColor = Colors.green;
-    } else if (isAdminDoc) {
-      badgeLabel = "ADMIN";
-      badgeColor = Colors.purple;
-    } else if (source == 'application') {
+    } else if (source == 'user_application') {
       badgeLabel = "PAYMENT";
       badgeColor = Colors.orange;
     }
@@ -1301,26 +1575,25 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
                 const SizedBox(height: 3),
                 Row(
                   children: [
-                    if (badgeLabel.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: badgeColor.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                              color: badgeColor.withOpacity(0.4)),
-                        ),
-                        child: Text(
-                          badgeLabel,
-                          style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                            color: badgeColor,
-                          ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: badgeColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                            color: badgeColor.withOpacity(0.4)),
+                      ),
+                      child: Text(
+                        badgeLabel,
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          color: badgeColor,
                         ),
                       ),
-                    if (badgeLabel.isNotEmpty) const SizedBox(width: 6),
+                    ),
+                    const SizedBox(width: 6),
                     Text(
                       fileType.toUpperCase(),
                       style: TextStyle(
@@ -2790,8 +3063,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   // ====================================================================
   // ✅ FIELDS CARD — ONLY plain text/object fields.
   // ✅ STRICT: documents are NEVER shown here.
-  // ✅ Documents are shown ONLY in _buildDocumentsSection(),
-  //    which filters by application-specific keys.
   // ====================================================================
   Widget _buildFieldsCard(Map<String, dynamic> fields) {
     if (fields.isEmpty) return const SizedBox();
@@ -2799,8 +3070,7 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     final List<Map<String, dynamic>> flatFields = [];
 
     fields.forEach((key, value) {
-      // ✅ FIX: Skip ALL document fields — they belong to the
-      // dedicated Documents section, NOT here.
+      // ✅ Skip ALL document fields — they belong to the dedicated Documents section
       if (_isDocumentField(key, value)) {
         return;
       }
@@ -3079,8 +3349,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
 
   // ====================================================================
   // ✅ Detects if a `fields` entry is a document blob.
-  // Used ONLY to SKIP such entries from _buildFieldsCard().
-  // Real document URLs are read directly from the top-level `app` map.
   // ====================================================================
   bool _isDocumentField(String key, dynamic value) {
     if (value == null) return false;

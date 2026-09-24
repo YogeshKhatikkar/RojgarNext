@@ -1,14 +1,14 @@
 // lib/features/jobs/presentation/screens/applications_screen.dart
 // ✅ AI-BASED MODERN REDESIGN – Glassmorphism, Gradients, Animated Loading
 // ✅ Preserves all original functionality (status updates, file uploads, payments, profile navigation)
-// ✅ NEW: Documents Section – SAME documents as user_applications_screen
+// ✅ NEW: Two SEPARATE document sections:
+//      1) ADMIN UPLOADED DOCUMENTS  → from Review / Final Submit buttons
+//      2) USER UPLOADED DOCUMENTS   → uploaded by user for this application
 // ✅ FIXED: Whitelist-only keys → deleted / null / stale docs NEVER show
 // ✅ FIXED: /user/full-profile with email param is PRIMARY source (matches user side)
 // ✅ FIXED: Admin viewing candidate docs now correctly fetches CANDIDATE documents (not admin's)
 // ✅ FIXED: Payment Approve/Reject now uses application_id (not payment_id) - matches backend
 // ✅ ENHANCED: Payment Verification section identical to Service Application Screen
-//              - Pending state → shows Approve/Reject buttons with full details
-//              - Processed state → shows status only with receipt view
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -48,13 +48,21 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
-  // ✅ All user documents fetched from backend
+  // ============================================================
+  // ✅ TWO SEPARATE DOCUMENT LISTS
+  // ============================================================
+  /// Documents uploaded by USER for this application
+  /// (profile documents: Aadhaar, PAN, Resume, etc.)
   List<Map<String, dynamic>> _userDocuments = [];
+
+  /// Documents uploaded by ADMIN via Review / Final Submit buttons
+  /// (submitted_document_url + final_document_url)
+  List<Map<String, dynamic>> _adminDocuments = [];
+
   bool _isLoadingDocuments = false;
 
   // ============================================================
   // ✅ COMPLETE Document Key Map — SAME as user_applications_screen
-  // 100+ document types — same names, same labels
   // ============================================================
   static const List<Map<String, String>> _documentKeyMap = [
     // ==================== IDENTITY ====================
@@ -190,111 +198,32 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   // Filter buttons
   final List<Map<String, dynamic>> _filterButtons = [
     {'value': 'all', 'label': 'All', 'icon': Icons.list, 'color': Colors.grey},
-    {
-      'value': 'pending',
-      'label': 'Pending',
-      'icon': Icons.hourglass_empty,
-      'color': Colors.orange,
-    },
-    {
-      'value': 'pending_verification',
-      'label': 'Pending Pay',
-      'icon': Icons.payment,
-      'color': Colors.purple,
-    },
-    {
-      'value': 'shortlisted',
-      'label': 'Shortlisted',
-      'icon': Icons.star,
-      'color': Colors.blue,
-    },
-    {
-      'value': 'interview',
-      'label': 'Interview',
-      'icon': Icons.people,
-      'color': Colors.purple,
-    },
-    {
-      'value': 'offered',
-      'label': 'Offer',
-      'icon': Icons.celebration,
-      'color': Colors.green,
-    },
-    {
-      'value': 'rejected',
-      'label': 'Reject',
-      'icon': Icons.cancel,
-      'color': Colors.red,
-    },
-    {
-      'value': 'verification_successful',
-      'label': 'Verified',
-      'icon': Icons.verified,
-      'color': Colors.teal,
-    },
-    {
-      'value': 'verification_rejected',
-      'label': 'Verif Reject',
-      'icon': Icons.cancel,
-      'color': Colors.deepOrange,
-    },
-    {
-      'value': 'update_application',
-      'label': 'Update Pending',
-      'icon': Icons.edit_note,
-      'color': Colors.blue,
-    },
+    {'value': 'pending', 'label': 'Pending', 'icon': Icons.hourglass_empty, 'color': Colors.orange},
+    {'value': 'pending_verification', 'label': 'Pending Pay', 'icon': Icons.payment, 'color': Colors.purple},
+    {'value': 'shortlisted', 'label': 'Shortlisted', 'icon': Icons.star, 'color': Colors.blue},
+    {'value': 'interview', 'label': 'Interview', 'icon': Icons.people, 'color': Colors.purple},
+    {'value': 'offered', 'label': 'Offer', 'icon': Icons.celebration, 'color': Colors.green},
+    {'value': 'rejected', 'label': 'Reject', 'icon': Icons.cancel, 'color': Colors.red},
+    {'value': 'verification_successful', 'label': 'Verified', 'icon': Icons.verified, 'color': Colors.teal},
+    {'value': 'verification_rejected', 'label': 'Verif Reject', 'icon': Icons.cancel, 'color': Colors.deepOrange},
+    {'value': 'update_application', 'label': 'Update Pending', 'icon': Icons.edit_note, 'color': Colors.blue},
   ];
 
   // Status buttons for updating
   final List<Map<String, dynamic>> _statusButtons = [
-    {
-      'value': 'pending',
-      'label': 'Pending',
-      'color': Colors.orange,
-      'icon': Icons.hourglass_empty,
-    },
-    {
-      'value': 'shortlisted',
-      'label': 'Shortlist',
-      'color': Colors.blue,
-      'icon': Icons.star,
-    },
-    {
-      'value': 'interview',
-      'label': 'Interview',
-      'color': Colors.purple,
-      'icon': Icons.people,
-    },
-    {
-      'value': 'offered',
-      'label': 'Offer',
-      'color': Colors.green,
-      'icon': Icons.celebration,
-    },
-    {
-      'value': 'review_application',
-      'label': 'Review',
-      'color': Colors.orange.shade700,
-      'icon': Icons.rate_review,
-    },
-    {
-      'value': 'final_submit',
-      'label': 'Final Submit',
-      'color': Colors.deepPurple,
-      'icon': Icons.send_and_archive,
-    },
+    {'value': 'pending', 'label': 'Pending', 'color': Colors.orange, 'icon': Icons.hourglass_empty},
+    {'value': 'shortlisted', 'label': 'Shortlist', 'color': Colors.blue, 'icon': Icons.star},
+    {'value': 'interview', 'label': 'Interview', 'color': Colors.purple, 'icon': Icons.people},
+    {'value': 'offered', 'label': 'Offer', 'color': Colors.green, 'icon': Icons.celebration},
+    {'value': 'review_application', 'label': 'Review', 'color': Colors.orange.shade700, 'icon': Icons.rate_review},
+    {'value': 'final_submit', 'label': 'Final Submit', 'color': Colors.deepPurple, 'icon': Icons.send_and_archive},
   ];
 
   // ============================================================
   // ✅ ULTRA-STRICT document URL validator
-  // Filters out: null, "", "null", "undefined", "-", "n/a",
-  // "not found", "deleted", "removed", {}, [], placeholder URLs
   // ============================================================
   bool _isValidDocUrl(dynamic value) {
     if (value == null) return false;
-
-    // Reject empty maps / lists
     if (value is Map && value.isEmpty) return false;
     if (value is List && value.isEmpty) return false;
 
@@ -322,7 +251,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       return false;
     }
 
-    // Reject non-URL strings
     if (!str.startsWith('http://') &&
         !str.startsWith('https://') &&
         !str.startsWith('file:') &&
@@ -332,7 +260,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
 
     if (str.length < 12) return false;
 
-    // Reject placeholder URLs
     if (lower.contains('not-found') ||
         lower.contains('notfound') ||
         lower.contains('placeholder') ||
@@ -424,9 +351,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
 
     try {
       final basePath = _getApiBasePath();
-      debugPrint(
-        "📧 Fetching applications for admin: $_adminEmail using $basePath",
-      );
+      debugPrint("📧 Fetching applications for admin: $_adminEmail using $basePath");
 
       final jobsResponse = await DioClient.dio.get('$basePath/jobs');
       if (!mounted) return;
@@ -526,11 +451,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   }
 
   // ============================================================
-  // ✅ FETCH ALL USER DOCUMENTS (SAME as user_documents_screen)
-  // ✅ CRITICAL FIX: Now passes the CANDIDATE's email as query param
-  //    → backend returns CANDIDATE's profile (not admin's own)
-  // ✅ Whitelist-only keys → deleted docs NEVER show
-  // ✅ Multiple fallbacks: /user/full-profile?email=X then /user/user-profile-by-email?email=X
+  // ✅ FETCH USER (CANDIDATE) PROFILE DOCUMENTS — separated
   // ============================================================
   Future<void> _fetchUserDocuments(String email) async {
     if (!mounted) return;
@@ -546,7 +467,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
 
     final List<Map<String, dynamic>> docs = [];
 
-    // ✅ Safe add helper — strict filter + duplicate skip
     void addDoc(String key, String label, dynamic value) {
       if (!_isValidDocUrl(value)) return;
       final url = value.toString().trim();
@@ -555,25 +475,23 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         'key': key,
         'label': label,
         'url': url,
+        'is_application_doc': false,
+        'source': 'user_profile',
       });
     }
 
-    // ✅ Helper to process a profile map and extract documents
     void processProfileMap(Map<String, dynamic> profile) {
       final additional = profile['additional_details'] as Map? ?? {};
 
       for (final entry in _documentKeyMap) {
         final key = entry['key']!;
         final label = entry['label']!;
-
-        // Check in additional_details first, then top-level profile
         final value = additional[key] ?? profile[key];
         if (value != null) {
           addDoc(key, label, value);
         }
       }
 
-      // Top-level fallbacks
       for (final key in ['resume_url', 'profile_photo_url']) {
         final v = profile[key];
         if (v != null) {
@@ -583,13 +501,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     }
 
     try {
-      // ============================================================
-      // ✅ PRIMARY: /user/full-profile?email=<candidate_email>
-      //    Backend returns the candidate's complete profile
-      // ============================================================
       try {
-        debugPrint(
-            "📄 Fetching candidate docs from /user/full-profile?email=$email");
+        debugPrint("📄 Fetching candidate docs from /user/full-profile?email=$email");
         final res = await DioClient.dio.get(
           '/user/full-profile?email=$email',
         );
@@ -601,21 +514,12 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
           } else {
             profile = Map<String, dynamic>.from(res.data);
           }
-
-          debugPrint("📄 Profile keys: ${profile.keys.toList()}");
-          final additional = profile['additional_details'] as Map? ?? {};
-          debugPrint("📄 additional_details keys: ${additional.keys.toList()}");
-
           processProfileMap(profile);
         }
       } catch (e) {
         debugPrint("⚠️ /user/full-profile?email=$email failed: $e");
       }
 
-      // ============================================================
-      // ✅ FALLBACK: /user/user-profile-by-email?email=<candidate_email>
-      //    Used by candidate_profile_screen.dart - returns same data
-      // ============================================================
       if (docs.isEmpty) {
         try {
           debugPrint("📄 Fallback: /user/user-profile-by-email?email=$email");
@@ -637,7 +541,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         }
       }
 
-      debugPrint("✅ Total documents collected: ${docs.length}");
+      debugPrint("✅ Total USER documents collected: ${docs.length}");
     } catch (e) {
       debugPrint("❌ _fetchUserDocuments error: $e");
     } finally {
@@ -648,6 +552,103 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         });
       }
     }
+  }
+
+  // ============================================================
+  // ✅ NEW: EXTRACT ADMIN-UPLOADED DOCUMENTS for a given application
+  // Admin documents come ONLY from:
+  //   1) submitted_document_url (Review button upload)
+  //   2) final_document_url     (Final Submit button upload)
+  // ============================================================
+  List<Map<String, dynamic>> _getAdminDocumentsForApp(
+      Map<String, dynamic> app) {
+    final List<Map<String, dynamic>> list = [];
+
+    // 1) Review document (Admin uploaded via Review)
+    final submittedUrl = app['submitted_document_url'];
+    if (_isValidDocUrl(submittedUrl)) {
+      final urlStr = submittedUrl.toString().trim();
+      if (!list.any((d) => d['url'] == urlStr)) {
+        list.add({
+          'key': 'submitted_document_url',
+          'label': app['submitted_document_name']?.toString() ??
+              'Review Document (Admin)',
+          'url': urlStr,
+          'download_url': app['submitted_document_download_url'],
+          'source': 'admin_review',
+          'is_admin_doc': true,
+          'is_application_doc': true,
+          'uploaded_at': app['submitted_at'],
+          'uploaded_by': app['submitted_by'],
+        });
+      }
+    }
+
+    // 2) Final Submit document (Admin uploaded via Final Submit)
+    final finalUrl = app['final_document_url'];
+    if (_isValidDocUrl(finalUrl)) {
+      final urlStr = finalUrl.toString().trim();
+      if (!list.any((d) => d['url'] == urlStr)) {
+        list.add({
+          'key': 'final_document_url',
+          'label': app['final_document_name']?.toString() ??
+              'Final Submitted Document (Admin)',
+          'url': urlStr,
+          'download_url': app['final_document_download_url'],
+          'source': 'admin_final',
+          'is_admin_doc': true,
+          'is_application_doc': true,
+          'uploaded_at': app['final_submitted_at'],
+          'uploaded_by': app['final_submitted_by'],
+        });
+      }
+    }
+
+    return list;
+  }
+
+  // ============================================================
+  // ✅ EXTRACT USER-UPLOADED DOCUMENTS for a given application
+  // (payment receipt + resume the user attached to this application)
+  // ============================================================
+  List<Map<String, dynamic>> _getUserApplicationDocsForApp(
+      Map<String, dynamic> app) {
+    final List<Map<String, dynamic>> list = [];
+
+    // 1) Payment receipt (User uploaded)
+    final receiptUrl = app['payment_receipt_url'];
+    if (_isValidDocUrl(receiptUrl)) {
+      final urlStr = receiptUrl.toString().trim();
+      if (!list.any((d) => d['url'] == urlStr)) {
+        list.add({
+          'key': 'payment_receipt_url',
+          'label': 'Payment Receipt (User)',
+          'url': urlStr,
+          'download_url': app['payment_receipt_download_url'],
+          'source': 'user_application',
+          'is_application_doc': true,
+          'is_user_doc': true,
+        });
+      }
+    }
+
+    // 2) Resume attached to this application (User)
+    final appResume = app['resume_url'];
+    if (_isValidDocUrl(appResume)) {
+      final urlStr = appResume.toString().trim();
+      if (!list.any((d) => d['url'] == urlStr)) {
+        list.add({
+          'key': 'resume_url',
+          'label': 'Resume (Application)',
+          'url': urlStr,
+          'source': 'user_application',
+          'is_application_doc': true,
+          'is_user_doc': true,
+        });
+      }
+    }
+
+    return list;
   }
 
   String _labelForKey(String key) {
@@ -663,9 +664,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         .trim();
   }
 
-  // ====================================================================
-  // ✅ Open a document inside the FileViewerScreen popup
-  // ====================================================================
   Future<void> _openDocumentViewer(
     String url, {
     String title = 'Document',
@@ -710,81 +708,47 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   }
 
   // ====================================================================
-  // ✅ Show ALL documents (user profile + application docs)
-  // ✅ FIXED: Strict filter — deleted docs NEVER show
+  // ✅ SPLIT DOCUMENTS UI — Two distinct cards
   // ====================================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
-    final List<Map<String, dynamic>> allDocs = [];
+    // Build separate lists
+    final adminDocs = _getAdminDocumentsForApp(app);
+    final userAppDocs = _getUserApplicationDocsForApp(app);
 
-    // 1) User profile documents (already filtered by _fetchUserDocuments)
-    allDocs.addAll(_userDocuments);
-
-    // 2) Application submitted document (customadmin review)
-    final submittedUrl = app['submitted_document_url'];
-    if (_isValidDocUrl(submittedUrl)) {
-      final urlStr = submittedUrl.toString().trim();
-      if (!allDocs.any((d) => d['url'] == urlStr)) {
-        allDocs.add({
-          'key': 'submitted_document_url',
-          'label': 'Submitted Document (Review)',
-          'url': urlStr,
-          'download_url': app['submitted_document_download_url'],
-          'source': 'application',
-          'is_application_doc': true,
-        });
-      }
+    // User docs = profile docs + user-attached application docs
+    final allUserDocs = <Map<String, dynamic>>[];
+    allUserDocs.addAll(userAppDocs);
+    for (final d in _userDocuments) {
+      final url = d['url']?.toString() ?? '';
+      if (url.isEmpty) continue;
+      if (allUserDocs.any((x) => x['url'] == url)) continue;
+      allUserDocs.add(d);
     }
 
-    // 3) Final submitted document
-    final finalUrl = app['final_document_url'];
-    if (_isValidDocUrl(finalUrl)) {
-      final urlStr = finalUrl.toString().trim();
-      if (!allDocs.any((d) => d['url'] == urlStr)) {
-        allDocs.add({
-          'key': 'final_document_url',
-          'label': 'Final Submitted Document',
-          'url': urlStr,
-          'download_url': app['final_document_download_url'],
-          'source': 'application',
-          'is_application_doc': true,
-        });
-      }
-    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ------------------------------------------------------------
+        // SECTION 1: ADMIN UPLOADED DOCUMENTS (Review / Final Submit)
+        // ------------------------------------------------------------
+        _buildAdminDocumentsCard(adminDocs),
 
-    // 4) Payment receipt
-    final receiptUrl = app['payment_receipt_url'];
-    if (_isValidDocUrl(receiptUrl)) {
-      final urlStr = receiptUrl.toString().trim();
-      if (!allDocs.any((d) => d['url'] == urlStr)) {
-        allDocs.add({
-          'key': 'payment_receipt_url',
-          'label': 'Payment Receipt',
-          'url': urlStr,
-          'download_url': app['payment_receipt_download_url'],
-          'source': 'application',
-          'is_application_doc': true,
-        });
-      }
-    }
+        const SizedBox(height: 16),
 
-    // 5) Application resume URL
-    final appResume = app['resume_url'];
-    if (_isValidDocUrl(appResume)) {
-      final urlStr = appResume.toString().trim();
-      if (!allDocs.any((d) => d['url'] == urlStr)) {
-        allDocs.add({
-          'key': 'resume_url',
-          'label': 'Resume (Application)',
-          'url': urlStr,
-          'source': 'application',
-          'is_application_doc': true,
-        });
-      }
-    }
+        // ------------------------------------------------------------
+        // SECTION 2: USER UPLOADED DOCUMENTS (for this application)
+        // ------------------------------------------------------------
+        _buildUserDocumentsCard(allUserDocs),
+      ],
+    );
+  }
 
-    // ========================================================================
-    // Build the UI
-    // ========================================================================
+  // ====================================================================
+  // ✅ ADMIN UPLOADED DOCUMENTS CARD
+  // ====================================================================
+  Widget _buildAdminDocumentsCard(List<Map<String, dynamic>> adminDocs) {
+    final int count = adminDocs.length;
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -793,44 +757,54 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ----- Header -----
+            // Header
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.indigo.shade100,
+                    color: Colors.purple.shade100,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
-                    Icons.folder_copy,
-                    color: Colors.indigo,
+                    Icons.admin_panel_settings,
+                    color: Colors.purple,
                     size: 22,
                   ),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
-                  child: Text(
-                    "Uploaded Documents",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Admin Uploaded Documents",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        "Uploaded via Review / Final Submit",
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
                   ),
                 ),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.indigo.shade50,
+                    color: Colors.purple.shade50,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    "${allDocs.length} Files",
+                    "$count ${count == 1 ? 'File' : 'Files'}",
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: Colors.indigo,
+                      color: Colors.purple,
                     ),
                   ),
                 ),
@@ -838,35 +812,19 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             ),
             const SizedBox(height: 12),
 
-            // ----- Body -----
-            if (_isLoadingDocuments)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (allDocs.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Column(
-                  children: [
-                    Icon(Icons.folder_off, size: 40, color: Colors.grey),
-                    SizedBox(height: 8),
-                    Text(
-                      "No documents uploaded by this user",
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
+            // Body
+            if (count == 0)
+              _buildEmptyDocMessage(
+                icon: Icons.folder_off,
+                color: Colors.purple,
+                message: "No admin documents uploaded yet",
+                subMessage:
+                    "Documents uploaded via Review or Final Submit will appear here",
               )
             else
               Column(
-                children: allDocs.asMap().entries.map((entry) {
-                  return _buildDocumentRow(entry.key, entry.value);
+                children: adminDocs.asMap().entries.map((entry) {
+                  return _buildAdminDocumentRow(entry.key, entry.value);
                 }).toList(),
               ),
           ],
@@ -876,9 +834,255 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   }
 
   // ====================================================================
-  // ✅ Single document row (View icon only)
+  // ✅ USER UPLOADED DOCUMENTS CARD
   // ====================================================================
-  Widget _buildDocumentRow(int index, Map<String, dynamic> doc) {
+  Widget _buildUserDocumentsCard(List<Map<String, dynamic>> userDocs) {
+    final int count = userDocs.length;
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    color: Colors.blue,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "User Uploaded Documents",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        "Uploaded by candidate for this application",
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    "$count ${count == 1 ? 'File' : 'Files'}",
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Body
+            if (_isLoadingDocuments)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (count == 0)
+              _buildEmptyDocMessage(
+                icon: Icons.folder_off,
+                color: Colors.blue,
+                message: "No user documents uploaded yet",
+                subMessage: "Candidate has not uploaded any documents",
+              )
+            else
+              Column(
+                children: userDocs.asMap().entries.map((entry) {
+                  return _buildUserDocumentRow(entry.key, entry.value);
+                }).toList(),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ====================================================================
+  // ✅ Empty state for documents
+  // ====================================================================
+  Widget _buildEmptyDocMessage({
+    required IconData icon,
+    required Color color,
+    required String message,
+    required String subMessage,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 40, color: Colors.grey),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: const TextStyle(color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subMessage,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ====================================================================
+  // ✅ ADMIN document row
+  // ====================================================================
+  Widget _buildAdminDocumentRow(int index, Map<String, dynamic> doc) {
+    final String label = doc['label']?.toString() ?? 'Admin Document ${index + 1}';
+    final String url = doc['url']?.toString() ?? '';
+    final String? downloadUrl = doc['download_url']?.toString();
+    final String? uploadedBy = doc['uploaded_by']?.toString();
+    final dynamic uploadedAt = doc['uploaded_at'];
+
+    final icon = _iconForUrl(url);
+    final color = _colorForUrl(url);
+    final fileType = _fileTypeForUrl(url);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.purple.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.purple.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.purple,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        "ADMIN",
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      fileType.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                if (uploadedBy != null && uploadedBy.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    "By: $uploadedBy",
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (uploadedAt != null) ...[
+                  Text(
+                    "At: ${_formatDateTimeShort(uploadedAt.toString())}",
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.visibility, color: Colors.purple),
+            tooltip: "View Admin Document",
+            onPressed: () => _openDocumentViewer(
+              url,
+              title: label,
+              downloadUrl: downloadUrl,
+              fileType: fileType,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ====================================================================
+  // ✅ USER document row
+  // ====================================================================
+  Widget _buildUserDocumentRow(int index, Map<String, dynamic> doc) {
     final String label = doc['label']?.toString() ?? 'Document ${index + 1}';
     final String url = doc['url']?.toString() ?? '';
     final String? downloadUrl = doc['download_url']?.toString();
@@ -900,7 +1104,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       ),
       child: Row(
         children: [
-          // Icon
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -910,8 +1113,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(width: 12),
-
-          // Label + badge
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -960,8 +1161,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
               ],
             ),
           ),
-
-          // View button (ONLY)
           IconButton(
             icon: const Icon(Icons.visibility, color: Colors.blue),
             tooltip: "View",
@@ -1056,7 +1255,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -1110,15 +1308,12 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                 ),
               ),
               const Divider(height: 0),
-
-              // Content
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Status Badge
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -1153,8 +1348,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                         ),
                       ),
                       const SizedBox(height: 20),
-
-                      // Submitted Date
                       if (updateSubmittedAt != null)
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -1181,8 +1374,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                           ),
                         ),
                       const SizedBox(height: 20),
-
-                      // Update Notes
                       if (updateNotes != null && updateNotes.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -1221,8 +1412,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                             ],
                           ),
                         ),
-
-                      // Updates List
                       const Text(
                         "Updated Fields:",
                         style: TextStyle(
@@ -1231,14 +1420,11 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                         ),
                       ),
                       const SizedBox(height: 12),
-
                       ...updates.map((update) => _buildUpdateCard(update)),
                     ],
                   ),
                 ),
               ),
-
-              // Footer Buttons
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -1459,6 +1645,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             setState(() {
               _selectedApplication = updated;
             });
+            // Re-fetch admin documents for the updated app
+            _adminDocuments = _getAdminDocumentsForApp(updated);
           }
         }
       } else {
@@ -1556,6 +1744,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             setState(() {
               _selectedApplication = updated;
             });
+            _adminDocuments = _getAdminDocumentsForApp(updated);
           }
         }
       } else {
@@ -1636,13 +1825,11 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   }
 
   // ==================== PAYMENT VERIFICATION ====================
-  // ✅ FIXED: Now uses applicationId (application _id), matching backend
   Future<void> _approvePayment(String applicationId, String appId) async {
     if (!mounted) return;
     setState(() => _isUpdatingStatus = true);
 
     try {
-      // ✅ Backend expects application _id as path parameter
       debugPrint("📤 Approving payment for application: $applicationId");
       final response = await DioClient.dio.post(
         '/admin/verify-payment/$applicationId',
@@ -1802,7 +1989,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     setState(() => _isUpdatingStatus = true);
 
     try {
-      // ✅ Backend expects application _id as path parameter
       debugPrint("📤 Rejecting payment for application: $applicationId");
       final response = await DioClient.dio.post(
         '/admin/verify-payment/$applicationId',
@@ -1929,6 +2115,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       _selectedApplication = app;
       _userProfile = null;
       _userDocuments = [];
+      _adminDocuments = _getAdminDocumentsForApp(app);
     });
 
     showMessage(context, "Loading candidate profile...", isError: false);
@@ -1956,6 +2143,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       _selectedApplication = null;
       _userProfile = null;
       _userDocuments = [];
+      _adminDocuments = [];
     });
   }
 
@@ -2051,9 +2239,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     );
   }
 
-  // ============================================================
-  // ✅ NEW HELPER: Payment Info Row (used in Payment Verification section)
-  // ============================================================
   Widget _buildPaymentInfoRow(IconData icon, String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2082,11 +2267,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   }
 
   // ============================================================
-  // ✅ PAYMENT VERIFICATION SECTION - ENHANCED
-  // ------------------------------------------------------------
-  // CASE 1: PENDING  → gradient card with Approve/Reject buttons
-  // CASE 2: APPROVED / REJECTED / NOT_SUBMITTED → status card only
-  // Matches the Service Application screen behaviour.
+  // ✅ PAYMENT VERIFICATION SECTION
   // ============================================================
   Widget _buildPaymentVerificationSection(Map<String, dynamic> app) {
     final applicationId = app['_id']?.toString() ?? '';
@@ -2099,14 +2280,12 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     final paymentCategory = app['payment_category_used'];
     final rejectionReason =
         app['payment_rejection_reason'] ?? app['verification_notes'];
-    final currentAppStatus = (app['status'] ?? 'pending_verification').toString();
+    final currentAppStatus =
+        (app['status'] ?? 'pending_verification').toString();
     final paymentMethod = (app['payment_method'] ?? 'razorpay').toString();
     final razorpayPaymentId = app['razorpay_payment_id'];
     final razorpayOrderId = app['razorpay_order_id'];
 
-    // ============================================================
-    // CASE 1: PENDING → Show Approve / Reject Buttons
-    // ============================================================
     if (verificationStatus.toLowerCase() == 'pending') {
       return Card(
         elevation: 4,
@@ -2125,7 +2304,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 children: [
                   Container(
@@ -2186,8 +2364,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
               const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 12),
-
-              // Payment details
               _buildPaymentInfoRow(
                 Icons.receipt_long,
                 "Transaction ID",
@@ -2239,8 +2415,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   paymentMethod.toUpperCase(),
                 ),
               ],
-
-              // Receipt button
               if (paymentReceiptUrl != null &&
                   paymentReceiptUrl.toString().isNotEmpty) ...[
                 const SizedBox(height: 16),
@@ -2262,10 +2436,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   ),
                 ),
               ],
-
               const SizedBox(height: 20),
-
-              // ✅ Approve / Reject action buttons
               Row(
                 children: [
                   Expanded(
@@ -2274,7 +2445,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                       child: ElevatedButton.icon(
                         onPressed: _isUpdatingStatus
                             ? null
-                            : () => _approvePayment(applicationId, applicationId),
+                            : () =>
+                                _approvePayment(applicationId, applicationId),
                         icon: _isUpdatingStatus
                             ? const SizedBox(
                                 width: 18,
@@ -2310,7 +2482,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                       child: ElevatedButton.icon(
                         onPressed: _isUpdatingStatus
                             ? null
-                            : () => _rejectPayment(applicationId, applicationId),
+                            : () =>
+                                _rejectPayment(applicationId, applicationId),
                         icon: const Icon(Icons.cancel, size: 20),
                         label: const Text(
                           "Reject",
@@ -2332,10 +2505,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   ),
                 ],
               ),
-
               const SizedBox(height: 12),
-
-              // Info note
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
@@ -2364,9 +2534,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       );
     }
 
-    // ============================================================
-    // CASE 2: APPROVED / REJECTED / NOT_SUBMITTED → Status only
-    // ============================================================
     final isApproved = verificationStatus.toLowerCase() == 'approved';
     final isRejected = verificationStatus.toLowerCase() == 'rejected';
     final statusColor = isApproved
@@ -2450,7 +2617,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                 ),
               ],
             ),
-
             if (transactionId != null || paymentAmount != null) ...[
               const SizedBox(height: 16),
               const Divider(),
@@ -2478,8 +2644,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                 ),
               ],
             ],
-
-            // Rejection reason
             if (isRejected &&
                 rejectionReason != null &&
                 rejectionReason.toString().isNotEmpty) ...[
@@ -2517,8 +2681,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                 ),
               ),
             ],
-
-            // Receipt
             if (paymentReceiptUrl != null &&
                 paymentReceiptUrl.toString().isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -2540,10 +2702,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                 ),
               ),
             ],
-
             const SizedBox(height: 12),
-
-            // Status footer
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -2788,7 +2947,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   children: [
                     CircleAvatar(
                       radius: 24,
-                      backgroundColor: _getStatusColor(status).withOpacity(0.15),
+                      backgroundColor:
+                          _getStatusColor(status).withOpacity(0.15),
                       child: Text(
                         applicantName.isNotEmpty
                             ? applicantName[0].toUpperCase()
@@ -3026,6 +3186,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             const SizedBox(height: 16),
             _buildPaymentVerificationSection(app),
             const SizedBox(height: 16),
+            // ✅ TWO SEPARATE DOCUMENT SECTIONS
             _buildDocumentsSection(app),
             const SizedBox(height: 16),
             if (hasUpdates && status.toLowerCase() == 'update_application')

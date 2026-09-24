@@ -8,6 +8,7 @@
 //           → 'completed', 'payment_verified', 'approved', 'verification_successful'
 //              all correctly shown as VERIFIED (green) instead of stale PENDING
 // ✅ FIXED: _buildPaymentInformationCard now reads directly from DB app map
+// ✅ UPDATED: Admin review/final docs shown SEPARATELY near Confirm/Update buttons
 
 import 'dart:convert';
 import 'dart:typed_data';
@@ -25,9 +26,6 @@ import 'package:rojgarnext/features/services/data/service_repository.dart';
 
 // ============================================================
 // HELPERS — Normalize payment + application status
-// ✅ FIXED: MAIN status checked FIRST (most authoritative source of truth)
-// ✅ FIXED: 'completed', 'approved', 'payment_verified' → all treated as approved
-// ✅ FIXED: Stale payment_verification_status no longer overrides main status
 // ============================================================
 class AppStatusHelper {
   static String _norm(dynamic v) =>
@@ -593,6 +591,7 @@ class _UserServiceApplicationScreenState
 
   // ============================================================
   // ✅ FETCH SERVICE APPLICATION DOCUMENTS (STRICT)
+  // ✅ Now properly tags admin docs with is_admin_doc: true + badge
   // ============================================================
   Future<void> _fetchServiceApplicationDocuments(String applicationId) async {
     if (!mounted || applicationId.isEmpty) return;
@@ -610,7 +609,8 @@ class _UserServiceApplicationScreenState
       _serviceDocuments = [];
     });
 
-    final List<Map<String, dynamic>> docs = [];
+    final List<Map<String, dynamic>> userDocs = [];
+    final List<Map<String, dynamic>> adminDocs = [];
 
     try {
       debugPrint("📄 Fetching service application docs → $applicationId");
@@ -620,7 +620,9 @@ class _UserServiceApplicationScreenState
       );
 
       if (res.data is Map && res.data['success'] == true) {
+        // ============================================================
         // A. USER-UPLOADED SERVICE DOCUMENTS
+        // ============================================================
         final List<dynamic> serviceDocs =
             (res.data['service_documents'] as List?) ?? [];
         for (final raw in serviceDocs) {
@@ -636,7 +638,7 @@ class _UserServiceApplicationScreenState
             continue;
           }
 
-          docs.add({
+          userDocs.add({
             'key': (d['document_type'] ?? 'document').toString(),
             'label': (d['label'] ?? d['document_type'] ?? 'Document').toString(),
             'url': url,
@@ -648,10 +650,12 @@ class _UserServiceApplicationScreenState
           });
         }
 
-        // B. ADMIN REVIEW / FINAL DOCUMENTS
-        final List<dynamic> adminDocs =
+        // ============================================================
+        // B. ADMIN REVIEW / FINAL DOCUMENTS — properly tagged
+        // ============================================================
+        final List<dynamic> adminDocsRaw =
             (res.data['admin_documents'] as List?) ?? [];
-        for (final raw in adminDocs) {
+        for (final raw in adminDocsRaw) {
           if (raw is! Map) continue;
           final d = Map<String, dynamic>.from(raw);
 
@@ -661,14 +665,16 @@ class _UserServiceApplicationScreenState
           final source = (d['source'] ?? '').toString();
           final isAdminReview = source == 'admin_review';
 
-          docs.add({
+          adminDocs.add({
             'key': (d['document_type'] ?? 'admin_doc').toString(),
             'label': (d['label'] ?? 'Admin Document').toString(),
             'url': url,
             'download_url': (d['download_url'] ?? url).toString(),
             'source': source,
             'is_application_doc': true,
-            'is_admin_doc': isAdminReview,
+            'is_admin_doc': true,
+            'badge': isAdminReview ? 'ADMIN REVIEW' : 'ADMIN FINAL',
+            'badgeColor': isAdminReview ? Colors.orange : Colors.deepPurple,
           });
         }
       }
@@ -676,11 +682,14 @@ class _UserServiceApplicationScreenState
       debugPrint("⚠️ Failed to fetch service application docs: $e");
     }
 
-    _serviceDocsCache[applicationId] = docs;
+    // Merge both into single list, keeping is_admin_doc flag
+    final combined = <Map<String, dynamic>>[...userDocs, ...adminDocs];
+
+    _serviceDocsCache[applicationId] = combined;
 
     if (mounted) {
       setState(() {
-        _serviceDocuments = docs;
+        _serviceDocuments = combined;
         _isLoadingServiceDocs = false;
       });
     }
@@ -1133,18 +1142,24 @@ class _UserServiceApplicationScreenState
   }
 
   // ============================================================
-  // ✅ UPLOADED DOCUMENTS — STRICT separation
+  // ✅ UPDATED "Uploaded Documents" section
+  // Shows ONLY user-uploaded service docs + payment proof.
+  // Admin review/final docs are shown separately below the
+  // Confirm/Update buttons (via _buildAdminDocumentsSection).
   // ============================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> allDocs = [];
 
+    // 1) User-uploaded service documents (NOT admin docs)
     for (final d in _serviceDocuments) {
+      if (d['is_admin_doc'] == true) continue; // ⛔ skip admin docs here
       final url = d['url']?.toString() ?? '';
       if (!_isValidDocUrl(url)) continue;
       if (allDocs.any((x) => x['url'] == url)) continue;
       allDocs.add(d);
     }
 
+    // 2) Payment receipt
     final receiptUrl = app['payment_receipt_url'];
     if (_isValidDocUrl(receiptUrl)) {
       final urlStr = receiptUrl.toString().trim();
@@ -1160,6 +1175,7 @@ class _UserServiceApplicationScreenState
       }
     }
 
+    // 3) Payment screenshot
     final screenshotUrl = app['screenshot_url'];
     if (_isValidDocUrl(screenshotUrl)) {
       final urlStr = screenshotUrl.toString().trim();
@@ -1194,7 +1210,7 @@ class _UserServiceApplicationScreenState
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
-                  "Uploaded Documents",
+                  "Your Uploaded Documents",
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -1270,6 +1286,7 @@ class _UserServiceApplicationScreenState
     final color = _colorForUrl(url);
     final fileType = _fileTypeForUrl(url);
 
+    // Badge logic
     String badgeLabel = "";
     Color badgeColor = Colors.blue;
     if (source == 'service_application') {
@@ -1341,6 +1358,240 @@ class _UserServiceApplicationScreenState
                         ),
                       ),
                     if (badgeLabel.isNotEmpty) const SizedBox(width: 6),
+                    Text(
+                      fileType.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.visibility, color: Colors.blue),
+            tooltip: "View",
+            onPressed: () => _openDocumentViewer(
+              url,
+              title: label,
+              downloadUrl: downloadUrl,
+              fileType: fileType,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // ✅ NEW: Admin Documents Section (Service side)
+  // Shows ONLY documents uploaded by Admin/CustomAdmin during
+  // REVIEW and FINAL SUBMIT. Shown near Confirm/Update buttons.
+  // ============================================================
+  Widget _buildAdminDocumentsSection(Map<String, dynamic> app) {
+    final List<Map<String, dynamic>> adminDocs = [];
+
+    // 1) From service docs cache (fetched via /documents API)
+    for (final d in _serviceDocuments) {
+      if (d['is_admin_doc'] != true) continue;
+      final url = d['url']?.toString() ?? '';
+      if (!_isValidDocUrl(url)) continue;
+      if (adminDocs.any((x) => x['url'] == url)) continue;
+      adminDocs.add(d);
+    }
+
+    // 2) Direct fields on app record (fallback - same info)
+    final submittedUrl = app['submitted_document_url'];
+    if (_isValidDocUrl(submittedUrl)) {
+      final urlStr = submittedUrl.toString().trim();
+      if (!adminDocs.any((d) => d['url'] == urlStr)) {
+        adminDocs.add({
+          'key': 'submitted_document_url',
+          'label': app['submitted_document_name']?.toString() ??
+              'Review Document (from Admin)',
+          'url': urlStr,
+          'download_url': app['submitted_document_download_url'],
+          'badge': 'ADMIN REVIEW',
+          'badgeColor': Colors.orange,
+          'is_admin_doc': true,
+        });
+      }
+    }
+
+    final finalUrl = app['final_document_url'];
+    if (_isValidDocUrl(finalUrl)) {
+      final urlStr = finalUrl.toString().trim();
+      if (!adminDocs.any((d) => d['url'] == urlStr)) {
+        adminDocs.add({
+          'key': 'final_document_url',
+          'label': app['final_document_name']?.toString() ??
+              'Final Submission Document (from Admin)',
+          'url': urlStr,
+          'download_url': app['final_document_download_url'],
+          'badge': 'ADMIN FINAL',
+          'badgeColor': Colors.deepPurple,
+          'is_admin_doc': true,
+        });
+      }
+    }
+
+    if (adminDocs.isEmpty) return const SizedBox();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.orange.shade50, Colors.deepPurple.shade50],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.orange.shade300, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withOpacity(0.1),
+            blurRadius: 12,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Colors.orange, Colors.deepPurple],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.admin_panel_settings,
+                    color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Documents from Admin",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    Text(
+                      "Uploaded during review / final submission",
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "${adminDocs.length} File${adminDocs.length > 1 ? 's' : ''}",
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...adminDocs.map((doc) => _buildAdminDocumentRow(doc)),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // ✅ NEW: Admin Document Row (Service side)
+  // ============================================================
+  Widget _buildAdminDocumentRow(Map<String, dynamic> doc) {
+    final String label = doc['label']?.toString() ?? 'Admin Document';
+    final String url = doc['url']?.toString() ?? '';
+    final String? downloadUrl = doc['download_url']?.toString();
+    final String badge = doc['badge']?.toString() ??
+        (doc['source'] == 'admin_review' ? 'ADMIN REVIEW' : 'ADMIN FINAL');
+    final Color badgeColor = doc['badgeColor'] is Color
+        ? doc['badgeColor'] as Color
+        : (doc['source'] == 'admin_review'
+            ? Colors.orange
+            : Colors.deepPurple);
+
+    final icon = _iconForUrl(url);
+    final color = _colorForUrl(url);
+    final fileType = _fileTypeForUrl(url);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: badgeColor.withOpacity(0.35), width: 1.5),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: badgeColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: badgeColor.withOpacity(0.4)),
+                      ),
+                      child: Text(
+                        badge,
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          color: badgeColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
                     Text(
                       fileType.toUpperCase(),
                       style: TextStyle(
@@ -1450,6 +1701,15 @@ class _UserServiceApplicationScreenState
 
   IconData _getStatusIcon(String status) =>
       _statusIcons[status.toLowerCase()] ?? Icons.pending;
+
+  Color _getPaymentStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed': return Colors.green;
+      case 'pending': return Colors.orange;
+      case 'failed': return Colors.red;
+      default: return Colors.grey;
+    }
+  }
 
   String _getStatusDescription(String status) {
     switch (status.toLowerCase()) {
@@ -1660,8 +1920,7 @@ class _UserServiceApplicationScreenState
                     ],
                   ),
                   child: const Center(
-                    child: Icon(Icons.auto_awesome,
-                        color: Colors.white, size: 40),
+                    child: Icon(Icons.auto_awesome, color: Colors.white, size: 40),
                   ),
                 ),
               ),
@@ -1681,8 +1940,7 @@ class _UserServiceApplicationScreenState
               ),
               const SizedBox(height: 16),
               const CircularProgressIndicator(
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(Color(0xFF6C63FF)),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C63FF)),
               ),
             ],
           ),
@@ -2028,8 +2286,7 @@ class _UserServiceApplicationScreenState
                         ],
                       ),
                       borderRadius: BorderRadius.circular(20),
-                      border:
-                          Border.all(color: statusColor.withOpacity(0.3)),
+                      border: Border.all(color: statusColor.withOpacity(0.3)),
                     ),
                     child: Text(
                       _getStatusDisplay(status),
@@ -2561,14 +2818,18 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ==================== FIELDS CARD ====================
+  // ====================================================================
+  // ✅ FIELDS CARD — ONLY plain text/object fields.
+  // ====================================================================
   Widget _buildFieldsCard(Map<String, dynamic> fields) {
     if (fields.isEmpty) return const SizedBox();
 
     final List<Map<String, dynamic>> flatFields = [];
 
     fields.forEach((key, value) {
-      if (_isDocumentField(key, value)) return;
+      if (_isDocumentField(key, value)) {
+        return;
+      }
 
       final entries = _expandFieldValue(value);
 
@@ -2595,11 +2856,15 @@ class _UserServiceApplicationScreenState
           _sectionHeader("Submitted Information", Icons.description_outlined),
           ...flatFields.map((f) {
             if (f['group'] != null) {
-              return _buildFieldGroupBlock(f['key'].toString(),
-                  f['group'] as List<Map<String, String>>);
+              return _buildFieldGroupBlock(
+                f['key'].toString(),
+                f['group'] as List<Map<String, String>>,
+              );
             }
             return _buildFieldInfoRow(
-                f['key'].toString(), f['value']?.toString() ?? '');
+              f['key'].toString(),
+              f['value']?.toString() ?? '',
+            );
           }),
         ],
       ),
@@ -2662,8 +2927,7 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  Widget _buildFieldGroupBlock(
-      String groupKey, List<Map<String, String>> items) {
+  Widget _buildFieldGroupBlock(String groupKey, List<Map<String, String>> items) {
     final label = _prettyFieldLabel(groupKey);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -2714,8 +2978,8 @@ class _UserServiceApplicationScreenState
             final k = item['key']?.toString() ?? '';
             final v = item['value']?.toString() ?? '';
             return Padding(
-              padding:
-                  EdgeInsets.only(bottom: e.key == items.length - 1 ? 0 : 8),
+              padding: EdgeInsets.only(
+                  bottom: e.key == items.length - 1 ? 0 : 8),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -2771,7 +3035,10 @@ class _UserServiceApplicationScreenState
 
     if (value is Map) {
       value.forEach((k, v) {
-        result.add({'key': k.toString(), 'value': v?.toString() ?? ''});
+        result.add({
+          'key': k.toString(),
+          'value': v?.toString() ?? '',
+        });
       });
       return result;
     }
@@ -2854,17 +3121,14 @@ class _UserServiceApplicationScreenState
 
   // ============================================================
   // ✅ UPDATED: PAYMENT INFORMATION CARD (DB-Driven)
-  // Reads directly from app map, no stale overrides
   // ============================================================
   Widget _buildPaymentInformationCard({
     required Map<String, dynamic> app,
   }) {
-    // ✅ Use the FIXED helper
     final paymentStatusKey = AppStatusHelper.paymentStatus(app);
     final paymentStatusText = AppStatusHelper.displayPaymentStatus(app);
     final paymentStatusColor = AppStatusHelper.paymentStatusColor(app);
 
-    // ✅ Pull values directly from DB fields
     final transactionId = (app['razorpay_payment_id'] ??
             app['transaction_id'] ??
             app['payment_id'] ??
@@ -2915,7 +3179,6 @@ class _UserServiceApplicationScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // -------- HEADER --------
           Row(
             children: [
               Container(
@@ -2973,7 +3236,6 @@ class _UserServiceApplicationScreenState
 
           const SizedBox(height: 16),
 
-          // -------- ROWS --------
           _buildInfoRow(Icons.receipt_long, "Transaction ID", transactionId),
           const Divider(height: 20),
 
@@ -3007,7 +3269,6 @@ class _UserServiceApplicationScreenState
             ),
           ],
 
-          // -------- REJECTION REASON --------
           if (paymentStatusKey == 'rejected' && rejectionReason.isNotEmpty) ...[
             const SizedBox(height: 16),
             Container(
@@ -3044,7 +3305,6 @@ class _UserServiceApplicationScreenState
             ),
           ],
 
-          // -------- RECEIPT BUTTON --------
           if (receiptUrl != null && receiptUrl.toString().isNotEmpty) ...[
             const SizedBox(height: 16),
             SizedBox(
@@ -3073,8 +3333,16 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ==================== USER ACTION BUTTONS ====================
+  // ============================================================
+  // ✅ UPDATED: User Action Buttons for Service Application
+  // Now shows admin-uploaded documents ABOVE the action buttons.
+  // ============================================================
   Widget _buildUserActionButtons(String appId, String currentStatus) {
+    final app = _selectedApplication ?? {};
+    final adminDocsCount = _serviceDocuments
+        .where((d) => d['is_admin_doc'] == true)
+        .length;
+
     return _buildGlassContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3106,7 +3374,16 @@ class _UserServiceApplicationScreenState
             "Your application is currently under review. You can confirm it or submit updates:",
             style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
           ),
-          const SizedBox(height: 16),
+
+          // ============================================================
+          // ✅ NEW: ADMIN-UPLOADED DOCUMENTS SHOWN HERE
+          // ============================================================
+          if (adminDocsCount > 0) ...[
+            const SizedBox(height: 16),
+            _buildAdminDocumentsSection(app),
+          ],
+
+          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
