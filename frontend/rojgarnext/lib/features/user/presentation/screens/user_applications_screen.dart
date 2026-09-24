@@ -6,6 +6,10 @@
 // ✅ FIXED: Deleted documents (null / "null" / "" / undefined) STRICTLY filtered
 // ✅ FIXED: Uses /user/full-profile as PRIMARY source (matches user_documents_screen)
 // ✅ UPDATED: Admin review/final docs shown SEPARATELY near Confirm/Update buttons
+// ✅ NEW: "View Application" button added to each card
+// ✅ NEW: Tapping "View Application" opens the full ApplicationDetailScreen
+// ✅ REMOVED: "VIEW APPLICATION DOCUMENT" button from Under Review & Final Submit sections
+// ✅ KEPT: Admin documents section (Review / Final Submit uploads) still visible
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
@@ -330,6 +334,9 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
     );
   }
 
+  // ============================================================
+  // ✅ APPLICATION CARD WITH "VIEW APPLICATION" BUTTON
+  // ============================================================
   Widget _buildApplicationCard(Map<String, dynamic> app) {
     final status = app['status'] ?? 'pending';
     final statusColor = _getStatusColor(status);
@@ -347,123 +354,165 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
         return Opacity(
           opacity: _fadeAnimation.value,
           child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
+            margin: const EdgeInsets.only(bottom: 14),
             decoration: _buildGlassContainerDecoration(),
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
-              child: InkWell(
-                onTap: () => widget.onApplicationSelected(app),
-                borderRadius: BorderRadius.circular(20),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ==================== TOP ROW (JOB + STATUS) ====================
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  statusColor.withOpacity(0.2),
-                                  statusColor.withOpacity(0.05),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              _getStatusIcon(status),
-                              color: statusColor,
-                              size: 22,
-                            ),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              statusColor.withOpacity(0.2),
+                              statusColor.withOpacity(0.05),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  jobTitle,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  organization,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  statusColor.withOpacity(0.2),
-                                  statusColor.withOpacity(0.05),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: statusColor.withOpacity(0.3),
-                              ),
-                            ),
-                            child: Text(
-                              _getStatusDisplay(status),
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: statusColor,
-                              ),
-                            ),
-                          ),
-                        ],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          _getStatusIcon(status),
+                          color: statusColor,
+                          size: 22,
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _buildInfoChip(
-                            Icons.calendar_today,
-                            "Applied",
-                            appliedDate,
-                            Colors.blue,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              jobTitle,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              organization,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              statusColor.withOpacity(0.2),
+                              statusColor.withOpacity(0.05),
+                            ],
                           ),
-                          if (app['match_score'] != null)
-                            _buildInfoChip(
-                              Icons.auto_awesome,
-                              "Match",
-                              "${app['match_score']}%",
-                              const Color(0xFF6C63FF),
-                            ),
-                          if (hasSubmittedDocument)
-                            _buildInfoChip(
-                              Icons.upload_file,
-                              "Doc",
-                              "Uploaded",
-                              Colors.teal,
-                            ),
-                        ],
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: statusColor.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Text(
+                          _getStatusDisplay(status),
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                ),
+
+                  const SizedBox(height: 12),
+
+                  // ==================== INFO CHIPS ====================
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildInfoChip(
+                        Icons.calendar_today,
+                        "Applied",
+                        appliedDate,
+                        Colors.blue,
+                      ),
+                      if (app['match_score'] != null)
+                        _buildInfoChip(
+                          Icons.auto_awesome,
+                          "Match",
+                          "${app['match_score']}%",
+                          const Color(0xFF6C63FF),
+                        ),
+                      if (hasSubmittedDocument)
+                        _buildInfoChip(
+                          Icons.upload_file,
+                          "Doc",
+                          "Uploaded",
+                          Colors.teal,
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // ==================== ✅ "VIEW APPLICATION" BUTTON ====================
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6C63FF).withOpacity(0.25),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          // ✅ CALLBACK → opens ApplicationDetailScreen
+                          widget.onApplicationSelected(app);
+                        },
+                        icon: const Icon(Icons.visibility, size: 18),
+                        label: const Text(
+                          "View Application",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -626,7 +675,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
 
   // ============================================================
   // ✅ COMPLETE Document Key Map — SAME as user_documents_screen
-  // 100+ document types supported
   // ============================================================
   static const List<Map<String, String>> _documentKeyMap = [
     // ==================== IDENTITY ====================
@@ -848,9 +896,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     }
   }
 
-  // ============================================================
-  // ✅ FETCH ALL USER DOCUMENTS
-  // ============================================================
   Future<void> _fetchAllDocuments() async {
     if (!mounted) return;
     setState(() {
@@ -927,9 +972,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
         .trim();
   }
 
-  // ============================================================
-  // ✅ Open document inside FileViewerScreen popup
-  // ============================================================
   Future<void> _openDocumentViewer(
     String url, {
     String title = 'Document',
@@ -973,9 +1015,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ Icon / color / filetype helpers
-  // ============================================================
   IconData _iconForUrl(String url) {
     final u = url.toLowerCase();
     if (u.contains('.pdf') || u.contains('/raw/')) {
@@ -1027,12 +1066,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   // ============================================================
-  // ✅ "Your Uploaded Documents" section (user's own docs only)
+  // ✅ "Your Uploaded Documents" section
   // ============================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> allDocs = [];
 
-    // 1) User profile documents (already filtered)
+    // 1) User profile documents
     allDocs.addAll(_userDocuments);
 
     // 2) Payment receipt
@@ -1095,10 +1134,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
         });
       }
     }
-
-    // NOTE: Admin review / final docs (submitted_document_url, final_document_url)
-    // are intentionally EXCLUDED here — they appear in
-    // _buildAdminDocumentsSection() only.
 
     return _buildGlassContainer(
       child: Column(
@@ -1184,9 +1219,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ Single document row (user docs)
-  // ============================================================
   Widget _buildDocumentRow(int index, Map<String, dynamic> doc) {
     final String label = doc['label']?.toString() ?? 'Document ${index + 1}';
     final String url = doc['url']?.toString() ?? '';
@@ -1282,14 +1314,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   // ============================================================
-  // ✅ NEW: Admin Documents Section
-  // Shows ONLY documents uploaded by Admin/CustomAdmin during
-  // REVIEW and FINAL SUBMIT. Displayed near Confirm/Update area.
+  // ✅ Admin Documents Section (Review / Final Submit uploads)
+  // Shows ONLY documents uploaded by Admin/CustomAdmin
   // ============================================================
   Widget _buildAdminDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> adminDocs = [];
 
-    // 1) Admin REVIEW document (uploaded when admin clicks Review)
     final submittedUrl = app['submitted_document_url'];
     if (_isValidDocUrl(submittedUrl)) {
       adminDocs.add({
@@ -1303,7 +1333,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       });
     }
 
-    // 2) Admin FINAL SUBMIT document (uploaded when admin clicks Final Submit)
     final finalUrl = app['final_document_url'];
     if (_isValidDocUrl(finalUrl)) {
       adminDocs.add({
@@ -1398,9 +1427,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ NEW: Admin Document Row (distinct style + badge)
-  // ============================================================
   Widget _buildAdminDocumentRow(Map<String, dynamic> doc) {
     final String label = doc['label'] as String;
     final String url = doc['url'] as String;
@@ -1598,88 +1624,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   // ============================================================
-  // DOCUMENT HANDLERS
+  // PAYMENT RECEIPT DIALOG
   // ============================================================
-  String? _getSubmittedDocumentUrl() {
-    final url = widget.application['submitted_document_url'] ??
-        widget.application['submittedDocumentUrl'] ??
-        widget.application['document_url'] ??
-        widget.application['documentUrl'];
-
-    if (_isValidDocUrl(url)) {
-      return url.toString().trim();
-    }
-    return null;
-  }
-
-  String? _getSubmittedDocumentName() {
-    final name = widget.application['submitted_document_name'] ??
-        widget.application['submittedDocumentName'] ??
-        widget.application['document_name'] ??
-        widget.application['documentName'];
-
-    if (name != null && name.toString().isNotEmpty && name.toString() != 'null') {
-      return name.toString();
-    }
-    return 'Application Document';
-  }
-
-  void _viewApplicationDocument() {
-    final submittedDocumentUrl = _getSubmittedDocumentUrl();
-    final submittedDocumentName = _getSubmittedDocumentName();
-
-    if (submittedDocumentUrl == null || submittedDocumentUrl.isEmpty) {
-      showMessage(context,
-          "No document available for this application.\n\nDocument may not have been uploaded yet.",
-          isError: true);
-      return;
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) => Dialog(
-        insetPadding: const EdgeInsets.all(16),
-        child: Container(
-          width: MediaQuery.of(dialogContext).size.width * 0.9,
-          height: MediaQuery.of(dialogContext).size.height * 0.85,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: Colors.white,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: FileViewerScreen(
-              url: submittedDocumentUrl,
-              title: submittedDocumentName ?? "Application Document",
-              downloadUrl: submittedDocumentUrl,
-              fileType: _getFileType(submittedDocumentUrl),
-              fileName: submittedDocumentName,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _getFileType(String url) {
-    final urlLower = url.toLowerCase();
-    if (urlLower.endsWith('.pdf') || urlLower.contains('.pdf')) {
-      return 'pdf';
-    }
-    if (urlLower.endsWith('.jpg') ||
-        urlLower.endsWith('.jpeg') ||
-        urlLower.endsWith('.png') ||
-        urlLower.endsWith('.webp') ||
-        urlLower.endsWith('.gif')) {
-      return 'image';
-    }
-    if (urlLower.contains('cloudinary.com')) {
-      return 'cloudinary';
-    }
-    return 'unknown';
-  }
-
   void _showPaymentReceiptDialog(String? receiptUrl) {
     if (receiptUrl == null || receiptUrl.isEmpty) {
       showMessage(context, "No payment receipt available", isError: true);
@@ -1933,9 +1879,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // DESIGN HELPERS
-  // ============================================================
   BoxDecoration _buildGradientBackground() {
     return const BoxDecoration(
       gradient: LinearGradient(
@@ -1995,6 +1938,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       ),
       child: Row(
         children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: widget.onBack,
+            tooltip: "Back",
+          ),
+          const SizedBox(width: 4),
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -2212,11 +2161,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
+  // ============================================================
+  // ✅ UNDER REVIEW SECTION — "VIEW APPLICATION DOCUMENT" button REMOVED
+  // ✅ Admin documents section KEPT
+  // ============================================================
   Widget _buildUnderReviewSection() {
     final app = widget.application;
-    final documentUrl = _getSubmittedDocumentUrl();
-    final hasDocument = documentUrl != null && documentUrl.isNotEmpty;
-    final documentName = _getSubmittedDocumentName();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -2266,53 +2216,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
           ),
           const SizedBox(height: 12),
           const Text(
-            "Your application is currently under review. You can view your submitted document and take action below:",
+            "Your application is currently under review. Please take action below:",
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
-          if (hasDocument) ...[
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: Material(
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.teal,
-                child: InkWell(
-                  onTap: _viewApplicationDocument,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.visibility, size: 20, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text(
-                          "VIEW APPLICATION DOCUMENT",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            if (documentName != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  "Document: $documentName",
-                  style: const TextStyle(fontSize: 12, color: Colors.teal),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-          ],
 
           // ============================================================
-          // ✅ NEW: ADMIN-UPLOADED DOCUMENTS SHOWN HERE
+          // ✅ ADMIN-UPLOADED DOCUMENTS SHOWN HERE
           // ============================================================
           const SizedBox(height: 20),
           _buildAdminDocumentsSection(app),
@@ -2415,11 +2324,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
+  // ============================================================
+  // ✅ FINAL SUBMIT SECTION — "VIEW APPLICATION DOCUMENT" button REMOVED
+  // ✅ Admin documents section KEPT
+  // ============================================================
   Widget _buildFinalSubmitSection() {
     final app = widget.application;
-    final documentUrl = _getSubmittedDocumentUrl();
-    final hasDocument = documentUrl != null && documentUrl.isNotEmpty;
-    final documentName = _getSubmittedDocumentName();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -2469,54 +2379,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
           ),
           const SizedBox(height: 12),
           const Text(
-            "Your application has been successfully submitted. You can view your submitted document below:",
+            "Your application has been successfully submitted.",
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
-          if (hasDocument) ...[
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: Material(
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.deepPurple,
-                child: InkWell(
-                  onTap: _viewApplicationDocument,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.visibility, size: 20, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text(
-                          "VIEW APPLICATION DOCUMENT",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            if (documentName != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  "Document: $documentName",
-                  style: const TextStyle(
-                      fontSize: 12, color: Colors.deepPurple),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-          ],
 
           // ============================================================
-          // ✅ NEW: ADMIN DOCUMENTS SHOWN HERE
+          // ✅ ADMIN DOCUMENTS SHOWN HERE
           // ============================================================
           const SizedBox(height: 20),
           _buildAdminDocumentsSection(app),
@@ -2702,9 +2570,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // COMMON WIDGETS
-  // ============================================================
   Widget _sectionHeader(String title, IconData icon) {
     return Row(
       children: [
