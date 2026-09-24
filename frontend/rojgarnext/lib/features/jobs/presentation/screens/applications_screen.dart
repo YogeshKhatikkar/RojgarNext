@@ -5,6 +5,10 @@
 // ✅ FIXED: Whitelist-only keys → deleted / null / stale docs NEVER show
 // ✅ FIXED: /user/full-profile with email param is PRIMARY source (matches user side)
 // ✅ FIXED: Admin viewing candidate docs now correctly fetches CANDIDATE documents (not admin's)
+// ✅ FIXED: Payment Approve/Reject now uses application_id (not payment_id) - matches backend
+// ✅ ENHANCED: Payment Verification section identical to Service Application Screen
+//              - Pending state → shows Approve/Reject buttons with full details
+//              - Processed state → shows status only with receipt view
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -584,7 +588,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       //    Backend returns the candidate's complete profile
       // ============================================================
       try {
-        debugPrint("📄 Fetching candidate docs from /user/full-profile?email=$email");
+        debugPrint(
+            "📄 Fetching candidate docs from /user/full-profile?email=$email");
         final res = await DioClient.dio.get(
           '/user/full-profile?email=$email',
         );
@@ -1631,13 +1636,16 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   }
 
   // ==================== PAYMENT VERIFICATION ====================
-  Future<void> _approvePayment(String paymentId, String applicationId) async {
+  // ✅ FIXED: Now uses applicationId (application _id), matching backend
+  Future<void> _approvePayment(String applicationId, String appId) async {
     if (!mounted) return;
     setState(() => _isUpdatingStatus = true);
 
     try {
+      // ✅ Backend expects application _id as path parameter
+      debugPrint("📤 Approving payment for application: $applicationId");
       final response = await DioClient.dio.post(
-        '/admin/verify-payment/$paymentId',
+        '/admin/verify-payment/$applicationId',
         queryParameters: {
           'action': 'approve',
           'notes': 'Payment verified and approved by admin',
@@ -1654,9 +1662,9 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         await _fetchApplications();
 
         if (_selectedApplication != null &&
-            _selectedApplication!['payment_id'] == paymentId) {
+            _selectedApplication!['_id'] == applicationId) {
           final updated = applications.firstWhere(
-            (a) => a['payment_id'] == paymentId,
+            (a) => a['_id'] == applicationId,
             orElse: () => null,
           );
           if (updated != null) {
@@ -1674,6 +1682,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       }
     } catch (e) {
       if (!mounted) return;
+      debugPrint("❌ Approve payment error: $e");
       showMessage(context, "Failed to approve payment: ${e.toString()}",
           isError: true);
     } finally {
@@ -1681,7 +1690,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     }
   }
 
-  Future<void> _rejectPayment(String paymentId, String applicationId) async {
+  Future<void> _rejectPayment(String applicationId, String appId) async {
     if (!mounted) return;
 
     final TextEditingController reasonController = TextEditingController();
@@ -1772,7 +1781,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                 return;
               }
               Navigator.pop(dialogContext, true);
-              _executeRejectPayment(paymentId, applicationId, reason);
+              _executeRejectPayment(applicationId, appId, reason);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
@@ -1788,13 +1797,15 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   }
 
   Future<void> _executeRejectPayment(
-      String paymentId, String applicationId, String reason) async {
+      String applicationId, String appId, String reason) async {
     if (!mounted) return;
     setState(() => _isUpdatingStatus = true);
 
     try {
+      // ✅ Backend expects application _id as path parameter
+      debugPrint("📤 Rejecting payment for application: $applicationId");
       final response = await DioClient.dio.post(
-        '/admin/verify-payment/$paymentId',
+        '/admin/verify-payment/$applicationId',
         queryParameters: {
           'action': 'reject',
           'notes': reason,
@@ -1811,9 +1822,9 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         await _fetchApplications();
 
         if (_selectedApplication != null &&
-            _selectedApplication!['payment_id'] == paymentId) {
+            _selectedApplication!['_id'] == applicationId) {
           final updated = applications.firstWhere(
-            (a) => a['payment_id'] == paymentId,
+            (a) => a['_id'] == applicationId,
             orElse: () => null,
           );
           if (updated != null) {
@@ -1831,6 +1842,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       }
     } catch (e) {
       if (!mounted) return;
+      debugPrint("❌ Reject payment error: $e");
       showMessage(context, "Failed to reject payment: ${e.toString()}",
           isError: true);
     } finally {
@@ -2039,11 +2051,47 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     );
   }
 
-  // ==================== PAYMENT VERIFICATION SECTION ====================
+  // ============================================================
+  // ✅ NEW HELPER: Payment Info Row (used in Payment Verification section)
+  // ============================================================
+  Widget _buildPaymentInfoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: Colors.grey.shade600),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 110,
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ),
+        Expanded(
+          child: SelectableText(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // ✅ PAYMENT VERIFICATION SECTION - ENHANCED
+  // ------------------------------------------------------------
+  // CASE 1: PENDING  → gradient card with Approve/Reject buttons
+  // CASE 2: APPROVED / REJECTED / NOT_SUBMITTED → status card only
+  // Matches the Service Application screen behaviour.
+  // ============================================================
   Widget _buildPaymentVerificationSection(Map<String, dynamic> app) {
-    final paymentId = app['payment_id'];
+    final applicationId = app['_id']?.toString() ?? '';
     final verificationStatus =
-        app['payment_verification_status'] ?? 'not_submitted';
+        (app['payment_verification_status'] ?? 'not_submitted').toString();
     final transactionId = app['transaction_id'];
     final transactionDate = app['transaction_date'];
     final paymentReceiptUrl = app['payment_receipt_url'];
@@ -2051,129 +2099,260 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     final paymentCategory = app['payment_category_used'];
     final rejectionReason =
         app['payment_rejection_reason'] ?? app['verification_notes'];
-    final currentAppStatus = app['status'] ?? 'pending_verification';
+    final currentAppStatus = (app['status'] ?? 'pending_verification').toString();
+    final paymentMethod = (app['payment_method'] ?? 'razorpay').toString();
+    final razorpayPaymentId = app['razorpay_payment_id'];
+    final razorpayOrderId = app['razorpay_order_id'];
 
-    if (verificationStatus != 'pending') {
+    // ============================================================
+    // CASE 1: PENDING → Show Approve / Reject Buttons
+    // ============================================================
+    if (verificationStatus.toLowerCase() == 'pending') {
       return Card(
-        elevation: 2,
+        elevation: 4,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.orange.shade50, Colors.white],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.orange.shade200, width: 1.5),
+          ),
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Payment Verification Status",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: verificationStatus == 'approved'
-                      ? Colors.green.shade100
-                      : Colors.red.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  verificationStatus.toUpperCase(),
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: verificationStatus == 'approved'
-                        ? Colors.green
-                        : Colors.red,
-                  ),
-                ),
-              ),
-              if (transactionId != null) ...[
-                const SizedBox(height: 12),
-                Text("Transaction ID: $transactionId"),
-              ],
-              if (transactionDate != null) ...[
-                const SizedBox(height: 8),
-                Text("Transaction Date: ${_formatDate(transactionDate)}"),
-              ],
-              if (paymentAmount != null) ...[
-                const SizedBox(height: 8),
-                Text("Amount: ₹$paymentAmount",
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, color: Colors.green)),
-              ],
-              if (paymentCategory != null) ...[
-                const SizedBox(height: 8),
-                Text("Category: ${paymentCategory.toUpperCase()}"),
-              ],
-              if (verificationStatus == 'rejected' &&
-                  rejectionReason != null &&
-                  rejectionReason.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.info_outline,
-                              color: Colors.red, size: 16),
-                          const SizedBox(width: 8),
-                          const Text(
-                            "Rejection Reason:",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red,
-                            ),
-                          ),
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.orange.shade400,
+                          Colors.orange.shade700
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        rejectionReason,
-                        style: const TextStyle(fontSize: 13, color: Colors.red),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.verified_user,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Pending Payment Verification",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        Text(
+                          "Review and verify the payment details",
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      "PENDING",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
-              if (paymentReceiptUrl != null &&
-                  paymentReceiptUrl.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () => _showPaymentReceiptDialog(paymentReceiptUrl),
-                  icon: const Icon(Icons.receipt),
-                  label: const Text("View Payment Receipt"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                  ),
-                ),
-              ],
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
               const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
+
+              // Payment details
+              _buildPaymentInfoRow(
+                Icons.receipt_long,
+                "Transaction ID",
+                transactionId?.toString() ?? "N/A",
+              ),
+              const SizedBox(height: 10),
+              _buildPaymentInfoRow(
+                Icons.calendar_today,
+                "Transaction Date",
+                transactionDate != null
+                    ? _formatDate(transactionDate.toString())
+                    : "N/A",
+              ),
+              const SizedBox(height: 10),
+              _buildPaymentInfoRow(
+                Icons.currency_rupee,
+                "Amount Paid",
+                paymentAmount != null ? "₹$paymentAmount" : "N/A",
+              ),
+              const SizedBox(height: 10),
+              _buildPaymentInfoRow(
+                Icons.category,
+                "Category",
+                paymentCategory?.toString().toUpperCase() ?? "N/A",
+              ),
+              if (razorpayPaymentId != null &&
+                  razorpayPaymentId.toString().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildPaymentInfoRow(
+                  Icons.payment,
+                  "Razorpay Payment ID",
+                  razorpayPaymentId.toString(),
                 ),
-                child: Row(
+              ],
+              if (razorpayOrderId != null &&
+                  razorpayOrderId.toString().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildPaymentInfoRow(
+                  Icons.shopping_cart,
+                  "Razorpay Order ID",
+                  razorpayOrderId.toString(),
+                ),
+              ],
+              if (paymentMethod.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildPaymentInfoRow(
+                  Icons.account_balance_wallet,
+                  "Payment Method",
+                  paymentMethod.toUpperCase(),
+                ),
+              ],
+
+              // Receipt button
+              if (paymentReceiptUrl != null &&
+                  paymentReceiptUrl.toString().isNotEmpty) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
+                        _showPaymentReceiptDialog(paymentReceiptUrl.toString()),
+                    icon: const Icon(Icons.receipt, size: 18),
+                    label: const Text("View Payment Receipt"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                      side: const BorderSide(color: Colors.blue, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 20),
+
+              // ✅ Approve / Reject action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: _isUpdatingStatus
+                            ? null
+                            : () => _approvePayment(applicationId, applicationId),
+                        icon: _isUpdatingStatus
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.check_circle, size: 20),
+                        label: Text(
+                          _isUpdatingStatus ? "Processing..." : "Approve",
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: _isUpdatingStatus
+                            ? null
+                            : () => _rejectPayment(applicationId, applicationId),
+                        icon: const Icon(Icons.cancel, size: 20),
+                        label: const Text(
+                          "Reject",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // Info note
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: const Row(
                   children: [
-                    Icon(Icons.info_outline,
-                        size: 14, color: Colors.blue.shade700),
-                    const SizedBox(width: 8),
+                    Icon(Icons.info_outline, size: 16, color: Colors.amber),
+                    SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        verificationStatus == 'approved'
-                            ? "✅ Payment verified! Application status: ${_getStatusDisplay(currentAppStatus)}"
-                            : "❌ Payment rejected! Application status: ${_getStatusDisplay(currentAppStatus)}",
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.blue.shade700),
+                        "✅ Approve → Application → VERIFICATION SUCCESSFUL\n"
+                        "❌ Reject → Application → VERIFICATION REJECTED\n"
+                        "User + Admin will receive notifications.",
+                        style: TextStyle(fontSize: 11, color: Colors.black87),
                       ),
                     ),
                   ],
@@ -2185,123 +2364,212 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       );
     }
 
+    // ============================================================
+    // CASE 2: APPROVED / REJECTED / NOT_SUBMITTED → Status only
+    // ============================================================
+    final isApproved = verificationStatus.toLowerCase() == 'approved';
+    final isRejected = verificationStatus.toLowerCase() == 'rejected';
+    final statusColor = isApproved
+        ? Colors.green
+        : isRejected
+            ? Colors.red
+            : Colors.grey;
+
     return Card(
-      elevation: 2,
+      elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
-                Icon(Icons.verified, color: Colors.orange),
-                SizedBox(width: 8),
-                Text(
-                  "Pending Payment Verification",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (transactionId != null)
-              _buildInfoRow(Icons.receipt, "Transaction ID", transactionId),
-            if (transactionDate != null)
-              _buildInfoRow(
-                Icons.calendar_today,
-                "Transaction Date",
-                _formatDate(transactionDate),
-              ),
-            if (paymentAmount != null)
-              _buildInfoRow(
-                Icons.currency_rupee,
-                "Amount",
-                "₹$paymentAmount",
-              ),
-            if (paymentCategory != null)
-              _buildInfoRow(
-                Icons.category,
-                "Category",
-                paymentCategory.toUpperCase(),
-              ),
-            const SizedBox(height: 12),
-            if (paymentReceiptUrl != null && paymentReceiptUrl.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: ElevatedButton.icon(
-                  onPressed: () => _showPaymentReceiptDialog(paymentReceiptUrl),
-                  icon: const Icon(Icons.receipt),
-                  label: const Text("View Payment Receipt"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                  ),
-                ),
-              ),
-            const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isUpdatingStatus
-                        ? null
-                        : () => _approvePayment(paymentId, app['_id']),
-                    icon: const Icon(Icons.check, size: 18),
-                    label: const Text(
-                      "Approve Payment",
-                      style: TextStyle(fontSize: 13),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: statusColor, width: 1.5),
+                  ),
+                  child: Icon(
+                    isApproved
+                        ? Icons.verified
+                        : isRejected
+                            ? Icons.cancel
+                            : Icons.hourglass_empty,
+                    color: statusColor,
+                    size: 24,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isUpdatingStatus
-                        ? null
-                        : () => _rejectPayment(paymentId, app['_id']),
-                    icon: const Icon(Icons.close, size: 18),
-                    label: const Text(
-                      "Reject Payment",
-                      style: TextStyle(fontSize: 13),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isApproved
+                            ? "Payment Approved"
+                            : isRejected
+                                ? "Payment Rejected"
+                                : "Payment Not Submitted",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isApproved
+                            ? "Verification completed successfully"
+                            : isRejected
+                                ? "Payment was rejected by admin"
+                                : "User has not submitted payment proof",
+                        style:
+                            const TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    verificationStatus.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
+
+            if (transactionId != null || paymentAmount != null) ...[
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              if (transactionId != null)
+                _buildPaymentInfoRow(
+                  Icons.receipt_long,
+                  "Transaction ID",
+                  transactionId.toString(),
+                ),
+              if (paymentAmount != null) ...[
+                const SizedBox(height: 8),
+                _buildPaymentInfoRow(
+                  Icons.currency_rupee,
+                  "Amount",
+                  "₹$paymentAmount",
+                ),
+              ],
+              if (transactionDate != null) ...[
+                const SizedBox(height: 8),
+                _buildPaymentInfoRow(
+                  Icons.calendar_today,
+                  "Date",
+                  _formatDate(transactionDate.toString()),
+                ),
+              ],
+            ],
+
+            // Rejection reason
+            if (isRejected &&
+                rejectionReason != null &&
+                rejectionReason.toString().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.red, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          "Rejection Reason:",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      rejectionReason.toString(),
+                      style: const TextStyle(fontSize: 12, color: Colors.red),
+                    ),
+                  ],
+                ),
               ),
-              child: const Row(
+            ],
+
+            // Receipt
+            if (paymentReceiptUrl != null &&
+                paymentReceiptUrl.toString().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () =>
+                      _showPaymentReceiptDialog(paymentReceiptUrl.toString()),
+                  icon: const Icon(Icons.receipt, size: 18),
+                  label: const Text("View Payment Receipt"),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.blue,
+                    side: const BorderSide(color: Colors.blue),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 12),
+
+            // Status footer
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 14, color: Colors.orange),
-                  SizedBox(width: 8),
+                  Icon(
+                    isApproved ? Icons.check_circle : Icons.info,
+                    size: 14,
+                    color: statusColor,
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      "✅ Approve Payment: Application status will change to VERIFICATION SUCCESSFUL\n❌ Reject Payment: Application status will change to VERIFICATION REJECTED",
-                      style: TextStyle(fontSize: 11, color: Colors.orange),
+                      isApproved
+                          ? "Application status: ${_getStatusDisplay(currentAppStatus)}"
+                          : isRejected
+                              ? "Application status: ${_getStatusDisplay(currentAppStatus)}"
+                              : "Awaiting user payment submission",
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: statusColor,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],

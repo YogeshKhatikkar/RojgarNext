@@ -1,6 +1,7 @@
-# app/modules/services/service.py - COMPLETE UPDATED VERSION
-# ✅ FIXED: Payment status now returns clear fields for frontend
-# ✅ Uses unified 'applications' collection with application_type='service'
+# app/modules/services/service.py - COMPLETE FINAL FIXED VERSION
+# ✅ CRITICAL FIX: _enrich_application_for_frontend now AUTO-CORRECTS
+#    legacy data where payment_status="completed" but verification="pending"
+# ✅ This fixes the EXACT issue: DB shows completed but UI shows pending
 
 from fastapi import HTTPException, BackgroundTasks
 from typing import Dict, Any, List, Optional
@@ -31,34 +32,80 @@ module_logger = logging.getLogger(__name__)
 
 class ServiceService:
     """Service Application Service - Uses Unified Applications Collection"""
-    
+
     def __init__(self, db):
         self.db = db
         self.applications = db.applications
         self.auth = db.auth
         self.profile = db.profile
         self.notifications = db.notifications
-    
+
     async def _get_db(self):
         return self.db
 
     # ============================================================
-    # ✅ NEW HELPER: Enrich application with clear payment fields
+    # ✅✅✅ THE CRITICAL FIX - _enrich_application_for_frontend
+    # ------------------------------------------------------------
+    # This method now detects the EXACT broken combination:
+    #   payment_status = "completed" AND
+    #   payment_verification_status = "pending"
+    # And auto-corrects it to:
+    #   payment_verification_status = "approved"
+    #   status = "verification_successful" (job) / "payment_verified" (service)
+    #
+    # Result: Frontend will NEVER see "pending" for a completed payment.
     # ============================================================
     def _enrich_application_for_frontend(self, app: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Normalize & add clear status fields so frontend NEVER confuses
-        payment_verification_status with application status.
+        Normalize & enrich application data for frontend display.
+
+        CRITICAL: If gateway says payment completed but verification is pending,
+        auto-correct to approved. This handles legacy data created before
+        the auto-approval feature was added.
         """
         if not app:
             return app
 
         # ---- Read raw fields safely ----
-        raw_payment_status = (app.get("payment_verification_status") or "not_submitted")
-        raw_payment_status = str(raw_payment_status).strip().lower()
+        raw_gateway_status = str(app.get("payment_status") or "pending").strip().lower()
+        raw_payment_status = str(app.get("payment_verification_status") or "not_submitted").strip().lower()
         raw_app_status = str(app.get("status") or "payment_pending").strip().lower()
+        app_type = str(app.get("application_type") or "service").strip().lower()
 
-        # ---- Normalize payment verification status ----
+        module_logger.info("=" * 70)
+        module_logger.info("🔍 ENRICHING APPLICATION FOR FRONTEND")
+        module_logger.info(f"   App ID: {app.get('_id')}")
+        module_logger.info(f"   Type: {app_type}")
+        module_logger.info(f"   Raw gateway status: {raw_gateway_status}")
+        module_logger.info(f"   Raw payment verification: {raw_payment_status}")
+        module_logger.info(f"   Raw app status: {raw_app_status}")
+
+        # ============================================================
+        # ✅ THE FIX: Auto-correct broken combination
+        # If gateway = completed but verification = pending
+        # → treat as approved (because gateway already verified)
+        # ============================================================
+        auto_corrected = False
+
+        if raw_gateway_status == "completed" and raw_payment_status in ("pending", "not_submitted", "pending_verification", "under_review"):
+            module_logger.warning(
+                f"⚠️ AUTO-CORRECTING broken data: "
+                f"payment_status=completed + verification={raw_payment_status}"
+            )
+            raw_payment_status = "approved"
+            auto_corrected = True
+
+            # Also fix the app status if it's still in a pending state
+            if raw_app_status in ("pending_verification", "payment_pending", "pending"):
+                if app_type == "job":
+                    raw_app_status = "verification_successful"
+                else:
+                    raw_app_status = "payment_verified"
+                module_logger.warning(f"   → Corrected app status to: {raw_app_status}")
+
+        # ============================================================
+        # Normalize payment verification status
+        # ============================================================
         if raw_payment_status in ("approved", "verified", "success", "completed"):
             normalized_payment = "approved"
             is_verified = True
@@ -80,15 +127,23 @@ class ServiceService:
             is_pending = False
             is_rejected = False
 
+        # Override in app dict
         app["payment_verification_status"] = normalized_payment
+        app["payment_status"] = raw_gateway_status
 
-        # ---- Add clear boolean flags ----
+        # ============================================================
+        # Add clear boolean flags for frontend
+        # ============================================================
         app["is_payment_verified"] = is_verified
         app["is_payment_pending"] = is_pending
         app["is_payment_rejected"] = is_rejected
         app["is_payment_not_submitted"] = (normalized_payment == "not_submitted")
+        app["is_payment_completed"] = (raw_gateway_status == "completed")
+        app["_auto_corrected"] = auto_corrected  # Debug flag
 
-        # ---- Add human-readable display status ----
+        # ============================================================
+        # Add human-readable display status
+        # ============================================================
         if is_verified:
             display_status = "Payment Verified"
             display_status_key = "verified"
@@ -102,7 +157,6 @@ class ServiceService:
             display_status_key = "pending"
             display_color = "orange"
         else:
-            # Fall back to application status
             display_status = raw_app_status.replace("_", " ").title()
             display_status_key = raw_app_status
             display_color = "grey"
@@ -111,28 +165,40 @@ class ServiceService:
         app["display_status_key"] = display_status_key
         app["display_status_color"] = display_color
 
-        # ---- Ensure status field exists ----
-        if "status" not in app or not app["status"]:
-            app["status"] = "payment_pending"
+        # ============================================================
+        # Override the app status (for frontend to read directly)
+        # ============================================================
+        app["status"] = raw_app_status
 
-        # ---- Timestamp formatting ----
+        # ============================================================
+        # Timestamp formatting
+        # ============================================================
         for ts_field in ("payment_verified_at", "paid_at", "updated_at", "created_at",
                          "applied_at", "submitted_at", "final_submitted_at",
                          "transaction_date"):
             if app.get(ts_field) and isinstance(app[ts_field], datetime):
                 app[ts_field] = app[ts_field].isoformat()
 
-        # ---- Ensure payment receipt URL is present ----
+        # ============================================================
+        # Ensure payment receipt URL is present
+        # ============================================================
         if not app.get("payment_receipt_url"):
             app["payment_receipt_url"] = app.get("screenshot_url")
 
-        # ---- Ensure application_type ----
-        app["application_type"] = "service"
+        # ============================================================
+        # Ensure application_type is set
+        # ============================================================
+        app["application_type"] = app_type
+
+        module_logger.info(f"   ✅ Final payment_verification_status: {normalized_payment}")
+        module_logger.info(f"   ✅ Final app status: {raw_app_status}")
+        module_logger.info(f"   ✅ Auto-corrected: {auto_corrected}")
+        module_logger.info("=" * 70)
 
         return app
 
     # ============================================================
-    # ✅ Helper: Return raw application by ID (no permission check)
+    # Helper: Return raw application by ID
     # ============================================================
     async def get_application_by_id(self, application_id: str) -> Optional[Dict[str, Any]]:
         """Fetch raw application from DB by ID (service type only)"""
@@ -370,7 +436,7 @@ class ServiceService:
             raise HTTPException(status_code=404, detail="Application not found")
 
         current_status = application.get("status")
-        if current_status in ["approved", "rejected", "completed"]:
+        if current_status in ["approved", "rejected", "completed", "payment_verified", "verification_successful"]:
             return {
                 "success": False,
                 "message": f"Application already {current_status}",
@@ -385,7 +451,8 @@ class ServiceService:
 
         if action == "approve":
             update_data = {
-                "status": "approved",
+                "status": "payment_verified",
+                "payment_status": "completed",
                 "payment_verification_status": "approved",
                 "payment_verified_by": admin_email,
                 "payment_verified_at": datetime.utcnow(),
@@ -406,7 +473,7 @@ class ServiceService:
                 message=f"Your payment of ₹{amount} for '{sub_service_name}' has been verified successfully.",
                 related_id=application_id,
                 metadata={
-                    "status": "approved",
+                    "status": "payment_verified",
                     "amount": amount,
                     "service_name": service_name,
                     "sub_service_name": sub_service_name,
@@ -423,15 +490,16 @@ class ServiceService:
                 "message": "Payment approved successfully",
                 "application_id": application_id,
                 "application_type": "service",
-                "status": "approved"
+                "status": "payment_verified"
             }
 
-        else:  # reject
+        else:
             if not notes:
                 notes = "Payment rejected by admin - Please contact support"
 
             update_data = {
                 "status": "rejected",
+                "payment_status": "failed",
                 "payment_verification_status": "rejected",
                 "payment_verified_by": admin_email,
                 "payment_verified_at": datetime.utcnow(),
@@ -474,7 +542,7 @@ class ServiceService:
             }
 
     # ============================================================
-    # ✅ GET USER APPLICATIONS (FIXED!)
+    # ✅ GET USER APPLICATIONS (WITH AUTO-FIX)
     # ============================================================
     async def get_user_applications(self, user_email: str) -> List[Dict[str, Any]]:
         """Get all service applications for a user - WITH ENRICHED STATUS"""
@@ -486,15 +554,13 @@ class ServiceService:
 
             enriched = []
             for app in applications:
-                # Stringify IDs
                 app["_id"] = str(app["_id"])
                 if app.get("payment_id"):
                     app["payment_id"] = str(app["payment_id"])
 
-                # ✅ Enrich with clear status fields
+                # ✅ Enrich — this will auto-correct pending data
                 app = self._enrich_application_for_frontend(app)
 
-                # Add display details
                 service_id = app.get("service_id", "")
                 sub_type_id = app.get("sub_type_id", "")
                 details = self._get_service_display_details(service_id, sub_type_id)
@@ -562,7 +628,7 @@ class ServiceService:
             raise HTTPException(status_code=500, detail=str(e))
 
     # ============================================================
-    # ✅ GET APPLICATION DETAIL (FIXED!)
+    # ✅ GET APPLICATION DETAIL (WITH AUTO-FIX)
     # ============================================================
     async def get_application_detail(self, application_id: str, user_email: str) -> Dict[str, Any]:
         if not ObjectId.is_valid(application_id):
@@ -583,7 +649,7 @@ class ServiceService:
 
         application["_id"] = str(application["_id"])
 
-        # ✅ Enrich
+        # ✅ Enrich — auto-corrects pending data
         application = self._enrich_application_for_frontend(application)
 
         service_id = application.get("service_id", "")
@@ -599,7 +665,7 @@ class ServiceService:
     # ✅ GET PAYMENT STATUS ONLY (Fast endpoint)
     # ============================================================
     async def get_payment_status(self, application_id: str, user_email: str) -> Dict[str, Any]:
-        """Lightweight payment status fetcher (for polling)"""
+        """Lightweight payment status fetcher"""
         if not ObjectId.is_valid(application_id):
             raise HTTPException(status_code=400, detail="Invalid application ID")
 
@@ -924,5 +990,6 @@ class ServiceService:
 
 
 print("=" * 70)
-print("✅ Service Service Updated - Enriched payment status fields")
+print("✅ Service Service Updated - AUTO-CORRECTS legacy payment data")
+print("   ✅ payment_status='completed' + verification='pending' → 'approved'")
 print("=" * 70)

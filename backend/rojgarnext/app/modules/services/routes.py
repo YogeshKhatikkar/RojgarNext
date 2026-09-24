@@ -1,7 +1,8 @@
 # app/modules/services/routes.py
-# ✅ COMPLETE — Uses the unified `applications` collection
-# ✅ Documents are linked to application_id, stored in `service_documents[]`
-# ✅ Never mixed with profile docs (user_documents_screen uploads)
+# ✅ COMPLETE FIXED VERSION
+# ✅ All user/admin endpoints now use ServiceService._enrich_application_for_frontend()
+# ✅ payment_status='completed' + verification='pending' → auto-corrected to 'approved'
+# ✅ Frontend will NEVER see "Payment Pending" once gateway says completed
 
 from fastapi import (
     APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
@@ -16,7 +17,7 @@ from app.core.services.dependencies import get_current_user, role_required
 from app.db.connection import get_db
 from app.core.services.cloudinary import upload_user_document
 from app.core.utils.logger import logger
-from app.models.unified_application_model import UnifiedApplicationModel
+from app.modules.services.service import ServiceService
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +25,9 @@ router = APIRouter()
 
 
 # ============================================================
-# HELPER UTILITIES
+# HELPERS
 # ============================================================
 def _safe_username(email: str) -> str:
-    """Sanitize email → folder-safe username."""
     if not email:
         return "user"
     base = email.split("@")[0]
@@ -35,7 +35,6 @@ def _safe_username(email: str) -> str:
 
 
 def _safe_doc_type(doc_type: str) -> str:
-    """Sanitize document_type for Cloudinary folder."""
     if not doc_type:
         return "document"
     doc_type = doc_type.lower().strip()
@@ -46,7 +45,6 @@ def _safe_doc_type(doc_type: str) -> str:
 
 # ============================================================
 # ✅ STEP 1: CREATE DRAFT SERVICE APPLICATION
-# Returns application_id BEFORE documents are uploaded.
 # ============================================================
 @router.post("/application/draft", status_code=201)
 async def create_draft_service_application(
@@ -54,26 +52,18 @@ async def create_draft_service_application(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    """
-    Creates a DRAFT service application record in the `applications` collection.
-    application_type = "service", is_draft = True.
-    All uploads will be linked to this ID.
-    """
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email missing from token")
 
     username = _safe_username(email)
-
     service_id = payload.get("service_id")
     sub_type_id = payload.get("sub_type_id")
-    if not service_id or not sub_type_id:
-        raise HTTPException(
-            status_code=400,
-            detail="service_id and sub_type_id are required",
-        )
 
-    # Reuse existing draft if any (avoids duplicates from double-tap)
+    if not service_id or not sub_type_id:
+        raise HTTPException(status_code=400,
+                            detail="service_id and sub_type_id are required")
+
     existing = await db.applications.find_one({
         "user_email": email,
         "application_type": "service",
@@ -82,7 +72,6 @@ async def create_draft_service_application(
         "is_draft": True,
     })
     if existing:
-        logger.info(f"♻️ Reusing existing draft service application: {existing['_id']}")
         return {
             "success": True,
             "application_id": str(existing["_id"]),
@@ -97,37 +86,25 @@ async def create_draft_service_application(
         "user_name": current_user.get("name", ""),
         "user_mobile": current_user.get("mobile", ""),
         "application_username": username,
-
         "service_id": service_id,
         "sub_type_id": sub_type_id,
         "service_name": payload.get("service_name", ""),
         "sub_service_name": payload.get("sub_service_name", ""),
-
         "status": "draft",
         "payment_status": "pending",
         "payment_verification_status": "not_submitted",
-
-        # ✅ This is where all app-specific docs land
         "service_documents": [],
-
-        # Form fields (filled at finalize)
         "fields": {},
-
-        # Timestamps
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
         "is_draft": True,
     }
 
     result = await db.applications.insert_one(draft)
-    application_id = str(result.inserted_id)
-
-    logger.info(f"📝 Draft service application created: {application_id} for {email}")
-
     return {
         "success": True,
-        "application_id": application_id,
-        "message": "Draft created — ready for document uploads",
+        "application_id": str(result.inserted_id),
+        "message": "Draft created",
         "is_new": True,
     }
 
@@ -144,19 +121,9 @@ async def upload_service_application_document(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    """
-    Uploads a document tied to a specific service application.
-
-    Cloudinary path:
-        rojgarnext_uploads/users_data/{username}/service_applications/{application_id}/{doc_type}/
-
-    DB write:
-        applications.service_documents[]  (append)
-    """
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
 
-    # Verify ownership
     app_rec = await db.applications.find_one({
         "_id": ObjectId(application_id),
         "user_email": current_user.get("email"),
@@ -169,8 +136,6 @@ async def upload_service_application_document(
 
     doc_type_safe = _safe_doc_type(document_type)
     label = (document_label or "").strip() or doc_type_safe.replace('_', ' ').title()
-
-    # ✅ Unique per-application folder path
     folder_path = f"service_applications/{application_id}/{doc_type_safe}"
 
     try:
@@ -191,7 +156,7 @@ async def upload_service_application_document(
             "file_size": upload_result.get("size_bytes", 0),
             "is_pdf": upload_result.get("is_pdf", False),
             "is_image": upload_result.get("is_image", False),
-            "source": "service_application",      # ← filter tag
+            "source": "service_application",
             "uploaded_at": datetime.utcnow().isoformat(),
             "uploaded_by": current_user.get("email"),
         }
@@ -200,14 +165,9 @@ async def upload_service_application_document(
             {"_id": ObjectId(application_id)},
             {
                 "$push": {"service_documents": doc_record},
-                "$set": {
-                    "updated_at": datetime.utcnow(),
-                    "is_draft": True,
-                },
+                "$set": {"updated_at": datetime.utcnow(), "is_draft": True},
             },
         )
-
-        logger.info(f"✅ Service doc uploaded → app {application_id}: {label}")
 
         return {
             "success": True,
@@ -221,7 +181,7 @@ async def upload_service_application_document(
 
 
 # ============================================================
-# ✅ STEP 3: DELETE A DOCUMENT FROM A SERVICE APPLICATION
+# DELETE DOCUMENT
 # ============================================================
 @router.delete("/application/{application_id}/document/{document_type}")
 async def delete_service_application_document(
@@ -233,15 +193,8 @@ async def delete_service_application_document(
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
 
-    app_rec = await db.applications.find_one({
-        "_id": ObjectId(application_id),
-        "user_email": current_user.get("email"),
-    })
-    if not app_rec:
-        raise HTTPException(status_code=404, detail="Application not found")
-
     result = await db.applications.update_one(
-        {"_id": ObjectId(application_id)},
+        {"_id": ObjectId(application_id), "user_email": current_user.get("email")},
         {
             "$pull": {"service_documents": {"document_type": document_type}},
             "$set": {"updated_at": datetime.utcnow()},
@@ -255,9 +208,7 @@ async def delete_service_application_document(
 
 
 # ============================================================
-# ✅ STEP 4: GET DOCUMENTS FOR A SERVICE APPLICATION
-# ✅ Returns ONLY service_documents[] + admin review/final docs
-# ❌ NEVER returns profile docs
+# ✅ GET DOCUMENTS
 # ============================================================
 @router.get("/application/{application_id}/documents")
 async def get_service_application_documents(
@@ -278,14 +229,12 @@ async def get_service_application_documents(
         raise HTTPException(status_code=404, detail="Application not found")
 
     service_docs = app_rec.get("service_documents", []) or []
-
-    # Admin-uploaded docs
     admin_docs: List[Dict[str, Any]] = []
 
     if app_rec.get("submitted_document_url"):
         admin_docs.append({
             "document_type": "submitted_document",
-            "label": app_rec.get("submitted_document_name") or "Submitted Document (Review)",
+            "label": app_rec.get("submitted_document_name") or "Submitted Document",
             "url": app_rec.get("submitted_document_url"),
             "download_url": app_rec.get("submitted_document_download_url"),
             "source": "admin_review",
@@ -295,7 +244,7 @@ async def get_service_application_documents(
     if app_rec.get("final_document_url"):
         admin_docs.append({
             "document_type": "final_document",
-            "label": app_rec.get("final_document_name") or "Final Submitted Document",
+            "label": app_rec.get("final_document_name") or "Final Document",
             "url": app_rec.get("final_document_url"),
             "download_url": app_rec.get("final_document_download_url"),
             "source": "admin_final",
@@ -312,7 +261,7 @@ async def get_service_application_documents(
 
 
 # ============================================================
-# ✅ STEP 5: FINALIZE DRAFT AFTER PAYMENT
+# FINALIZE DRAFT AFTER PAYMENT
 # ============================================================
 @router.post("/application/{application_id}/finalize")
 async def finalize_service_application(
@@ -327,10 +276,7 @@ async def finalize_service_application(
     form_fields = (payload or {}).get("fields", {}) or {}
 
     result = await db.applications.update_one(
-        {
-            "_id": ObjectId(application_id),
-            "user_email": current_user.get("email"),
-        },
+        {"_id": ObjectId(application_id), "user_email": current_user.get("email")},
         {
             "$set": {
                 "status": "pending_verification",
@@ -345,27 +291,18 @@ async def finalize_service_application(
     )
 
     if result.modified_count == 0:
-        # Could be already finalized
         existing = await db.applications.find_one({"_id": ObjectId(application_id)})
         if existing and existing.get("is_draft") is False:
-            return {
-                "success": True,
-                "application_id": application_id,
-                "message": "Already finalized",
-            }
+            return {"success": True, "application_id": application_id,
+                    "message": "Already finalized"}
         raise HTTPException(status_code=404, detail="Draft not found")
 
-    logger.info(f"✅ Service application finalized: {application_id}")
-
-    return {
-        "success": True,
-        "application_id": application_id,
-        "message": "Application finalized",
-    }
+    return {"success": True, "application_id": application_id,
+            "message": "Application finalized"}
 
 
 # ============================================================
-# ✅ LEGACY: /apply (kept for backward compatibility)
+# LEGACY /apply
 # ============================================================
 @router.post("/apply")
 async def submit_service_application(
@@ -386,25 +323,20 @@ async def submit_service_application(
         "user_name": data.get("user_name") or current_user.get("name", ""),
         "user_mobile": data.get("user_mobile", ""),
         "application_username": username,
-
         "service_id": data.get("service_type"),
         "sub_type_id": data.get("service_sub_type"),
         "service_name": data.get("service_name", ""),
         "sub_service_name": data.get("sub_service_name", ""),
-
         "status": data.get("status", "pending_verification"),
         "payment_status": data.get("payment_status", "pending"),
         "payment_verification_status": "pending",
-
         "fields": data.get("fields", {}),
         "service_documents": [],
-
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
         "is_draft": False,
     }
 
-    # Migrate legacy documents map into service_documents[]
     docs_map = data.get("documents", {}) or {}
     meta_map = data.get("document_meta", {}) or {}
     for key, url in docs_map.items():
@@ -426,22 +358,22 @@ async def submit_service_application(
         })
 
     result = await db.applications.insert_one(application)
-
-    return {
-        "success": True,
-        "application_id": str(result.inserted_id),
-        "message": "Service application submitted",
-    }
+    return {"success": True, "application_id": str(result.inserted_id),
+            "message": "Service application submitted"}
 
 
 # ============================================================
-# ✅ LIST: Current user's service applications
+# ✅ LIST: Current user's service applications — WITH ENRICHMENT
 # ============================================================
 @router.get("/my-applications")
 async def get_my_service_applications(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
+    """
+    ✅ FIXED: Now uses ServiceService._enrich_application_for_frontend()
+    Auto-corrects: payment_status='completed' + verification='pending' → 'approved'
+    """
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email missing")
@@ -452,9 +384,16 @@ async def get_my_service_applications(
         "is_draft": {"$ne": True},
     }).sort("created_at", -1).to_list(500)
 
+    # ✅ Initialize service with the SAME db so enrichment works
+    service_service = ServiceService(db)
+
     out: List[Dict[str, Any]] = []
     for a in apps:
         a["_id"] = str(a["_id"])
+
+        # ✅ THIS IS THE FIX — enrich + auto-correct status
+        a = service_service._enrich_application_for_frontend(a)
+
         # Lightweight listing — omit full docs
         a.pop("service_documents", None)
         out.append(a)
@@ -463,7 +402,7 @@ async def get_my_service_applications(
 
 
 # ============================================================
-# ✅ LIST: Admin — all service applications
+# ✅ LIST: Admin — all service applications — WITH ENRICHMENT
 # ============================================================
 @router.get("/all-applications")
 async def get_all_service_applications(
@@ -477,9 +416,12 @@ async def get_all_service_applications(
         "is_draft": {"$ne": True},
     }).sort("created_at", -1).to_list(1000)
 
+    service_service = ServiceService(db)
+
     out: List[Dict[str, Any]] = []
     for a in apps:
         a["_id"] = str(a["_id"])
+        a = service_service._enrich_application_for_frontend(a)
         a.pop("service_documents", None)
         out.append(a)
 
@@ -487,7 +429,7 @@ async def get_all_service_applications(
 
 
 # ============================================================
-# ✅ DETAIL: Single service application (full, incl. service_documents)
+# ✅ DETAIL: Single service application — WITH ENRICHMENT
 # ============================================================
 @router.get("/application/{application_id}")
 async def get_service_application_detail(
@@ -495,6 +437,10 @@ async def get_service_application_detail(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
+    """
+    ✅ FIXED: Enriched response — payment_status will be 'approved'
+              when gateway already reported 'completed'.
+    """
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
 
@@ -508,11 +454,16 @@ async def get_service_application_detail(
         raise HTTPException(status_code=404, detail="Application not found")
 
     app_rec["_id"] = str(app_rec["_id"])
+
+    # ✅ Enrich + auto-correct
+    service_service = ServiceService(db)
+    app_rec = service_service._enrich_application_for_frontend(app_rec)
+
     return {"success": True, "data": app_rec}
 
 
 # ============================================================
-# ✅ STATUS: Update (admin)
+# STATUS UPDATE (admin)
 # ============================================================
 @router.put("/application/{application_id}/status")
 async def update_service_application_status(
@@ -545,14 +496,12 @@ async def update_service_application_status(
         {"$set": update},
     )
 
-    return {
-        "success": result.modified_count > 0,
-        "message": "Status updated" if result.modified_count > 0 else "Not found",
-    }
+    return {"success": result.modified_count > 0,
+            "message": "Status updated" if result.modified_count > 0 else "Not found"}
 
 
 # ============================================================
-# ✅ VERIFY PAYMENT (admin)
+# VERIFY PAYMENT (admin)
 # ============================================================
 @router.post("/application/{application_id}/verify-payment")
 async def verify_service_application_payment(
@@ -570,10 +519,7 @@ async def verify_service_application_payment(
     notes = data.get("notes", "")
 
     if action not in ("approve", "reject"):
-        raise HTTPException(
-            status_code=400,
-            detail="action must be 'approve' or 'reject'"
-        )
+        raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'")
 
     if action == "approve":
         update = {
@@ -602,7 +548,7 @@ async def verify_service_application_payment(
 
 
 # ============================================================
-# ✅ REVIEW WITH DOCUMENT (admin)
+# REVIEW WITH DOCUMENT (admin)
 # ============================================================
 @router.post("/application/{application_id}/review-with-document")
 async def review_service_application_with_document(
@@ -627,34 +573,27 @@ async def review_service_application_with_document(
 
     try:
         upload_result = await upload_user_document(
-            file=file,
-            username=username,
-            document_type=folder_path,
+            file=file, username=username, document_type=folder_path,
         )
 
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
-            {
-                "$set": {
-                    "status": "review_application",
-                    "submitted_document_url": upload_result.get("url"),
-                    "submitted_document_download_url": upload_result.get("download_url"),
-                    "submitted_document_name": upload_result.get("filename"),
-                    "submitted_document_public_id": upload_result.get("public_id"),
-                    "submitted_document_folder": folder_path,
-                    "submitted_at": datetime.utcnow(),
-                    "submitted_by": current_user.get("email"),
-                    "admin_notes": notes,
-                    "updated_at": datetime.utcnow(),
-                }
-            },
+            {"$set": {
+                "status": "review_application",
+                "submitted_document_url": upload_result.get("url"),
+                "submitted_document_download_url": upload_result.get("download_url"),
+                "submitted_document_name": upload_result.get("filename"),
+                "submitted_document_public_id": upload_result.get("public_id"),
+                "submitted_document_folder": folder_path,
+                "submitted_at": datetime.utcnow(),
+                "submitted_by": current_user.get("email"),
+                "admin_notes": notes,
+                "updated_at": datetime.utcnow(),
+            }},
         )
 
-        return {
-            "success": True,
-            "message": "Review document uploaded",
-            "url": upload_result.get("url"),
-        }
+        return {"success": True, "message": "Review document uploaded",
+                "url": upload_result.get("url")}
 
     except Exception as e:
         logger.error(f"❌ Review upload failed: {e}")
@@ -662,7 +601,7 @@ async def review_service_application_with_document(
 
 
 # ============================================================
-# ✅ FINAL SUBMIT WITH DOCUMENT (admin)
+# FINAL SUBMIT (admin)
 # ============================================================
 @router.post("/application/{application_id}/final-submit-with-document")
 async def final_submit_service_application(
@@ -687,33 +626,26 @@ async def final_submit_service_application(
 
     try:
         upload_result = await upload_user_document(
-            file=file,
-            username=username,
-            document_type=folder_path,
+            file=file, username=username, document_type=folder_path,
         )
 
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
-            {
-                "$set": {
-                    "status": "completed",
-                    "final_document_url": upload_result.get("url"),
-                    "final_document_download_url": upload_result.get("download_url"),
-                    "final_document_name": upload_result.get("filename"),
-                    "final_document_public_id": upload_result.get("public_id"),
-                    "final_submitted_at": datetime.utcnow(),
-                    "final_submitted_by": current_user.get("email"),
-                    "admin_notes": notes,
-                    "updated_at": datetime.utcnow(),
-                }
-            },
+            {"$set": {
+                "status": "completed",
+                "final_document_url": upload_result.get("url"),
+                "final_document_download_url": upload_result.get("download_url"),
+                "final_document_name": upload_result.get("filename"),
+                "final_document_public_id": upload_result.get("public_id"),
+                "final_submitted_at": datetime.utcnow(),
+                "final_submitted_by": current_user.get("email"),
+                "admin_notes": notes,
+                "updated_at": datetime.utcnow(),
+            }},
         )
 
-        return {
-            "success": True,
-            "message": "Final document uploaded",
-            "url": upload_result.get("url"),
-        }
+        return {"success": True, "message": "Final document uploaded",
+                "url": upload_result.get("url")}
 
     except Exception as e:
         logger.error(f"❌ Final upload failed: {e}")
@@ -721,7 +653,7 @@ async def final_submit_service_application(
 
 
 # ============================================================
-# ✅ USER CONFIRM APPLICATION
+# USER CONFIRM
 # ============================================================
 @router.put("/application/{application_id}/user-confirm")
 async def user_confirm_service_application(
@@ -734,28 +666,21 @@ async def user_confirm_service_application(
         raise HTTPException(status_code=400, detail="Invalid application ID")
 
     result = await db.applications.update_one(
-        {
-            "_id": ObjectId(application_id),
-            "user_email": current_user.get("email"),
-        },
-        {
-            "$set": {
-                "status": "confirmed_application",
-                "confirmed_at": datetime.utcnow(),
-                "confirmed_by": current_user.get("email"),
-                "updated_at": datetime.utcnow(),
-            }
-        },
+        {"_id": ObjectId(application_id), "user_email": current_user.get("email")},
+        {"$set": {
+            "status": "confirmed_application",
+            "confirmed_at": datetime.utcnow(),
+            "confirmed_by": current_user.get("email"),
+            "updated_at": datetime.utcnow(),
+        }},
     )
 
-    return {
-        "success": result.modified_count > 0,
-        "message": "Application confirmed" if result.modified_count > 0 else "Not found",
-    }
+    return {"success": result.modified_count > 0,
+            "message": "Application confirmed" if result.modified_count > 0 else "Not found"}
 
 
 # ============================================================
-# ✅ USER SUBMIT UPDATE
+# USER SUBMIT UPDATE
 # ============================================================
 @router.post("/application/{application_id}/user-update")
 async def user_submit_service_application_update(
@@ -779,10 +704,7 @@ async def user_submit_service_application_update(
         })
 
     result = await db.applications.update_one(
-        {
-            "_id": ObjectId(application_id),
-            "user_email": current_user.get("email"),
-        },
+        {"_id": ObjectId(application_id), "user_email": current_user.get("email")},
         {
             "$push": {"application_updates": {"$each": update_docs}},
             "$set": {
@@ -795,14 +717,12 @@ async def user_submit_service_application_update(
         },
     )
 
-    return {
-        "success": result.modified_count > 0,
-        "message": "Update submitted" if result.modified_count > 0 else "Not found",
-    }
+    return {"success": result.modified_count > 0,
+            "message": "Update submitted" if result.modified_count > 0 else "Not found"}
 
 
 # ============================================================
-# ✅ UPLOAD PAYMENT SCREENSHOT (for service)
+# UPLOAD PAYMENT SCREENSHOT
 # ============================================================
 @router.post("/application/{application_id}/upload-payment-screenshot")
 async def upload_payment_screenshot_for_service(
@@ -827,22 +747,18 @@ async def upload_payment_screenshot_for_service(
 
     try:
         upload_result = await upload_user_document(
-            file=file,
-            username=username,
-            document_type=folder_path,
+            file=file, username=username, document_type=folder_path,
         )
 
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
-            {
-                "$set": {
-                    "screenshot_url": upload_result.get("url"),
-                    "payment_receipt_url": upload_result.get("url"),
-                    "payment_receipt_public_id": upload_result.get("public_id"),
-                    "payment_verification_status": "pending",
-                    "updated_at": datetime.utcnow(),
-                }
-            },
+            {"$set": {
+                "screenshot_url": upload_result.get("url"),
+                "payment_receipt_url": upload_result.get("url"),
+                "payment_receipt_public_id": upload_result.get("public_id"),
+                "payment_verification_status": "pending",
+                "updated_at": datetime.utcnow(),
+            }},
         )
 
         return {"success": True, "url": upload_result.get("url")}
@@ -850,4 +766,5 @@ async def upload_payment_screenshot_for_service(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-print("✅ Services routes loaded with application-scoped document handling")
+print("✅ Services routes loaded with ENRICHMENT FIX")
+print("   payment_status='completed' + verification='pending' → 'approved'")
