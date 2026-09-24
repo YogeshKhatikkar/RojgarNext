@@ -2,18 +2,22 @@
 // ✅ COMPLETE AI-BASED MODERN DESIGN
 // ✅ FIXED: Dropdown list with white background and black text
 // ✅ FIXED: Loading animation on page load
-// ✅ FIXED: Consistent design with Experience and Education screens
-// ✅ Works on Mobile and Web
+// ✅ FIXED: Works on Mobile and Web
+// ✅ NEW: Profile photo upload/delete syncs to UserProfileProvider
+//         → Sidebar + all Resume formats update WITHOUT page reload
+// ✅ Complete file — no lines skipped
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/core/widgets/file_viewer_screen.dart';
+import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 
 class UserDocumentsScreen extends StatefulWidget {
   const UserDocumentsScreen({super.key});
@@ -260,9 +264,12 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 
         // Check file extension
         final extension = file.name.toLowerCase().split('.').last;
-        if (extension != 'jpg' && extension != 'jpeg' && extension != 'png' && extension != 'pdf') {
-          showMessage(context,
-              "❌ Only JPG, JPEG, PNG, and PDF files are supported.",
+        if (extension != 'jpg' &&
+            extension != 'jpeg' &&
+            extension != 'png' &&
+            extension != 'pdf') {
+          showMessage(
+              context, "❌ Only JPG, JPEG, PNG, and PDF files are supported.",
               isError: true);
           return;
         }
@@ -284,7 +291,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
           _selectedFileBytes = file.bytes!;
         });
 
-        debugPrint("✅ File selected: ${file.name}, Size: ${file.size} bytes, Platform: ${kIsWeb ? 'Web' : 'Mobile'}");
+        debugPrint(
+            "✅ File selected: ${file.name}, Size: ${file.size} bytes, Platform: ${kIsWeb ? 'Web' : 'Mobile'}");
       }
     } catch (e) {
       debugPrint("❌ Error picking file: $e");
@@ -295,7 +303,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
   }
 
   // ============================================================
-  // ✅ UPLOAD DOCUMENT
+  // ✅ UPLOAD DOCUMENT — with provider sync for profile photo
   // ============================================================
   Future<void> _uploadDocument() async {
     if (_selectedDocumentType == null || _selectedDocumentKey == null) {
@@ -321,7 +329,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
         'document_type': _selectedDocumentKey,
       });
 
-      debugPrint("📤 Uploading document: $_selectedFileName to document_type: $_selectedDocumentKey");
+      debugPrint(
+          "📤 Uploading document: $_selectedFileName to document_type: $_selectedDocumentKey");
 
       final res = await DioClient.dio.post(
         '/user/upload-document',
@@ -337,6 +346,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 
       if (res.data['success'] == true) {
         final fileUrl = res.data['url'] as String;
+        final publicId = res.data['public_id'] as String?;
 
         if (mounted) {
           setState(() {
@@ -344,10 +354,20 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
           });
         }
 
+        // ✅ Persist to profile DB
         await _updateProfileDocument(_selectedDocumentKey!, fileUrl);
 
+        // ✅ CRITICAL: Sync profile photo to global provider
+        if (_selectedDocumentKey == 'profile_photo_url' && mounted) {
+          Provider.of<UserProfileProvider>(context, listen: false)
+              .setProfilePhoto(url: fileUrl, publicId: publicId);
+          debugPrint(
+              "✅ Profile photo synced to provider → sidebar + resume updated");
+        }
+
         if (mounted) {
-          showMessage(context, "$_selectedDocumentType uploaded successfully!");
+          showMessage(
+              context, "$_selectedDocumentType uploaded successfully!");
           setState(() {
             _selectedDocumentType = null;
             _selectedDocumentKey = null;
@@ -362,7 +382,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
       if (mounted) {
         String errorMsg = e.toString();
         if (errorMsg.contains("Invalid file type")) {
-          errorMsg = "File type not supported. Please upload JPG, JPEG, PNG images only.";
+          errorMsg =
+              "File type not supported. Please upload JPG, JPEG, PNG images only.";
         }
         showMessage(context, "Upload failed: $errorMsg", isError: true);
       }
@@ -374,7 +395,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
   }
 
   // ============================================================
-  // ✅ UPDATE PROFILE DOCUMENT
+  // ✅ UPDATE PROFILE DOCUMENT (DB persist)
   // ============================================================
   Future<void> _updateProfileDocument(String key, String url) async {
     try {
@@ -382,12 +403,13 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
       await DioClient.dio.put('/user/update-profile', data: updateData);
       debugPrint("✅ Updated profile document: $key");
     } catch (e) {
-      debugPrint("⚠️ Could not update profile: $e");
+      debugPrint("⚠️ Could not update profile via PUT: $e");
       try {
         await DioClient.dio.post('/user/update-document', data: {
           'document_key': key,
           'document_url': url,
         });
+        debugPrint("✅ Updated profile document via POST: $key");
       } catch (e2) {
         debugPrint("⚠️ Alternative update also failed: $e2");
       }
@@ -395,7 +417,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
   }
 
   // ============================================================
-  // ✅ DELETE DOCUMENT
+  // ✅ DELETE DOCUMENT — with provider sync for profile photo
   // ============================================================
   Future<void> _deleteDocument(String key, String docName) async {
     final confirm = await showDialog<bool>(
@@ -428,6 +450,17 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
       if (res.data['success'] == true) {
         if (mounted) {
           setState(() => _documents.remove(key));
+        }
+
+        // ✅ CRITICAL: If profile photo deleted → clear from provider too
+        if (key == 'profile_photo_url' && mounted) {
+          Provider.of<UserProfileProvider>(context, listen: false)
+              .clearProfilePhoto();
+          debugPrint(
+              "🗑️ Profile photo cleared from provider → sidebar + resume updated");
+        }
+
+        if (mounted) {
           showMessage(context, "$docName deleted successfully");
         }
       } else {
@@ -514,18 +547,30 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 
   Color _getCategoryColor(String category) {
     switch (category) {
-      case 'Education': return Colors.blue;
-      case 'Professional': return Colors.green;
-      case 'Identity': return Colors.purple;
-      case 'Caste': return Colors.orange;
-      case 'Disability': return Colors.teal;
-      case 'Income': return Colors.green;
-      case 'Residence': return Colors.indigo;
-      case 'Family': return Colors.pink;
-      case 'Government': return Colors.blueGrey;
-      case 'Certification': return Colors.deepPurple;
-      case 'Miscellaneous': return Colors.amber;
-      default: return Colors.grey;
+      case 'Education':
+        return Colors.blue;
+      case 'Professional':
+        return Colors.green;
+      case 'Identity':
+        return Colors.purple;
+      case 'Caste':
+        return Colors.orange;
+      case 'Disability':
+        return Colors.teal;
+      case 'Income':
+        return Colors.green;
+      case 'Residence':
+        return Colors.indigo;
+      case 'Family':
+        return Colors.pink;
+      case 'Government':
+        return Colors.blueGrey;
+      case 'Certification':
+        return Colors.deepPurple;
+      case 'Miscellaneous':
+        return Colors.amber;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -899,7 +944,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
               children: [
                 _buildHeader(),
                 const SizedBox(height: 20),
-                
+
                 // ============================================================
                 // ✅ UPLOAD SECTION
                 // ============================================================
@@ -908,7 +953,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _sectionHeader("Upload New Document", Icons.cloud_upload),
-                      
+
                       // Category Selection
                       const Text(
                         "Select Document Category",
@@ -944,8 +989,10 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 14),
-                            prefixIcon: Icon(Icons.folder_open, color: Colors.grey.shade600),
-                            suffixIcon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
+                            prefixIcon: Icon(Icons.folder_open,
+                                color: Colors.grey.shade600),
+                            suffixIcon: Icon(Icons.arrow_drop_down,
+                                color: Colors.grey.shade600),
                           ),
                           dropdownColor: Colors.white,
                           style: const TextStyle(
@@ -958,7 +1005,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                   value: category,
                                   child: Row(children: [
                                     Icon(Icons.folder,
-                                        size: 18, color: _getCategoryColor(category)),
+                                        size: 18,
+                                        color: _getCategoryColor(category)),
                                     const SizedBox(width: 8),
                                     Text(
                                       "$category (${groupedDocs[category]!.length})",
@@ -998,8 +1046,10 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                 decoration: BoxDecoration(
                                     color: Colors.blue,
                                     borderRadius: BorderRadius.circular(10)),
-                                child: Icon(_getDocumentIcon(_selectedDocumentKey!),
-                                    color: Colors.white, size: 20),
+                                child: Icon(
+                                    _getDocumentIcon(_selectedDocumentKey!),
+                                    color: Colors.white,
+                                    size: 20),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -1083,7 +1133,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                 Text(
                                     "${(_selectedFileBytes!.length / 1024).toStringAsFixed(1)} KB",
                                     style: TextStyle(
-                                        fontSize: 11, color: Colors.grey.shade600)),
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600)),
                               ],
                               const SizedBox(height: 8),
                               Container(
@@ -1132,7 +1183,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                 ? const SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white))
                                 : Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
@@ -1148,10 +1200,13 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                       ),
                                       const SizedBox(width: 8),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(10),
+                                          color:
+                                              Colors.white.withOpacity(0.2),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
                                         ),
                                         child: const Text(
                                           "AI",
@@ -1230,12 +1285,14 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                             SizedBox(height: 12),
                             Text(
                               "No documents uploaded yet",
-                              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                              style: TextStyle(
+                                  fontSize: 16, color: Colors.grey.shade600),
                             ),
                             SizedBox(height: 4),
                             Text(
                               "Select a category and document type to upload",
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey.shade500),
                             ),
                           ]),
                         )
@@ -1255,19 +1312,25 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                               margin: const EdgeInsets.only(bottom: 12),
                               decoration: BoxDecoration(
                                   gradient: LinearGradient(
-                                      colors: [Colors.grey.shade50, Colors.white],
+                                      colors: [
+                                        Colors.grey.shade50,
+                                        Colors.white
+                                      ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight),
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.grey.shade300)),
+                                  border: Border.all(
+                                      color: Colors.grey.shade300)),
                               child: ListTile(
                                 leading: Container(
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
                                         color: Colors.blue.shade100,
-                                        borderRadius: BorderRadius.circular(12)),
+                                        borderRadius:
+                                            BorderRadius.circular(12)),
                                     child: Icon(docIcon,
-                                        color: Colors.blue.shade700, size: 24)),
+                                        color: Colors.blue.shade700,
+                                        size: 24)),
                                 title: Text(
                                   docName,
                                   style: TextStyle(
@@ -1282,7 +1345,9 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                   const SizedBox(width: 4),
                                   Text(
                                     "Uploaded",
-                                    style: TextStyle(fontSize: 11, color: Colors.green.shade700),
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.green.shade700),
                                   ),
                                   const SizedBox(width: 12),
                                   Icon(Icons.access_time,
@@ -1302,7 +1367,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                     Container(
                                         decoration: BoxDecoration(
                                             color: Colors.blue.shade50,
-                                            borderRadius: BorderRadius.circular(8)),
+                                            borderRadius:
+                                                BorderRadius.circular(8)),
                                         child: IconButton(
                                             icon: const Icon(Icons.visibility,
                                                 color: Colors.blue, size: 20),
@@ -1313,12 +1379,13 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                     Container(
                                         decoration: BoxDecoration(
                                             color: Colors.red.shade50,
-                                            borderRadius: BorderRadius.circular(8)),
+                                            borderRadius:
+                                                BorderRadius.circular(8)),
                                         child: IconButton(
                                             icon: const Icon(Icons.delete,
                                                 color: Colors.red, size: 20),
-                                            onPressed: () =>
-                                                _deleteDocument(docKey, docName),
+                                            onPressed: () => _deleteDocument(
+                                                docKey, docName),
                                             tooltip: "Delete Document")),
                                   ],
                                 ),
@@ -1339,7 +1406,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                       color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(12)),
                   child: Row(children: [
-                    Icon(Icons.info_outline, size: 20, color: Colors.blue.shade700),
+                    Icon(Icons.info_outline,
+                        size: 20, color: Colors.blue.shade700),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -1350,7 +1418,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                         "🗑️ You can delete any document anytime.\n\n"
                         "📜 Special Documents include: Skip Certificate, Gap Certificate, Bonafide, NOC, etc.\n\n"
                         "📱 Works on both Mobile and Web platforms!",
-                        style: TextStyle(fontSize: 12, color: Colors.blue.shade900),
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.blue.shade900),
                       ),
                     ),
                   ]),

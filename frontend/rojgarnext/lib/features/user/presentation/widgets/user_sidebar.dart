@@ -1,14 +1,16 @@
 // lib/features/user/presentation/widgets/user_sidebar.dart
-// ✅ COMPLETE WITH SERVICES MENU - FIXED ListTile Warning & kReleaseMode
+// ✅ Listens to UserProfileProvider → photo updates everywhere instantly
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kReleaseMode;
+import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:rojgarnext/core/routes/app_routes.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
-import 'package:rojgarnext/features/user/presentation/utils/menu_types.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
+import 'package:rojgarnext/features/user/presentation/utils/menu_types.dart';
+import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 
 class UserSidebar extends StatefulWidget {
   final MenuType selectedMenu;
@@ -27,7 +29,7 @@ class UserSidebar extends StatefulWidget {
 class _UserSidebarState extends State<UserSidebar> {
   String _userName = "User";
   String _userEmail = "";
-  String? _profilePhotoUrl;
+  String? _fallbackPhotoUrl;
   bool _isLoading = true;
 
   @override
@@ -52,27 +54,35 @@ class _UserSidebarState extends State<UserSidebar> {
         _userName = name;
       }
 
+      // Fetch profile photo (also syncs to provider)
       try {
         final response = await DioClient.dio.get('/user/full-profile');
         Map<String, dynamic> profile = {};
 
         if (response.data is Map) {
           if (response.data.containsKey('data')) {
-            profile = response.data['data'] as Map<String, dynamic>;
+            profile = Map<String, dynamic>.from(response.data['data']);
           } else {
-            profile = response.data as Map<String, dynamic>;
+            profile = Map<String, dynamic>.from(response.data);
           }
         }
 
-        final additionalDetails = profile['additional_details'] as Map? ?? {};
-        final photoUrl = additionalDetails['profile_photo_url'] as String?;
+        final additionalDetails =
+            profile['additional_details'] as Map? ?? {};
+        final photoUrl = (additionalDetails['profile_photo_url'] ??
+                profile['profile_photo_url'] ??
+                profile['photo_url'] ??
+                '')
+            .toString()
+            .trim();
 
-        if (photoUrl != null && photoUrl.isNotEmpty) {
-          _profilePhotoUrl = photoUrl;
-        } else {
-          final directPhotoUrl = profile['profile_photo_url'] as String?;
-          if (directPhotoUrl != null && directPhotoUrl.isNotEmpty) {
-            _profilePhotoUrl = directPhotoUrl;
+        if (photoUrl.isNotEmpty && photoUrl.startsWith('http')) {
+          _fallbackPhotoUrl = photoUrl;
+
+          // ✅ Push to provider so all screens see it
+          if (mounted) {
+            Provider.of<UserProfileProvider>(context, listen: false)
+                .updateProfilePhotoFromUrl(photoUrl);
           }
         }
 
@@ -92,15 +102,90 @@ class _UserSidebarState extends State<UserSidebar> {
 
   String _getInitials() {
     if (_userName.isEmpty) return 'U';
-    final parts = _userName.split(' ');
-    if (parts.length >= 2) {
-      final firstInitial = parts[0].isNotEmpty ? parts[0][0] : '';
-      final lastInitial = parts[1].isNotEmpty ? parts[1][0] : '';
-      if (firstInitial.isNotEmpty && lastInitial.isNotEmpty) {
-        return '$firstInitial$lastInitial'.toUpperCase();
-      }
+    final parts = _userName.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
     return _userName[0].toUpperCase();
+  }
+
+  Widget _initialsAvatar() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade700, Colors.purple.shade700],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          _getInitials(),
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfilePhoto() {
+    // ✅ Listen to provider — auto-updates when photo changes anywhere
+    return Consumer<UserProfileProvider>(
+      builder: (context, provider, _) {
+        final url = provider.profilePhotoUrl ?? _fallbackPhotoUrl;
+
+        if (_isLoading && (url == null || url.isEmpty)) {
+          return Container(
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.grey,
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          );
+        }
+
+        if (url != null && url.isNotEmpty) {
+          return ClipOval(
+            child: CachedNetworkImage(
+              key: ValueKey(url),
+              imageUrl: url,
+              fit: BoxFit.cover,
+              width: 80,
+              height: 80,
+              placeholder: (context, u) => Container(
+                color: Colors.grey,
+                child: const Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              errorWidget: (context, u, error) => _initialsAvatar(),
+            ),
+          );
+        }
+
+        return _initialsAvatar();
+      },
+    );
   }
 
   Widget _buildProfileSection() {
@@ -156,86 +241,8 @@ class _UserSidebarState extends State<UserSidebar> {
     );
   }
 
-  Widget _buildProfilePhoto() {
-    if (_isLoading) {
-      return Container(
-        decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.grey),
-        child: const Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-          ),
-        ),
-      );
-    }
-
-    if (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty) {
-      return ClipOval(
-        child: CachedNetworkImage(
-          imageUrl: _profilePhotoUrl!,
-          fit: BoxFit.cover,
-          width: 80,
-          height: 80,
-          placeholder: (context, url) => Container(
-            color: Colors.grey,
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-              ),
-            ),
-          ),
-          errorWidget: (context, url, error) => Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue.shade700, Colors.purple.shade700],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                _getInitials(),
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blue.shade700, Colors.purple.shade700],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: Text(
-          _getInitials(),
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildMenuItem(String title, IconData icon, MenuType type) {
     final isSelected = widget.selectedMenu == type;
-
     return Material(
       color: Colors.transparent,
       child: ListTile(
@@ -259,13 +266,12 @@ class _UserSidebarState extends State<UserSidebar> {
     );
   }
 
-  Widget _buildExpansionItem(String title, IconData icon, List<Widget> children) {
+  Widget _buildExpansionItem(
+      String title, IconData icon, List<Widget> children) {
     return Theme(
       data: Theme.of(context).copyWith(
         dividerColor: Colors.transparent,
-        listTileTheme: const ListTileThemeData(
-          tileColor: Colors.transparent,
-        ),
+        listTileTheme: const ListTileThemeData(tileColor: Colors.transparent),
       ),
       child: ExpansionTile(
         leading: Icon(icon, color: Colors.white70, size: 22),
@@ -297,6 +303,10 @@ class _UserSidebarState extends State<UserSidebar> {
           style: TextStyle(color: Colors.white),
         ),
         onTap: () async {
+          // Clear the provider state
+          if (mounted) {
+            Provider.of<UserProfileProvider>(context, listen: false).clear();
+          }
           await SecureStorage.logout();
           if (context.mounted) {
             context.go(AppRoutes.home);
@@ -324,48 +334,49 @@ class _UserSidebarState extends State<UserSidebar> {
                 padding: EdgeInsets.zero,
                 physics: const BouncingScrollPhysics(),
                 children: [
-                  _buildMenuItem("Dashboard", Icons.dashboard, MenuType.dashboard),
+                  _buildMenuItem(
+                      "Dashboard", Icons.dashboard, MenuType.dashboard),
                   const SizedBox(height: 4),
-
-                  // Personal Info
                   _buildExpansionItem("Personal Info", Icons.person, [
-                    _buildMenuItem("Basic Details", Icons.info, MenuType.personal),
-                    _buildMenuItem("Education", Icons.school, MenuType.education),
-                    _buildMenuItem("Experience", Icons.work, MenuType.experience),
-                    _buildMenuItem("Documents", Icons.folder, MenuType.documents),
+                    _buildMenuItem(
+                        "Basic Details", Icons.info, MenuType.personal),
+                    _buildMenuItem(
+                        "Education", Icons.school, MenuType.education),
+                    _buildMenuItem(
+                        "Experience", Icons.work, MenuType.experience),
+                    _buildMenuItem(
+                        "Documents", Icons.folder, MenuType.documents),
                   ]),
-
-                  // Career / Job
                   _buildExpansionItem("Career / Job", Icons.work, [
                     _buildMenuItem("Browse Jobs", Icons.search, MenuType.jobs),
-                    _buildMenuItem("My Applications", Icons.assignment, MenuType.myApplications),
-                    _buildMenuItem("Saved Jobs", Icons.bookmark, MenuType.savedJobs),
+                    _buildMenuItem("My Applications", Icons.assignment,
+                        MenuType.myApplications),
+                    _buildMenuItem("Saved Jobs", Icons.bookmark,
+                        MenuType.savedJobs),
                   ]),
-
-                  // Resume
                   _buildExpansionItem("Resume", Icons.description, [
-                    _buildMenuItem("My Resume", Icons.picture_as_pdf, MenuType.resume),
-                    _buildMenuItem("Build Resume", Icons.edit_document, MenuType.buildResume),
+                    _buildMenuItem("My Resume", Icons.picture_as_pdf,
+                        MenuType.resume),
+                    _buildMenuItem("Build Resume", Icons.edit_document,
+                        MenuType.buildResume),
                   ]),
-
-                  // ✅ Services Menu
                   _buildExpansionItem("Services", Icons.workspace_premium, [
-                    _buildMenuItem("Apply Service", Icons.add_circle_outline, MenuType.applyService),
-                    _buildMenuItem("Applications", Icons.assignment_turned_in, MenuType.serviceApplications),
+                    _buildMenuItem("Apply Service",
+                        Icons.add_circle_outline, MenuType.applyService),
+                    _buildMenuItem("Applications",
+                        Icons.assignment_turned_in, MenuType.serviceApplications),
                   ]),
-
-                  // Settings
                   _buildExpansionItem("Settings", Icons.settings, [
-                    _buildMenuItem("Change Password", Icons.lock, MenuType.changePassword),
+                    _buildMenuItem("Change Password", Icons.lock,
+                        MenuType.changePassword),
                     _buildMenuItem("MPIN Setup", Icons.pin, MenuType.mpin),
-                    _buildMenuItem("Biometric Login", Icons.fingerprint, MenuType.biometric),
+                    _buildMenuItem("Biometric Login", Icons.fingerprint,
+                        MenuType.biometric),
                   ]),
-
                   _buildMenuItem("Support", Icons.help, MenuType.support),
-                  
-                  // Location Test (hidden in release)
                   if (!kReleaseMode)
-                    _buildMenuItem("GPS Test", Icons.gps_fixed, MenuType.locationTest),
+                    _buildMenuItem("GPS Test", Icons.gps_fixed,
+                        MenuType.locationTest),
                 ],
               ),
             ),

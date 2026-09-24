@@ -1,12 +1,18 @@
 // lib/features/resume/presentation/screens/resume_screen.dart
-// FIXED: Changed to TickerProviderStateMixin for multiple animations
+// ✅ Profile photo integration: fetches URL, triggers upload popup if missing
+// ✅ NEW: UserProfileProvider watch → auto-update photo everywhere without refresh
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
+import 'package:rojgarnext/features/resume/services/resume_profile_service.dart';
+import 'package:rojgarnext/features/resume/presentation/widgets/profile_photo_upload_dialog.dart';
+import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,12 +23,16 @@ class ResumeScreen extends StatefulWidget {
   State<ResumeScreen> createState() => _ResumeScreenState();
 }
 
-// ✅ FIXED: Changed from SingleTickerProviderStateMixin to TickerProviderStateMixin
-class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMixin {
+class _ResumeScreenState extends State<ResumeScreen>
+    with TickerProviderStateMixin {
   bool _isLoading = true;
   bool _isExporting = false;
   Map<String, dynamic> _resumeData = {};
   String? _errorMessage;
+
+  // ✅ profile photo state
+  String? _profilePhotoUrl;
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late AnimationController _pulseController;
@@ -36,8 +46,6 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
   @override
   void initState() {
     super.initState();
-    
-    // ✅ Both controllers use the same TickerProvider (now works with TickerProviderStateMixin)
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
@@ -45,7 +53,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
-    
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -53,7 +61,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
     _pulseAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    
+
     _loadResumeData();
   }
 
@@ -65,7 +73,26 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
   }
 
   // ============================================================
-  // ✅ FAST LOADING - CACHE FIRST
+  // ✅ EFFECTIVE PHOTO URL — local state → provider → null
+  // Makes photo uploads from ANY screen show up here instantly.
+  // ============================================================
+  String? get _effectivePhotoUrl {
+    if (_profilePhotoUrl != null && _profilePhotoUrl!.trim().isNotEmpty) {
+      return _profilePhotoUrl;
+    }
+    try {
+      final providerUrl =
+          Provider.of<UserProfileProvider>(context, listen: false)
+              .profilePhotoUrl;
+      if (providerUrl != null && providerUrl.trim().isNotEmpty) {
+        return providerUrl;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // ============================================================
+  // ✅ FAST LOADING — CACHE FIRST
   // ============================================================
   Future<void> _loadResumeData() async {
     if (!mounted) return;
@@ -76,7 +103,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
     });
 
     try {
-      // Step 1: Load from cache immediately (ultra-fast)
+      // Step 1: Load from cache immediately
       final cachedData = await _loadFromCache();
       if (cachedData != null && mounted) {
         _resumeData = cachedData;
@@ -87,7 +114,6 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
 
       // Step 2: Fetch fresh data in background
       await _fetchFreshData();
-
     } catch (e) {
       if (!mounted) return;
       if (_resumeData.isEmpty) {
@@ -108,7 +134,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
     try {
       final prefs = await SharedPreferences.getInstance();
       final timestamp = prefs.getInt(CACHE_TIMESTAMP);
-      
+
       if (timestamp != null) {
         final elapsed = DateTime.now().millisecondsSinceEpoch - timestamp;
         final minutes = elapsed / (1000 * 60);
@@ -120,7 +146,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
       final cachedJson = prefs.getString(CACHE_KEY);
       if (cachedJson != null) {
         final Map<String, dynamic> data = Map<String, dynamic>.from(
-          jsonDecode(cachedJson) as Map<String, dynamic>
+          jsonDecode(cachedJson) as Map<String, dynamic>,
         );
         debugPrint('✅ Loaded resume from cache (fast)');
         return data;
@@ -135,7 +161,8 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(CACHE_KEY, jsonEncode(data));
-      await prefs.setInt(CACHE_TIMESTAMP, DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt(
+          CACHE_TIMESTAMP, DateTime.now().millisecondsSinceEpoch);
       debugPrint('✅ Resume saved to cache');
     } catch (e) {
       debugPrint('Cache save error: $e');
@@ -144,13 +171,29 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
 
   Future<void> _fetchFreshData() async {
     try {
+      // ✅ Fetch profile photo URL FIRST
+      try {
+        final photoUrl = await ResumeProfileService.getProfilePhotoUrl();
+        if (photoUrl != null && photoUrl.isNotEmpty) {
+          _profilePhotoUrl = photoUrl;
+          // Push to provider so all screens see it
+          if (mounted) {
+            Provider.of<UserProfileProvider>(context, listen: false)
+                .updateProfilePhotoFromUrl(photoUrl);
+          }
+        }
+        debugPrint('📸 ResumeScreen profile photo: $photoUrl');
+      } catch (e) {
+        debugPrint('⚠️ Could not fetch profile photo: $e');
+      }
+
       final response = await DioClient.dio.get('/resume/profile-resume');
 
       if (!mounted) return;
 
       if (response.data['success'] == true) {
         final data = response.data as Map<String, dynamic>;
-        
+
         data['user_info'] = data['user_info'] ?? {};
         data['contact_info'] = data['contact_info'] ?? {};
         data['education'] = data['education'] ?? [];
@@ -162,6 +205,13 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
         data['social_links'] = data['social_links'] ?? {};
         data['statistics'] = data['statistics'] ?? {};
 
+        // ✅ inject profile photo URL into resume data
+        final photo = _effectivePhotoUrl;
+        if (photo != null && photo.isNotEmpty) {
+          (data['user_info'] as Map)['profile_photo_url'] = photo;
+          (data['contact_info'] as Map)['profile_photo_url'] = photo;
+        }
+
         setState(() {
           _resumeData = data;
         });
@@ -170,6 +220,13 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
 
         if (_animationController.status == AnimationStatus.dismissed) {
           _animationController.forward();
+        }
+
+        // ✅ Trigger popup if no profile photo
+        if (_effectivePhotoUrl == null && mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _showProfilePhotoDialog();
+          });
         }
       } else if (_resumeData.isEmpty) {
         _errorMessage = response.data['message'] ?? 'Failed to load resume';
@@ -185,20 +242,35 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
     }
   }
 
+  // ✅ Popup to upload profile photo, then refresh
+  Future<void> _showProfilePhotoDialog() async {
+    if (!mounted) return;
+
+    final uploadedUrl = await ProfilePhotoUploadDialog.show(
+      context,
+      currentPhotoUrl: _effectivePhotoUrl,
+    );
+
+    if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
+      setState(() => _profilePhotoUrl = uploadedUrl);
+      // Provider already notified → all listeners rebuild
+    }
+  }
+
   Future<void> _refreshResume() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(CACHE_KEY);
       await prefs.remove(CACHE_TIMESTAMP);
     } catch (_) {}
-    
+
     _animationController.reset();
     _pulseController.repeat(reverse: true);
     await _loadResumeData();
   }
 
   // ============================================================
-  // ✅ AI-BASED LOADING SCREEN
+  // ✅ AI LOADING SCREEN
   // ============================================================
   Widget _buildLoadingScreen() {
     return Scaffold(
@@ -207,7 +279,6 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Animated AI icon with pulse
             ScaleTransition(
               scale: _pulseAnimation,
               child: Container(
@@ -236,7 +307,6 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
               ),
             ),
             const SizedBox(height: 30),
-            // Gradient text
             ShaderMask(
               shaderCallback: (bounds) => const LinearGradient(
                 colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
@@ -251,12 +321,10 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
               ),
             ),
             const SizedBox(height: 16),
-            // Loading indicator
             const CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C63FF)),
             ),
             const SizedBox(height: 24),
-            // Subtitle
             Opacity(
               opacity: 0.6,
               child: const Text(
@@ -275,11 +343,13 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
   }
 
   // ============================================================
-  // ✅ BUILD METHOD
+  // ✅ BUILD
   // ============================================================
   @override
   Widget build(BuildContext context) {
-    // Show loading screen
+    // ✅ Watch provider → any photo upload anywhere triggers rebuild
+    context.watch<UserProfileProvider>();
+
     if (_isLoading && _resumeData.isEmpty) {
       return _buildLoadingScreen();
     }
@@ -333,7 +403,8 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                 label: const Text("Retry"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6C63FF),
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 32, vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -345,9 +416,9 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
       );
     }
 
-    // Show actual content
     final userInfo = _resumeData['user_info'] as Map<String, dynamic>? ?? {};
-    final contactInfo = _resumeData['contact_info'] as Map<String, dynamic>? ?? {};
+    final contactInfo =
+        _resumeData['contact_info'] as Map<String, dynamic>? ?? {};
     final summary = _resumeData['professional_summary'] as String? ?? '';
     final objective = _resumeData['career_objective'] as String? ?? '';
     final education = _resumeData['education'] as List<dynamic>? ?? [];
@@ -356,8 +427,10 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
     final certifications = _resumeData['certifications'] as List<dynamic>? ?? [];
     final projects = _resumeData['projects'] as List<dynamic>? ?? [];
     final languages = _resumeData['languages'] as List<dynamic>? ?? [];
-    final socialLinks = _resumeData['social_links'] as Map<String, dynamic>? ?? {};
-    final statistics = _resumeData['statistics'] as Map<String, dynamic>? ?? {};
+    final socialLinks =
+        _resumeData['social_links'] as Map<String, dynamic>? ?? {};
+    final statistics =
+        _resumeData['statistics'] as Map<String, dynamic>? ?? {};
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
@@ -377,7 +450,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                 const SizedBox(height: 20),
                 _buildStatsRow(statistics),
                 const SizedBox(height: 20),
-                if (summary.isNotEmpty) 
+                if (summary.isNotEmpty)
                   _buildSectionCard(
                     title: "Professional Summary",
                     icon: Icons.description,
@@ -407,24 +480,25 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                     ),
                   ),
                 if (objective.isNotEmpty) const SizedBox(height: 16),
-                if (experience.isNotEmpty) 
+                if (experience.isNotEmpty)
                   _buildExperienceSection(experience),
                 if (experience.isNotEmpty) const SizedBox(height: 16),
-                if (education.isNotEmpty) 
-                  _buildEducationSection(education),
+                if (education.isNotEmpty) _buildEducationSection(education),
                 if (education.isNotEmpty) const SizedBox(height: 16),
-                if (skills.isNotEmpty && skills['all'] != null && (skills['all'] as List).isNotEmpty)
+                if (skills.isNotEmpty &&
+                    skills['all'] != null &&
+                    (skills['all'] as List).isNotEmpty)
                   _buildSkillsSection(skills),
-                if (skills.isNotEmpty && skills['all'] != null && (skills['all'] as List).isNotEmpty)
+                if (skills.isNotEmpty &&
+                    skills['all'] != null &&
+                    (skills['all'] as List).isNotEmpty)
                   const SizedBox(height: 16),
                 if (certifications.isNotEmpty)
                   _buildCertificationsSection(certifications),
                 if (certifications.isNotEmpty) const SizedBox(height: 16),
-                if (projects.isNotEmpty) 
-                  _buildProjectsSection(projects),
+                if (projects.isNotEmpty) _buildProjectsSection(projects),
                 if (projects.isNotEmpty) const SizedBox(height: 16),
-                if (languages.isNotEmpty) 
-                  _buildLanguagesSection(languages),
+                if (languages.isNotEmpty) _buildLanguagesSection(languages),
                 if (languages.isNotEmpty) const SizedBox(height: 16),
                 _buildContactSocialSection(contactInfo, socialLinks),
                 const SizedBox(height: 30),
@@ -451,6 +525,12 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
       centerTitle: true,
       automaticallyImplyLeading: false,
       actions: [
+        // ✅ Change Profile Photo action
+        IconButton(
+          icon: const Icon(Icons.photo_camera, color: Color(0xFF6C63FF)),
+          onPressed: _showProfilePhotoDialog,
+          tooltip: "Change Profile Photo",
+        ),
         IconButton(
           icon: const Icon(Icons.refresh, color: Color(0xFF6C63FF)),
           onPressed: _refreshResume,
@@ -460,9 +540,6 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
     );
   }
 
-  // ============================================================
-  // ✅ FIXED STATS ROW - NO OVERFLOW
-  // ============================================================
   Widget _buildStatsRow(Map<String, dynamic> stats) {
     final statsData = [
       {
@@ -541,18 +618,22 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
     );
   }
 
-  // ============================================================
-  // ✅ REST OF THE BUILD METHODS
-  // ============================================================
-  
-  Widget _buildHeaderCard(Map<String, dynamic> userInfo, Map<String, dynamic> contactInfo) {
+  Widget _buildHeaderCard(
+      Map<String, dynamic> userInfo, Map<String, dynamic> contactInfo) {
     final fullName = userInfo['full_name'] ?? 'User';
     final email = contactInfo['email'] ?? '';
     final phone = contactInfo['phone'] ?? '';
-    final address = contactInfo['current_address'] as Map<String, dynamic>? ?? {};
-    final location = address['full_address'] ?? address['city'] ?? address['state'] ?? 'India';
+    final address =
+        contactInfo['current_address'] as Map<String, dynamic>? ?? {};
+    final location = address['full_address'] ??
+        address['city'] ??
+        address['state'] ??
+        'India';
     final age = userInfo['age'];
     final gender = userInfo['gender'] ?? '';
+
+    final photoUrl = _effectivePhotoUrl;
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -576,35 +657,76 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
         children: [
           Row(
             children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Colors.white, Colors.white70],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              // ✅ Show profile photo if available, else initials
+              if (hasPhoto)
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black12, blurRadius: 10),
+                    ],
                   ),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 10,
+                  child: ClipOval(
+                    child: CachedNetworkImage(
+                      key: ValueKey(photoUrl),
+                      imageUrl: photoUrl,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(
+                        color: Colors.white24,
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        color: Colors.white24,
+                        child: const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                      ),
                     ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U',
-                    style: const TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF6C63FF),
+                  ),
+                )
+              else
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Colors.white, Colors.white70],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black12, blurRadius: 10),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U',
+                      style: const TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF6C63FF),
+                      ),
                     ),
                   ),
                 ),
-              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -621,7 +743,8 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                     const SizedBox(height: 4),
                     if (age != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(20),
@@ -649,11 +772,9 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
             ),
             child: Column(
               children: [
-                if (email.isNotEmpty)
-                  _buildHeaderInfoRow(Icons.email, email),
+                if (email.isNotEmpty) _buildHeaderInfoRow(Icons.email, email),
                 if (email.isNotEmpty) const SizedBox(height: 8),
-                if (phone.isNotEmpty)
-                  _buildHeaderInfoRow(Icons.phone, phone),
+                if (phone.isNotEmpty) _buildHeaderInfoRow(Icons.phone, phone),
                 if (phone.isNotEmpty) const SizedBox(height: 8),
                 _buildHeaderInfoRow(Icons.location_on, location),
               ],
@@ -759,7 +880,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
           final index = entry.key;
           final exp = entry.value;
           final isLast = index == experience.length - 1;
-          
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -794,7 +915,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                         const SizedBox(height: 4),
                         Text(
                           exp['company'] ?? 'Company',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 14,
                             color: Color(0xFF6B6B80),
                             fontWeight: FontWeight.w500,
@@ -803,21 +924,23 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                         const SizedBox(height: 6),
                         Row(
                           children: [
-                            Icon(Icons.calendar_today,
+                            const Icon(Icons.calendar_today,
                                 size: 14, color: Color(0xFF6B6B80)),
                             const SizedBox(width: 6),
                             Text(
                               "${exp['start_date'] ?? ''} - ${exp['end_date'] ?? 'Present'}",
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF6B6B80),
                               ),
                             ),
                             const SizedBox(width: 16),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFF6B6B).withOpacity(0.1),
+                                color: const Color(0xFFFF6B6B)
+                                    .withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -852,13 +975,16 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                             ),
                           ),
                           const SizedBox(height: 6),
-                          ...(exp['achievements'] as List).map((ach) => Padding(
+                          ...(exp['achievements'] as List).map((ach) =>
+                              Padding(
                                 padding: const EdgeInsets.only(bottom: 4),
                                 child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                   children: [
                                     Container(
-                                      margin: const EdgeInsets.only(top: 6),
+                                      margin:
+                                          const EdgeInsets.only(top: 6),
                                       width: 4,
                                       height: 4,
                                       decoration: const BoxDecoration(
@@ -906,7 +1032,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
           final index = entry.key;
           final edu = entry.value;
           final isLast = index == education.length - 1;
-          
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -941,7 +1067,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                         const SizedBox(height: 4),
                         Text(
                           edu['institute'] ?? '',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 14,
                             color: Color(0xFF6B6B80),
                             fontWeight: FontWeight.w500,
@@ -950,21 +1076,23 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                         const SizedBox(height: 6),
                         Row(
                           children: [
-                            Icon(Icons.calendar_today,
+                            const Icon(Icons.calendar_today,
                                 size: 14, color: Color(0xFF6B6B80)),
                             const SizedBox(width: 6),
                             Text(
                               edu['year_of_passing']?.toString() ?? '',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF6B6B80),
                               ),
                             ),
                             const SizedBox(width: 16),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF4ECDC4).withOpacity(0.1),
+                                color: const Color(0xFF4ECDC4)
+                                    .withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -989,8 +1117,10 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF4ECDC4).withOpacity(0.08),
-                                        borderRadius: BorderRadius.circular(12),
+                                        color: const Color(0xFF4ECDC4)
+                                            .withOpacity(0.08),
+                                        borderRadius:
+                                            BorderRadius.circular(12),
                                       ),
                                       child: Text(
                                         subj.toString(),
@@ -1050,7 +1180,8 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
               spacing: 8,
               runSpacing: 8,
               children: expertSkills.map((skill) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFFFFB800), Color(0xFFFFD233)],
@@ -1072,7 +1203,8 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
           if (advancedSkills.isNotEmpty) ...[
             Row(
               children: [
-                const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF6C63FF)),
+                const Icon(Icons.auto_awesome,
+                    size: 16, color: Color(0xFF6C63FF)),
                 const SizedBox(width: 6),
                 const Text(
                   "Advanced",
@@ -1089,7 +1221,8 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
               spacing: 8,
               runSpacing: 8,
               children: advancedSkills.map((skill) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       color: const Color(0xFF6C63FF).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
@@ -1112,7 +1245,8 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
           if (intermediateSkills.isNotEmpty) ...[
             Row(
               children: [
-                const Icon(Icons.trending_up, size: 16, color: Color(0xFF4ECDC4)),
+                const Icon(Icons.trending_up,
+                    size: 16, color: Color(0xFF4ECDC4)),
                 const SizedBox(width: 6),
                 const Text(
                   "Intermediate",
@@ -1129,7 +1263,8 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
               spacing: 8,
               runSpacing: 8,
               children: intermediateSkills.map((skill) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
                       color: const Color(0xFF4ECDC4).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
@@ -1167,7 +1302,10 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
             width: 200,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [const Color(0xFFFF6B6B).withOpacity(0.08), const Color(0xFFFF6B6B).withOpacity(0.02)],
+                colors: [
+                  const Color(0xFFFF6B6B).withOpacity(0.08),
+                  const Color(0xFFFF6B6B).withOpacity(0.02),
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -1208,7 +1346,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                       const SizedBox(height: 2),
                       Text(
                         "${cert['issuer'] ?? ''} (${cert['year'] ?? ''})",
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 11,
                           color: Color(0xFF6B6B80),
                         ),
@@ -1234,7 +1372,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
           final index = entry.key;
           final project = entry.value;
           final isLast = index == projects.length - 1;
-          
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1242,7 +1380,10 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [const Color(0xFF6C63FF).withOpacity(0.05), const Color(0xFF6C63FF).withOpacity(0.01)],
+                    colors: [
+                      const Color(0xFF6C63FF).withOpacity(0.05),
+                      const Color(0xFF6C63FF).withOpacity(0.01),
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -1273,7 +1414,8 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF6C63FF).withOpacity(0.08),
+                                    color: const Color(0xFF6C63FF)
+                                        .withOpacity(0.08),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
@@ -1331,7 +1473,7 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
             default:
               color = const Color(0xFFFF6B6B);
           }
-          
+
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
@@ -1366,7 +1508,8 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
 
   Widget _buildContactSocialSection(
       Map<String, dynamic> contactInfo, Map<String, dynamic> socialLinks) {
-    final emergencyContact = contactInfo['emergency_contact'] as Map<String, dynamic>? ?? {};
+    final emergencyContact =
+        contactInfo['emergency_contact'] as Map<String, dynamic>? ?? {};
 
     return _buildSectionCard(
       title: "Contact & Social",
@@ -1395,11 +1538,16 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
             ),
             child: Column(
               children: [
-                _buildInfoRow(Icons.person, "Name", emergencyContact['name'] ?? ''),
-                if ((emergencyContact['name'] ?? '').isNotEmpty) const SizedBox(height: 6),
-                _buildInfoRow(Icons.people, "Relationship", emergencyContact['relationship'] ?? ''),
-                if ((emergencyContact['relationship'] ?? '').isNotEmpty) const SizedBox(height: 6),
-                _buildInfoRow(Icons.phone, "Phone", emergencyContact['phone'] ?? ''),
+                _buildInfoRow(
+                    Icons.person, "Name", emergencyContact['name'] ?? ''),
+                if ((emergencyContact['name'] ?? '').isNotEmpty)
+                  const SizedBox(height: 6),
+                _buildInfoRow(Icons.people, "Relationship",
+                    emergencyContact['relationship'] ?? ''),
+                if ((emergencyContact['relationship'] ?? '').isNotEmpty)
+                  const SizedBox(height: 6),
+                _buildInfoRow(
+                    Icons.phone, "Phone", emergencyContact['phone'] ?? ''),
               ],
             ),
           ),
@@ -1416,13 +1564,15 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
           ),
           const SizedBox(height: 10),
           if ((socialLinks['linkedin'] ?? '').isNotEmpty)
-            _buildLinkRow(Icons.linked_camera, "LinkedIn", socialLinks['linkedin']),
+            _buildLinkRow(
+                Icons.linked_camera, "LinkedIn", socialLinks['linkedin']),
           if ((socialLinks['github'] ?? '').isNotEmpty)
             _buildLinkRow(Icons.code, "GitHub", socialLinks['github']),
           if ((socialLinks['portfolio'] ?? '').isNotEmpty)
             _buildLinkRow(Icons.web, "Portfolio", socialLinks['portfolio']),
           if ((socialLinks['personal_website'] ?? '').isNotEmpty)
-            _buildLinkRow(Icons.public, "Website", socialLinks['personal_website']),
+            _buildLinkRow(
+                Icons.public, "Website", socialLinks['personal_website']),
         ],
       ),
     );
@@ -1464,7 +1614,8 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () async {
-          final uri = Uri.parse(url.startsWith('http') ? url : 'https://$url');
+          final uri =
+              Uri.parse(url.startsWith('http') ? url : 'https://$url');
           if (await canLaunchUrl(uri)) {
             await launchUrl(uri, mode: LaunchMode.externalApplication);
           }
@@ -1486,7 +1637,8 @@ class _ResumeScreenState extends State<ResumeScreen> with TickerProviderStateMix
                   color: const Color(0xFF6C63FF).withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 16, color: const Color(0xFF6C63FF)),
+                child:
+                    Icon(icon, size: 16, color: const Color(0xFF6C63FF)),
               ),
               const SizedBox(width: 10),
               SizedBox(

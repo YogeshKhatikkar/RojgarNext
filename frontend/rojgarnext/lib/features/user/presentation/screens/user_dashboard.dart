@@ -14,7 +14,9 @@ import 'package:rojgarnext/features/notification/widgets/notification_bell.dart'
 import 'package:rojgarnext/features/common/widgets/internet_checker.dart';
 import 'package:rojgarnext/features/user/data/user_service.dart';
 import 'package:rojgarnext/features/user/AI/user_ai_service.dart';
-
+import 'package:provider/provider.dart';
+import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
+import 'package:rojgarnext/features/resume/presentation/widgets/profile_photo_upload_dialog.dart';
 // Screens
 import 'basic_details_screen.dart';
 import 'advanced_details_screen.dart';

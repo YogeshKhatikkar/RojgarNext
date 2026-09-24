@@ -1,4 +1,6 @@
 # app/modules/resume/routes.py - COMPLETE VERSION
+# ✅ NEW: /rebuild — rebuilds resume in all formats
+# ✅ NEW: /profile-photo — lightweight endpoint for current photo URL
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks
 from typing import Optional, List, Dict, Any
@@ -10,6 +12,7 @@ from app.core.services.dependencies import get_current_user, role_required
 from app.db.connection import get_db
 from app.modules.resume.service import ResumeService
 from app.modules.resume.AI.ai_routes import router as resume_ai_router
+from app.core.utils.logger import logger
 
 logger = logging.getLogger(__name__)
 
@@ -37,34 +40,32 @@ async def upload_user_resume(
     """
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="Resume file is required")
-    
+
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
-    # Check file type
+
     allowed_extensions = ['pdf', 'doc', 'docx']
     file_ext = file.filename.split('.')[-1].lower() if file.filename else ''
     if file_ext not in allowed_extensions:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
         )
-    
+
     try:
         username = email.split('@')[0]
-        
+
         from app.core.services.cloudinary import upload_user_document
-        
+
         await file.seek(0)
-        
+
         upload_result = await upload_user_document(
             file=file,
             username=username,
             document_type="resume"
         )
-        
-        # Update user profile with resume URL
+
         await db.profile.update_one(
             {"email": email},
             {"$set": {
@@ -75,8 +76,7 @@ async def upload_user_resume(
             }},
             upsert=True
         )
-        
-        # Also store in resumes collection
+
         service = await get_resume_service(db=db)
         resume_data = {
             "filename": file.filename,
@@ -88,7 +88,7 @@ async def upload_user_resume(
             "uploaded_at": datetime.utcnow()
         }
         await service.save_resume_record(email, resume_data)
-        
+
         return {
             "success": True,
             "message": "Resume uploaded successfully to Cloudinary",
@@ -97,7 +97,7 @@ async def upload_user_resume(
             "folder_path": upload_result.get("folder_path"),
             "public_id": upload_result.get("public_id")
         }
-        
+
     except Exception as e:
         logger.error(f"❌ Error uploading resume: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to upload resume: {str(e)}")
@@ -113,7 +113,7 @@ async def upload_resume(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     return await service.upload_and_parse_resume(email, file)
 
 
@@ -126,7 +126,7 @@ async def get_my_resumes(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     return await service.get_user_resumes(email)
 
 
@@ -139,7 +139,7 @@ async def get_primary_resume(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     return await service.get_primary_resume(email)
 
 
@@ -153,7 +153,7 @@ async def set_primary_resume(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     return await service.set_primary_resume(email, resume_id)
 
 
@@ -167,7 +167,7 @@ async def delete_resume(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     return await service.delete_resume(email, resume_id)
 
 
@@ -180,12 +180,11 @@ async def get_profile_resume(
 ):
     """
     Get complete user profile in resume format
-    This endpoint returns ALL user information formatted as a resume
     """
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     service = await get_resume_service(db=db)
     return await service.get_profile_resume(email)
 
@@ -199,16 +198,15 @@ async def get_profile_resume_by_email(
     """
     Get any user's profile in resume format - For Admin/CustomAdmin only
     """
-    # Check if user has admin access
     user_role = current_user.get("role", "").lower()
     allowed_roles = ["admin", "customadmin", "superadmin", "custom_admin"]
-    
+
     if user_role not in allowed_roles:
         raise HTTPException(
-            status_code=403, 
+            status_code=403,
             detail="Access denied. Only admin can view other user resumes."
         )
-    
+
     service = await get_resume_service(db=db)
     return await service.get_profile_resume(email)
 
@@ -224,7 +222,7 @@ async def get_resume_preview(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     service = await get_resume_service(db=db)
     return await service.get_resume_preview(email)
 
@@ -239,7 +237,7 @@ async def parse_resume(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     return await service.parse_resume_with_ai(email, resume_id)
 
 
@@ -253,7 +251,7 @@ async def optimize_for_ats(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     return await service.get_ats_optimization(email, job_id)
 
 
@@ -269,10 +267,10 @@ async def export_resume_pdf(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     service = await get_resume_service(db=db)
     resume_data = await service.get_profile_resume(email)
-    
+
     if format == "json":
         return resume_data
     elif format == "html":
@@ -293,7 +291,7 @@ async def download_resume_pdf(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     service = await get_resume_service(db=db)
     return await service.generate_resume_pdf(email)
 
@@ -309,9 +307,96 @@ async def share_resume(
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-    
+
     service = await get_resume_service(db=db)
     return await service.generate_shareable_link(email)
 
 
+# ==============================================================
+# ✅ NEW: REBUILD RESUME IN ALL FORMATS
+# ==============================================================
+@router.post("/rebuild")
+async def rebuild_resume(
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """
+    Rebuild resume in all formats using latest profile data.
+    Called automatically after profile photo upload, and manually by user.
+    """
+    email = current_user.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="User email not found")
+
+    try:
+        service = await get_resume_service(db=db)
+
+        # 1. Build fresh resume data (includes latest photo URL)
+        resume_data = await service.get_profile_resume(email)
+
+        # 2. Generate HTML (used for PDF printing)
+        html = await service.generate_resume_html(email, resume_data)
+
+        # 3. Cache to profile
+        formats = ["classic", "modern", "fresher", "executive", "tech", "government"]
+        await db.profile.update_one(
+            {"email": email},
+            {"$set": {
+                "resume_cache_html": html,
+                "resume_cache_updated_at": datetime.utcnow(),
+                "resume_formats_available": formats,
+            }},
+            upsert=True
+        )
+
+        return {
+            "success": True,
+            "message": "Resume rebuilt successfully",
+            "formats": formats,
+            "resume_data": resume_data,
+            "rebuilt_at": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Resume rebuild failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Rebuild failed: {str(e)}")
+
+
+# ==============================================================
+# ✅ NEW: GET CURRENT PROFILE PHOTO URL (LIGHTWEIGHT)
+# ==============================================================
+@router.get("/profile-photo")
+async def get_profile_photo(
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """
+    Lightweight endpoint — returns only the current profile photo URL.
+    """
+    email = current_user.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="User email not found")
+
+    profile = await db.profile.find_one(
+        {"email": email},
+        {"profile_photo_url": 1, "additional_details.profile_photo_url": 1}
+    )
+
+    photo_url = None
+    if profile:
+        photo_url = (
+            profile.get("profile_photo_url")
+            or (profile.get("additional_details") or {}).get("profile_photo_url")
+        )
+
+    return {
+        "success": True,
+        "profile_photo_url": photo_url,
+        "has_photo": bool(photo_url)
+    }
+
+
 print("✅ Resume Routes Loaded - Complete profile resume view available")
+print("✅ NEW: /rebuild — rebuilds resume in all formats")
+print("✅ NEW: /profile-photo — lightweight current photo URL endpoint")

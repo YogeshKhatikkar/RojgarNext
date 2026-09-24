@@ -40,9 +40,14 @@ class ModernFormat extends ResumeFormatBase {
     final certifications = getList(resumeData, 'certifications');
     final projects = getList(resumeData, 'projects');
     final designation = pDesignation(resumeData);
+    final photoUrl = pProfilePhotoUrl(resumeData);
 
     final desigHtml = designation.isNotEmpty
         ? '<div style="font-size:13px;color:rgba(255,255,255,0.85);">${escapeHtml(designation)}</div>'
+        : '';
+
+    final photoHtml = photoUrl != null
+        ? '<img src="${escapeHtml(photoUrl)}" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #fff;margin-bottom:12px;" onerror="this.style.display=\'none\'" />'
         : '';
 
     return '''
@@ -72,6 +77,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#f3f4f6;padding:30px 2
 </style></head><body>
 <div class="resume-container">
   <div class="top-header">
+    $photoHtml
     <div class="name">${escapeHtml(name)}</div>
     $desigHtml
     <div class="contact-row">
@@ -126,6 +132,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#f3f4f6;padding:30px 2
     final certs = pList(data['certifications']);
     final projects = pList(data['projects']);
     final designation = pDesignation(data);
+    final photoUrl = pProfilePhotoUrl(data);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -148,6 +155,22 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#f3f4f6;padding:30px 2
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (photoUrl != null) ...[
+                        pProfilePhoto(
+                          url: photoUrl,
+                          size: 90,
+                          borderColor: Colors.white,
+                          borderWidth: 3,
+                        ),
+                        const SizedBox(height: 12),
+                      ] else ...[
+                        pInitialsAvatar(
+                          name: name,
+                          size: 90,
+                          bgColor: const Color(0xFF7C3AED),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       Text(name,
                           style: const TextStyle(
                               fontSize: 28,
@@ -405,9 +428,6 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#f3f4f6;padding:30px 2
         ),
       );
 
-  // ============================================================
-  // PDF CONTENT — Full page + ASCII bullets
-  // ============================================================
   @override
   pw.Widget buildPdfContent(
     Map<String, dynamic> data,
@@ -448,6 +468,13 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#f3f4f6;padding:30px 2
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
+              pdfProfilePhoto(
+                data: data,
+                size: 84,
+                borderColor: PdfColors.white,
+                borderWidth: 2.5,
+              ),
+              pw.SizedBox(height: 10),
               pw.Text(pdfSafe(name),
                   style: pw.TextStyle(
                       fontSize: 24,

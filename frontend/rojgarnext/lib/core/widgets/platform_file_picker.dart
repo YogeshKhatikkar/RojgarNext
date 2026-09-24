@@ -1,36 +1,50 @@
 // lib/core/widgets/platform_file_picker.dart
-// ✅ COMPLETE FILE PICKER - Works on ALL Platforms (Mobile, Web, Desktop)
+// ✅ FIXED: NEVER accesses `file.path` on Web (was crashing)
+// ✅ Works on ALL platforms: Mobile, Web, Desktop
+// ✅ Complete file — no lines skipped
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
 import '../utils/platform_utils.dart';
 
 class PlatformFilePicker {
+  /// ✅ CRITICAL FIX: Safely extract path — NEVER touches .path on web
+  /// On web, `PlatformFile.path` throws UnimplementedError.
+  static String? _safePath(PlatformFile file) {
+    if (kIsWeb) return null;
+    try {
+      return file.path;
+    } catch (e) {
+      debugPrint('⚠️ Could not read file.path: $e');
+      return null;
+    }
+  }
+
   /// Pick a file with platform-aware error handling
   static Future<PlatformFileResult?> pickFile({
     required List<String> allowedExtensions,
     bool allowMultiple = false,
   }) async {
     try {
-      // ✅ Works on all platforms (Mobile, Web, Desktop)
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: allowedExtensions,
         allowMultiple: allowMultiple,
-        withData: true, // ✅ CRITICAL: Gets bytes for web compatibility
+        withData: true, // ✅ CRITICAL: Gets bytes for web
       );
 
       if (result == null) return null;
+      if (result.files.isEmpty) return null;
 
       final file = result.files.first;
-      
+
       return PlatformFileResult(
         name: file.name,
         bytes: file.bytes,
         size: file.size,
-        path: file.path,
+        path: _safePath(file), // ✅ SAFE on all platforms
         extension: file.extension ?? '',
       );
     } catch (e) {
@@ -61,14 +75,16 @@ class PlatformFilePicker {
         type: FileType.any,
         withData: true,
       );
-      
-      if (result == null) return null;
+
+      if (result == null || result.files.isEmpty) return null;
+
       final file = result.files.first;
+
       return PlatformFileResult(
         name: file.name,
         bytes: file.bytes,
         size: file.size,
-        path: file.path,
+        path: _safePath(file), // ✅ SAFE on all platforms
         extension: file.extension ?? '',
       );
     } catch (e) {
@@ -93,6 +109,6 @@ class PlatformFileResult {
     required this.extension,
   });
 
-  bool get hasBytes => bytes != null;
+  bool get hasBytes => bytes != null && bytes!.isNotEmpty;
   bool get hasPath => path != null && path!.isNotEmpty;
 }

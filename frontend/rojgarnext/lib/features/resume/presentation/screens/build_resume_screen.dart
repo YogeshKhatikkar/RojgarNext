@@ -4,16 +4,22 @@
 // ✅ FIXED: Print / Download / Share now exports the EXACT format that was clicked
 // ✅ FIXED: Prevents double-tap, shows clear success/failure messages
 // ✅ FIXED: _selectedCategory now updates via setState so Quick Actions use the right format
+// ✅ NEW: Profile photo integration — upload popup, header photo, format preview photo
+// ✅ NEW: UserProfileProvider watch → auto-update photo everywhere without refresh
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/features/resume/services/resume_pdf_service.dart';
+import 'package:rojgarnext/features/resume/services/resume_profile_service.dart';
+import 'package:rojgarnext/features/resume/presentation/widgets/profile_photo_upload_dialog.dart';
 import 'package:rojgarnext/features/resume/presentation/screens/format/resume_format_manager.dart';
 import 'package:rojgarnext/features/resume/presentation/screens/format/resume_format_popup.dart';
 import 'package:rojgarnext/features/resume/presentation/screens/format/resume_format_base.dart';
+import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 
 class BuildResumeScreen extends StatefulWidget {
   const BuildResumeScreen({super.key});
@@ -26,10 +32,14 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
     with TickerProviderStateMixin {
   bool _isLoading = true;
   bool _isDialogOpen = false;
-  bool _isGenerating = false; // ✅ prevents double-tap on print/download/share
+  bool _isGenerating = false;
   String _selectedCategory = 'classic';
   Map<String, dynamic> _resumeData = {};
   String? _errorMessage;
+
+  // ==================== PROFILE PHOTO STATE ====================
+  String? _profilePhotoUrl;
+  bool _hasShownPhotoDialog = false;
 
   // ==================== RESUME DATA FIELDS ====================
   String _fullName = '';
@@ -50,7 +60,6 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
   List<Map<String, dynamic>> _languages = [];
   Map<String, String> _socialLinks = {};
 
-  // Animation controllers for loading screen
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -73,6 +82,28 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
     super.dispose();
   }
 
+  // ==================== EFFECTIVE PHOTO URL ====================
+  /// ✅ Priority: local state (just-uploaded) → global provider → null
+  /// This makes photo updates from ANY screen show up here instantly.
+  String? get _effectivePhotoUrl {
+    // 1. Local state (if user uploaded from this screen)
+    if (_profilePhotoUrl != null && _profilePhotoUrl!.trim().isNotEmpty) {
+      return _profilePhotoUrl;
+    }
+    // 2. Global provider (if uploaded from sidebar / another screen)
+    try {
+      final providerUrl =
+          Provider.of<UserProfileProvider>(context, listen: false)
+              .profilePhotoUrl;
+      if (providerUrl != null && providerUrl.trim().isNotEmpty) {
+        return providerUrl;
+      }
+    } catch (_) {
+      // Provider not available (should not happen in normal flow)
+    }
+    return null;
+  }
+
   // ==================== LOAD RESUME DATA ====================
   Future<void> _loadResumeData() async {
     if (!mounted) return;
@@ -83,6 +114,22 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
     });
 
     try {
+      // ✅ Fetch profile photo URL first
+      try {
+        final photoUrl = await ResumeProfileService.getProfilePhotoUrl();
+        if (photoUrl != null && photoUrl.isNotEmpty) {
+          _profilePhotoUrl = photoUrl;
+          // Also push to provider so other screens see it
+          if (mounted) {
+            Provider.of<UserProfileProvider>(context, listen: false)
+                .updateProfilePhotoFromUrl(photoUrl);
+          }
+        }
+        debugPrint('📸 BuildResume profile photo: $photoUrl');
+      } catch (e) {
+        debugPrint('⚠️ Could not fetch profile photo: $e');
+      }
+
       final response = await DioClient.dio.get('/resume/profile-resume');
 
       if (!mounted) return;
@@ -90,7 +137,6 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
       if (response.data['success'] == true) {
         final data = response.data as Map<String, dynamic>;
 
-        // Extract user info
         final userInfo = data['user_info'] as Map<String, dynamic>? ?? {};
         _fullName = userInfo['full_name']?.toString() ?? '';
         _firstName = userInfo['first_name']?.toString() ?? '';
@@ -100,12 +146,10 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
             '';
         _gender = userInfo['gender']?.toString() ?? '';
 
-        // Extract contact info
         final contactInfo = data['contact_info'] as Map<String, dynamic>? ?? {};
         _email = contactInfo['email']?.toString() ?? '';
         _phone = contactInfo['phone']?.toString() ?? '';
 
-        // Extract address/location
         final address =
             contactInfo['current_address'] as Map<String, dynamic>? ?? {};
         final city = address['city']?.toString() ?? '';
@@ -114,49 +158,41 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
             ? (state.isNotEmpty ? '$city, $state' : city)
             : (state.isNotEmpty ? state : 'India');
 
-        // Extract professional summary
         _professionalSummary =
             data['professional_summary']?.toString() ?? '';
         _careerObjective = data['career_objective']?.toString() ?? '';
 
-        // Extract education
         final educationList = data['education'] as List<dynamic>? ?? [];
         _education = educationList
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList();
 
-        // Extract experience
         final experienceList = data['experience'] as List<dynamic>? ?? [];
         _experience = experienceList
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList();
 
-        // Extract skills
         final skillsData = data['skills'] as Map<String, dynamic>? ?? {};
         final allSkills = skillsData['all'] as List<dynamic>? ?? [];
         _skills = allSkills
             .map((s) => (s as Map)['name']?.toString() ?? s.toString())
             .toList();
 
-        // Extract certifications
         final certList = data['certifications'] as List<dynamic>? ?? [];
         _certifications = certList
             .map((c) => Map<String, dynamic>.from(c as Map))
             .toList();
 
-        // Extract projects
         final projectList = data['projects'] as List<dynamic>? ?? [];
         _projects = projectList
             .map((p) => Map<String, dynamic>.from(p as Map))
             .toList();
 
-        // Extract languages
         final langList = data['languages'] as List<dynamic>? ?? [];
         _languages = langList
             .map((l) => Map<String, dynamic>.from(l as Map))
             .toList();
 
-        // Extract social links
         final social = data['social_links'] as Map<String, dynamic>? ?? {};
         _socialLinks = {};
         social.forEach((key, value) {
@@ -165,9 +201,16 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
           }
         });
 
-        // Build resume data
         _buildResumeData();
         setState(() => _isLoading = false);
+
+        // ✅ Trigger profile photo dialog if missing
+        if (_effectivePhotoUrl == null && mounted && !_hasShownPhotoDialog) {
+          _hasShownPhotoDialog = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _showProfilePhotoDialog();
+          });
+        }
       } else {
         _errorMessage =
             response.data['message'] ?? 'Failed to load resume data';
@@ -180,7 +223,24 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
     }
   }
 
+  // ==================== PROFILE PHOTO DIALOG ====================
+  Future<void> _showProfilePhotoDialog() async {
+    if (!mounted) return;
+
+    final uploadedUrl = await ProfilePhotoUploadDialog.show(
+      context,
+      currentPhotoUrl: _effectivePhotoUrl,
+    );
+
+    if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
+      setState(() => _profilePhotoUrl = uploadedUrl);
+      _buildResumeData();
+      showMessage(context, "✅ Profile photo uploaded successfully!");
+    }
+  }
+
   void _buildResumeData() {
+    final photo = _effectivePhotoUrl ?? '';
     _resumeData = {
       'user_info': {
         'full_name': _fullName,
@@ -190,10 +250,15 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
         'gender': _gender,
         'email': _email,
         'date_of_birth': _dateOfBirth,
+        'profile_photo_url': photo,
+      },
+      'additional_details': {
+        'profile_photo_url': photo,
       },
       'contact_info': {
         'email': _email,
         'phone': _phone,
+        'profile_photo_url': photo,
         'current_address': {
           'city': _location.split(', ').first,
           'state': _location.contains(', ') ? _location.split(', ').last : '',
@@ -239,6 +304,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
   String _getEmail() => _email;
   String _getPhone() => _phone;
   String _getLocation() => _location;
+
   Map<String, dynamic> _getCurrentAddress() {
     return {
       'city': _location.split(', ').first,
@@ -321,6 +387,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
       return;
     }
 
+    // ✅ Ensure photo URL is embedded
     _buildResumeData();
 
     if (_resumeData.isEmpty) {
@@ -331,6 +398,20 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
       return;
     }
 
+    // ✅ If no photo yet, prompt upload first
+    if (_effectivePhotoUrl == null || _effectivePhotoUrl!.isEmpty) {
+      _showProfilePhotoDialog().then((_) {
+        if (mounted) {
+          _openResumePopup(format);
+        }
+      });
+      return;
+    }
+
+    _openResumePopup(format);
+  }
+
+  void _openResumePopup(ResumeFormatBase format) {
     _isDialogOpen = true;
 
     Future.delayed(const Duration(milliseconds: 100), () {
@@ -347,6 +428,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
           return ResumeFormatPopup(
             format: format,
             resumeData: _resumeData,
+            profilePhotoUrl: _effectivePhotoUrl,
             onClose: () {
               debugPrint('📄 Resume popup closed');
               _isDialogOpen = false;
@@ -369,7 +451,6 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
 
   // ==================== ACTIONS: PRINT / DOWNLOAD / SHARE ====================
 
-  /// ✅ Always use the CURRENTLY selected format
   ResumeFormatBase get _currentFormat =>
       ResumeFormatManager.getFormatById(_selectedCategory) ??
       ResumeFormatManager.defaultFormat;
@@ -378,6 +459,13 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
       _fullName.isNotEmpty
           ? _fullName.replaceAll(RegExp(r'[^\w]'), '_')
           : 'Resume';
+
+  Future<bool> _ensurePhotoReady() async {
+    final url = _effectivePhotoUrl;
+    if (url != null && url.isNotEmpty) return true;
+    await _showProfilePhotoDialog();
+    return _effectivePhotoUrl != null && _effectivePhotoUrl!.isNotEmpty;
+  }
 
   Future<void> _handlePrint() async {
     if (_isGenerating) return;
@@ -388,7 +476,10 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
         return;
       }
 
-      // ✅ Use the CURRENTLY selected format
+      if (!await _ensurePhotoReady()) return;
+
+      _buildResumeData();
+
       final format = _currentFormat;
       debugPrint('🖨️ BuildResume — Print clicked → '
           'format=${format.id} styleKey=${format.styleKey} color=${format.color}');
@@ -423,7 +514,10 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
         return;
       }
 
-      // ✅ Use the CURRENTLY selected format
+      if (!await _ensurePhotoReady()) return;
+
+      _buildResumeData();
+
       final format = _currentFormat;
       debugPrint('📥 BuildResume — Download clicked → '
           'format=${format.id} styleKey=${format.styleKey} color=${format.color}');
@@ -459,7 +553,10 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
         return;
       }
 
-      // ✅ Use the CURRENTLY selected format
+      if (!await _ensurePhotoReady()) return;
+
+      _buildResumeData();
+
       final format = _currentFormat;
       debugPrint('📤 BuildResume — Share clicked → '
           'format=${format.id} styleKey=${format.styleKey} color=${format.color}');
@@ -489,6 +586,9 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
   // ==================== BUILD UI ====================
   @override
   Widget build(BuildContext context) {
+    // ✅ Watch provider → any photo upload anywhere triggers rebuild
+    context.watch<UserProfileProvider>();
+
     if (_isLoading) {
       return _buildLoadingScreen();
     }
@@ -545,6 +645,11 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.photo_camera, color: Colors.white),
+            onPressed: _showProfilePhotoDialog,
+            tooltip: 'Change Profile Photo',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadResumeData,
@@ -624,7 +729,6 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
                         ),
                       ),
                       const Spacer(),
-                      // ✅ Show which format will be exported
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
@@ -779,6 +883,9 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
   // ==================== UI COMPONENTS ====================
 
   Widget _buildProfileSummaryCard() {
+    final photoUrl = _effectivePhotoUrl;
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -798,24 +905,86 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
       ),
       child: Row(
         children: [
-          Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
-            ),
-            child: Center(
-              child: Text(
-                _fullName.isNotEmpty ? _fullName[0].toUpperCase() : 'U',
-                style: const TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF6C63FF),
+          // ✅ Photo with camera overlay
+          Stack(
+            children: [
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                ),
+                child: ClipOval(
+                  child: hasPhoto
+                      ? CachedNetworkImage(
+                          key: ValueKey(photoUrl),
+                          imageUrl: photoUrl,
+                          width: 70,
+                          height: 70,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(
+                            color: Colors.white24,
+                            child: const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                          errorWidget: (_, __, ___) => Center(
+                            child: Text(
+                              _fullName.isNotEmpty
+                                  ? _fullName[0].toUpperCase()
+                                  : 'U',
+                              style: const TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF6C63FF),
+                              ),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            _fullName.isNotEmpty
+                                ? _fullName[0].toUpperCase()
+                                : 'U',
+                            style: const TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF6C63FF),
+                            ),
+                          ),
+                        ),
                 ),
               ),
-            ),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: _showProfilePhotoDialog,
+                    child: const Padding(
+                      padding: EdgeInsets.all(5),
+                      child: Icon(
+                        Icons.camera_alt,
+                        size: 14,
+                        color: Color(0xFF6C63FF),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -860,6 +1029,25 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
                     ),
                   ],
                 ),
+                if (!hasPhoto) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      "⚠️ Tap camera to upload photo",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -956,7 +1144,6 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
     final colorHex = format.color.replaceAll('#', '');
     final color = Color(int.parse('FF$colorHex', radix: 16));
 
-    // ✅ Highlight the currently selected format
     final isSelected = _selectedCategory == format.id;
 
     return Card(
@@ -969,7 +1156,6 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
       ),
       child: InkWell(
         onTap: () {
-          // ✅ Use setState so Quick Actions reflect the new selection
           setState(() => _selectedCategory = format.id);
           debugPrint('🎯 Format selected: ${format.id} (${format.name})');
           _showResumePreview(format.id);

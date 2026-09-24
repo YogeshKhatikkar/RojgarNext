@@ -1,7 +1,8 @@
 // lib/features/resume/presentation/screens/format/resume_format_popup.dart
-// ✅ FIXED: Print / Download / Share now correctly use the CURRENT format
-// ✅ No more stuck spinner — proper state reset on error
-// ✅ Filename includes format name so you can verify the correct format is exported
+// ✅ FIXED: Print / Download / Share use CURRENT format
+// ✅ FIXED: No stuck spinner — proper state reset on error
+// ✅ FIXED: Filename includes format name
+// ✅ NEW: profilePhotoUrl parameter — injects into every format preview
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
@@ -12,12 +13,14 @@ import 'resume_format_base.dart';
 class ResumeFormatPopup extends StatefulWidget {
   final ResumeFormatBase format;
   final Map<String, dynamic> resumeData;
+  final String? profilePhotoUrl;
   final VoidCallback? onClose;
 
   const ResumeFormatPopup({
     super.key,
     required this.format,
     required this.resumeData,
+    this.profilePhotoUrl,
     this.onClose,
   });
 
@@ -36,27 +39,47 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
 
   String get _nameBase {
     final u = widget.resumeData['user_info'];
-    final name =
-        (u is Map ? (u['full_name'] ?? '') : '').toString().trim();
+    final name = (u is Map ? (u['full_name'] ?? '') : '').toString().trim();
     if (name.isEmpty) return 'Resume';
     return name.replaceAll(RegExp(r'[^\w]'), '_');
   }
 
-  /// ✅ Always use the CURRENT format's styleKey + color
   String get _currentStyleKey => widget.format.styleKey;
   String get _currentColor => widget.format.color;
+
+  /// ✅ Inject photo URL into resumeData for preview
+  Map<String, dynamic> get _dataWithPhoto {
+    final data = Map<String, dynamic>.from(widget.resumeData);
+    final photoUrl = widget.profilePhotoUrl ?? '';
+
+    final userInfo = Map<String, dynamic>.from(
+        (data['user_info'] as Map?) ?? {});
+    if (photoUrl.isNotEmpty) {
+      userInfo['profile_photo_url'] = photoUrl;
+    }
+    data['user_info'] = userInfo;
+
+    final additional = Map<String, dynamic>.from(
+        (data['additional_details'] as Map?) ?? {});
+    if (photoUrl.isNotEmpty) {
+      additional['profile_photo_url'] = photoUrl;
+    }
+    data['additional_details'] = additional;
+
+    return data;
+  }
 
   Future<void> _handleDownload() async {
     if (_isGenerating) return;
     setState(() => _isGenerating = true);
 
-    debugPrint('📥 DOWNLOAD clicked → format=${widget.format.id} '
+    debugPrint('📥 DOWNLOAD → format=${widget.format.id} '
         'styleKey=$_currentStyleKey color=$_currentColor');
 
     try {
       await ResumePdfService.download(
         fileNameBase: _nameBase,
-        data: widget.resumeData,
+        data: _dataWithPhoto,
         styleKey: _currentStyleKey,
         colorHex: _currentColor,
       );
@@ -78,12 +101,12 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
     if (_isGenerating) return;
     setState(() => _isGenerating = true);
 
-    debugPrint('🖨️ PRINT clicked → format=${widget.format.id} '
+    debugPrint('🖨️ PRINT → format=${widget.format.id} '
         'styleKey=$_currentStyleKey color=$_currentColor');
 
     try {
       await ResumePdfService.print(
-        data: widget.resumeData,
+        data: _dataWithPhoto,
         styleKey: _currentStyleKey,
         colorHex: _currentColor,
       );
@@ -105,13 +128,13 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
     if (_isGenerating) return;
     setState(() => _isGenerating = true);
 
-    debugPrint('📤 SHARE clicked → format=${widget.format.id} '
+    debugPrint('📤 SHARE → format=${widget.format.id} '
         'styleKey=$_currentStyleKey color=$_currentColor');
 
     try {
       await ResumePdfService.share(
         fileNameBase: _nameBase,
-        data: widget.resumeData,
+        data: _dataWithPhoto,
         styleKey: _currentStyleKey,
         colorHex: _currentColor,
       );
@@ -147,10 +170,8 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
         ),
         child: Column(
           children: [
-            // HEADER
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
                 borderRadius: const BorderRadius.only(
@@ -158,12 +179,10 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
                   topRight: Radius.circular(20),
                 ),
               ),
-              child: isNarrow
-                  ? _buildNarrowHeader()
-                  : _buildWideHeader(),
+              child:
+                  isNarrow ? _buildNarrowHeader() : _buildWideHeader(),
             ),
             const Divider(height: 1),
-            // PREVIEW
             Expanded(
               child: ClipRRect(
                 borderRadius: const BorderRadius.only(
@@ -176,7 +195,7 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
                     padding: EdgeInsets.zero,
                     child: widget.format.buildPreview(
                       context,
-                      widget.resumeData,
+                      _dataWithPhoto,
                     ),
                   ),
                 ),
@@ -188,9 +207,6 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
     );
   }
 
-  // ============================================================
-  // WIDE HEADER (desktop / tablet)
-  // ============================================================
   Widget _buildWideHeader() {
     return Row(
       children: [
@@ -217,7 +233,6 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
             ],
           ),
         ),
-        // PRINT
         Tooltip(
           message: "Print this ${widget.format.name}",
           child: IconButton(
@@ -226,7 +241,6 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
             onPressed: _isGenerating ? null : _handlePrint,
           ),
         ),
-        // DOWNLOAD PDF
         Tooltip(
           message: "Download this ${widget.format.name}",
           child: IconButton(
@@ -241,7 +255,6 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
             onPressed: _isGenerating ? null : _handleDownload,
           ),
         ),
-        // SHARE
         Tooltip(
           message: "Share this ${widget.format.name}",
           child: IconButton(
@@ -250,7 +263,6 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
             onPressed: _isGenerating ? null : _handleShare,
           ),
         ),
-        // CLOSE
         IconButton(
           icon: const Icon(Icons.close, size: 24),
           onPressed: () => Navigator.pop(context),
@@ -260,9 +272,6 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
     );
   }
 
-  // ============================================================
-  // NARROW HEADER (phone) — wraps buttons to second row
-  // ============================================================
   Widget _buildNarrowHeader() {
     return Column(
       children: [
@@ -352,8 +361,8 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
               SizedBox(
                 width: 14,
                 height: 14,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: color),
+                child:
+                    CircularProgressIndicator(strokeWidth: 2, color: color),
               )
             else
               Icon(icon, size: 16, color: color),

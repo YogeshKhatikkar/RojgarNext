@@ -45,9 +45,14 @@ class ClassicFormat extends ResumeFormatBase {
     final projects = getList(resumeData, 'projects');
     final designation = pDesignation(resumeData);
     final tools = pTools(resumeData, 12);
+    final photoUrl = pProfilePhotoUrl(resumeData);
 
     final desigHtml = designation.isNotEmpty
         ? '<div style="font-size:12px;color:#93C5FD;">${escapeHtml(designation)}</div>'
+        : '';
+
+    final photoHtml = photoUrl != null
+        ? '<img src="${escapeHtml(photoUrl)}" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #fff;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;" onerror="this.style.display=\'none\'" />'
         : '';
 
     final toolsHtml = tools.isNotEmpty
@@ -78,6 +83,7 @@ body{font-family:Georgia,serif;background:#f8f8f8;padding:30px 20px;line-height:
 <div class="resume-container">
   <div class="sidebar">
     <div style="text-align:center;margin-bottom:20px;">
+      $photoHtml
       <div style="font-size:24px;font-weight:bold;">${escapeHtml(name)}</div>
       $desigHtml
     </div>
@@ -137,6 +143,7 @@ body{font-family:Georgia,serif;background:#f8f8f8;padding:30px 20px;line-height:
     final projects = pList(data['projects']);
     final designation = pDesignation(data);
     final tools = pTools(data, 12);
+    final photoUrl = pProfilePhotoUrl(data);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -158,6 +165,21 @@ body{font-family:Georgia,serif;background:#f8f8f8;padding:30px 20px;line-height:
                         Center(
                           child: Column(
                             children: [
+                              if (photoUrl != null) ...[
+                                pProfilePhoto(
+                                  url: photoUrl,
+                                  size: 82,
+                                  borderColor: Colors.white,
+                                  borderWidth: 2.5,
+                                ),
+                              ] else ...[
+                                pInitialsAvatar(
+                                  name: name,
+                                  size: 82,
+                                  bgColor: const Color(0xFF0F2557),
+                                ),
+                              ],
+                              const SizedBox(height: 10),
                               Text(name,
                                   style: const TextStyle(
                                       fontSize: 20,
@@ -347,7 +369,7 @@ body{font-family:Georgia,serif;background:#f8f8f8;padding:30px 20px;line-height:
       );
 
   // ============================================================
-  // 3️⃣ PDF CONTENT — Full page height + ASCII bullets
+  // 3️⃣ PDF CONTENT
   // ============================================================
   @override
   pw.Widget buildPdfContent(
@@ -382,16 +404,29 @@ body{font-family:Georgia,serif;background:#f8f8f8;padding:30px 20px;line-height:
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text(pdfSafe(name),
-                  style: pw.TextStyle(
-                      fontSize: 15,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.white)),
+              pw.Center(
+                child: pdfProfilePhoto(
+                  data: data,
+                  size: 78,
+                  borderColor: PdfColors.white,
+                  borderWidth: 2,
+                ),
+              ),
+              pw.SizedBox(height: 10),
+              pw.Center(
+                child: pw.Text(pdfSafe(name),
+                    style: pw.TextStyle(
+                        fontSize: 15,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.white)),
+              ),
               if (desig.isNotEmpty) ...[
                 pw.SizedBox(height: 4),
-                pw.Text(pdfSafe(desig),
-                    style: const pw.TextStyle(
-                        fontSize: 9, color: PdfColors.white)),
+                pw.Center(
+                  child: pw.Text(pdfSafe(desig),
+                      style: const pw.TextStyle(
+                          fontSize: 9, color: PdfColors.white)),
+                ),
               ],
               pw.SizedBox(height: 14),
               pdfSideTitle('CONTACT', PdfColors.white),

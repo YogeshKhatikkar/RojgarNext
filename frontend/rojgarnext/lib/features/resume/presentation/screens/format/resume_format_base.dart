@@ -1,12 +1,15 @@
 // lib/features/resume/presentation/screens/format/resume_format_base.dart
 //
 // ✅ Base class that ALL resume formats must extend.
-// ✅ Contains: 3 abstract methods (html, preview, pdf) + 20+ shared helpers.
-// ✅ Adding a new format = extend this class + implement 3 methods.
-// ✅ No changes needed anywhere else in the codebase.
+// ✅ Contains: 3 abstract methods + shared helpers.
 // ✅ FIXED: pdfSideItem() sanitizes Unicode chars for Helvetica font.
+// ✅ NEW: Profile photo helpers (pProfilePhotoUrl, pProfilePhoto,
+//         pInitialsAvatar, pdfProfilePhoto)
+// ✅ FIXED: Added missing 'cached_network_image' import (compilation error fix)
 
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // ✅ FIX
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -26,22 +29,13 @@ abstract class ResumeFormatBase {
   // ============================================================
   // 3 ABSTRACT METHODS — every format must implement these
   // ============================================================
-
-  /// Generate standalone HTML for WebView / print
   String generateHtml(Map<String, dynamic> resumeData);
-
-  /// Build native Flutter preview — must fit full page
   Widget buildPreview(BuildContext context, Map<String, dynamic> data);
-
-  /// ✅ Build PDF content for this format.
-  /// ResumePdfService just wraps this in a page and prints/downloads it.
-  /// Adding a new format → implement this → no other file needs changes.
   pw.Widget buildPdfContent(Map<String, dynamic> data, PdfPageFormat pageFormat);
 
   // ============================================================
-  // FLUTTER PREVIEW HELPERS — used by all formats
+  // FLUTTER PREVIEW HELPERS
   // ============================================================
-
   Map<String, dynamic> pMap(dynamic v) {
     if (v is Map<String, dynamic>) return v;
     if (v is Map) return Map<String, dynamic>.from(v);
@@ -244,10 +238,144 @@ abstract class ResumeFormatBase {
   }
 
   // ============================================================
-  // PDF HELPERS — shared by all PDF layouts
+  // ✅ PROFILE PHOTO HELPERS — used by every format
   // ============================================================
 
-  /// Hex string → PdfColor (e.g. "#1E3A8A" or "1E3A8A")
+  /// Extract the profile photo URL from resume data.
+  String? pProfilePhotoUrl(Map<String, dynamic> data) {
+    final u = pMap(data['user_info']);
+    final c = pMap(data['contact_info']);
+
+    final a = pStr(u['profile_photo_url']);
+    if (a.isNotEmpty) return a;
+
+    final b = pStr(c['profile_photo_url']);
+    if (b.isNotEmpty) return b;
+
+    final d = pStr(data['profile_photo_url']);
+    if (d.isNotEmpty) return d;
+
+    return null;
+  }
+
+  /// Circular profile photo widget for Flutter preview.
+  /// ✅ Now works because `cached_network_image` is imported above.
+  Widget pProfilePhoto({
+    required String url,
+    double size = 80,
+    Color borderColor = Colors.white,
+    double borderWidth = 2.5,
+  }) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: borderColor, width: borderWidth),
+      ),
+      child: ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: url,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => Container(
+            color: Colors.grey.shade300,
+            child: const Center(
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+          errorWidget: (_, __, ___) => Container(
+            color: Colors.grey.shade300,
+            child: Icon(
+              Icons.person,
+              size: size * 0.5,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Fallback initials avatar when no photo.
+  Widget pInitialsAvatar({
+    required String name,
+    double size = 80,
+    Color bgColor = const Color(0xFF1E3A8A),
+    Color textColor = Colors.white,
+  }) {
+    final initials = _getInitials(name);
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: bgColor,
+        border: Border.all(color: Colors.white, width: 2.5),
+      ),
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            fontSize: size * 0.35,
+            fontWeight: FontWeight.bold,
+            color: textColor,
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _getInitials(String name) {
+    if (name.trim().isEmpty) return 'U';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return parts[0][0].toUpperCase();
+  }
+
+  /// PDF profile photo — reads bytes from `data['_profile_photo_bytes']`
+  /// which `ResumePdfService` injects before building the document.
+  pw.Widget pdfProfilePhoto({
+    required Map<String, dynamic> data,
+    double size = 70,
+    PdfColor? borderColor,
+    double borderWidth = 2,
+  }) {
+    final bytes = data['_profile_photo_bytes'] as Uint8List?;
+    if (bytes == null || bytes.isEmpty) {
+      return pw.SizedBox(width: size, height: size);
+    }
+    return pw.Container(
+      width: size,
+      height: size,
+      decoration: pw.BoxDecoration(
+        shape: pw.BoxShape.circle,
+        border: pw.Border.all(
+          color: borderColor ?? PdfColors.white,
+          width: borderWidth,
+        ),
+      ),
+      child: pw.ClipOval(
+        child: pw.Image(
+          pw.MemoryImage(bytes),
+          width: size,
+          height: size,
+          fit: pw.BoxFit.cover,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // PDF HELPERS
+  // ============================================================
   PdfColor pdfColor(String hex) {
     var h = hex.replaceAll('#', '').trim();
     if (h.length == 6) h = 'FF$h';
@@ -264,8 +392,6 @@ abstract class ResumeFormatBase {
     return s.isEmpty ? fb : s;
   }
 
-  /// ✅ FIXED: Sanitize Unicode chars that Helvetica font can't render.
-  /// Replaces • ▸ — etc. with plain ASCII equivalents.
   String pdfSafe(String input) {
     if (input.isEmpty) return '';
     return input
@@ -389,7 +515,6 @@ abstract class ResumeFormatBase {
     );
   }
 
-  // ✅ FIXED: Sanitizes Unicode bullet characters so Helvetica can render
   pw.Widget pdfSideItem(String text, PdfColor color) {
     final safe = pdfSafe(text);
     return pw.Padding(

@@ -3,6 +3,7 @@
 # ✅ FIXED: Null/empty/deleted documents are STRIPPED from response (never returned to frontend)
 # ✅ Added: DELETE /education/{id}  ✅ Added: DELETE /experience/{id}
 # ✅ All original functionality preserved
+# ✅ NEW: /upload-profile-photo - uploads photo + auto-rebuilds resume
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, BackgroundTasks, UploadFile, File, Form
 from typing import Optional, List, Dict, Any
@@ -28,10 +29,6 @@ async def get_profile_service(db=Depends(get_db)):
 
 
 # ================= ✅ DOCUMENT CLEANING HELPERS =================
-# These helpers ensure that null / empty / deleted documents
-# are NEVER returned to the frontend.
-
-# Every document key that should exist in a user profile
 DOCUMENT_KEYS = {
     "profile_photo_url", "aadhaar_front", "aadhaar_back", "aadhaar_url",
     "pan_url", "passport_url", "voter_id_url", "driving_license_url",
@@ -74,7 +71,6 @@ DOCUMENT_KEYS = {
     "noc_certificate", "other_document_url",
 }
 
-# Values that should NEVER be treated as a valid document URL
 INVALID_DOC_VALUES = {
     None, "", "null", "undefined", "n/a", "na", "-", "none",
     "false", "true", "0", "not found", "notfound", "not_found",
@@ -83,74 +79,43 @@ INVALID_DOC_VALUES = {
 
 
 def _is_valid_doc_url(value: Any) -> bool:
-    """Strict validator — same rules as frontend."""
     if value is None:
         return False
-
-    # Reject empty dicts / lists
     if isinstance(value, (dict, list)) and len(value) == 0:
         return False
-
     s = str(value).strip()
     if not s:
         return False
-
     lower = s.lower()
-
     if lower in INVALID_DOC_VALUES:
         return False
-
-    if not (
-        s.startswith("http://")
-        or s.startswith("https://")
-        or s.startswith("file:")
-        or s.startswith("blob:")
-    ):
+    if not (s.startswith("http://") or s.startswith("https://")
+            or s.startswith("file:") or s.startswith("blob:")):
         return False
-
     if len(s) < 12:
         return False
-
-    # Reject placeholder URLs
     for placeholder in ("not-found", "notfound", "placeholder",
                         "example.com/dummy", "undefined"):
         if placeholder in lower:
             return False
-
     return True
 
 
 def _clean_documents_in_profile(profile: dict) -> dict:
-    """
-    Remove every null / empty / deleted document URL from profile
-    BEFORE returning it to the frontend.
-
-    Also removes stale keys that no longer map to valid URLs.
-    """
     if not profile or not isinstance(profile, dict):
         return profile
-
-    # ---------- Top-level document keys ----------
     for key in DOCUMENT_KEYS:
         if key in profile:
             if not _is_valid_doc_url(profile[key]):
-                # Delete invalid URL completely
                 del profile[key]
-
-    # ---------- additional_details.* document keys ----------
     additional = profile.get("additional_details")
     if isinstance(additional, dict):
-        # Iterate over a copy so we can safely delete
         for key in list(additional.keys()):
-            # Only strip keys that look like document keys
             if key in DOCUMENT_KEYS or key.endswith("_url") or key.endswith("_certificate"):
                 if not _is_valid_doc_url(additional[key]):
                     del additional[key]
-
-        # If additional_details becomes empty, keep it as {} — frontend handles it
         if not additional:
             profile["additional_details"] = {}
-
     return profile
 
 
@@ -169,11 +134,7 @@ async def get_contact_details(
     mobile = user.get("mobile", "") if user else ""
     name = user.get("name", "") if user else ""
 
-    return {
-        "email": email,
-        "mobile": mobile,
-        "name": name
-    }
+    return {"email": email, "mobile": mobile, "name": name}
 
 
 # ================= ✅ FULL PROFILE (FIXED — accepts email param for admins) =================
@@ -187,24 +148,15 @@ async def get_full_profile(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """
-    Get complete user profile with all fields.
-
-    - Normal user → returns own profile (email param ignored).
-    - Admin / CustomAdmin / SuperAdmin → if `email` param is given,
-      returns THAT user's profile instead.
-    """
     caller_email = current_user.get("email")
     caller_role = (current_user.get("role") or "").lower()
 
     if not caller_email:
         raise HTTPException(status_code=400, detail="User email not found")
 
-    # Decide which profile to return
     target_email = caller_email
 
     if email and email.strip() and email.strip().lower() != caller_email.lower():
-        # Someone is requesting another user's profile
         admin_roles = {"admin", "customadmin", "custom_admin", "superadmin"}
         if caller_role not in admin_roles:
             raise HTTPException(
@@ -213,28 +165,22 @@ async def get_full_profile(
             )
         target_email = email.strip()
 
-    # Fetch the profile
     result = await service.get_full_profile(target_email)
 
-    # ✅ STRIP all null / deleted / empty documents before returning
     if isinstance(result, dict):
-        # Some services wrap in {"data": {...}} — handle both
         if "data" in result and isinstance(result["data"], dict):
             result["data"] = _clean_documents_in_profile(result["data"])
         else:
             result = _clean_documents_in_profile(result)
 
-        # Also pull from DB and merge in case ProfileService strips documents
         raw = await db.profile.find_one({"email": target_email}) or {}
         cleaned_raw = _clean_documents_in_profile(dict(raw))
 
-        # Expose cleaned additional_details explicitly so frontend always finds it
         if isinstance(result, dict):
             if "data" in result and isinstance(result["data"], dict):
                 result["data"]["additional_details"] = cleaned_raw.get(
                     "additional_details", {}
                 )
-                # Also mirror top-level document keys
                 for k in DOCUMENT_KEYS:
                     if k in cleaned_raw:
                         result["data"][k] = cleaned_raw[k]
@@ -255,12 +201,134 @@ async def create_or_update_full_profile(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Create or update full profile with all fields"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
     data["email"] = email
     return await service.create_or_update_full_profile(data)
+
+
+# ==============================================================
+# ✅ NEW: UPLOAD PROFILE PHOTO — AUTO REBUILDS RESUME
+# ==============================================================
+@router.post("/upload-profile-photo")
+async def upload_profile_photo(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """
+    Upload profile photo → Cloudinary → DB → auto-rebuild resume in all formats.
+    Frontend calls this from: Documents screen, Build Resume screen, Dashboard avatar.
+    Response includes immediate URL so frontend can update UI without refresh.
+    """
+    from app.core.services.cloudinary import upload_user_document
+
+    email = current_user.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="User email not found")
+
+    if not file or not file.filename:
+        raise HTTPException(status_code=400, detail="Profile photo is required")
+
+    allowed_extensions = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic', 'heif'}
+    file_ext = file.filename.split('.')[-1].lower() if file.filename else ''
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid image type. Allowed: {', '.join(sorted(allowed_extensions))}"
+        )
+
+    # Size check — max 5MB for profile photo
+    file_content = await file.read()
+    file_size = len(file_content)
+    await file.seek(0)
+    if file_size > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Photo too large. Max: 5MB, Your file: {file_size // (1024*1024)}MB"
+        )
+
+    try:
+        username = email.split('@')[0]
+
+        # 1️⃣ Upload to Cloudinary
+        upload_result = await upload_user_document(
+            file=file,
+            username=username,
+            document_type="profile_photo"
+        )
+        photo_url = upload_result.get("url")
+        public_id = upload_result.get("public_id")
+
+        if not photo_url:
+            raise HTTPException(status_code=500, detail="Cloudinary returned no URL")
+
+        logger.info(f"✅ Profile photo uploaded: {photo_url}")
+
+        # 2️⃣ Update DB (top-level + additional_details for compatibility)
+        now = datetime.utcnow()
+        update_payload = {
+            "profile_photo_url": photo_url,
+            "additional_details.profile_photo_url": photo_url,
+            "profile_photo_public_id": public_id,
+            "additional_details.profile_photo_public_id": public_id,
+            "profile_photo_updated_at": now,
+            "updated_at": now,
+        }
+        await db.profile.update_one(
+            {"email": email},
+            {"$set": update_payload},
+            upsert=True
+        )
+
+        # 3️⃣ Auto-rebuild resume in ALL formats
+        resume_formats = ["classic", "modern", "fresher", "executive", "tech", "government"]
+        resume_rebuilt = False
+        resume_error = None
+        try:
+            from app.modules.resume.service import ResumeService
+            resume_service = ResumeService(db)
+
+            # Build fresh resume data (uses new profile photo automatically)
+            resume_data = await resume_service.get_profile_resume(email)
+            html = await resume_service.generate_resume_html(email, resume_data)
+
+            await db.profile.update_one(
+                {"email": email},
+                {"$set": {
+                    "resume_cache_html": html,
+                    "resume_cache_updated_at": datetime.utcnow(),
+                    "resume_formats_available": resume_formats,
+                }},
+                upsert=True
+            )
+            resume_rebuilt = True
+            logger.info(f"✅ Resume auto-rebuilt for {email}")
+        except Exception as re:
+            resume_error = str(re)
+            logger.warning(f"⚠️ Resume auto-rebuild failed: {re}")
+
+        return {
+            "success": True,
+            "message": "Profile photo uploaded & resume rebuilt",
+            "url": photo_url,
+            "download_url": upload_result.get("download_url"),
+            "public_id": public_id,
+            "file_size_kb": file_size // 1024,
+            "resume_ready": resume_rebuilt,
+            "resume_formats": resume_formats,
+            "resume_error": resume_error,
+            "updated_at": now.isoformat(),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Profile photo upload failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 # ================= BASIC DETAILS =================
@@ -269,7 +337,6 @@ async def get_basic_details(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get basic profile information"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -282,7 +349,6 @@ async def save_basic_details(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Save basic profile information"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -295,7 +361,6 @@ async def get_bank_details(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's bank details"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -308,7 +373,6 @@ async def update_bank_details(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update bank details"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -321,7 +385,6 @@ async def get_government_ids(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's government IDs"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -334,7 +397,6 @@ async def update_government_ids(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update government IDs"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -347,7 +409,6 @@ async def get_emergency_contact(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's emergency contact"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -360,7 +421,6 @@ async def update_emergency_contact(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update emergency contact"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -373,7 +433,6 @@ async def get_references(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's references"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -386,7 +445,6 @@ async def add_reference(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Add a new reference"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -400,7 +458,6 @@ async def update_reference(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update a reference"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -413,7 +470,6 @@ async def delete_reference(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete a reference"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -426,7 +482,6 @@ async def get_employment_preferences(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's employment preferences"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -439,7 +494,6 @@ async def update_employment_preferences(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update employment preferences"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -452,7 +506,6 @@ async def get_social_links(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's social links"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -465,7 +518,6 @@ async def update_social_links(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update social links"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -478,7 +530,6 @@ async def get_work_authorization(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's work authorization"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -491,7 +542,6 @@ async def update_work_authorization(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update work authorization"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -504,7 +554,6 @@ async def get_application_preferences(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's application preferences"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -517,7 +566,6 @@ async def update_application_preferences(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update application preferences"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -530,7 +578,6 @@ async def get_career_goals(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's career goals"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -543,7 +590,6 @@ async def update_career_goals(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update career goals"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -556,7 +602,6 @@ async def get_personality_traits(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's personality traits"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -569,7 +614,6 @@ async def update_personality_traits(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update personality traits"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -582,7 +626,6 @@ async def get_work_environment_preferences(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's work environment preferences"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -595,7 +638,6 @@ async def update_work_environment_preferences(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update work environment preferences"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -608,7 +650,6 @@ async def get_compensation_expectations(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's compensation expectations"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -621,7 +662,6 @@ async def update_compensation_expectations(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update compensation expectations"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -634,7 +674,6 @@ async def get_job_search_preferences(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's job search preferences"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -647,7 +686,6 @@ async def update_job_search_preferences(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update job search preferences"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -660,7 +698,6 @@ async def get_skill_assessments(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's skill assessments"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -673,7 +710,6 @@ async def add_skill_assessment(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Add a skill assessment"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -687,7 +723,6 @@ async def update_skill_assessment(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update a skill assessment"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -700,7 +735,6 @@ async def delete_skill_assessment(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete a skill assessment"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -713,7 +747,6 @@ async def get_job_search_status(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's job search status"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -726,7 +759,6 @@ async def update_job_search_status(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update job search status"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -739,7 +771,6 @@ async def get_career_change_info(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's career change information"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -752,7 +783,6 @@ async def update_career_change_info(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update career change information"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -765,7 +795,6 @@ async def get_education(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all education records"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -778,7 +807,6 @@ async def add_education(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Add a new education record"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -792,25 +820,19 @@ async def update_education(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update an existing education record"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
     return await service.update_education(email, qual_id, qualification)
 
 
-# ✅ DELETE education record
 @router.delete("/education/{qual_id}")
 async def delete_education(
     qual_id: str,
-    email: Optional[str] = Query(None),  # optional; ignored — JWT email used
+    email: Optional[str] = Query(None),
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """
-    Delete an education record by its `_id`.
-    Frontend may send `?email=...` — we ignore it and use the JWT email instead.
-    """
     user_email = current_user.get("email")
     if not user_email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -823,7 +845,6 @@ async def get_experience(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all experience records"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -836,7 +857,6 @@ async def add_experience(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Add a new experience record"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -850,25 +870,19 @@ async def update_experience(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update an existing experience record"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
     return await service.update_experience(email, exp_id, experience)
 
 
-# ✅ DELETE experience record
 @router.delete("/experience/{exp_id}")
 async def delete_experience(
     exp_id: str,
-    email: Optional[str] = Query(None),  # optional; ignored — JWT email used
+    email: Optional[str] = Query(None),
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """
-    Delete an experience record by its `_id`.
-    Frontend may send `?email=...` — we ignore it and use the JWT email instead.
-    """
     user_email = current_user.get("email")
     if not user_email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -881,7 +895,6 @@ async def get_skills(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all skills"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -894,7 +907,6 @@ async def add_skill(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Add a new skill"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -908,7 +920,6 @@ async def update_skill(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update an existing skill"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -921,7 +932,6 @@ async def delete_skill(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete a skill"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -934,7 +944,6 @@ async def get_internships(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all internships"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -947,7 +956,6 @@ async def add_internship(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Add a new internship"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -961,7 +969,6 @@ async def update_internship(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update an existing internship"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -974,7 +981,6 @@ async def delete_internship(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete an internship"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -987,7 +993,6 @@ async def get_certifications(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all certifications"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1000,7 +1005,6 @@ async def add_certification(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Add a new certification"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1014,7 +1018,6 @@ async def update_certification(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update an existing certification"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1027,7 +1030,6 @@ async def delete_certification(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete a certification"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1040,7 +1042,6 @@ async def get_projects(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all projects"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1053,7 +1054,6 @@ async def add_project(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Add a new project"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1067,7 +1067,6 @@ async def update_project(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update an existing project"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1080,7 +1079,6 @@ async def delete_project(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete a project"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1093,7 +1091,6 @@ async def get_languages(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all languages"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1106,7 +1103,6 @@ async def add_language(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Add a new language"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1120,7 +1116,6 @@ async def update_language(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update an existing language"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1133,7 +1128,6 @@ async def delete_language(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Delete a language"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1146,7 +1140,6 @@ async def get_other_details(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get additional details"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1159,7 +1152,6 @@ async def update_other_details(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update additional details"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1172,7 +1164,6 @@ async def get_profile_with_applications(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get profile with all applications"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1186,7 +1177,6 @@ async def update_educated_status(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update educated status and related fields"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1200,7 +1190,6 @@ async def update_fresher_status(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update fresher status and related fields"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1213,7 +1202,6 @@ async def get_saved_jobs(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """Get user's saved jobs"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1228,7 +1216,6 @@ async def get_saved_jobs(
                 obj_id = ObjectId(job_id)
             else:
                 obj_id = job_id
-
             job = await db.job.find_one({"_id": obj_id})
             if job:
                 job["_id"] = str(job["_id"])
@@ -1245,7 +1232,6 @@ async def save_job(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """Save a job"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1276,16 +1262,13 @@ async def unsave_job(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """Remove saved job"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
-
     await db.auth.update_one(
         {"email": email},
         {"$pull": {"saved_jobs": job_id}}
     )
-
     return {"message": "Job removed from saved", "success": True}
 
 
@@ -1295,7 +1278,6 @@ async def get_ai_insights(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get AI career insights for user dashboard"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1308,7 +1290,6 @@ async def get_ai_recommendations(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get AI job recommendations"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1320,7 +1301,6 @@ async def get_ai_skill_gap(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get AI skill gap analysis"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1332,7 +1312,6 @@ async def refresh_ai_insights(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Force refresh AI insights (clear cache)"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1345,7 +1324,6 @@ async def get_ultra_ai_analysis(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """Get ultra-advanced AI analysis with predictions"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1373,7 +1351,6 @@ async def get_ai_resume_score(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """Get AI-powered resume score and improvement suggestions"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1444,28 +1421,20 @@ async def get_ai_resume_score(
     }
 
 
-# ================= HELPER FUNCTIONS =================
 async def _generate_personalized_actions(profile: Dict, analysis: Dict) -> List[str]:
-    """Generate personalized action items"""
     actions = []
-
     if analysis.get('skill_match', 0) < 60:
         actions.append("Focus on developing in-demand skills")
-
     if len(profile.get('projects', [])) < 2:
         actions.append("Build and showcase personal projects")
-
     if len(profile.get('certifications', [])) < 2:
         actions.append("Get relevant certifications")
-
     if not profile.get('summary'):
         actions.append("Write a compelling professional summary")
-
     if not actions:
         actions.append("Start applying to matching jobs")
         actions.append("Network with industry professionals")
         actions.append("Keep your profile updated")
-
     return actions[:5]
 
 
@@ -1475,7 +1444,6 @@ async def get_educational_background(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's educational background summary"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1488,7 +1456,6 @@ async def update_educational_background(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update educational background"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1501,7 +1468,6 @@ async def get_career_aspirations(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's career aspirations"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1514,7 +1480,6 @@ async def update_career_aspirations(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update career aspirations"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1527,7 +1492,6 @@ async def get_learning_preferences(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's learning preferences"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1540,7 +1504,6 @@ async def update_learning_preferences(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update learning preferences"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1553,7 +1516,6 @@ async def get_income_expense(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get user's income and expense information"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1566,41 +1528,28 @@ async def update_income_expense(
     service: ProfileService = Depends(get_profile_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update income and expense information"""
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
     return await service.update_income_expense(email, data)
 
 
-# ==================== GET USER PROFILE BY EMAIL (FOR ADMIN/CUSTOMADMIN) ====================
-
+# ==================== GET USER PROFILE BY EMAIL ====================
 @router.get("/user-profile-by-email")
 async def get_user_profile_by_email(
     email: str = Query(..., description="User email to fetch profile"),
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """
-    Get any user's profile by email - For Admin/CustomAdmin only
-    This endpoint allows admin/customadmin to view candidate profiles
-    ✅ Null / deleted documents are STRIPPED before returning.
-    """
-    # Check if user has admin access
     user_role = current_user.get("role", "").lower()
     allowed_roles = ["admin", "customadmin", "superadmin", "custom_admin"]
-
     if user_role not in allowed_roles:
-        raise HTTPException(
-            status_code=403,
-            detail="Access denied. Only admin can view other user profiles."
-        )
+        raise HTTPException(status_code=403,
+            detail="Access denied. Only admin can view other user profiles.")
 
-    # Fetch profile by email
     profile = await db.profile.find_one({"email": email})
 
     if not profile:
-        # Try to get from auth if profile doesn't exist
         auth_user = await db.auth.find_one({"email": email})
         if auth_user:
             profile = {
@@ -1612,41 +1561,20 @@ async def get_user_profile_by_email(
         else:
             raise HTTPException(status_code=404, detail=f"User with email {email} not found")
 
-    # Convert ObjectId to string
     if "_id" in profile:
         profile["_id"] = str(profile["_id"])
 
-    # Ensure all fields exist with defaults
     profile = _ensure_profile_defaults(profile)
-
-    # ✅ STRIP all null / deleted / empty documents
     profile = _clean_documents_in_profile(profile)
 
-    return {
-        "success": True,
-        "data": profile,
-        "message": "Profile fetched successfully"
-    }
+    return {"success": True, "data": profile, "message": "Profile fetched successfully"}
 
 
 def _ensure_profile_defaults(profile: dict) -> dict:
-    """Ensure all profile fields have default values"""
-
-    # Basic fields
     defaults = {
-        "full_name": "",
-        "first_name": "",
-        "middle_name": "",
-        "last_name": "",
-        "phone": "",
-        "dob": "",
-        "gender": "Male",
-        "blood_group": "",
-        "nationality": "Indian",
-        "religion": "",
-        "category": "General/UR",
-
-        # Disability
+        "full_name": "", "first_name": "", "middle_name": "", "last_name": "",
+        "phone": "", "dob": "", "gender": "Male", "blood_group": "",
+        "nationality": "Indian", "religion": "", "category": "General/UR",
         "disability": {
             "is_disabled": False,
             "disability_category": "LD (Learning Disability)",
@@ -1655,88 +1583,44 @@ def _ensure_profile_defaults(profile: dict) -> dict:
             "physically_challenged": "No",
             "certificate_verified": False
         },
-
-        # Family
-        "father_name": "",
-        "mother_name": "",
-        "guardian_name": "",
-        "spouse_name": "",
-        "marital_status": "Unmarried",
-        "family_annual_income": None,
-        "number_of_dependents": None,
-
-        # Contact
-        "alternate_mobile": "",
-        "whatsapp_number": "",
+        "father_name": "", "mother_name": "", "guardian_name": "", "spouse_name": "",
+        "marital_status": "Unmarried", "family_annual_income": None, "number_of_dependents": None,
+        "alternate_mobile": "", "whatsapp_number": "",
         "emergency_contact": {"name": "", "relationship": "", "phone": ""},
-
-        # Address
         "current_address": {
             "house_number": "", "village_name": "", "post_office": "",
             "tehsil": "", "district": "", "state": "", "pincode": "",
             "landmark": "", "country": "India"
         },
-        "permanent_address": {},
-        "same_as_current": True,
-
-        # Professional
-        "summary": "",
-        "career_objective": "",
-
-        # Social Links
+        "permanent_address": {}, "same_as_current": True,
+        "summary": "", "career_objective": "",
         "social_links": {"linkedin": "", "github": "", "portfolio": ""},
-
-        # Education, Experience, Skills
-        "academic_records": [],
-        "experience": [],
-        "skills": [],
-        "certifications": [],
-        "projects": [],
-        "languages_known": [],
-
-        # Resume
-        "resume_url": "",
-
-        # Other
-        "created_at": None,
-        "updated_at": None
+        "academic_records": [], "experience": [], "skills": [],
+        "certifications": [], "projects": [], "languages_known": [],
+        "resume_url": "", "created_at": None, "updated_at": None
     }
-
-    # Apply defaults for missing fields
     for key, default_value in defaults.items():
         if key not in profile:
             profile[key] = default_value
         elif isinstance(default_value, dict) and isinstance(profile[key], dict):
-            # For nested dicts, apply defaults for missing keys
             for sub_key, sub_default in default_value.items():
                 if sub_key not in profile[key]:
                     profile[key][sub_key] = sub_default
-
     return profile
 
 
 # ==================== DOCUMENT MANAGEMENT ENDPOINTS ====================
-
-# Allowed MIME types for document uploads
 ALLOWED_MIME_TYPES = {
-    # Images
     'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif',
-    # PDF
-    'application/pdf',
-    # Word documents
-    'application/msword',
+    'application/pdf', 'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    # Excel
     'application/vnd.ms-excel',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    # PowerPoint
     'application/vnd.ms-powerpoint',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    # Text files
     'text/plain', 'text/csv',
 }
 
-# Allowed file extensions (fallback)
 ALLOWED_EXTENSIONS = {
     'pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif',
     'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv'
@@ -1751,7 +1635,9 @@ async def upload_user_document_endpoint(
     db=Depends(get_db)
 ):
     """
-    Upload a document to Cloudinary and save URL to user profile
+    Upload document to Cloudinary.
+    ✅ If document_type is a profile-photo key, ALSO syncs top-level fields
+    and triggers resume rebuild.
     """
     from app.core.services.cloudinary import upload_user_document
 
@@ -1762,39 +1648,29 @@ async def upload_user_document_endpoint(
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="Document file is required")
 
-    # Check by MIME type first (more reliable)
     content_type = file.content_type
     file_ext = file.filename.split('.')[-1].lower() if file.filename else ''
 
     is_allowed = False
-
-    # Check MIME type
     if content_type and content_type in ALLOWED_MIME_TYPES:
         is_allowed = True
-    # Fallback to extension check
     elif file_ext in ALLOWED_EXTENSIONS:
         is_allowed = True
-    # Also check for image/jpeg variations
     elif content_type and content_type.startswith('image/'):
         is_allowed = True
 
     if not is_allowed:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid file type. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
-        )
+        raise HTTPException(status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}")
 
-    # Check file size (max 10MB)
     file_content = await file.read()
     file_size = len(file_content)
     await file.seek(0)
 
-    max_size = 10 * 1024 * 1024  # 10MB
+    max_size = 10 * 1024 * 1024
     if file_size > max_size:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File too large. Max size: 10MB, Your file: {file_size // (1024*1024)}MB"
-        )
+        raise HTTPException(status_code=400,
+            detail=f"File too large. Max size: 10MB, Your file: {file_size // (1024*1024)}MB")
 
     try:
         username = email.split('@')[0]
@@ -1805,17 +1681,49 @@ async def upload_user_document_endpoint(
             document_type="documents"
         )
 
-        # Update profile with document URL
+        # Save to additional_details
         await db.profile.update_one(
             {"email": email},
-            {
-                "$set": {
-                    f"additional_details.{document_type}": upload_result["url"],
-                    "updated_at": datetime.utcnow()
-                }
-            },
+            {"$set": {
+                f"additional_details.{document_type}": upload_result["url"],
+                "updated_at": datetime.utcnow()
+            }},
             upsert=True
         )
+
+        # ✅ PROFILE PHOTO SPECIAL CASE — mirror to top-level + rebuild resume
+        is_profile_photo = document_type in (
+            "profile_photo_url", "profile_photo",
+            "profile_picture", "profile_picture_url"
+        )
+        resume_rebuilt = False
+
+        if is_profile_photo:
+            await db.profile.update_one(
+                {"email": email},
+                {"$set": {
+                    "profile_photo_url": upload_result["url"],
+                    "profile_photo_public_id": upload_result.get("public_id"),
+                    "profile_photo_updated_at": datetime.utcnow(),
+                }},
+                upsert=True
+            )
+            try:
+                from app.modules.resume.service import ResumeService
+                resume_service = ResumeService(db)
+                resume_data = await resume_service.get_profile_resume(email)
+                html = await resume_service.generate_resume_html(email, resume_data)
+                await db.profile.update_one(
+                    {"email": email},
+                    {"$set": {
+                        "resume_cache_html": html,
+                        "resume_cache_updated_at": datetime.utcnow(),
+                    }},
+                )
+                resume_rebuilt = True
+                logger.info(f"✅ Resume auto-rebuilt after profile photo (via documents) for {email}")
+            except Exception as re:
+                logger.warning(f"⚠️ Resume auto-rebuild (via documents) failed: {re}")
 
         return {
             "success": True,
@@ -1824,7 +1732,9 @@ async def upload_user_document_endpoint(
             "document_type": document_type,
             "filename": file.filename,
             "public_id": upload_result.get("public_id"),
-            "file_size_kb": file_size // 1024
+            "file_size_kb": file_size // 1024,
+            "is_profile_photo": is_profile_photo,
+            "resume_rebuilt": resume_rebuilt,
         }
 
     except Exception as e:
@@ -1838,9 +1748,6 @@ async def update_profile_field(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """
-    Update specific profile fields (for document URLs)
-    """
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1870,9 +1777,6 @@ async def update_document_url(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """
-    Update document URL in profile
-    """
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -1885,12 +1789,10 @@ async def update_document_url(
 
     result = await db.profile.update_one(
         {"email": email},
-        {
-            "$set": {
-                f"additional_details.{document_key}": document_url,
-                "updated_at": datetime.utcnow()
-            }
-        },
+        {"$set": {
+            f"additional_details.{document_key}": document_url,
+            "updated_at": datetime.utcnow()
+        }},
         upsert=True
     )
 
@@ -1907,27 +1809,19 @@ async def delete_document(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """
-    Delete document URL from profile (remove reference completely).
-    Uses $unset so the key is REMOVED from MongoDB — not set to null.
-    Also removes the file from Cloudinary for full cleanup.
-    """
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
 
     document_key = data.get("document_key")
-
     if not document_key:
         raise HTTPException(status_code=400, detail="Document key is required")
 
-    # Fetch existing URL & public_id first (for Cloudinary cleanup)
     profile = await db.profile.find_one({"email": email})
     additional = (profile or {}).get("additional_details", {}) or {}
     old_url = additional.get(document_key) or (profile or {}).get(document_key)
     old_public_id = additional.get(f"{document_key}_public_id")
 
-    # Try deleting from Cloudinary (best-effort)
     if old_public_id or old_url:
         try:
             from app.core.services.cloudinary import delete_from_cloudinary
@@ -1936,19 +1830,14 @@ async def delete_document(
             resource_type = "raw"
 
             if not public_id and old_url:
-                # Try to infer public_id from URL
-                # Cloudinary URLs look like:
-                # https://res.cloudinary.com/xxx/raw/upload/v123/folder/file.pdf
                 try:
                     parts = old_url.split("/upload/")
                     if len(parts) == 2:
                         tail = parts[1]
-                        # Remove version prefix v1234/
                         if tail.startswith("v"):
                             slash = tail.find("/")
                             if slash != -1:
                                 tail = tail[slash + 1:]
-                        # Remove extension for raw
                         if tail.endswith(".pdf"):
                             tail = tail[:-4]
                         public_id = tail
@@ -1964,8 +1853,6 @@ async def delete_document(
         except Exception as e:
             logger.warning(f"Cloudinary delete skipped: {e}")
 
-    # ✅ $unset — this REMOVES the key from MongoDB
-    # Deleted documents will NEVER appear in subsequent API responses
     unset_fields = {
         f"additional_details.{document_key}": "",
         f"additional_details.{document_key}_public_id": "",
@@ -1974,10 +1861,7 @@ async def delete_document(
 
     result = await db.profile.update_one(
         {"email": email},
-        {
-            "$unset": unset_fields,
-            "$set": {"updated_at": datetime.utcnow()}
-        }
+        {"$unset": unset_fields, "$set": {"updated_at": datetime.utcnow()}}
     )
 
     return {
@@ -1992,36 +1876,24 @@ async def get_user_documents(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """
-    Get all documents for the current user.
-    ✅ Null / deleted documents are automatically stripped.
-    """
     email = current_user.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="User email not found")
 
     profile = await db.profile.find_one({"email": email})
-
     if not profile:
         return {"success": True, "documents": {}}
 
-    # ✅ Strip null/deleted docs before returning
     profile = _clean_documents_in_profile(dict(profile))
-
-    # Extract all document URLs from additional_details
     additional = profile.get("additional_details", {}) or {}
 
-    # Every document key we care about
     documents = {}
     for key in DOCUMENT_KEYS:
         val = additional.get(key) or profile.get(key)
         if _is_valid_doc_url(val):
             documents[key] = val
 
-    return {
-        "success": True,
-        "documents": documents
-    }
+    return {"success": True, "documents": documents}
 
 
 @router.get("/user-documents-by-email")
@@ -2030,11 +1902,6 @@ async def get_user_documents_by_email(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """
-    Get ALL documents of a user by email - for admin/customadmin.
-    ✅ Null / deleted documents are automatically stripped.
-    Returns { 'documents': { key: url } }
-    """
     user_role = current_user.get("role", "").lower()
     allowed = ["admin", "customadmin", "super_admin", "superadmin"]
     if user_role not in allowed:
@@ -2042,15 +1909,12 @@ async def get_user_documents_by_email(
 
     profile = await db.profile.find_one({"email": email})
     if not profile:
-        # Fallback to auth to avoid breaking UI
         auth_user = await db.auth.find_one({"email": email})
         if not auth_user:
             raise HTTPException(status_code=404, detail="User not found")
         return {"success": True, "documents": {}}
 
-    # ✅ Strip null/deleted docs before returning
     profile = _clean_documents_in_profile(dict(profile))
-
     additional = profile.get("additional_details", {}) or {}
 
     documents = {}
@@ -2066,3 +1930,4 @@ async def get_user_documents_by_email(
 print("✅ User routes loaded with Ultra AI features + DELETE education/experience")
 print("✅ /full-profile now accepts optional email param for admin viewing candidate")
 print("✅ Null / deleted documents are STRIPPED from every response")
+print("✅ NEW: /upload-profile-photo — auto-rebuilds resume after photo upload")

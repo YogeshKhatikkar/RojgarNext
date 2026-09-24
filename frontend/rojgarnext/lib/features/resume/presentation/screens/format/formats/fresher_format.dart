@@ -1,6 +1,5 @@
 // lib/features/resume/presentation/screens/format/formats/fresher_format.dart
-// ✅ PROPER FresherFormat — Teal education-first layout
-// ✅ Full page coverage
+// ✅ Teal education-first layout with profile photo support
 
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
@@ -30,9 +29,6 @@ class FresherFormat extends ResumeFormatBase {
   static const Color _bg = Color(0xFFE0F2F1);
   static const Color _bodyBg = Color(0xFFF1FDFB);
 
-  // ============================================================
-  // 1️⃣ HTML — for WebView / print
-  // ============================================================
   @override
   String generateHtml(Map<String, dynamic> resumeData) {
     final name = getString(resumeData, 'user_info', 'full_name');
@@ -46,9 +42,14 @@ class FresherFormat extends ResumeFormatBase {
     final certifications = getList(resumeData, 'certifications');
     final projects = getList(resumeData, 'projects');
     final designation = pDesignation(resumeData);
+    final photoUrl = pProfilePhotoUrl(resumeData);
 
     final desigHtml = designation.isNotEmpty
         ? '<div style="font-size:12px;color:rgba(255,255,255,.85);">${escapeHtml(designation)}</div>'
+        : '';
+
+    final photoHtml = photoUrl != null
+        ? '<img src="${escapeHtml(photoUrl)}" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #fff;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;" onerror="this.style.display=\'none\'" />'
         : '';
 
     return '''
@@ -76,6 +77,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#E0F2F1;padding:30px 2
 <div class="resume-container">
   <div class="sidebar">
     <div class="header">
+      $photoHtml
       <div class="name">${escapeHtml(name)}</div>
       $desigHtml
       <div style="font-size:11px;margin-top:10px;line-height:1.6;">
@@ -114,9 +116,6 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#E0F2F1;padding:30px 2
 </body></html>''';
   }
 
-  // ============================================================
-  // 2️⃣ FLUTTER PREVIEW
-  // ============================================================
   @override
   Widget buildPreview(BuildContext context, Map<String, dynamic> data) {
     final u = pMap(data['user_info']);
@@ -132,6 +131,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#E0F2F1;padding:30px 2
     final certs = pList(data['certifications']);
     final projects = pList(data['projects']);
     final designation = pDesignation(data);
+    final photoUrl = pProfilePhotoUrl(data);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -162,6 +162,22 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#E0F2F1;padding:30px 2
                           ),
                           child: Column(
                             children: [
+                              if (photoUrl != null) ...[
+                                pProfilePhoto(
+                                  url: photoUrl,
+                                  size: 78,
+                                  borderColor: Colors.white,
+                                  borderWidth: 2.5,
+                                ),
+                                const SizedBox(height: 10),
+                              ] else ...[
+                                pInitialsAvatar(
+                                  name: name,
+                                  size: 78,
+                                  bgColor: _teal,
+                                ),
+                                const SizedBox(height: 10),
+                              ],
                               Text(name,
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
@@ -362,10 +378,6 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#E0F2F1;padding:30px 2
         ),
       );
 
-  // ============================================================
-  // 3️⃣ PDF CONTENT — format owns its own layout
-  // ✅ FIXED: full page height + ASCII bullets
-  // ============================================================
   @override
   pw.Widget buildPdfContent(
     Map<String, dynamic> data,
@@ -416,6 +428,13 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#E0F2F1;padding:30px 2
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
+                      pdfProfilePhoto(
+                        data: data,
+                        size: 76,
+                        borderColor: PdfColors.white,
+                        borderWidth: 2.5,
+                      ),
+                      pw.SizedBox(height: 8),
                       pw.Text(pdfSafe(name),
                           textAlign: pw.TextAlign.center,
                           style: pw.TextStyle(

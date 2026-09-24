@@ -1,5 +1,6 @@
 // lib/features/resume/presentation/screens/format/formats/government_format.dart
-// ✅ FIXED: All Unicode chars (—, •) replaced with ASCII for Helvetica font
+// ✅ FIXED: All Unicode chars replaced with ASCII for Helvetica font
+// ✅ NEW: Profile photo shown in place of PHOTOGRAPH placeholder
 
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
@@ -42,6 +43,7 @@ class GovernmentFormat extends ResumeFormatBase {
     final skills = getSkills(resumeData);
     final certifications = getList(resumeData, 'certifications');
     final objective = getString(resumeData, 'career_objective', '');
+    final photoUrl = pProfilePhotoUrl(resumeData);
 
     String eduRows = '';
     int idx = 1;
@@ -49,6 +51,10 @@ class GovernmentFormat extends ResumeFormatBase {
       final x = pMap(e);
       eduRows += '<tr><td>${idx++}</td><td>${escapeHtml(pEduTitle(x))}</td><td>${escapeHtml(pStr(x['institute']))}</td><td>${escapeHtml(pStr(x['year_of_passing'] ?? x['year']))}</td><td>${escapeHtml(pStr(x['cgpa_percentage'] ?? x['result'] ?? ''))}</td></tr>';
     }
+
+    final photoBlock = photoUrl != null
+        ? '<img src="${escapeHtml(photoUrl)}" style="width:110px;height:130px;object-fit:cover;border:2px solid #374151;background:#f3f4f6;display:inline-block;" onerror="this.style.display=\'none\'" />'
+        : '<div class="photo-box">PHOTOGRAPH</div>';
 
     return '''
 <!DOCTYPE html>
@@ -76,7 +82,7 @@ th{background:#F3F4F6;font-weight:bold;color:#1F2937}
   <div class="top-header">
     <div class="title">CURRICULUM VITAE</div>
     <div style="font-size:10px;color:#6B7280;margin-top:4px;">(As per Government / PSU Format)</div>
-    <div style="margin-top:14px;"><div class="photo-box">PHOTOGRAPH</div></div>
+    <div style="margin-top:14px;">$photoBlock</div>
     <div class="name-title">${escapeHtml(name)}</div>
   </div>
 
@@ -136,6 +142,7 @@ th{background:#F3F4F6;font-weight:bold;color:#1F2937}
     final skills = pSkills(data['skills']);
     final certs = pList(data['certifications']);
     final objective = pStr(data['career_objective']);
+    final photoUrl = pProfilePhotoUrl(data);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -166,19 +173,43 @@ th{background:#F3F4F6;font-weight:bold;color:#1F2937}
                           style: TextStyle(
                               fontSize: 10, color: Color(0xFF6B7280))),
                       const SizedBox(height: 14),
-                      Container(
-                        width: 100,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: _header, width: 2),
-                          color: _light,
+                      // ✅ Profile photo replaces the PHOTOGRAPH placeholder
+                      if (photoUrl != null)
+                        Container(
+                          width: 100,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: _header, width: 2),
+                            color: _light,
+                          ),
+                          child: Image.network(
+                            photoUrl,
+                            fit: BoxFit.cover,
+                            width: 100,
+                            height: 120,
+                            errorBuilder: (_, __, ___) => const Center(
+                              child: Text("PHOTOGRAPH",
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF6B7280))),
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          width: 100,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: _header, width: 2),
+                            color: _light,
+                          ),
+                          child: const Center(
+                            child: Text("PHOTOGRAPH",
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color: Color(0xFF6B7280))),
+                          ),
                         ),
-                        child: const Center(
-                          child: Text("PHOTOGRAPH",
-                              style: TextStyle(
-                                  fontSize: 10, color: Color(0xFF6B7280))),
-                        ),
-                      ),
                       const SizedBox(height: 12),
                       Text(name,
                           style: const TextStyle(
@@ -415,9 +446,6 @@ th{background:#F3F4F6;font-weight:bold;color:#1F2937}
             Text(t, style: const TextStyle(fontSize: 11, color: _dark)),
       );
 
-  // ============================================================
-  // PDF CONTENT — ✅ ASCII characters only (Helvetica-safe)
-  // ============================================================
   @override
   pw.Widget buildPdfContent(
     Map<String, dynamic> data,
@@ -477,6 +505,23 @@ th{background:#F3F4F6;font-weight:bold;color:#1F2937}
               pw.Text('(As per Government / PSU Format)',
                   style: const pw.TextStyle(
                       fontSize: 9, color: PdfColors.grey600)),
+              pw.SizedBox(height: 12),
+              // ✅ Profile photo (or empty box) in header
+              pw.Container(
+                width: 90,
+                height: 110,
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: accent, width: 1.5),
+                ),
+                child: pw.Center(
+                  child: pdfProfilePhoto(
+                    data: data,
+                    size: 86,
+                    borderColor: accent,
+                    borderWidth: 0,
+                  ),
+                ),
+              ),
               pw.SizedBox(height: 12),
               pw.Text(pdfSafe(name),
                   style: pw.TextStyle(
@@ -561,7 +606,6 @@ th{background:#F3F4F6;font-weight:bold;color:#1F2937}
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    // ✅ ASCII hyphen instead of em-dash
                     pw.Text(
                       pdfSafe(
                           '${pdfStr(e["role"])} - ${pdfStr(e["company"])}'),
@@ -592,7 +636,6 @@ th{background:#F3F4F6;font-weight:bold;color:#1F2937}
 
         if (certs.isNotEmpty) ...[
           pdfGovSectionTitle('CERTIFICATIONS / TRAINING', accent),
-          // ✅ ASCII hyphen/bullet instead of Unicode
           ...certs.map((crt) => pw.Text(
               '- ${pdfSafe(pdfStr(crt["name"]))}${pdfStr(crt["issuer"]).isNotEmpty ? " - ${pdfSafe(pdfStr(crt["issuer"]))}" : ""}',
               style: const pw.TextStyle(fontSize: 9))),

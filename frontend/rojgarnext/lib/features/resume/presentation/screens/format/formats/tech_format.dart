@@ -42,9 +42,14 @@ class TechFormat extends ResumeFormatBase {
     final projects = getList(resumeData, 'projects');
     final designation = pDesignation(resumeData);
     final tools = pTools(resumeData, 15);
+    final photoUrl = pProfilePhotoUrl(resumeData);
 
     final desigHtml = designation.isNotEmpty
         ? '<div style="font-size:13px;color:#06B6D4;">${escapeHtml(designation)}</div>'
+        : '';
+
+    final photoHtml = photoUrl != null
+        ? '<img src="${escapeHtml(photoUrl)}" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #06B6D4;margin-bottom:10px;" onerror="this.style.display=\'none\'" />'
         : '';
 
     return '''
@@ -56,7 +61,7 @@ body{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;background:#0F1
 .resume-container{max-width:1000px;margin:0 auto;background:#1E293B;border-radius:16px;overflow:hidden;border:1px solid #334155;display:flex}
 .sidebar{width:32%;background:#0F172A;padding:30px 22px;border-right:1px solid #334155}
 .main{width:68%;padding:30px 32px}
-.header{margin-bottom:24px;padding-bottom:20px;border-bottom:2px solid #06B6D4}
+.header{margin-bottom:24px;padding-bottom:20px;border-bottom:2px solid #06B6D4;text-align:center;}
 .name{font-size:26px;font-weight:800;color:#06B6D4}
 .section-title{font-size:12px;font-weight:700;color:#06B6D4;text-transform:uppercase;letter-spacing:1.5px;margin:20px 0 12px 0;padding-bottom:6px;border-bottom:1px dashed #334155}
 .section-title:first-child{margin-top:0}
@@ -71,6 +76,7 @@ body{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;background:#0F1
 <div class="resume-container">
   <div class="sidebar">
     <div class="header">
+      $photoHtml
       <div class="name">${escapeHtml(name)}</div>
       $desigHtml
     </div>
@@ -124,6 +130,7 @@ body{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;background:#0F1
     final projects = pList(data['projects']);
     final designation = pDesignation(data);
     final tools = pTools(data, 15);
+    final photoUrl = pProfilePhotoUrl(data);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -152,16 +159,35 @@ body{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;background:#0F1
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(name,
-                                  style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                      color: _accent)),
+                              Center(
+                                child: photoUrl != null
+                                    ? pProfilePhoto(
+                                        url: photoUrl,
+                                        size: 82,
+                                        borderColor: _accent,
+                                        borderWidth: 2.5,
+                                      )
+                                    : pInitialsAvatar(
+                                        name: name,
+                                        size: 82,
+                                        bgColor: _navy,
+                                      ),
+                              ),
+                              const SizedBox(height: 10),
+                              Center(
+                                child: Text(name,
+                                    style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w800,
+                                        color: _accent)),
+                              ),
                               if (designation.isNotEmpty) ...[
                                 const SizedBox(height: 4),
-                                Text(designation,
-                                    style: const TextStyle(
-                                        fontSize: 12, color: _accent)),
+                                Center(
+                                  child: Text(designation,
+                                      style: const TextStyle(
+                                          fontSize: 12, color: _accent)),
+                                ),
                               ],
                             ],
                           ),
@@ -387,9 +413,6 @@ body{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;background:#0F1
         ),
       );
 
-  // ============================================================
-  // PDF CONTENT — Full page + ASCII arrows
-  // ============================================================
   @override
   pw.Widget buildPdfContent(
     Map<String, dynamic> data,
@@ -437,6 +460,13 @@ body{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;background:#0F1
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
+                      pdfProfilePhoto(
+                        data: data,
+                        size: 78,
+                        borderColor: accent,
+                        borderWidth: 2,
+                      ),
+                      pw.SizedBox(height: 8),
                       pw.Text(pdfSafe(name),
                           style: pw.TextStyle(
                               fontSize: 16,

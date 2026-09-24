@@ -39,9 +39,14 @@ class ExecutiveFormat extends ResumeFormatBase {
     final skills = getSkills(resumeData);
     final certifications = getList(resumeData, 'certifications');
     final designation = pDesignation(resumeData);
+    final photoUrl = pProfilePhotoUrl(resumeData);
 
     final desigHtml = designation.isNotEmpty
         ? '<div style="font-size:13px;color:#D4AF37;">${escapeHtml(designation)}</div>'
+        : '';
+
+    final photoHtml = photoUrl != null
+        ? '<img src="${escapeHtml(photoUrl)}" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #D4AF37;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;" onerror="this.style.display=\'none\'" />'
         : '';
 
     return '''
@@ -66,6 +71,7 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
 <div class="resume-container">
   <div class="sidebar">
     <div class="header">
+      $photoHtml
       <div class="name">${escapeHtml(name)}</div>
       $desigHtml
       ${email.isNotEmpty ? '<div style="font-size:12px;color:#E2E8F0;margin-top:10px;">📧 ${escapeHtml(email)}</div>' : ''}
@@ -110,6 +116,7 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
     final skills = pSkills(data['skills']);
     final certs = pList(data['certifications']);
     final designation = pDesignation(data);
+    final photoUrl = pProfilePhotoUrl(data);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -131,6 +138,22 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
                         Center(
                           child: Column(
                             children: [
+                              if (photoUrl != null) ...[
+                                pProfilePhoto(
+                                  url: photoUrl,
+                                  size: 85,
+                                  borderColor: _gold,
+                                  borderWidth: 2.5,
+                                ),
+                              ] else ...[
+                                pInitialsAvatar(
+                                  name: name,
+                                  size: 85,
+                                  bgColor: _dark,
+                                  textColor: _gold,
+                                ),
+                              ],
+                              const SizedBox(height: 10),
                               Text(name,
                                   style: const TextStyle(
                                       fontSize: 20,
@@ -300,9 +323,6 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
         ),
       );
 
-  // ============================================================
-  // PDF CONTENT — Full page + ASCII bullets
-  // ============================================================
   @override
   pw.Widget buildPdfContent(
     Map<String, dynamic> data,
@@ -344,6 +364,13 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
+                    pdfProfilePhoto(
+                      data: data,
+                      size: 80,
+                      borderColor: gold,
+                      borderWidth: 2,
+                    ),
+                    pw.SizedBox(height: 8),
                     pw.Text(pdfSafe(name),
                         style: pw.TextStyle(
                             fontSize: 16,
