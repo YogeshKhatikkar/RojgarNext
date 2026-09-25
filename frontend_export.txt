@@ -1,7 +1,7 @@
 ================================================================================
 ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-Generated: 2026-09-25 13:32:00
+Generated: 2026-09-25 18:14:13
 Source: E:\yogesh\website\rojgarnext\frontend
 Total Files: 145
 Total Size: 3.0 MB
@@ -85432,8 +85432,8 @@ class _UserDashboardState extends State<UserDashboard> {
 
 ================================================================================
 [ 137/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/user_documents_screen.dart
-📏 SIZE: 65.5 KB
-🕐 MODIFIED: 2026-09-24 23:54:36
+📏 SIZE: 66.5 KB
+🕐 MODIFIED: 2026-09-25 13:40:26
 ================================================================================
 
 // lib/features/user/presentation/screens/user_documents_screen.dart
@@ -85688,27 +85688,34 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 
   // ============================================================
   // ✅ PICK DOCUMENT - WORKS ON MOBILE AND WEB
+  // ✅ FIXED: Profile photo only accepts IMAGES (no PDF)
   // ============================================================
   Future<void> _pickDocument() async {
     try {
+      // ✅ Detect if we're picking for profile photo
+      final isProfilePhoto = _selectedDocumentKey == 'profile_photo_url';
+
+      // Profile photo → images only. Other docs → images + PDF.
+      final allowedExtensions = isProfilePhoto
+          ? ['jpg', 'jpeg', 'png', 'webp']
+          : ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+        allowedExtensions: allowedExtensions,
         withData: true,
       );
 
       if (result != null && mounted) {
         final file = result.files.first;
 
-        // Check file extension
         final extension = file.name.toLowerCase().split('.').last;
-        if (extension != 'jpg' &&
-            extension != 'jpeg' &&
-            extension != 'png' &&
-            extension != 'pdf') {
+        if (!allowedExtensions.contains(extension)) {
           showMessage(
-              context, "❌ Only JPG, JPEG, PNG, and PDF files are supported.",
-              isError: true);
+            context,
+            "❌ Only ${allowedExtensions.join(', ').toUpperCase()} files are supported here.",
+            isError: true,
+          );
           return;
         }
 
@@ -85741,7 +85748,9 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
   }
 
   // ============================================================
-  // ✅ UPLOAD DOCUMENT — with provider sync for profile photo
+  // ✅ UPLOAD DOCUMENT — with immediate provider sync
+  // ✅ FIXED: Provider updated BEFORE setState (guaranteed order)
+  // ✅ FIXED: Uses normalized URL for provider
   // ============================================================
   Future<void> _uploadDocument() async {
     if (_selectedDocumentType == null || _selectedDocumentKey == null) {
@@ -85783,35 +85792,43 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
       if (!mounted) return;
 
       if (res.data['success'] == true) {
-        final fileUrl = res.data['url'] as String;
+        final fileUrl = (res.data['url'] ?? '').toString().trim();
         final publicId = res.data['public_id'] as String?;
 
-        if (mounted) {
-          setState(() {
-            _documents[_selectedDocumentKey!] = fileUrl;
-          });
+        if (fileUrl.isEmpty) {
+          throw Exception("Server returned no file URL");
         }
 
-        // ✅ Persist to profile DB
-        await _updateProfileDocument(_selectedDocumentKey!, fileUrl);
+        debugPrint("✅ Upload OK → $fileUrl");
 
-        // ✅ CRITICAL: Sync profile photo to global provider
+        // ========================================================
+        // ✅ STEP 1: Update provider FIRST (before any setState)
+        //    → this triggers all listeners (sidebar, resume, etc.)
+        // ========================================================
         if (_selectedDocumentKey == 'profile_photo_url' && mounted) {
           Provider.of<UserProfileProvider>(context, listen: false)
               .setProfilePhoto(url: fileUrl, publicId: publicId);
-          debugPrint(
-              "✅ Profile photo synced to provider → sidebar + resume updated");
+          debugPrint("✅ Provider updated with profile photo → $fileUrl");
         }
 
+        // ========================================================
+        // ✅ STEP 2: Persist to profile DB
+        // ========================================================
+        await _updateProfileDocument(_selectedDocumentKey!, fileUrl);
+
+        // ========================================================
+        // ✅ STEP 3: Update local state
+        // ========================================================
         if (mounted) {
-          showMessage(
-              context, "$_selectedDocumentType uploaded successfully!");
           setState(() {
+            _documents[_selectedDocumentKey!] = fileUrl;
             _selectedDocumentType = null;
             _selectedDocumentKey = null;
             _selectedFileName = null;
             _selectedFileBytes = null;
           });
+          showMessage(context,
+              "$_selectedDocumentType uploaded successfully!");
         }
       } else {
         throw Exception(res.data['message'] ?? "Upload failed");
@@ -87793,14 +87810,15 @@ enum MenuType {
 
 ================================================================================
 [ 140/ 145] 🎯 rojgarnext/lib/features/user/presentation/widgets/user_sidebar.dart
-📏 SIZE: 16.0 KB
-🕐 MODIFIED: 2026-09-25 10:07:51
+📏 SIZE: 15.3 KB
+🕐 MODIFIED: 2026-09-25 13:37:19
 ================================================================================
 
 // lib/features/user/presentation/widgets/user_sidebar.dart
 // ✅ Listens to UserProfileProvider → photo updates everywhere instantly
 // ✅ NEW: Camera icon overlay on profile photo → tap to upload
-// ✅ Same pattern as Build Resume screen
+// ✅ FIXED: No black placeholder — always shows initials on failure
+// ✅ FIXED: Auto-sync with provider on every rebuild
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kReleaseMode;
@@ -87831,7 +87849,6 @@ class UserSidebar extends StatefulWidget {
 class _UserSidebarState extends State<UserSidebar> {
   String _userName = "User";
   String _userEmail = "";
-  String? _fallbackPhotoUrl;
   bool _isLoading = true;
 
   @override
@@ -87856,7 +87873,7 @@ class _UserSidebarState extends State<UserSidebar> {
         _userName = name;
       }
 
-      // Fetch profile photo (also syncs to provider)
+      // ✅ Fetch profile + push photo to provider
       try {
         final response = await DioClient.dio.get('/user/full-profile');
         Map<String, dynamic> profile = {};
@@ -87878,14 +87895,10 @@ class _UserSidebarState extends State<UserSidebar> {
             .toString()
             .trim();
 
-        if (photoUrl.isNotEmpty && photoUrl.startsWith('http')) {
-          _fallbackPhotoUrl = photoUrl;
-
-          // ✅ Push to provider so all screens see it
-          if (mounted) {
-            Provider.of<UserProfileProvider>(context, listen: false)
-                .updateProfilePhotoFromUrl(photoUrl);
-          }
+        if (photoUrl.isNotEmpty && mounted) {
+          // ✅ Push to provider (provider validates + normalizes)
+          Provider.of<UserProfileProvider>(context, listen: false)
+              .updateProfilePhotoFromUrl(photoUrl);
         }
 
         final fullName = profile['full_name'] as String?;
@@ -87934,104 +87947,87 @@ class _UserSidebarState extends State<UserSidebar> {
     );
   }
 
+  // ============================================================
+  // ✅ PROFILE PHOTO — bulletproof version
+  // - reads from provider (single source of truth)
+  // - never shows black — falls back to initials
+  // ============================================================
   Widget _buildProfilePhoto() {
-    // ✅ Listen to provider — auto-updates when photo changes anywhere
     return Consumer<UserProfileProvider>(
       builder: (context, provider, _) {
-        final url = provider.profilePhotoUrl ?? _fallbackPhotoUrl;
+        final url = provider.profilePhotoUrl;
 
-        if (_isLoading && (url == null || url.isEmpty)) {
-          return Container(
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.grey,
-            ),
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          );
-        }
-
-        if (url != null && url.isNotEmpty) {
-          return ClipOval(
-            child: CachedNetworkImage(
-              key: ValueKey(url),
-              imageUrl: url,
-              fit: BoxFit.cover,
-              width: 80,
-              height: 80,
-              placeholder: (context, u) => Container(
+        // No photo → initials
+        if (url == null || url.trim().isEmpty) {
+          if (_isLoading) {
+            return Container(
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
                 color: Colors.grey,
-                child: const Center(
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
+              ),
+              child: const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
                   ),
                 ),
               ),
-              errorWidget: (context, u, error) => _initialsAvatar(),
-            ),
-          );
+            );
+          }
+          return _initialsAvatar();
         }
 
-        return _initialsAvatar();
+        // Has photo → render with fallback to initials
+        return ClipOval(
+          child: CachedNetworkImage(
+            key: ValueKey('sidebar_photo_${provider.version}_$url'),
+            imageUrl: url,
+            fit: BoxFit.cover,
+            width: 80,
+            height: 80,
+            fadeInDuration: const Duration(milliseconds: 200),
+            placeholder: (context, u) => _initialsAvatar(),
+            errorWidget: (context, u, error) {
+              debugPrint('❌ Sidebar photo load failed: $error');
+              return _initialsAvatar();
+            },
+          ),
+        );
       },
     );
   }
 
-  // ============================================================
-  // ✅ NEW: Open ProfilePhotoUploadDialog (same as Build Resume)
-  // ============================================================
   Future<void> _openProfilePhotoUpload() async {
     if (!mounted) return;
 
-    // Read current photo from provider (single source of truth)
     final currentUrl =
         Provider.of<UserProfileProvider>(context, listen: false)
-            .profilePhotoUrl ??
-        _fallbackPhotoUrl;
+            .profilePhotoUrl;
 
     final uploadedUrl = await ProfilePhotoUploadDialog.show(
       context,
       currentPhotoUrl: currentUrl,
     );
 
-    // ✅ Provider is already updated inside the dialog —
-    // no setState needed. But we refresh the local fallback anyway.
     if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
-      setState(() {
-        _fallbackPhotoUrl = uploadedUrl;
-      });
       debugPrint("✅ Sidebar: profile photo updated → $uploadedUrl");
+      // Provider already notified listeners — no setState needed
     }
   }
 
-  // ============================================================
-  // ✅ Profile section with camera icon overlay
-  // ============================================================
   Widget _buildProfileSection() {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // ✅ Photo + camera overlay (Stack — same as Build Resume)
           GestureDetector(
             onTap: _openProfilePhotoUpload,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // Main avatar
                 Container(
                   width: 80,
                   height: 80,
@@ -88048,8 +88044,6 @@ class _UserSidebarState extends State<UserSidebar> {
                   ),
                   child: _buildProfilePhoto(),
                 ),
-
-                // ✅ Camera icon at bottom-right
                 Positioned(
                   right: -2,
                   bottom: -2,
@@ -88083,9 +88077,7 @@ class _UserSidebarState extends State<UserSidebar> {
               ],
             ),
           ),
-
           const SizedBox(height: 12),
-
           Text(
             _userName,
             style: const TextStyle(
@@ -88106,10 +88098,7 @@ class _UserSidebarState extends State<UserSidebar> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-
           const SizedBox(height: 6),
-
-          // Small hint text
           Text(
             "Tap photo to update",
             style: TextStyle(
@@ -88118,9 +88107,7 @@ class _UserSidebarState extends State<UserSidebar> {
               fontStyle: FontStyle.italic,
             ),
           ),
-
           const SizedBox(height: 10),
-
           Container(
             height: 1,
             margin: const EdgeInsets.symmetric(horizontal: 10),
@@ -88193,7 +88180,6 @@ class _UserSidebarState extends State<UserSidebar> {
           style: TextStyle(color: Colors.white),
         ),
         onTap: () async {
-          // Clear the provider state
           if (mounted) {
             Provider.of<UserProfileProvider>(context, listen: false).clear();
           }
@@ -88209,6 +88195,9 @@ class _UserSidebarState extends State<UserSidebar> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Watch provider → any photo change anywhere rebuilds sidebar
+    context.watch<UserProfileProvider>();
+
     return Container(
       width: 280,
       color: const Color(0xFF1E293B),
@@ -88282,14 +88271,15 @@ class _UserSidebarState extends State<UserSidebar> {
 
 ================================================================================
 [ 141/ 145] 🎯 rojgarnext/lib/features/user/providers/user_profile_provider.dart
-📏 SIZE: 5.1 KB
-🕐 MODIFIED: 2026-09-25 09:54:42
+📏 SIZE: 7.4 KB
+🕐 MODIFIED: 2026-09-25 13:36:45
 ================================================================================
 
 // lib/features/user/providers/user_profile_provider.dart
 // ✅ SINGLE SOURCE OF TRUTH for profile photo across entire app
-// ✅ Notifies listeners on every change → no page reload needed
-// ✅ Added: loadProfile() + clear() methods (fixes compile errors)
+// ✅ FIXED: Image URL validation, force notify, version tracking
+// ✅ FIXED: Cloudinary raw → image URL conversion
+// ✅ FIXED: Added loadProfile() + clear() methods
 
 import 'package:flutter/foundation.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
@@ -88303,6 +88293,9 @@ class UserProfileProvider extends ChangeNotifier {
   /// Current profile photo Cloudinary public_id (for deletion)
   String? _profilePhotoPublicId;
 
+  /// Bumped on every update — forces dependent widgets to recompute
+  int _version = 0;
+
   // ============================================================
   // GETTERS
   // ============================================================
@@ -88310,52 +88303,118 @@ class UserProfileProvider extends ChangeNotifier {
   String? get profilePhotoUrl => _profilePhotoUrl;
   String? get profilePhotoPublicId => _profilePhotoPublicId;
   bool get hasPhoto => (_profilePhotoUrl ?? '').trim().isNotEmpty;
+  int get version => _version;
+
+  // ============================================================
+  // ✅ URL VALIDATOR — rejects garbage / non-image / raw-type URLs
+  // ============================================================
+  bool _isValidImageUrl(String? url) {
+    if (url == null) return false;
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return false;
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      return false;
+    }
+    final lower = trimmed.toLowerCase();
+    if (lower == 'null' ||
+        lower == 'undefined' ||
+        lower == 'none' ||
+        lower == 'n/a') {
+      return false;
+    }
+    return true;
+  }
+
+  /// ✅ Converts Cloudinary raw upload URL → image-renderable URL.
+  /// Example:
+  ///   https://res.cloudinary.com/demo/raw/upload/v1/folder/photo.jpg
+  ///   → https://res.cloudinary.com/demo/image/upload/v1/folder/photo.jpg
+  String _normalizeCloudinaryUrl(String url) {
+    try {
+      final lower = url.toLowerCase();
+
+      // Only touch Cloudinary URLs
+      if (!lower.contains('cloudinary.com')) return url;
+
+      // Skip if already image/upload or video/upload
+      if (lower.contains('/image/upload/') ||
+          lower.contains('/video/upload/')) {
+        return url;
+      }
+
+      // Convert raw/upload → image/upload
+      if (lower.contains('/raw/upload/')) {
+        final fixed = url.replaceFirst('/raw/upload/', '/image/upload/');
+        debugPrint('🔄 Converted raw URL → image URL: $fixed');
+        return fixed;
+      }
+
+      return url;
+    } catch (e) {
+      debugPrint('⚠️ URL normalize error: $e');
+      return url;
+    }
+  }
 
   // ============================================================
   // ✅ SET PROFILE PHOTO (from any upload source)
   // ============================================================
   void setProfilePhoto({required String url, String? publicId}) {
-    if (url.trim().isEmpty) {
-      clearProfilePhoto();
+    if (!_isValidImageUrl(url)) {
+      debugPrint('❌ setProfilePhoto: invalid URL → $url');
       return;
     }
-    _profilePhotoUrl = url.trim();
+
+    final normalized = _normalizeCloudinaryUrl(url.trim());
+
+    // ✅ Only notify if URL actually changed
+    final changed = _profilePhotoUrl != normalized ||
+        _profilePhotoPublicId != publicId;
+
+    _profilePhotoUrl = normalized;
     _profilePhotoPublicId = publicId;
-    notifyListeners();
-    debugPrint('✅ Provider photo set: $_profilePhotoUrl');
+
+    if (changed) {
+      _version++;
+      notifyListeners();
+      debugPrint('✅ Provider photo set (v$_version): $_profilePhotoUrl');
+    }
   }
 
-  /// Same as setProfilePhoto — alias used by ResumeScreen
+  /// Alias — used by some screens
   void updateProfilePhotoFromUrl(String url, {String? publicId}) {
     setProfilePhoto(url: url, publicId: publicId);
   }
 
   // ============================================================
-  // ✅ CLEAR PROFILE PHOTO (from delete action)
+  // ✅ CLEAR PROFILE PHOTO
   // ============================================================
   void clearProfilePhoto() {
+    final hadPhoto = (_profilePhotoUrl ?? '').isNotEmpty;
     _profilePhotoUrl = null;
     _profilePhotoPublicId = null;
-    notifyListeners();
-    debugPrint('🗑️ Provider photo cleared');
+    if (hadPhoto) {
+      _version++;
+      notifyListeners();
+      debugPrint('🗑️ Provider photo cleared (v$_version)');
+    }
   }
 
   // ============================================================
-  // ✅ NEW: loadProfile() — called from main.dart on app start
-  // Alias for fetchProfile() for backward compatibility
+  // ✅ LOAD PROFILE — called from main.dart on app start
   // ============================================================
   Future<void> loadProfile() async {
     await fetchProfile();
   }
 
   // ============================================================
-  // ✅ NEW: clear() — called from sidebar logout
-  // Clears ALL cached profile data + photo
+  // ✅ CLEAR — called from sidebar logout
   // ============================================================
   void clear() {
     _profile = null;
     _profilePhotoUrl = null;
     _profilePhotoPublicId = null;
+    _version++;
     notifyListeners();
     debugPrint('🗑️ Provider: Full profile state cleared (logout)');
   }
@@ -88378,8 +88437,9 @@ class UserProfileProvider extends ChangeNotifier {
       _profile = data;
 
       final additional = (data['additional_details'] as Map?) ?? {};
-      final photoUrl = (additional['profile_photo_url']?.toString() ??
+      final rawUrl = (additional['profile_photo_url']?.toString() ??
               data['profile_photo_url']?.toString() ??
+              data['photo_url']?.toString() ??
               '')
           .trim();
 
@@ -88387,42 +88447,47 @@ class UserProfileProvider extends ChangeNotifier {
               data['profile_photo_public_id'])
           ?.toString();
 
-      if (photoUrl.isNotEmpty) {
-        _profilePhotoUrl = photoUrl;
+      if (_isValidImageUrl(rawUrl)) {
+        final normalized = _normalizeCloudinaryUrl(rawUrl);
+        final changed = _profilePhotoUrl != normalized;
+        _profilePhotoUrl = normalized;
+        if (changed) _version++;
       } else {
         _profilePhotoUrl = null;
         _profilePhotoPublicId = null;
       }
 
       notifyListeners();
-      debugPrint('✅ Provider profile fetched — photo: $_profilePhotoUrl');
+      debugPrint('✅ Provider profile fetched (v$_version) — photo: $_profilePhotoUrl');
     } catch (e) {
       debugPrint('❌ Provider fetchProfile failed: $e');
     }
   }
 
   // ============================================================
-  // ✅ REFRESH FROM BACKEND (safe — keeps old value on failure)
+  // ✅ REFRESH FROM BACKEND
   // ============================================================
   Future<void> refresh() async {
     await fetchProfile();
   }
 
   // ============================================================
-  // ✅ FULL PROFILE UPDATE (for other profile screens)
+  // ✅ FULL PROFILE UPDATE
   // ============================================================
   void updateProfile(Map<String, dynamic> newProfile) {
     _profile = newProfile;
     final additional = (newProfile['additional_details'] as Map?) ?? {};
-    final photoUrl = (additional['profile_photo_url']?.toString() ??
+    final rawUrl = (additional['profile_photo_url']?.toString() ??
             newProfile['profile_photo_url']?.toString() ??
             '')
         .trim();
-    if (photoUrl.isNotEmpty) {
-      _profilePhotoUrl = photoUrl;
+
+    if (_isValidImageUrl(rawUrl)) {
+      _profilePhotoUrl = _normalizeCloudinaryUrl(rawUrl);
     } else {
       _profilePhotoUrl = null;
     }
+    _version++;
     notifyListeners();
   }
 }
@@ -88783,5 +88848,5 @@ flutter:
 🎉 EXPORT COMPLETED!
 ================================================================================
 Total Files: 145
-Generated: 2026-09-25 13:32:01
+Generated: 2026-09-25 18:14:14
 ================================================================================

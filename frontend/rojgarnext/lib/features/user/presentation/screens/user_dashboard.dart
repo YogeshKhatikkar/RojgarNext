@@ -3,6 +3,8 @@
 // ✅ ZERO DATABASE QUERIES ON INITIAL LOAD
 // ✅ PURE CACHE FIRST - Shows data instantly
 // ✅ BACKGROUND REFRESH - Updates silently
+// ✅ FIXED: MPIN page no longer disposed when keyboard opens
+// ✅ FIXED: Cached email + stable AnimatedSwitcher key
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -17,6 +19,7 @@ import 'package:rojgarnext/features/user/AI/user_ai_service.dart';
 import 'package:provider/provider.dart';
 import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 import 'package:rojgarnext/features/resume/presentation/widgets/profile_photo_upload_dialog.dart';
+
 // Screens
 import 'basic_details_screen.dart';
 import 'advanced_details_screen.dart';
@@ -62,6 +65,10 @@ class _UserDashboardState extends State<UserDashboard> {
   bool _isLoading = false; // ✅ FALSE BY DEFAULT - Show instantly
   bool _isDataReady = false;
 
+  // ==================== ✅ CACHED EMAIL FOR MPIN (FIX) ====================
+  String? _cachedMpinEmail;
+  bool _mpinEmailLoaded = false;
+
   // ==================== DRAWER ====================
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -72,6 +79,31 @@ class _UserDashboardState extends State<UserDashboard> {
     _loadFromCacheSync();
     // ✅ Refresh in background (async)
     _refreshInBackground();
+    // ✅ FIX: Load email ONCE for MPIN page (prevents re-dispose)
+    _loadMpinEmail();
+  }
+
+  // ============================================================
+  // ✅ NEW: Load MPIN email ONCE — prevents MpinSetupPage recreation
+  // ============================================================
+  Future<void> _loadMpinEmail() async {
+    try {
+      final email = await SecureStorage.getEmail();
+      if (mounted) {
+        setState(() {
+          _cachedMpinEmail = email;
+          _mpinEmailLoaded = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('⚠️ _loadMpinEmail error: $e');
+      if (mounted) {
+        setState(() {
+          _cachedMpinEmail = null;
+          _mpinEmailLoaded = true;
+        });
+      }
+    }
   }
 
   // ============================================================
@@ -98,7 +130,7 @@ class _UserDashboardState extends State<UserDashboard> {
           debugPrint("✅ Dashboard loaded from CACHE in < 10ms!");
           return;
         }
-        
+
         // No cache, set default values and show loading
         if (mounted) {
           setState(() {
@@ -149,11 +181,11 @@ class _UserDashboardState extends State<UserDashboard> {
       // Extract only what's needed
       final profileData = profileWithApps['profile'] ?? {};
       final appliedCount = profileWithApps['total_applications'] ?? 0;
-      
+
       final completion = careerAnalysis['profile_completion_percentage'] ??
           careerAnalysis['overall_score'] ??
           0;
-      
+
       final score = careerAnalysis['overall_score'] ?? 0;
 
       // Get user name from profile
@@ -166,7 +198,8 @@ class _UserDashboardState extends State<UserDashboard> {
 
       if (mounted) {
         setState(() {
-          _profileCompletion = completion is int ? completion : (completion?.toInt() ?? 0);
+          _profileCompletion =
+              completion is int ? completion : (completion?.toInt() ?? 0);
           _appliedJobsCount = appliedCount;
           _careerScore = score is int ? score : (score?.toInt() ?? 0);
           _isDataReady = true;
@@ -201,8 +234,8 @@ class _UserDashboardState extends State<UserDashboard> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('dashboard_cache', jsonEncode(data));
-      await prefs.setInt('dashboard_cache_time',
-          DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt(
+          'dashboard_cache_time', DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
       // Silently fail
     }
@@ -364,6 +397,7 @@ class _UserDashboardState extends State<UserDashboard> {
 
   // ============================================================
   // ✅ GET RIGHT CONTENT
+  // ✅ FIXED: MPIN case now uses cached email (no FutureBuilder)
   // ============================================================
   Widget _getRightContent() {
     if (_showApplicationDetail && _selectedApplication != null) {
@@ -430,57 +464,65 @@ class _UserDashboardState extends State<UserDashboard> {
           isForgotFlow: false,
           isEmbedded: true,
         );
+
+      // ============================================================
+      // ✅ FIXED MPIN CASE — uses cached email, no FutureBuilder
+      // This ensures the widget type NEVER changes on parent rebuild,
+      // so AnimatedSwitcher NEVER disposes MpinSetupPage.
+      // ============================================================
       case MenuType.mpin:
-        return FutureBuilder<String?>(
-          future: SecureStorage.getEmail(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final email = snapshot.data;
-            if (email == null || email.isEmpty) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 48, color: Colors.red),
-                    SizedBox(height: 16),
-                    Text("Please login with email & password first"),
-                  ],
-                ),
-              );
-            }
-            return MpinSetupPage(email: email);
-          },
+        if (!_mpinEmailLoaded) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+        if (_cachedMpinEmail == null || _cachedMpinEmail!.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: Colors.red),
+                SizedBox(height: 16),
+                Text("Please login with email & password first"),
+              ],
+            ),
+          );
+        }
+        return MpinSetupPage(
+          key: const ValueKey('mpin_setup_page_stable'),
+          email: _cachedMpinEmail!,
         );
+
+      // ============================================================
+      // ✅ FIXED BIOMETRIC CASE — same pattern, cached email
+      // ============================================================
       case MenuType.biometric:
-        return FutureBuilder<String?>(
-          future: SecureStorage.getEmail(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final email = snapshot.data;
-            if (email == null || email.isEmpty) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 48, color: Colors.red),
-                    SizedBox(height: 16),
-                    Text("Please login with email & password first"),
-                  ],
-                ),
-              );
-            }
-            return FingerprintSetupPage(email: email);
-          },
+        if (!_mpinEmailLoaded) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+        if (_cachedMpinEmail == null || _cachedMpinEmail!.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: Colors.red),
+                SizedBox(height: 16),
+                Text("Please login with email & password first"),
+              ],
+            ),
+          );
+        }
+        return FingerprintSetupPage(
+          key: const ValueKey('fingerprint_setup_page_stable'),
+          email: _cachedMpinEmail!,
         );
 
       case MenuType.support:
         return const SupportScreen();
       case MenuType.locationTest:
-        return LocationTestScreen();
+        return const LocationTestScreen();
     }
   }
 
@@ -908,6 +950,7 @@ class _UserDashboardState extends State<UserDashboard> {
 
   // ============================================================
   // ✅ MAIN BUILD
+  // ✅ FIXED: AnimatedSwitcher now uses a STABLE key
   // ============================================================
   @override
   Widget build(BuildContext context) {
@@ -1065,6 +1108,12 @@ class _UserDashboardState extends State<UserDashboard> {
                                   ],
                                 ),
                               ),
+                            // ============================================================
+                            // ✅ FIXED: AnimatedSwitcher now uses a STABLE key
+                            // based on selectedMenu only. When the parent rebuilds
+                            // (e.g. keyboard opens), the key does NOT change, so
+                            // AnimatedSwitcher NEVER disposes MpinSetupPage.
+                            // ============================================================
                             Expanded(
                               child: AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 280),
@@ -1073,7 +1122,12 @@ class _UserDashboardState extends State<UserDashboard> {
                                   return FadeTransition(
                                       opacity: animation, child: child);
                                 },
-                                child: _getRightContent(),
+                                child: KeyedSubtree(
+                                  key: ValueKey(
+                                    'menu_${selectedMenu.name}_${_showJobDetail}_${_showApplicationDetail}',
+                                  ),
+                                  child: _getRightContent(),
+                                ),
                               ),
                             ),
                           ],

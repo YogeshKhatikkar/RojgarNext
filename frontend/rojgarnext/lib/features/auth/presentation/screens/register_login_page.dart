@@ -1,6 +1,7 @@
 // lib/features/auth/presentation/screens/register_login_page.dart
 // ✅ AI‑BASED MODERN DESIGN (light gradient, glass containers, consistent with other screens)
 // ✅ MPIN Login Button Always Visible (fixed)
+// ✅ MPIN section: NO scrollbar, email + keypad + button fit on screen (web & mobile)
 // ✅ All original logic preserved (login, register, MPIN, biometric, password strength)
 
 import 'package:flutter/material.dart';
@@ -129,25 +130,29 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
             decoration: _buildGradientBackground(),
             child: SafeArea(
               child: Center(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
+                child: Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: isMobile ? 16 : 32,
                     vertical: 20,
                   ),
                   child: Container(
                     width: isMobile ? double.infinity : 440,
+                    // ✅ Allow the container to shrink/grow with available height
+                    constraints: BoxConstraints(
+                      maxHeight: size.height - (isMobile ? 80 : 120),
+                    ),
                     padding: const EdgeInsets.all(24),
                     decoration: _buildGlassContainerDecoration(),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _buildHeader(),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
                         _buildTabBar(),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          height: _tabController.index == 0 ? 650 : 540,
+                        const SizedBox(height: 20),
+                        // ✅ Expanded gives TabBarView the remaining height so it
+                        //    can be laid out without a hard-coded pixel height.
+                        Expanded(
                           child: TabBarView(
                             controller: _tabController,
                             physics: const NeverScrollableScrollPhysics(),
@@ -211,7 +216,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
@@ -228,10 +233,10 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           child: const Icon(
             Icons.work_outline,
             color: Colors.white,
-            size: 36,
+            size: 30,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
             colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
@@ -239,7 +244,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           child: const Text(
             "RojgarNext",
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.white,
               letterSpacing: 1,
@@ -250,7 +255,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
         Text(
           "Find Your Dream Job",
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 13,
             color: Colors.grey.shade600,
           ),
         ),
@@ -334,12 +339,15 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+        // ✅ Email / Fingerprint tabs may scroll; MPIN tab handles its own layout.
         Expanded(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: _getLoginContent(auth),
-          ),
+          child: _loginMethodIndex == 1
+              ? _buildMpinLogin(auth)
+              : SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: _getLoginContent(auth),
+                ),
         ),
       ],
     );
@@ -469,7 +477,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
   }
 
   // ============================================================
-  // MPIN LOGIN (Button Always Visible)
+  // MPIN LOGIN – NO SCROLL, BUTTON ALWAYS VISIBLE
   // ============================================================
   Widget _buildMpinLogin(AuthController auth) {
     final TextEditingController localPinCtrl = TextEditingController();
@@ -477,72 +485,42 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
 
     return StatefulBuilder(
       builder: (context, setMpinState) {
-        final bool isPinComplete = localPinCtrl.text.length == 6;
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            // ✅ Responsive sizing so the pad + button fit on short screens.
+            final isShort = constraints.maxHeight < 560;
+            final double numberBtnHeight = isShort ? 40 : 50;
+            final double numberBtnWidth = isShort ? 52 : 60;
+            final double padSpacing = isShort ? 8 : 12;
+            final double topSpacing = isShort ? 12 : 20;
 
-        return Column(
-          children: [
-            _buildTextField(mpinEmailCtrl, "Email Address", Icons.email_outlined),
-            const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: _buildGlassContainerDecoration(),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                // ✅ IntrinsicHeight gives the Column a bounded height so
+                //    Spacer() (which uses Expanded internally) works.
+                //    Without it, Spacer collapses to size 0 → the
+                //    "Cannot hit test a render box with no size" error.
+                child: IntrinsicHeight(
+                  child: Column(
                     children: [
+                      _buildTextField(
+                          mpinEmailCtrl, "Email Address", Icons.email_outlined),
+                      SizedBox(height: topSpacing),
                       Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                          ),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.pin, color: Colors.white, size: 18),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        "Enter 6-Digit MPIN",
-                        style: TextStyle(
-                          color: Colors.grey.shade800,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(6, (index) {
-                          final String text = localPinCtrl.text;
-                          final bool isFilled = index < text.length;
-                          final String displayChar =
-                              obscurePin ? '•' : (isFilled ? text[index] : '');
-
-                          return Container(
-                            width: 42,
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            child: Column(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(isShort ? 12 : 16),
+                        decoration: _buildGlassContainerDecoration(),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(
-                                  isFilled ? displayChar : '',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: isFilled
-                                        ? Colors.grey.shade800
-                                        : Colors.transparent,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 6),
                                 Container(
-                                  height: 2,
+                                  padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
                                     gradient: const LinearGradient(
                                       colors: [
@@ -550,104 +528,173 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                                         Color(0xFFFF6588),
                                       ],
                                     ),
-                                    borderRadius: BorderRadius.circular(1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.pin,
+                                      color: Colors.white, size: 16),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Enter 6-Digit MPIN",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade800,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
                             ),
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildNumberPad(
-                        onNumberPressed: (number) {
-                          String current = localPinCtrl.text;
-                          if (current.length < 6) {
-                            String newValue = current + number;
-                            setMpinState(() {
-                              localPinCtrl.text = newValue;
-                              pinCtrl.text = newValue;
-                            });
-                          }
-                        },
-                        onDeletePressed: () {
-                          String current = localPinCtrl.text;
-                          if (current.isNotEmpty) {
-                            String newValue = current.substring(0, current.length - 1);
-                            setMpinState(() {
-                              localPinCtrl.text = newValue;
-                              pinCtrl.text = newValue;
-                            });
-                          }
-                        },
-                        onClearPressed: () {
-                          setMpinState(() {
-                            localPinCtrl.clear();
-                            pinCtrl.clear();
-                          });
-                        },
-                        obscurePin: obscurePin,
-                        onToggleObscure: () {
-                          setMpinState(() {
-                            obscurePin = !obscurePin;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF6C63FF).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.security,
-                              size: 14,
-                              color: Color(0xFF6C63FF),
+                            SizedBox(height: isShort ? 12 : 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(6, (index) {
+                                final String text = localPinCtrl.text;
+                                final bool isFilled = index < text.length;
+                                final String displayChar = obscurePin
+                                    ? '•'
+                                    : (isFilled ? text[index] : '');
+
+                                return Container(
+                                  width: isShort ? 34 : 40,
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 3),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        isFilled ? displayChar : '',
+                                        style: TextStyle(
+                                          fontSize: isShort ? 18 : 22,
+                                          fontWeight: FontWeight.bold,
+                                          color: isFilled
+                                              ? Colors.grey.shade800
+                                              : Colors.transparent,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        height: 2,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [
+                                              Color(0xFF6C63FF),
+                                              Color(0xFFFF6588),
+                                            ],
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(1),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              "Secure MPIN Login",
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: const Color(0xFF6C63FF),
+                            SizedBox(height: isShort ? 10 : 14),
+                            _buildNumberPad(
+                              numberBtnWidth: numberBtnWidth,
+                              numberBtnHeight: numberBtnHeight,
+                              padSpacing: padSpacing,
+                              onNumberPressed: (number) {
+                                String current = localPinCtrl.text;
+                                if (current.length < 6) {
+                                  String newValue = current + number;
+                                  setMpinState(() {
+                                    localPinCtrl.text = newValue;
+                                    pinCtrl.text = newValue;
+                                  });
+                                }
+                              },
+                              onDeletePressed: () {
+                                String current = localPinCtrl.text;
+                                if (current.isNotEmpty) {
+                                  String newValue = current.substring(
+                                      0, current.length - 1);
+                                  setMpinState(() {
+                                    localPinCtrl.text = newValue;
+                                    pinCtrl.text = newValue;
+                                  });
+                                }
+                              },
+                              onClearPressed: () {
+                                setMpinState(() {
+                                  localPinCtrl.clear();
+                                  pinCtrl.clear();
+                                });
+                              },
+                              obscurePin: obscurePin,
+                              onToggleObscure: () {
+                                setMpinState(() {
+                                  obscurePin = !obscurePin;
+                                });
+                              },
+                            ),
+                            SizedBox(height: isShort ? 8 : 12),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color:
+                                    const Color(0xFF6C63FF).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.security,
+                                    size: 13,
+                                    color: Color(0xFF6C63FF),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "Secure MPIN Login",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: const Color(0xFF6C63FF),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
+                      // ✅ Spacer works here because IntrinsicHeight gives
+                      //    the Column a finite height (from ConstrainedBox
+                      //    minHeight = viewport). This pushes the button
+                      //    to the bottom without any scrollbar.
+                      const Spacer(),
+                      SizedBox(height: isShort ? 12 : 20),
+                      _ModernButton(
+                        text: "Login with MPIN",
+                        isLoading: auth.isLoading,
+                        onTap: () {
+                          final email = mpinEmailCtrl.text.trim();
+                          final pin = localPinCtrl.text.trim();
+                          if (email.isEmpty || pin.length != 6) {
+                            _safeShowMessage(
+                                "Please enter email and 6-digit MPIN",
+                                isError: true);
+                            return;
+                          }
+                          pinCtrl.text = pin;
+                          auth.loginWithMpin(email, pin, context);
+                        },
+                      ),
+                      SizedBox(height: isShort ? 4 : 8),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            // ✅ MPIN Login Button - Always Visible, enabled when pin complete
-            _ModernButton(
-              text: "Login with MPIN",
-              isLoading: auth.isLoading,
-              onTap: () {
-                final email = mpinEmailCtrl.text.trim();
-                final pin = localPinCtrl.text.trim();
-                if (email.isEmpty || pin.length != 6) {
-                  _safeShowMessage("Please enter email and 6-digit MPIN", isError: true);
-                  return;
-                }
-                pinCtrl.text = pin;
-                auth.loginWithMpin(email, pin, context);
-              },
-            ),
-          ],
+            );
+          },
         );
       },
     );
   }
 
   // ============================================================
-  // NUMBER PAD
+  // NUMBER PAD – RESPONSIVE
   // ============================================================
   Widget _buildNumberPad({
     required Function(String) onNumberPressed,
@@ -655,36 +702,48 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     required VoidCallback onClearPressed,
     required bool obscurePin,
     required VoidCallback onToggleObscure,
+    required double numberBtnWidth,
+    required double numberBtnHeight,
+    required double padSpacing,
   }) {
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildNumberButton('1', onNumberPressed),
-            _buildNumberButton('2', onNumberPressed),
-            _buildNumberButton('3', onNumberPressed),
+            _buildNumberButton('1', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
+            _buildNumberButton('2', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
+            _buildNumberButton('3', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: padSpacing),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildNumberButton('4', onNumberPressed),
-            _buildNumberButton('5', onNumberPressed),
-            _buildNumberButton('6', onNumberPressed),
+            _buildNumberButton('4', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
+            _buildNumberButton('5', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
+            _buildNumberButton('6', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: padSpacing),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildNumberButton('7', onNumberPressed),
-            _buildNumberButton('8', onNumberPressed),
-            _buildNumberButton('9', onNumberPressed),
+            _buildNumberButton('7', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
+            _buildNumberButton('8', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
+            _buildNumberButton('9', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: padSpacing),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -692,35 +751,45 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
               icon: obscurePin ? Icons.visibility_off : Icons.visibility,
               onPressed: onToggleObscure,
               label: obscurePin ? "Show" : "Hide",
+              width: numberBtnWidth,
+              height: numberBtnHeight,
             ),
-            _buildNumberButton('0', onNumberPressed),
+            _buildNumberButton('0', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
             _buildIconButton(
               icon: Icons.backspace,
               onPressed: onDeletePressed,
               label: "Del",
+              width: numberBtnWidth,
+              height: numberBtnHeight,
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: padSpacing * 0.5),
         SizedBox(
           width: double.infinity,
           child: TextButton(
             onPressed: onClearPressed,
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 4),
             ),
-            child: const Text("CLEAR ALL"),
+            child: const Text("CLEAR ALL", style: TextStyle(fontSize: 12)),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildNumberButton(String number, Function(String) onPressed) {
+  Widget _buildNumberButton(
+    String number,
+    Function(String) onPressed, {
+    required double width,
+    required double height,
+  }) {
     return SizedBox(
-      width: 60,
-      height: 50,
+      width: width,
+      height: height,
       child: Material(
         color: Colors.grey.shade200,
         borderRadius: BorderRadius.circular(12),
@@ -730,8 +799,8 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           child: Center(
             child: Text(
               number,
-              style: const TextStyle(
-                fontSize: 24,
+              style: TextStyle(
+                fontSize: height < 45 ? 20 : 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
@@ -746,10 +815,12 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     required IconData icon,
     required VoidCallback onPressed,
     String? label,
+    required double width,
+    required double height,
   }) {
     return SizedBox(
-      width: 60,
-      height: 50,
+      width: width,
+      height: height,
       child: Material(
         color: Colors.grey.shade200,
         borderRadius: BorderRadius.circular(12),
@@ -759,12 +830,12 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.grey.shade700, size: 24),
+              Icon(icon, color: Colors.grey.shade700, size: height < 45 ? 20 : 24),
               if (label != null)
                 Text(
                   label,
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     color: Colors.grey,
                   ),
                 ),
@@ -834,17 +905,18 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
             return FutureBuilder<String?>(
               future: SecureStorage.getEmail(),
               builder: (context, emailSnapshot) {
-                final hasEmail = emailSnapshot.data != null && emailSnapshot.data!.isNotEmpty;
-                
+                final hasEmail = emailSnapshot.data != null &&
+                    emailSnapshot.data!.isNotEmpty;
+
                 if (isEnabled && hasEmail) {
                   return const SizedBox.shrink();
                 }
-                
+
                 String buttonText = "🔐 Enable Fingerprint Login";
                 if (!hasEmail) {
                   buttonText = "📧 Login with Email & Password first";
                 }
-                
+
                 return TextButton(
                   onPressed: () async {
                     if (!hasEmail) {
@@ -854,7 +926,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                       );
                       return;
                     }
-                    
+
                     final email = await SecureStorage.getEmail();
                     if (email != null && email.isNotEmpty) {
                       Navigator.push(
@@ -873,7 +945,9 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                   child: Text(
                     buttonText,
                     style: TextStyle(
-                      color: !hasEmail ? Colors.grey.shade600 : const Color(0xFF6C63FF),
+                      color: !hasEmail
+                          ? Colors.grey.shade600
+                          : const Color(0xFF6C63FF),
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
@@ -892,16 +966,17 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
       future: SecureStorage.isBiometricEnabled(),
       builder: (context, snapshot) {
         final isEnabled = snapshot.data ?? false;
-        
+
         return FutureBuilder<String?>(
           future: SecureStorage.getEmail(),
           builder: (context, emailSnapshot) {
-            final hasEmail = emailSnapshot.data != null && emailSnapshot.data!.isNotEmpty;
-            
+            final hasEmail = emailSnapshot.data != null &&
+                emailSnapshot.data!.isNotEmpty;
+
             String statusText;
             Color statusColor;
             IconData statusIcon;
-            
+
             if (!hasEmail) {
               statusText = "ℹ️ Please login with Email & Password first";
               statusColor = Colors.orange;
@@ -911,11 +986,12 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
               statusColor = Colors.green;
               statusIcon = Icons.check_circle;
             } else {
-              statusText = "ℹ️ Enable fingerprint in Settings → Biometric Login first";
+              statusText =
+                  "ℹ️ Enable fingerprint in Settings → Biometric Login first";
               statusColor = Colors.orange;
               statusIcon = Icons.fingerprint;
             }
-            
+
             return Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -1008,7 +1084,8 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                 _safeShowMessage("Please enter a password", isError: true);
                 return;
               }
-              if (mobile.length != 10 || !RegExp(r'^[0-9]{10}$').hasMatch(mobile)) {
+              if (mobile.length != 10 ||
+                  !RegExp(r'^[0-9]{10}$').hasMatch(mobile)) {
                 _safeShowMessage("Mobile number must be 10 digits", isError: true);
                 return;
               }
@@ -1115,7 +1192,8 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
+              borderSide:
+                  const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
             ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
