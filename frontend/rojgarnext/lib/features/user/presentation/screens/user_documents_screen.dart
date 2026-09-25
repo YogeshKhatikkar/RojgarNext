@@ -250,27 +250,34 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 
   // ============================================================
   // ✅ PICK DOCUMENT - WORKS ON MOBILE AND WEB
+  // ✅ FIXED: Profile photo only accepts IMAGES (no PDF)
   // ============================================================
   Future<void> _pickDocument() async {
     try {
+      // ✅ Detect if we're picking for profile photo
+      final isProfilePhoto = _selectedDocumentKey == 'profile_photo_url';
+
+      // Profile photo → images only. Other docs → images + PDF.
+      final allowedExtensions = isProfilePhoto
+          ? ['jpg', 'jpeg', 'png', 'webp']
+          : ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+        allowedExtensions: allowedExtensions,
         withData: true,
       );
 
       if (result != null && mounted) {
         final file = result.files.first;
 
-        // Check file extension
         final extension = file.name.toLowerCase().split('.').last;
-        if (extension != 'jpg' &&
-            extension != 'jpeg' &&
-            extension != 'png' &&
-            extension != 'pdf') {
+        if (!allowedExtensions.contains(extension)) {
           showMessage(
-              context, "❌ Only JPG, JPEG, PNG, and PDF files are supported.",
-              isError: true);
+            context,
+            "❌ Only ${allowedExtensions.join(', ').toUpperCase()} files are supported here.",
+            isError: true,
+          );
           return;
         }
 
@@ -303,7 +310,9 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
   }
 
   // ============================================================
-  // ✅ UPLOAD DOCUMENT — with provider sync for profile photo
+  // ✅ UPLOAD DOCUMENT — with immediate provider sync
+  // ✅ FIXED: Provider updated BEFORE setState (guaranteed order)
+  // ✅ FIXED: Uses normalized URL for provider
   // ============================================================
   Future<void> _uploadDocument() async {
     if (_selectedDocumentType == null || _selectedDocumentKey == null) {
@@ -345,35 +354,43 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
       if (!mounted) return;
 
       if (res.data['success'] == true) {
-        final fileUrl = res.data['url'] as String;
+        final fileUrl = (res.data['url'] ?? '').toString().trim();
         final publicId = res.data['public_id'] as String?;
 
-        if (mounted) {
-          setState(() {
-            _documents[_selectedDocumentKey!] = fileUrl;
-          });
+        if (fileUrl.isEmpty) {
+          throw Exception("Server returned no file URL");
         }
 
-        // ✅ Persist to profile DB
-        await _updateProfileDocument(_selectedDocumentKey!, fileUrl);
+        debugPrint("✅ Upload OK → $fileUrl");
 
-        // ✅ CRITICAL: Sync profile photo to global provider
+        // ========================================================
+        // ✅ STEP 1: Update provider FIRST (before any setState)
+        //    → this triggers all listeners (sidebar, resume, etc.)
+        // ========================================================
         if (_selectedDocumentKey == 'profile_photo_url' && mounted) {
           Provider.of<UserProfileProvider>(context, listen: false)
               .setProfilePhoto(url: fileUrl, publicId: publicId);
-          debugPrint(
-              "✅ Profile photo synced to provider → sidebar + resume updated");
+          debugPrint("✅ Provider updated with profile photo → $fileUrl");
         }
 
+        // ========================================================
+        // ✅ STEP 2: Persist to profile DB
+        // ========================================================
+        await _updateProfileDocument(_selectedDocumentKey!, fileUrl);
+
+        // ========================================================
+        // ✅ STEP 3: Update local state
+        // ========================================================
         if (mounted) {
-          showMessage(
-              context, "$_selectedDocumentType uploaded successfully!");
           setState(() {
+            _documents[_selectedDocumentKey!] = fileUrl;
             _selectedDocumentType = null;
             _selectedDocumentKey = null;
             _selectedFileName = null;
             _selectedFileBytes = null;
           });
+          showMessage(context,
+              "$_selectedDocumentType uploaded successfully!");
         }
       } else {
         throw Exception(res.data['message'] ?? "Upload failed");

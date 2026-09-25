@@ -1,10 +1,10 @@
 ================================================================================
 ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-Generated: 2026-09-25 10:05:51
+Generated: 2026-09-25 13:32:00
 Source: E:\yogesh\website\rojgarnext\frontend
-Total Files: 134
-Total Size: 2.9 MB
+Total Files: 145
+Total Size: 3.0 MB
 ================================================================================
 
 ================================================================================
@@ -149,8 +149,25 @@ Total Size: 2.9 MB
     │   │   │   └── 🎯 razorpay_web_stub.dart
     │   │   ├── 📁 resume/
     │   │   │   ├── 📁 AI/
+    │   │   │   │   ├── 🎯 AI.dart
+    │   │   │   │   ├── 📁 data/
+    │   │   │   │   │   └── 📁 models/
+    │   │   │   │   │       ├── 🎯 ai_resume_model.dart
+    │   │   │   │   │       └── 🎯 ats_report_model.dart
+    │   │   │   │   ├── 📁 presentation/
+    │   │   │   │   │   ├── 📁 screens/
+    │   │   │   │   │   │   ├── 🎯 ai_resume_generator_screen.dart
+    │   │   │   │   │   │   └── 🎯 ats_score_screen.dart
+    │   │   │   │   │   └── 📁 widgets/
+    │   │   │   │   │       ├── 🎯 ai_loading_overlay.dart
+    │   │   │   │   │       ├── 🎯 ats_fixes_card.dart
+    │   │   │   │   │       ├── 🎯 ats_keyword_chips.dart
+    │   │   │   │   │       ├── 🎯 ats_score_gauge.dart
+    │   │   │   │   │       └── 🎯 ats_section_breakdown.dart
     │   │   │   │   ├── 🎯 resume_ai_service.dart
-    │   │   │   │   └── 🎯 resume_score_widget.dart
+    │   │   │   │   ├── 🎯 resume_score_widget.dart
+    │   │   │   │   └── 📁 services/
+    │   │   │   │       └── 🎯 resume_ai_service.dart
     │   │   │   ├── 📁 presentation/
     │   │   │   │   ├── 📁 screens/
     │   │   │   │   │   ├── 🎯 build_resume_screen.dart
@@ -232,11 +249,11 @@ Total Size: 2.9 MB
 📊 FILE SUMMARY
 ================================================================================
 
-Total Files: 134
-Total Size: 2.9 MB
+Total Files: 145
+Total Size: 3.0 MB
 
 File Types:
-  .dart: 128 files (2.9 MB)
+  .dart: 139 files (3.0 MB)
   .yaml: 2 files (2.5 KB)
   (no extension): 1 files (274 B)
   .md: 1 files (649 B)
@@ -249,7 +266,7 @@ File Types:
 ================================================================================
 
 ================================================================================
-[   1/ 134] 📄 rojgarnext/Dockerfile
+[   1/ 145] 📄 rojgarnext/Dockerfile
 📏 SIZE: 274 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -266,7 +283,7 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 
 ================================================================================
-[   2/ 134] 📝 rojgarnext/README.md
+[   2/ 145] 📝 rojgarnext/README.md
 📏 SIZE: 649 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -291,7 +308,7 @@ samples, guidance on mobile development, and a full API reference.
 
 
 ================================================================================
-[   3/ 134] ⚙️ rojgarnext/analysis_options.yaml
+[   3/ 145] ⚙️ rojgarnext/analysis_options.yaml
 📏 SIZE: 559 B
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -321,7 +338,7 @@ linter:
     use_key_in_widget_constructors: true
 
 ================================================================================
-[   4/ 134] 🎯 rojgarnext/lib/core/config/api_config.dart
+[   4/ 145] 🎯 rojgarnext/lib/core/config/api_config.dart
 📏 SIZE: 2.2 KB
 🕐 MODIFIED: 2026-09-12 12:05:34
 ================================================================================
@@ -406,7 +423,7 @@ class ApiConfig {
 }
 
 ================================================================================
-[   5/ 134] 🎯 rojgarnext/lib/core/master_date/education.dart
+[   5/ 145] 🎯 rojgarnext/lib/core/master_date/education.dart
 📏 SIZE: 40.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -1956,7 +1973,7 @@ class EducationMasterData {
 
 
 ================================================================================
-[   6/ 134] 🎯 rojgarnext/lib/core/master_date/locations.dart
+[   6/ 145] 🎯 rojgarnext/lib/core/master_date/locations.dart
 📏 SIZE: 2.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2056,7 +2073,7 @@ class LocationData {
 
 
 ================================================================================
-[   7/ 134] 🎯 rojgarnext/lib/core/network/dio_client.dart
+[   7/ 145] 🎯 rojgarnext/lib/core/network/dio_client.dart
 📏 SIZE: 4.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2200,7 +2217,7 @@ void initDioClient() {
 }
 
 ================================================================================
-[   8/ 134] 🎯 rojgarnext/lib/core/routes/app_routes.dart
+[   8/ 145] 🎯 rojgarnext/lib/core/routes/app_routes.dart
 📏 SIZE: 3.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2299,7 +2316,7 @@ class AppRoutes {
 }
 
 ================================================================================
-[   9/ 134] 🎯 rojgarnext/lib/core/services/cloudinary_service.dart
+[   9/ 145] 🎯 rojgarnext/lib/core/services/cloudinary_service.dart
 📏 SIZE: 7.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2533,7 +2550,7 @@ class CloudinaryService {
 }
 
 ================================================================================
-[  10/ 134] 🎯 rojgarnext/lib/core/services/geocoding_service.dart
+[  10/ 145] 🎯 rojgarnext/lib/core/services/geocoding_service.dart
 📏 SIZE: 806 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2570,7 +2587,7 @@ class GeocodingService {
 
 
 ================================================================================
-[  11/ 134] 🎯 rojgarnext/lib/core/services/location_service.dart
+[  11/ 145] 🎯 rojgarnext/lib/core/services/location_service.dart
 📏 SIZE: 5.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2750,7 +2767,7 @@ class LocationService {
 
 
 ================================================================================
-[  12/ 134] 🎯 rojgarnext/lib/core/services/permission_service.dart
+[  12/ 145] 🎯 rojgarnext/lib/core/services/permission_service.dart
 📏 SIZE: 3.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2881,7 +2898,7 @@ class PermissionService {
 
 
 ================================================================================
-[  13/ 134] 🎯 rojgarnext/lib/core/services/profile_state_service.dart
+[  13/ 145] 🎯 rojgarnext/lib/core/services/profile_state_service.dart
 📏 SIZE: 1.4 KB
 🕐 MODIFIED: 2026-09-25 09:30:35
 ================================================================================
@@ -2926,7 +2943,7 @@ class ProfileStateService {
 }
 
 ================================================================================
-[  14/ 134] 🎯 rojgarnext/lib/core/services/real_location_service.dart
+[  14/ 145] 🎯 rojgarnext/lib/core/services/real_location_service.dart
 📏 SIZE: 7.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3168,7 +3185,7 @@ class RealLocationService {
 
 
 ================================================================================
-[  15/ 134] 🎯 rojgarnext/lib/core/services/unified_location_service.dart
+[  15/ 145] 🎯 rojgarnext/lib/core/services/unified_location_service.dart
 📏 SIZE: 1.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3206,7 +3223,7 @@ class UnifiedLocationService {
 
 
 ================================================================================
-[  16/ 134] 🎯 rojgarnext/lib/core/services/universal_location_service.dart
+[  16/ 145] 🎯 rojgarnext/lib/core/services/universal_location_service.dart
 📏 SIZE: 9.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3491,7 +3508,7 @@ Please try:
 }
 
 ================================================================================
-[  17/ 134] 🎯 rojgarnext/lib/core/services/web_location_service.dart
+[  17/ 145] 🎯 rojgarnext/lib/core/services/web_location_service.dart
 📏 SIZE: 3.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3611,7 +3628,7 @@ class WebLocationService {
 
 
 ================================================================================
-[  18/ 134] 🎯 rojgarnext/lib/core/storage/secure_storage.dart
+[  18/ 145] 🎯 rojgarnext/lib/core/storage/secure_storage.dart
 📏 SIZE: 6.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3808,7 +3825,7 @@ class SecureStorage {
 }
 
 ================================================================================
-[  19/ 134] 🎯 rojgarnext/lib/core/utils/app_snackbar.dart
+[  19/ 145] 🎯 rojgarnext/lib/core/utils/app_snackbar.dart
 📏 SIZE: 2.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3894,7 +3911,7 @@ void showGlobalSnackBar(String message, {bool isError = false}) {
 }
 
 ================================================================================
-[  20/ 134] 🎯 rojgarnext/lib/core/utils/auth_guard.dart
+[  20/ 145] 🎯 rojgarnext/lib/core/utils/auth_guard.dart
 📏 SIZE: 798 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3934,7 +3951,7 @@ class AuthGuard extends StatelessWidget {
 
 
 ================================================================================
-[  21/ 134] 🎯 rojgarnext/lib/core/utils/constants.dart
+[  21/ 145] 🎯 rojgarnext/lib/core/utils/constants.dart
 📏 SIZE: 967 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3970,7 +3987,7 @@ class AppConstants {
 
 
 ================================================================================
-[  22/ 134] 🎯 rojgarnext/lib/core/utils/coordinate_parser.dart
+[  22/ 145] 🎯 rojgarnext/lib/core/utils/coordinate_parser.dart
 📏 SIZE: 5.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4152,7 +4169,7 @@ class CoordinateParser {
 
 
 ================================================================================
-[  23/ 134] 🎯 rojgarnext/lib/core/utils/distance_calculator.dart
+[  23/ 145] 🎯 rojgarnext/lib/core/utils/distance_calculator.dart
 📏 SIZE: 1.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4234,7 +4251,7 @@ class DistanceCalculator {
 }
 
 ================================================================================
-[  24/ 134] 🎯 rojgarnext/lib/core/utils/js_stub.dart
+[  24/ 145] 🎯 rojgarnext/lib/core/utils/js_stub.dart
 📏 SIZE: 1.1 KB
 🕐 MODIFIED: 2026-09-10 12:53:05
 ================================================================================
@@ -4280,7 +4297,7 @@ typedef JsArrayBuffer = dynamic;
 typedef JSAny = dynamic;
 
 ================================================================================
-[  25/ 134] 🎯 rojgarnext/lib/core/utils/logger.dart
+[  25/ 145] 🎯 rojgarnext/lib/core/utils/logger.dart
 📏 SIZE: 999 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4328,7 +4345,7 @@ class Logger {
 }
 
 ================================================================================
-[  26/ 134] 🎯 rojgarnext/lib/core/utils/platform_utils.dart
+[  26/ 145] 🎯 rojgarnext/lib/core/utils/platform_utils.dart
 📏 SIZE: 2.8 KB
 🕐 MODIFIED: 2026-09-12 12:06:10
 ================================================================================
@@ -4435,7 +4452,7 @@ class PlatformUtils {
 }
 
 ================================================================================
-[  27/ 134] 🎯 rojgarnext/lib/core/utils/safe_async.dart
+[  27/ 145] 🎯 rojgarnext/lib/core/utils/safe_async.dart
 📏 SIZE: 2 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4444,7 +4461,7 @@ class PlatformUtils {
 
 
 ================================================================================
-[  28/ 134] 🎯 rojgarnext/lib/core/utils/stub_device_info.dart
+[  28/ 145] 🎯 rojgarnext/lib/core/utils/stub_device_info.dart
 📏 SIZE: 608 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4474,7 +4491,7 @@ class IosDeviceInfo {
 
 
 ================================================================================
-[  29/ 134] 🎯 rojgarnext/lib/core/utils/stub_local_auth.dart
+[  29/ 145] 🎯 rojgarnext/lib/core/utils/stub_local_auth.dart
 📏 SIZE: 816 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4512,7 +4529,7 @@ class BiometricType {
 }
 
 ================================================================================
-[  30/ 134] 🎯 rojgarnext/lib/core/utils/widgets.dart
+[  30/ 145] 🎯 rojgarnext/lib/core/utils/widgets.dart
 📏 SIZE: 1.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4557,7 +4574,7 @@ class ModernButton extends StatelessWidget {
 
 
 ================================================================================
-[  31/ 134] 🎯 rojgarnext/lib/core/widgets/base_page.dart
+[  31/ 145] 🎯 rojgarnext/lib/core/widgets/base_page.dart
 📏 SIZE: 970 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4603,7 +4620,7 @@ class BasePage extends StatelessWidget {
 
 
 ================================================================================
-[  32/ 134] 🎯 rojgarnext/lib/core/widgets/file_viewer_screen.dart
+[  32/ 145] 🎯 rojgarnext/lib/core/widgets/file_viewer_screen.dart
 📏 SIZE: 43.9 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -5975,7 +5992,7 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
 }
 
 ================================================================================
-[  33/ 134] 🎯 rojgarnext/lib/core/widgets/location_dropdowns.dart
+[  33/ 145] 🎯 rojgarnext/lib/core/widgets/location_dropdowns.dart
 📏 SIZE: 9.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -6277,7 +6294,7 @@ class _LocationDropdownsState extends State<LocationDropdowns> {
 
 
 ================================================================================
-[  34/ 134] 🎯 rojgarnext/lib/core/widgets/modern_button.dart
+[  34/ 145] 🎯 rojgarnext/lib/core/widgets/modern_button.dart
 📏 SIZE: 2.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -6368,7 +6385,7 @@ class ModernButton extends StatelessWidget {
 
 
 ================================================================================
-[  35/ 134] 🎯 rojgarnext/lib/core/widgets/platform_aware.dart
+[  35/ 145] 🎯 rojgarnext/lib/core/widgets/platform_aware.dart
 📏 SIZE: 2.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -6453,7 +6470,7 @@ class PlatformAware {
 
 
 ================================================================================
-[  36/ 134] 🎯 rojgarnext/lib/core/widgets/platform_file_picker.dart
+[  36/ 145] 🎯 rojgarnext/lib/core/widgets/platform_file_picker.dart
 📏 SIZE: 3.3 KB
 🕐 MODIFIED: 2026-09-24 23:53:51
 ================================================================================
@@ -6574,7 +6591,7 @@ class PlatformFileResult {
 }
 
 ================================================================================
-[  37/ 134] 🎯 rojgarnext/lib/core/widgets/platform_webview.dart
+[  37/ 145] 🎯 rojgarnext/lib/core/widgets/platform_webview.dart
 📏 SIZE: 3.0 KB
 🕐 MODIFIED: 2026-09-10 12:54:26
 ================================================================================
@@ -6681,7 +6698,7 @@ class _PlatformWebViewState extends State<PlatformWebView> {
 }
 
 ================================================================================
-[  38/ 134] 🎯 rojgarnext/lib/core/widgets/responsive_widget.dart
+[  38/ 145] 🎯 rojgarnext/lib/core/widgets/responsive_widget.dart
 📏 SIZE: 2.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -6778,7 +6795,7 @@ class ResponsiveWidget extends StatelessWidget {
 
 
 ================================================================================
-[  39/ 134] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_stub.dart
+[  39/ 145] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_stub.dart
 📏 SIZE: 3.1 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -6879,7 +6896,7 @@ void openPdfInNewTab(String url) {
 }
 
 ================================================================================
-[  40/ 134] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_web.dart
+[  40/ 145] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_web.dart
 📏 SIZE: 10.1 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -7223,7 +7240,7 @@ void openPdfInNewTab(String url) {
 }
 
 ================================================================================
-[  41/ 134] 🎯 rojgarnext/lib/features/admin/AI/admin_ai_dashboard.dart
+[  41/ 145] 🎯 rojgarnext/lib/features/admin/AI/admin_ai_dashboard.dart
 📏 SIZE: 10.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -7588,7 +7605,7 @@ class _AdminAIDashboardState extends State<AdminAIDashboard> {
 
 
 ================================================================================
-[  42/ 134] 🎯 rojgarnext/lib/features/admin/data/admin_service.dart
+[  42/ 145] 🎯 rojgarnext/lib/features/admin/data/admin_service.dart
 📏 SIZE: 6.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -7832,7 +7849,7 @@ class AdminService {
 
 
 ================================================================================
-[  43/ 134] 🎯 rojgarnext/lib/features/admin/presentation/models/admin_menu.dart
+[  43/ 145] 🎯 rojgarnext/lib/features/admin/presentation/models/admin_menu.dart
 📏 SIZE: 433 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -7860,7 +7877,7 @@ enum ApplicationSubMenu {
 
 
 ================================================================================
-[  44/ 134] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_dashboard.dart
+[  44/ 145] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_dashboard.dart
 📏 SIZE: 29.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -8699,7 +8716,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 }
 
 ================================================================================
-[  45/ 134] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_reports_screen.dart
+[  45/ 145] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_reports_screen.dart
 📏 SIZE: 911 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -8736,7 +8753,7 @@ class AdminReportsScreen extends StatelessWidget {
 
 
 ================================================================================
-[  46/ 134] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_settings_screen.dart
+[  46/ 145] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_settings_screen.dart
 📏 SIZE: 1.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -8785,7 +8802,7 @@ class AdminSettingsScreen extends StatelessWidget {
 
 
 ================================================================================
-[  47/ 134] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_users_screen.dart
+[  47/ 145] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_users_screen.dart
 📏 SIZE: 3.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -8897,7 +8914,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
 
 ================================================================================
-[  48/ 134] 🎯 rojgarnext/lib/features/admin/presentation/screens/pending_payments_screen.dart
+[  48/ 145] 🎯 rojgarnext/lib/features/admin/presentation/screens/pending_payments_screen.dart
 📏 SIZE: 5.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -9071,7 +9088,7 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
 
 
 ================================================================================
-[  49/ 134] 🎯 rojgarnext/lib/features/admin/presentation/widgets/admin_sidebar.dart
+[  49/ 145] 🎯 rojgarnext/lib/features/admin/presentation/widgets/admin_sidebar.dart
 📏 SIZE: 7.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -9300,7 +9317,7 @@ class AdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[  50/ 134] 🎯 rojgarnext/lib/features/auth/presentation/controllers/auth_controller.dart
+[  50/ 145] 🎯 rojgarnext/lib/features/auth/presentation/controllers/auth_controller.dart
 📏 SIZE: 29.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -10084,7 +10101,7 @@ class AuthController extends ChangeNotifier {
 }
 
 ================================================================================
-[  51/ 134] 🎯 rojgarnext/lib/features/auth/presentation/screens/change_password_screen.dart
+[  51/ 145] 🎯 rojgarnext/lib/features/auth/presentation/screens/change_password_screen.dart
 📏 SIZE: 36.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -11188,7 +11205,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 }
 
 ================================================================================
-[  52/ 134] 🎯 rojgarnext/lib/features/auth/presentation/screens/fingerprint_setup_page.dart
+[  52/ 145] 🎯 rojgarnext/lib/features/auth/presentation/screens/fingerprint_setup_page.dart
 📏 SIZE: 40.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -12406,7 +12423,7 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
 }
 
 ================================================================================
-[  53/ 134] 🎯 rojgarnext/lib/features/auth/presentation/screens/mpin_setup_page.dart
+[  53/ 145] 🎯 rojgarnext/lib/features/auth/presentation/screens/mpin_setup_page.dart
 📏 SIZE: 41.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -13645,7 +13662,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
 }
 
 ================================================================================
-[  54/ 134] 🎯 rojgarnext/lib/features/auth/presentation/screens/register_login_page.dart
+[  54/ 145] 🎯 rojgarnext/lib/features/auth/presentation/screens/register_login_page.dart
 📏 SIZE: 42.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -14916,7 +14933,7 @@ class _ModernButton extends StatelessWidget {
 }
 
 ================================================================================
-[  55/ 134] 🎯 rojgarnext/lib/features/auth/presentation/screens/verify_otp_page.dart
+[  55/ 145] 🎯 rojgarnext/lib/features/auth/presentation/screens/verify_otp_page.dart
 📏 SIZE: 21.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -15618,7 +15635,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 }
 
 ================================================================================
-[  56/ 134] 🎯 rojgarnext/lib/features/auth/services/auth_service.dart
+[  56/ 145] 🎯 rojgarnext/lib/features/auth/services/auth_service.dart
 📏 SIZE: 14.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -16058,7 +16075,7 @@ class AuthService {
 }
 
 ================================================================================
-[  57/ 134] 🎯 rojgarnext/lib/features/common/widgets/internet_checker.dart
+[  57/ 145] 🎯 rojgarnext/lib/features/common/widgets/internet_checker.dart
 📏 SIZE: 4.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -16209,7 +16226,7 @@ class _InternetCheckerState extends State<InternetChecker> {
 }
 
 ================================================================================
-[  58/ 134] 🎯 rojgarnext/lib/features/common/widgets/location_display.dart
+[  58/ 145] 🎯 rojgarnext/lib/features/common/widgets/location_display.dart
 📏 SIZE: 3.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -16336,7 +16353,7 @@ class _LocationDisplayState extends State<LocationDisplay> {
 
 
 ================================================================================
-[  59/ 134] 🎯 rojgarnext/lib/features/customadmin/data/customadmin_service.dart
+[  59/ 145] 🎯 rojgarnext/lib/features/customadmin/data/customadmin_service.dart
 📏 SIZE: 8.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -16636,7 +16653,7 @@ class CustomAdminService {
 }
 
 ================================================================================
-[  60/ 134] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
+[  60/ 145] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
 📏 SIZE: 27.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -17429,7 +17446,7 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
 }
 
 ================================================================================
-[  61/ 134] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/pending_payments_screen.dart
+[  61/ 145] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/pending_payments_screen.dart
 📏 SIZE: 5.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -17605,7 +17622,7 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
 
 
 ================================================================================
-[  62/ 134] 🎯 rojgarnext/lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
+[  62/ 145] 🎯 rojgarnext/lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
 📏 SIZE: 7.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -17831,7 +17848,7 @@ class CustomAdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[  63/ 134] 🎯 rojgarnext/lib/features/home/home_screen.dart
+[  63/ 145] 🎯 rojgarnext/lib/features/home/home_screen.dart
 📏 SIZE: 55.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -19453,7 +19470,7 @@ class _HomeScreenState extends State<HomeScreen>
 }
 
 ================================================================================
-[  64/ 134] 🎯 rojgarnext/lib/features/jobs/AI/job_ai_service.dart
+[  64/ 145] 🎯 rojgarnext/lib/features/jobs/AI/job_ai_service.dart
 📏 SIZE: 1.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -19516,7 +19533,7 @@ class JobAIService {
 
 
 ================================================================================
-[  65/ 134] 🎯 rojgarnext/lib/features/jobs/AI/job_match_score_widget.dart
+[  65/ 145] 🎯 rojgarnext/lib/features/jobs/AI/job_match_score_widget.dart
 📏 SIZE: 5.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -19702,7 +19719,7 @@ class _JobMatchScoreWidgetState extends State<JobMatchScoreWidget> {
 
 
 ================================================================================
-[  66/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/add_job_screen.dart
+[  66/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/add_job_screen.dart
 📏 SIZE: 196.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -25041,7 +25058,7 @@ Future<void> _pickAdvertisement() async {
 
 
 ================================================================================
-[  67/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/applications_screen.dart
+[  67/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/applications_screen.dart
 📏 SIZE: 156.7 KB
 🕐 MODIFIED: 2026-09-24 18:26:22
 ================================================================================
@@ -29362,7 +29379,7 @@ class _FinalSubmitDialogContentState
 }
 
 ================================================================================
-[  68/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/candidate_profile_screen.dart
+[  68/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/candidate_profile_screen.dart
 📏 SIZE: 79.0 KB
 🕐 MODIFIED: 2026-09-23 21:59:36
 ================================================================================
@@ -31523,7 +31540,7 @@ class _CandidateProfileScreenState extends State<CandidateProfileScreen>
 }
 
 ================================================================================
-[  69/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_detail_screen.dart
+[  69/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_detail_screen.dart
 📏 SIZE: 173.6 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -36447,7 +36464,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 }
 
 ================================================================================
-[  70/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_list_screen.dart
+[  70/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_list_screen.dart
 📏 SIZE: 57.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -38029,7 +38046,7 @@ class _JobListScreenState extends State<JobListScreen>
 }
 
 ================================================================================
-[  71/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/saved_jobs_screen.dart
+[  71/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/saved_jobs_screen.dart
 📏 SIZE: 15.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -38512,7 +38529,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
 
 
 ================================================================================
-[  72/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/show_jobs_screen.dart
+[  72/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/show_jobs_screen.dart
 📏 SIZE: 33.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -39528,7 +39545,7 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
 }
 
 ================================================================================
-[  73/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/user_applications_screen.dart
+[  73/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/user_applications_screen.dart
 📏 SIZE: 116.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -42872,7 +42889,7 @@ class _UserApplicationScreenState extends State<UserApplicationScreen>
 }
 
 ================================================================================
-[  74/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/widgets/submit_document_dialog.dart
+[  74/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/widgets/submit_document_dialog.dart
 📏 SIZE: 10.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -43190,7 +43207,7 @@ Future<void> _pickFile() async {
 
 
 ================================================================================
-[  75/ 134] 🎯 rojgarnext/lib/features/location/distance_test_screen.dart
+[  75/ 145] 🎯 rojgarnext/lib/features/location/distance_test_screen.dart
 📏 SIZE: 15.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -43620,7 +43637,7 @@ class _DistanceTestScreenState extends State<DistanceTestScreen> {
 
 
 ================================================================================
-[  76/ 134] 🎯 rojgarnext/lib/features/location/location_test_screen.dart
+[  76/ 145] 🎯 rojgarnext/lib/features/location/location_test_screen.dart
 📏 SIZE: 6.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -43813,7 +43830,7 @@ class _LocationTestScreenState extends State<LocationTestScreen> {
 
 
 ================================================================================
-[  77/ 134] 🎯 rojgarnext/lib/features/market/AI/market_ai_service.dart
+[  77/ 145] 🎯 rojgarnext/lib/features/market/AI/market_ai_service.dart
 📏 SIZE: 1.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -43859,7 +43876,7 @@ class MarketAIService {
 
 
 ================================================================================
-[  78/ 134] 🎯 rojgarnext/lib/features/notification/screens/notifications_list_screen.dart
+[  78/ 145] 🎯 rojgarnext/lib/features/notification/screens/notifications_list_screen.dart
 📏 SIZE: 14.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -44337,7 +44354,7 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
 
 
 ================================================================================
-[  79/ 134] 🎯 rojgarnext/lib/features/notification/service/notification_service.dart
+[  79/ 145] 🎯 rojgarnext/lib/features/notification/service/notification_service.dart
 📏 SIZE: 5.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -44536,7 +44553,7 @@ class NotificationService {
 
 
 ================================================================================
-[  80/ 134] 🎯 rojgarnext/lib/features/notification/widgets/notification_bell.dart
+[  80/ 145] 🎯 rojgarnext/lib/features/notification/widgets/notification_bell.dart
 📏 SIZE: 5.6 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -44741,7 +44758,7 @@ class _NotificationBellState extends State<NotificationBell>
 }
 
 ================================================================================
-[  81/ 134] 🎯 rojgarnext/lib/features/payment/presentation/payment.dart
+[  81/ 145] 🎯 rojgarnext/lib/features/payment/presentation/payment.dart
 📏 SIZE: 92 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -44753,7 +44770,7 @@ enum PaymentType {
 }
 
 ================================================================================
-[  82/ 134] 🎯 rojgarnext/lib/features/payment/presentation/screens/payment_screen.dart
+[  82/ 145] 🎯 rojgarnext/lib/features/payment/presentation/screens/payment_screen.dart
 📏 SIZE: 30.4 KB
 🕐 MODIFIED: 2026-09-12 20:49:04
 ================================================================================
@@ -45595,7 +45612,7 @@ class _PaymentScreenState extends State<PaymentScreen>
 }
 
 ================================================================================
-[  83/ 134] 🎯 rojgarnext/lib/features/payment/razorpay_mobile_service.dart
+[  83/ 145] 🎯 rojgarnext/lib/features/payment/razorpay_mobile_service.dart
 📏 SIZE: 2.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -45697,7 +45714,7 @@ class RazorpayMobileService {
 }
 
 ================================================================================
-[  84/ 134] 🎯 rojgarnext/lib/features/payment/razorpay_service.dart
+[  84/ 145] 🎯 rojgarnext/lib/features/payment/razorpay_service.dart
 📏 SIZE: 2.0 KB
 🕐 MODIFIED: 2026-09-10 12:54:00
 ================================================================================
@@ -45774,7 +45791,7 @@ class RazorpayService {
 }
 
 ================================================================================
-[  85/ 134] 🎯 rojgarnext/lib/features/payment/razorpay_web_service.dart
+[  85/ 145] 🎯 rojgarnext/lib/features/payment/razorpay_web_service.dart
 📏 SIZE: 6.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -45993,7 +46010,7 @@ class RazorpayWebService {
 }
 
 ================================================================================
-[  86/ 134] 🎯 rojgarnext/lib/features/payment/razorpay_web_stub.dart
+[  86/ 145] 🎯 rojgarnext/lib/features/payment/razorpay_web_stub.dart
 📏 SIZE: 967 B
 🕐 MODIFIED: 2026-09-10 12:53:43
 ================================================================================
@@ -46034,7 +46051,2255 @@ class RazorpayWebService {
 }
 
 ================================================================================
-[  87/ 134] 🎯 rojgarnext/lib/features/resume/AI/resume_ai_service.dart
+[  87/ 145] 🎯 rojgarnext/lib/features/resume/AI/AI.dart
+📏 SIZE: 915 B
+🕐 MODIFIED: 2026-09-25 10:55:48
+================================================================================
+
+// lib/features/resume/AI/AI.dart
+// ============================================================
+// AI Resume Module — Barrel Export
+// Mirrors backend: app/modules/resume/AI/
+// ============================================================
+
+// ---------- Models ----------
+export 'data/models/ats_report_model.dart';
+export 'data/models/ai_resume_model.dart';
+
+// ---------- Services ----------
+export 'services/resume_ai_service.dart';
+
+// ---------- Screens ----------
+export 'presentation/screens/ats_score_screen.dart';
+export 'presentation/screens/ai_resume_generator_screen.dart';
+
+// ---------- Widgets ----------
+export 'presentation/widgets/ai_loading_overlay.dart';
+export 'presentation/widgets/ats_fixes_card.dart';
+export 'presentation/widgets/ats_keyword_chips.dart';
+export 'presentation/widgets/ats_score_gauge.dart';
+export 'presentation/widgets/ats_section_breakdown.dart';
+
+================================================================================
+[  88/ 145] 🎯 rojgarnext/lib/features/resume/AI/data/models/ai_resume_model.dart
+📏 SIZE: 3.3 KB
+🕐 MODIFIED: 2026-09-25 10:56:23
+================================================================================
+
+// lib/features/resume/AI/data/models/ai_resume_model.dart
+// ✅ Model for AI-generated resume payload from backend
+
+class AIResume {
+  final Map<String, dynamic> userInfo;
+  final Map<String, dynamic> contactInfo;
+  final String professionalSummary;
+  final String careerObjective;
+  final List<Map<String, dynamic>> experience;
+  final List<Map<String, dynamic>> education;
+  final Map<String, dynamic> skills;
+  final List<Map<String, dynamic>> projects;
+  final List<Map<String, dynamic>> certifications;
+  final List<dynamic> languages;
+  final Map<String, dynamic> socialLinks;
+  final String generatedAt;
+  final String style;
+  final String? targetRole;
+  final bool hasJd;
+  final bool aiPowered;
+  final Map<String, dynamic> statistics;
+
+  AIResume({
+    required this.userInfo,
+    required this.contactInfo,
+    required this.professionalSummary,
+    required this.careerObjective,
+    required this.experience,
+    required this.education,
+    required this.skills,
+    required this.projects,
+    required this.certifications,
+    required this.languages,
+    required this.socialLinks,
+    required this.generatedAt,
+    required this.style,
+    required this.targetRole,
+    required this.hasJd,
+    required this.aiPowered,
+    required this.statistics,
+  });
+
+  factory AIResume.fromJson(Map<String, dynamic> json) {
+    return AIResume(
+      userInfo: Map<String, dynamic>.from(json['user_info'] ?? {}),
+      contactInfo: Map<String, dynamic>.from(json['contact_info'] ?? {}),
+      professionalSummary: json['professional_summary']?.toString() ?? '',
+      careerObjective: json['career_objective']?.toString() ?? '',
+      experience: ((json['experience'] as List?) ?? [])
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList(),
+      education: ((json['education'] as List?) ?? [])
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList(),
+      skills: Map<String, dynamic>.from(json['skills'] ?? {}),
+      projects: ((json['projects'] as List?) ?? [])
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList(),
+      certifications: ((json['certifications'] as List?) ?? [])
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList(),
+      languages: List<dynamic>.from(json['languages'] ?? []),
+      socialLinks: Map<String, dynamic>.from(json['social_links'] ?? {}),
+      generatedAt: json['generated_at']?.toString() ?? '',
+      style: json['style']?.toString() ?? 'modern',
+      targetRole: json['target_role']?.toString(),
+      hasJd: json['has_jd'] == true,
+      aiPowered: json['ai_powered'] == true,
+      statistics: Map<String, dynamic>.from(json['statistics'] ?? {}),
+    );
+  }
+
+  /// Convert to plain Map for PDF rendering (matching ResumeFormatBase interface)
+  Map<String, dynamic> toResumeDataMap() {
+    return {
+      'user_info': userInfo,
+      'contact_info': contactInfo,
+      'professional_summary': professionalSummary,
+      'career_objective': careerObjective,
+      'experience': experience,
+      'education': education,
+      'skills': skills,
+      'projects': projects,
+      'certifications': certifications,
+      'languages': languages,
+      'social_links': socialLinks,
+      'statistics': statistics,
+    };
+  }
+}
+
+================================================================================
+[  89/ 145] 🎯 rojgarnext/lib/features/resume/AI/data/models/ats_report_model.dart
+📏 SIZE: 6.5 KB
+🕐 MODIFIED: 2026-09-25 10:56:05
+================================================================================
+
+// lib/features/resume/AI/data/models/ats_report_model.dart
+// ✅ Complete ATS Report Model — matches backend response
+
+class ATSReport {
+  final double overallScore;
+  final String grade;
+  final Map<String, int> sectionScores;
+  final KeywordAnalysis keywordAnalysis;
+  final FormattingReport formatting;
+  final ActionVerbReport actionVerbs;
+  final QuantificationReport quantification;
+  final List<ATSFix> prioritizedFixes;
+  final String aiSummary;
+  final String scoredAt;
+
+  ATSReport({
+    required this.overallScore,
+    required this.grade,
+    required this.sectionScores,
+    required this.keywordAnalysis,
+    required this.formatting,
+    required this.actionVerbs,
+    required this.quantification,
+    required this.prioritizedFixes,
+    required this.aiSummary,
+    required this.scoredAt,
+  });
+
+  factory ATSReport.fromJson(Map<String, dynamic> json) {
+    return ATSReport(
+      overallScore: (json['overall_score'] ?? 0).toDouble(),
+      grade: json['grade']?.toString() ?? 'N/A',
+      sectionScores: Map<String, int>.from(
+        (json['section_scores'] as Map? ?? {}).map(
+          (k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0),
+        ),
+      ),
+      keywordAnalysis: KeywordAnalysis.fromJson(
+        json['keyword_analysis'] as Map<String, dynamic>? ?? {},
+      ),
+      formatting: FormattingReport.fromJson(
+        json['formatting_issues'] as Map<String, dynamic>? ?? {},
+      ),
+      actionVerbs: ActionVerbReport.fromJson(
+        json['action_verbs'] as Map<String, dynamic>? ?? {},
+      ),
+      quantification: QuantificationReport.fromJson(
+        json['quantification'] as Map<String, dynamic>? ?? {},
+      ),
+      prioritizedFixes: ((json['prioritized_fixes'] as List?) ?? [])
+          .map((e) => ATSFix.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      aiSummary: json['ai_summary']?.toString() ?? '',
+      scoredAt: json['scored_at']?.toString() ?? '',
+    );
+  }
+
+  bool get isGood => overallScore >= 70;
+  bool get isExcellent => overallScore >= 85;
+}
+
+// ---------- Keyword Analysis ----------
+class KeywordAnalysis {
+  final bool hasJobDescription;
+  final int jdTotalKeywords;
+  final List<String> matchedKeywords;
+  final List<String> missingKeywords;
+  final List<String> topPriorityMissing;
+  final double matchPercentage;
+  final double keywordDensity;
+  final String recommendedDensity;
+
+  KeywordAnalysis({
+    required this.hasJobDescription,
+    required this.jdTotalKeywords,
+    required this.matchedKeywords,
+    required this.missingKeywords,
+    required this.topPriorityMissing,
+    required this.matchPercentage,
+    required this.keywordDensity,
+    required this.recommendedDensity,
+  });
+
+  factory KeywordAnalysis.fromJson(Map<String, dynamic> json) {
+    return KeywordAnalysis(
+      hasJobDescription: json['has_job_description'] == true,
+      jdTotalKeywords: (json['jd_total_keywords'] as num?)?.toInt() ?? 0,
+      matchedKeywords: List<String>.from(json['matched_keywords'] ?? []),
+      missingKeywords: List<String>.from(json['missing_keywords'] ?? []),
+      topPriorityMissing:
+          List<String>.from(json['top_priority_missing'] ?? []),
+      matchPercentage:
+          (json['match_percentage'] as num?)?.toDouble() ?? 0.0,
+      keywordDensity: (json['keyword_density'] as num?)?.toDouble() ?? 0.0,
+      recommendedDensity:
+          json['recommended_density']?.toString() ?? '1.5% – 2.5%',
+    );
+  }
+}
+
+// ---------- Formatting ----------
+class FormattingReport {
+  final int score;
+  final List<Map<String, dynamic>> criticalIssues;
+  final List<Map<String, dynamic>> issues;
+  final List<String> warnings;
+  final bool atsCompatible;
+
+  FormattingReport({
+    required this.score,
+    required this.criticalIssues,
+    required this.issues,
+    required this.warnings,
+    required this.atsCompatible,
+  });
+
+  factory FormattingReport.fromJson(Map<String, dynamic> json) {
+    return FormattingReport(
+      score: (json['score'] as num?)?.toInt() ?? 0,
+      criticalIssues: ((json['critical_issues'] as List?) ?? [])
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList(),
+      issues: ((json['issues'] as List?) ?? [])
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList(),
+      warnings: List<String>.from(json['warnings'] ?? []),
+      atsCompatible: json['ats_compatible'] == true,
+    );
+  }
+}
+
+// ---------- Action Verbs ----------
+class ActionVerbReport {
+  final int score;
+  final List<String> strongVerbsFound;
+  final List<String> weakVerbsFound;
+  final List<String> suggestions;
+
+  ActionVerbReport({
+    required this.score,
+    required this.strongVerbsFound,
+    required this.weakVerbsFound,
+    required this.suggestions,
+  });
+
+  factory ActionVerbReport.fromJson(Map<String, dynamic> json) {
+    return ActionVerbReport(
+      score: (json['score'] as num?)?.toInt() ?? 0,
+      strongVerbsFound: List<String>.from(json['strong_verbs_found'] ?? []),
+      weakVerbsFound: List<String>.from(json['weak_verbs_found'] ?? []),
+      suggestions: List<String>.from(json['suggestions'] ?? []),
+    );
+  }
+}
+
+// ---------- Quantification ----------
+class QuantificationReport {
+  final int score;
+  final int quantifiedMentions;
+  final List<String> samples;
+  final List<String> suggestions;
+
+  QuantificationReport({
+    required this.score,
+    required this.quantifiedMentions,
+    required this.samples,
+    required this.suggestions,
+  });
+
+  factory QuantificationReport.fromJson(Map<String, dynamic> json) {
+    return QuantificationReport(
+      score: (json['score'] as num?)?.toInt() ?? 0,
+      quantifiedMentions:
+          (json['quantified_mentions'] as num?)?.toInt() ?? 0,
+      samples: List<String>.from(json['samples'] ?? []),
+      suggestions: List<String>.from(json['suggestions'] ?? []),
+    );
+  }
+}
+
+// ---------- Fix ----------
+class ATSFix {
+  final int priority;
+  final String category;
+  final String issue;
+  final String impact;
+  final String fix;
+
+  ATSFix({
+    required this.priority,
+    required this.category,
+    required this.issue,
+    required this.impact,
+    required this.fix,
+  });
+
+  factory ATSFix.fromJson(Map<String, dynamic> json) {
+    return ATSFix(
+      priority: (json['priority'] as num?)?.toInt() ?? 3,
+      category: json['category']?.toString() ?? 'General',
+      issue: json['issue']?.toString() ?? '',
+      impact: json['impact']?.toString() ?? 'Low',
+      fix: json['fix']?.toString() ?? '',
+    );
+  }
+}
+
+================================================================================
+[  90/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart
+📏 SIZE: 24.4 KB
+🕐 MODIFIED: 2026-09-25 12:47:58
+================================================================================
+
+// lib/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart
+// ✅ Full Auto AI Resume Generator Screen
+
+import 'package:flutter/material.dart';
+import 'package:rojgarnext/core/utils/app_snackbar.dart';
+import 'package:rojgarnext/features/resume/AI/data/models/ai_resume_model.dart';
+import 'package:rojgarnext/features/resume/AI/services/resume_ai_service.dart';
+import 'package:rojgarnext/features/resume/AI/presentation/widgets/ai_loading_overlay.dart';
+import 'package:rojgarnext/features/resume/services/resume_pdf_service.dart';
+
+class AIResumeGeneratorScreen extends StatefulWidget {
+  const AIResumeGeneratorScreen({super.key});
+
+  @override
+  State<AIResumeGeneratorScreen> createState() =>
+      _AIResumeGeneratorScreenState();
+}
+
+class _AIResumeGeneratorScreenState extends State<AIResumeGeneratorScreen> {
+  final TextEditingController _jdCtrl = TextEditingController();
+  final TextEditingController _targetRoleCtrl = TextEditingController();
+
+  String _style = 'modern';
+  bool _isGenerating = false;
+  AIResume? _generated;
+
+  static const List<Map<String, String>> _styles = [
+    {'value': 'classic', 'label': 'Classic', 'icon': '📄'},
+    {'value': 'modern', 'label': 'Modern', 'icon': '🎨'},
+    {'value': 'tech', 'label': 'Tech', 'icon': '💻'},
+    {'value': 'executive', 'label': 'Executive', 'icon': '👔'},
+    {'value': 'government', 'label': 'Government', 'icon': '🏛️'},
+    {'value': 'fresher', 'label': 'Fresher', 'icon': '🎓'},
+  ];
+
+  @override
+  void dispose() {
+    _jdCtrl.dispose();
+    _targetRoleCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generate() async {
+    setState(() => _isGenerating = true);
+    try {
+      final data = await ResumeAIService.generateResume(
+        jobDescription:
+            _jdCtrl.text.trim().isEmpty ? null : _jdCtrl.text.trim(),
+        targetRole: _targetRoleCtrl.text.trim().isEmpty
+            ? null
+            : _targetRoleCtrl.text.trim(),
+        style: _style,
+      );
+      final resume = AIResume.fromJson(data);
+      if (mounted) {
+        setState(() => _generated = resume);
+        showMessage(context, '✅ Resume generated successfully!');
+      }
+    } catch (e) {
+      if (mounted) {
+        showMessage(context, 'Generation failed: $e', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
+  }
+
+  Future<void> _downloadPdf() async {
+    if (_generated == null) return;
+    try {
+      final name = (_generated!.userInfo['full_name'] ?? 'Resume')
+          .toString()
+          .replaceAll(RegExp(r'[^\w]'), '_');
+      await ResumePdfService.download(
+        fileNameBase: name,
+        data: _generated!.toResumeDataMap(),
+        styleKey: _style,
+        colorHex: '#6C63FF',
+      );
+      if (mounted) showMessage(context, '✅ PDF downloaded!');
+    } catch (e) {
+      if (mounted) showMessage(context, 'Download failed: $e', isError: true);
+    }
+  }
+
+  Future<void> _sharePdf() async {
+    if (_generated == null) return;
+    try {
+      final name = (_generated!.userInfo['full_name'] ?? 'Resume')
+          .toString()
+          .replaceAll(RegExp(r'[^\w]'), '_');
+      await ResumePdfService.share(
+        fileNameBase: name,
+        data: _generated!.toResumeDataMap(),
+        styleKey: _style,
+        colorHex: '#6C63FF',
+      );
+      if (mounted) showMessage(context, '✅ Resume shared!');
+    } catch (e) {
+      if (mounted) showMessage(context, 'Share failed: $e', isError: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: const Text('AI Resume Generator'),
+        backgroundColor: const Color(0xFF6C63FF),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: _isGenerating
+          ? Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
+                ),
+              ),
+              child: const AILoadingOverlay(
+                message: 'AI is writing your resume...',
+                subtitle:
+                    'Enhancing summary, bullets, keywords and section ordering',
+              ),
+            )
+          : _generated == null
+              ? _buildForm()
+              : _buildPreview(),
+    );
+  }
+
+  // ============================================================
+  // FORM
+  // ============================================================
+  Widget _buildForm() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildIntroCard(),
+          const SizedBox(height: 20),
+          _buildCard(
+            title: 'Target Role (optional)',
+            icon: Icons.flag_outlined,
+            child: TextField(
+              controller: _targetRoleCtrl,
+              decoration: InputDecoration(
+                hintText: 'e.g. Backend Engineer, Data Scientist',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildCard(
+            title: 'Resume Style',
+            icon: Icons.palette_outlined,
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _styles.map((s) {
+                final isSelected = _style == s['value'];
+                return GestureDetector(
+                  onTap: () => setState(() => _style = s['value']!),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFF6C63FF)
+                          : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFF6C63FF)
+                            : Colors.grey.shade300,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(s['icon']!,
+                            style: const TextStyle(fontSize: 14)),
+                        const SizedBox(width: 6),
+                        Text(
+                          s['label']!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected
+                                ? Colors.white
+                                : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildCard(
+            title: 'Job Description (optional but recommended)',
+            icon: Icons.work_outline,
+            child: TextField(
+              controller: _jdCtrl,
+              maxLines: 6,
+              decoration: InputDecoration(
+                hintText:
+                    'Paste the JD here — AI will tailor keywords to match.',
+                hintStyle:
+                    TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.all(14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton.icon(
+              onPressed: _generate,
+              icon: const Icon(Icons.auto_awesome),
+              label: const Text(
+                'Generate Resume with AI',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6C63FF),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 4,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIntroCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(Icons.auto_awesome,
+                color: Colors.white, size: 30),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Fully Automatic AI Resume',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'ATS-optimized · Keyword matched · Quantified bullets',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // PREVIEW
+  // ============================================================
+  Widget _buildPreview() {
+    final r = _generated!;
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          color: Colors.white,
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => setState(() => _generated = null),
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text('Edit'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF6C63FF),
+                    side: const BorderSide(color: Color(0xFF6C63FF)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _downloadPdf,
+                  icon: const Icon(Icons.download, size: 18),
+                  label: const Text('PDF'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _sharePdf,
+                  icon: const Icon(Icons.share, size: 18),
+                  label: const Text('Share'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6C63FF),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
+              ),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _previewCard(
+                    icon: Icons.person,
+                    title: 'Contact',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _previewText(
+                            r.userInfo['full_name']?.toString() ?? '',
+                            bold: true,
+                            size: 18),
+                        if (r.contactInfo['email'] != null)
+                          _previewText('📧 ${r.contactInfo['email']}'),
+                        if (r.contactInfo['phone'] != null)
+                          _previewText('📞 ${r.contactInfo['phone']}'),
+                        if (r.contactInfo['location'] != null)
+                          _previewText('📍 ${r.contactInfo['location']}'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (r.professionalSummary.isNotEmpty)
+                    _previewCard(
+                      icon: Icons.subject,
+                      title: 'Professional Summary',
+                      child: _previewText(r.professionalSummary),
+                    ),
+                  const SizedBox(height: 12),
+                  if (r.careerObjective.isNotEmpty)
+                    _previewCard(
+                      icon: Icons.flag,
+                      title: 'Career Objective',
+                      child: _previewText(r.careerObjective),
+                    ),
+                  const SizedBox(height: 12),
+                  if (r.experience.isNotEmpty)
+                    _previewCard(
+                      icon: Icons.work,
+                      title: 'Experience (${r.experience.length})',
+                      child: Column(
+                        children: r.experience.map((e) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _previewText(
+                                  e['role']?.toString() ?? '',
+                                  bold: true,
+                                  size: 14,
+                                ),
+                                _previewText(
+                                  '${e['company']} · ${e['start_date']} - ${e['end_date']}',
+                                  muted: true,
+                                ),
+                                const SizedBox(height: 6),
+                                ...((e['achievements'] as List?) ?? [])
+                                    .map((b) => Padding(
+                                          padding: const EdgeInsets.only(
+                                              left: 6, bottom: 3),
+                                          child: _previewText('• $b'),
+                                        )),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  if (r.education.isNotEmpty)
+                    _previewCard(
+                      icon: Icons.school,
+                      title: 'Education (${r.education.length})',
+                      child: Column(
+                        children: r.education.map((e) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _previewText(
+                                  e['degree']?.toString() ?? '',
+                                  bold: true,
+                                ),
+                                _previewText(
+                                  '${e['institute']} · ${e['year_of_passing']}',
+                                  muted: true,
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  if ((r.skills['all'] as List?)?.isNotEmpty == true)
+                    _previewCard(
+                      icon: Icons.build,
+                      title: 'Skills',
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children:
+                            (r.skills['all'] as List).map<Widget>((s) {
+                          final name = (s is Map) ? s['name'] : s;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color:
+                                  const Color(0xFF6C63FF).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFF6C63FF)
+                                    .withOpacity(0.3),
+                              ),
+                            ),
+                            child: Text(
+                              name.toString(),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF6C63FF),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  if (r.projects.isNotEmpty)
+                    _previewCard(
+                      icon: Icons.code,
+                      title: 'Projects (${r.projects.length})',
+                      child: Column(
+                        children: r.projects.map((p) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _previewText(
+                                    p['title']?.toString() ?? '',
+                                    bold: true),
+                                _previewText(
+                                    p['description']?.toString() ?? ''),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  if (r.certifications.isNotEmpty)
+                    _previewCard(
+                      icon: Icons.verified,
+                      title: 'Certifications',
+                      child: Column(
+                        children: r.certifications.map((c) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: _previewText(
+                              '✓ ${c['name']} - ${c['issuer']} (${c['year']})',
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _previewCard({
+    required IconData icon,
+    required String title,
+    required Widget child,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: const Color(0xFF6C63FF)),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF6C63FF),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _previewText(String text,
+      {bool bold = false, bool muted = false, double size = 13}) {
+    if (text.isEmpty) return const SizedBox.shrink();
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: size,
+        height: 1.4,
+        fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+        color: muted ? Colors.grey.shade600 : Colors.black87,
+      ),
+    );
+  }
+}
+
+================================================================================
+[  91/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/screens/ats_score_screen.dart
+📏 SIZE: 13.7 KB
+🕐 MODIFIED: 2026-09-25 10:58:39
+================================================================================
+
+// lib/features/resume/AI/presentation/screens/ats_score_screen.dart
+// ✅ ATS Score Screen — full flow with JD comparison
+
+import 'package:flutter/material.dart';
+import 'package:rojgarnext/core/utils/app_snackbar.dart';
+import 'package:rojgarnext/features/resume/AI/data/models/ats_report_model.dart';
+import 'package:rojgarnext/features/resume/AI/services/resume_ai_service.dart';
+import 'package:rojgarnext/features/resume/AI/presentation/widgets/ats_score_gauge.dart';
+import 'package:rojgarnext/features/resume/AI/presentation/widgets/ats_section_breakdown.dart';
+import 'package:rojgarnext/features/resume/AI/presentation/widgets/ats_keyword_chips.dart';
+import 'package:rojgarnext/features/resume/AI/presentation/widgets/ats_fixes_card.dart';
+import 'package:rojgarnext/features/resume/AI/presentation/widgets/ai_loading_overlay.dart';
+
+class ATSScoreScreen extends StatefulWidget {
+  const ATSScoreScreen({super.key});
+
+  @override
+  State<ATSScoreScreen> createState() => _ATSScoreScreenState();
+}
+
+class _ATSScoreScreenState extends State<ATSScoreScreen> {
+  final TextEditingController _jdCtrl = TextEditingController();
+
+  bool _isLoading = false;
+  bool _isScoring = false;
+  ATSReport? _report;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _runQuickScore();
+  }
+
+  @override
+  void dispose() {
+    _jdCtrl.dispose();
+    super.dispose();
+  }
+
+  // ---------- 1. QUICK SCORE (no JD) ----------
+  Future<void> _runQuickScore() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final data = await ResumeAIService.quickScore();
+      final report = ATSReport(
+        overallScore: (data['overall_score'] ?? 0).toDouble(),
+        grade: data['grade'] ?? '',
+        sectionScores: Map<String, int>.from(
+          (data['section_scores'] as Map? ?? {}).map(
+            (k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0),
+          ),
+        ),
+        keywordAnalysis: KeywordAnalysis.fromJson({}),
+        formatting: FormattingReport.fromJson({}),
+        actionVerbs: ActionVerbReport.fromJson({}),
+        quantification: QuantificationReport.fromJson({}),
+        prioritizedFixes: ((data['top_fixes'] as List?) ?? [])
+            .map((e) => ATSFix.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+        aiSummary: data['ai_summary'] ?? '',
+        scoredAt: '',
+      );
+      if (mounted) setState(() => _report = report);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ---------- 2. FULL SCORE (with JD) ----------
+  Future<void> _runFullScore() async {
+    final jd = _jdCtrl.text.trim();
+    if (jd.isEmpty) {
+      showMessage(context, 'Please paste a job description first',
+          isError: true);
+      return;
+    }
+    setState(() {
+      _isScoring = true;
+      _error = null;
+    });
+    try {
+      final data = await ResumeAIService.scoreResume(jobDescription: jd);
+      final report = ATSReport.fromJson(data);
+      if (mounted) setState(() => _report = report);
+      if (mounted) showMessage(context, 'ATS analysis complete! ✅');
+    } catch (e) {
+      if (mounted) {
+        showMessage(context, 'Failed: $e', isError: true);
+        setState(() => _error = e.toString());
+      }
+    } finally {
+      if (mounted) setState(() => _isScoring = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: const Text('ATS Score Analyzer'),
+        backgroundColor: const Color(0xFF6C63FF),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _runQuickScore,
+            tooltip: 'Refresh',
+          ),
+        ],
+      ),
+      body: _isLoading || _isScoring
+          ? Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
+                ),
+              ),
+              child: AILoadingOverlay(
+                message: _isScoring
+                    ? 'AI is analyzing against JD...'
+                    : 'AI is scoring your resume...',
+                subtitle: _isScoring
+                    ? 'Extracting keywords, comparing skills, checking ATS compatibility'
+                    : 'Running 8-dimension ATS analysis',
+              ),
+            )
+          : _error != null
+              ? _buildErrorState()
+              : _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_report != null)
+            Center(
+              child: ATSScoreGauge(
+                score: _report!.overallScore,
+                grade: _report!.grade,
+              ),
+            ),
+          if (_report != null) const SizedBox(height: 20),
+          if (_report != null && _report!.aiSummary.isNotEmpty)
+            _buildAISummaryCard(_report!.aiSummary),
+          if (_report != null) const SizedBox(height: 20),
+          _buildJDInputCard(),
+          const SizedBox(height: 20),
+          if (_report != null && _report!.sectionScores.isNotEmpty)
+            _buildSectionCard(
+              title: 'Section-wise Score',
+              icon: Icons.bar_chart,
+              child: ATSSectionBreakdown(
+                sectionScores: _report!.sectionScores,
+              ),
+            ),
+          if (_report != null) const SizedBox(height: 20),
+          if (_report != null)
+            _buildSectionCard(
+              title: 'Keyword Match Analysis',
+              icon: Icons.vpn_key,
+              child: ATSKeywordChips(
+                matched: _report!.keywordAnalysis.matchedKeywords,
+                missing: _report!.keywordAnalysis.missingKeywords,
+                priorityMissing:
+                    _report!.keywordAnalysis.topPriorityMissing,
+              ),
+            ),
+          if (_report != null) const SizedBox(height: 20),
+          if (_report != null && _report!.prioritizedFixes.isNotEmpty) ...[
+            _buildSectionHeader('Priority Fixes', Icons.build_circle),
+            const SizedBox(height: 12),
+            ATSFixesCard(fixes: _report!.prioritizedFixes),
+            const SizedBox(height: 20),
+          ],
+          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJDInputCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6C63FF), Color(0xFF8B7FFF)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withOpacity(0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.work_outline, color: Colors.white),
+              SizedBox(width: 8),
+              Text(
+                'Compare with Job Description',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Paste the JD to get keyword matching & score boost tips.',
+            style: TextStyle(
+                color: Colors.white.withOpacity(0.85), fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TextField(
+              controller: _jdCtrl,
+              maxLines: 5,
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
+              decoration: const InputDecoration(
+                hintText:
+                    'e.g. We are looking for a Python developer with 3+ years...',
+                hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.all(12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton.icon(
+              onPressed: _isScoring ? null : _runFullScore,
+              icon: const Icon(Icons.auto_awesome, size: 18),
+              label: const Text(
+                'Analyze against JD',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF6C63FF),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAISummaryCard(String summary) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF6C63FF).withOpacity(0.08),
+            const Color(0xFFFF6588).withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF6C63FF).withOpacity(0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.auto_awesome,
+                color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              summary,
+              style: const TextStyle(
+                fontSize: 13.5,
+                height: 1.5,
+                color: Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: Colors.white, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader(title, icon),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.error_outline,
+                  size: 48, color: Colors.red.shade400),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Failed to score resume',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error ?? 'Unknown error',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _runQuickScore,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6C63FF),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+================================================================================
+[  92/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ai_loading_overlay.dart
+📏 SIZE: 3.9 KB
+🕐 MODIFIED: 2026-09-25 10:57:16
+================================================================================
+
+// lib/features/resume/AI/presentation/widgets/ai_loading_overlay.dart
+// ✅ AI loading animation — shared across all AI screens
+
+import 'package:flutter/material.dart';
+
+class AILoadingOverlay extends StatefulWidget {
+  final String message;
+  final String? subtitle;
+
+  const AILoadingOverlay({
+    super.key,
+    this.message = 'AI is working...',
+    this.subtitle,
+  });
+
+  @override
+  State<AILoadingOverlay> createState() => _AILoadingOverlayState();
+}
+
+class _AILoadingOverlayState extends State<AILoadingOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnim;
+  late Animation<double> _rotateAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1800),
+      vsync: this,
+    )..repeat();
+
+    _scaleAnim = Tween<double>(begin: 0.9, end: 1.1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    _rotateAnim = Tween<double>(begin: 0, end: 1).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              return Transform.scale(
+                scale: _scaleAnim.value,
+                child: Transform.rotate(
+                  angle: _rotateAnim.value * 6.28318,
+                  child: Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                      ),
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF6C63FF).withOpacity(0.35),
+                          blurRadius: 24,
+                          spreadRadius: 6,
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.auto_awesome,
+                        color: Colors.white,
+                        size: 42,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 32),
+          ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+            ).createShader(bounds),
+            child: Text(
+              widget.message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          if (widget.subtitle != null) ...[
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                widget.subtitle!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          const SizedBox(
+            width: 40,
+            height: 40,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C63FF)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+================================================================================
+[  93/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ats_fixes_card.dart
+📏 SIZE: 5.4 KB
+🕐 MODIFIED: 2026-09-25 10:58:17
+================================================================================
+
+// lib/features/resume/AI/presentation/widgets/ats_fixes_card.dart
+// ✅ Prioritized fix list — P1 / P2 / P3
+
+import 'package:flutter/material.dart';
+import 'package:rojgarnext/features/resume/AI/data/models/ats_report_model.dart';
+
+class ATSFixesCard extends StatelessWidget {
+  final List<ATSFix> fixes;
+
+  const ATSFixesCard({super.key, required this.fixes});
+
+  Color _priorityColor(int p) {
+    if (p == 1) return const Color(0xFFEF4444);
+    if (p == 2) return const Color(0xFFF59E0B);
+    return const Color(0xFF3B82F6);
+  }
+
+  String _priorityLabel(int p) {
+    if (p == 1) return 'CRITICAL';
+    if (p == 2) return 'IMPORTANT';
+    return 'NICE TO HAVE';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (fixes.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF10B981).withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFF10B981).withOpacity(0.3),
+          ),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Color(0xFF10B981), size: 28),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Perfect! No critical issues found. 🎉',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: fixes.map((fix) {
+        final color = _priorityColor(fix.priority);
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withOpacity(0.25), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _priorityLabel(fix.priority),
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      fix.category,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    fix.impact == 'High'
+                        ? Icons.trending_up
+                        : fix.impact == 'Medium'
+                            ? Icons.trending_flat
+                            : Icons.trending_down,
+                    size: 16,
+                    color: color,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                fix.issue,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.lightbulb_outline, size: 14, color: color),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        fix.fix,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          height: 1.4,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+================================================================================
+[  94/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ats_keyword_chips.dart
+📏 SIZE: 4.4 KB
+🕐 MODIFIED: 2026-09-25 10:58:01
+================================================================================
+
+// lib/features/resume/AI/presentation/widgets/ats_keyword_chips.dart
+// ✅ Matched / Missing keyword chips display
+
+import 'package:flutter/material.dart';
+
+class ATSKeywordChips extends StatelessWidget {
+  final List<String> matched;
+  final List<String> missing;
+  final List<String> priorityMissing;
+
+  const ATSKeywordChips({
+    super.key,
+    required this.matched,
+    required this.missing,
+    required this.priorityMissing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (priorityMissing.isNotEmpty) ...[
+          _buildHeader(
+            icon: Icons.warning_amber_rounded,
+            color: const Color(0xFFEF4444),
+            label: 'Top Priority Missing (${priorityMissing.length})',
+            subtitle: 'Add these to your resume FIRST',
+          ),
+          const SizedBox(height: 10),
+          _buildChips(
+              priorityMissing, const Color(0xFFEF4444), Icons.priority_high),
+          const SizedBox(height: 20),
+        ],
+        if (matched.isNotEmpty) ...[
+          _buildHeader(
+            icon: Icons.check_circle,
+            color: const Color(0xFF10B981),
+            label: 'Matched Keywords (${matched.length})',
+          ),
+          const SizedBox(height: 10),
+          _buildChips(matched, const Color(0xFF10B981), Icons.check),
+          const SizedBox(height: 20),
+        ],
+        if (missing.isNotEmpty) ...[
+          _buildHeader(
+            icon: Icons.info_outline,
+            color: const Color(0xFFF59E0B),
+            label: 'Other Missing Keywords (${missing.length})',
+          ),
+          const SizedBox(height: 10),
+          _buildChips(missing, const Color(0xFFF59E0B), Icons.add),
+        ],
+        if (matched.isEmpty && missing.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.grey),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Paste a Job Description above to see keyword match analysis.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildHeader({
+    required IconData icon,
+    required Color color,
+    required String label,
+    String? subtitle,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: color,
+                ),
+              ),
+              if (subtitle != null)
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChips(List<String> items, Color color, IconData icon) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: items.map((kw) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withOpacity(0.35), width: 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 11, color: color),
+              const SizedBox(width: 5),
+              Text(
+                kw,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+================================================================================
+[  95/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ats_score_gauge.dart
+📏 SIZE: 5.6 KB
+🕐 MODIFIED: 2026-09-25 10:57:31
+================================================================================
+
+// lib/features/resume/AI/presentation/widgets/ats_score_gauge.dart
+// ✅ Big animated circular gauge for overall ATS score
+
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+
+class ATSScoreGauge extends StatefulWidget {
+  final double score; // 0-100
+  final String grade;
+  final double size;
+
+  const ATSScoreGauge({
+    super.key,
+    required this.score,
+    required this.grade,
+    this.size = 180,
+  });
+
+  @override
+  State<ATSScoreGauge> createState() => _ATSScoreGaugeState();
+}
+
+class _ATSScoreGaugeState extends State<ATSScoreGauge>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1400),
+      vsync: this,
+    );
+    _animation = Tween<double>(begin: 0, end: widget.score).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Color _scoreColor(double score) {
+    if (score >= 85) return const Color(0xFF10B981);
+    if (score >= 70) return const Color(0xFF3B82F6);
+    if (score >= 50) return const Color(0xFFF59E0B);
+    return const Color(0xFFEF4444);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _scoreColor(widget.score);
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, _) {
+        final displayScore = _animation.value;
+        return SizedBox(
+          width: widget.size,
+          height: widget.size,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: widget.size,
+                height: widget.size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withOpacity(0.25),
+                      blurRadius: 30,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+              CustomPaint(
+                size: Size(widget.size, widget.size),
+                painter: _GaugePainter(
+                  progress: displayScore / 100.0,
+                  color: color,
+                  backgroundColor: Colors.grey.shade200,
+                  strokeWidth: 14,
+                ),
+              ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    displayScore.toStringAsFixed(0),
+                    style: TextStyle(
+                      fontSize: widget.size * 0.26,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                      letterSpacing: -1.5,
+                    ),
+                  ),
+                  Text(
+                    '/100',
+                    style: TextStyle(
+                      fontSize: widget.size * 0.09,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      widget.grade.split('(').first.trim(),
+                      style: TextStyle(
+                        fontSize: widget.size * 0.075,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _GaugePainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  final Color backgroundColor;
+  final double strokeWidth;
+
+  _GaugePainter({
+    required this.progress,
+    required this.color,
+    required this.backgroundColor,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+
+    final bgPaint = Paint()
+      ..color = backgroundColor
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = strokeWidth;
+
+    final progressPaint = Paint()
+      ..shader = SweepGradient(
+        startAngle: -math.pi / 2,
+        endAngle: -math.pi / 2 + (2 * math.pi * progress),
+        colors: [
+          color.withOpacity(0.6),
+          color,
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = strokeWidth;
+
+    canvas.drawCircle(center, radius, bgPaint);
+
+    const startAngle = -math.pi / 2;
+    final sweepAngle = 2 * math.pi * progress;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepAngle,
+      false,
+      progressPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _GaugePainter oldDelegate) {
+    return oldDelegate.progress != progress || oldDelegate.color != color;
+  }
+}
+
+================================================================================
+[  96/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ats_section_breakdown.dart
+📏 SIZE: 4.3 KB
+🕐 MODIFIED: 2026-09-25 10:57:47
+================================================================================
+
+// lib/features/resume/AI/presentation/widgets/ats_section_breakdown.dart
+// ✅ Section-wise ATS score bars
+
+import 'package:flutter/material.dart';
+
+class ATSSectionBreakdown extends StatelessWidget {
+  final Map<String, int> sectionScores;
+
+  const ATSSectionBreakdown({super.key, required this.sectionScores});
+
+  static const Map<String, Map<String, dynamic>> _sectionMeta = {
+    'keywords': {
+      'label': 'Keyword Match',
+      'icon': Icons.vpn_key,
+      'color': Color(0xFF6C63FF)
+    },
+    'experience': {
+      'label': 'Experience',
+      'icon': Icons.work,
+      'color': Color(0xFF10B981)
+    },
+    'skills': {
+      'label': 'Skills',
+      'icon': Icons.build,
+      'color': Color(0xFF3B82F6)
+    },
+    'formatting': {
+      'label': 'Formatting',
+      'icon': Icons.description,
+      'color': Color(0xFFF59E0B)
+    },
+    'summary': {
+      'label': 'Summary',
+      'icon': Icons.subject,
+      'color': Color(0xFF8B5CF6)
+    },
+    'education': {
+      'label': 'Education',
+      'icon': Icons.school,
+      'color': Color(0xFFEC4899)
+    },
+    'projects': {
+      'label': 'Projects',
+      'icon': Icons.code,
+      'color': Color(0xFF06B6D4)
+    },
+    'certifications': {
+      'label': 'Certifications',
+      'icon': Icons.verified,
+      'color': Color(0xFFF97316)
+    },
+    'contact': {
+      'label': 'Contact Info',
+      'icon': Icons.contact_mail,
+      'color': Color(0xFF14B8A6)
+    },
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = sectionScores.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: entries.map((e) {
+        final meta = _sectionMeta[e.key] ??
+            {'label': e.key, 'icon': Icons.star, 'color': Colors.grey};
+        return _buildBar(
+          label: meta['label'] as String,
+          icon: meta['icon'] as IconData,
+          color: meta['color'] as Color,
+          value: e.value,
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildBar({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required int value,
+  }) {
+    final isGood = value >= 70;
+    final isMid = value >= 50 && value < 70;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 14, color: color),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              Text(
+                '$value%',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: isGood
+                      ? const Color(0xFF10B981)
+                      : isMid
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFFEF4444),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: value / 100),
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeOutCubic,
+              builder: (context, animValue, _) {
+                return LinearProgressIndicator(
+                  value: animValue,
+                  minHeight: 7,
+                  backgroundColor: Colors.grey.shade200,
+                  color: color,
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+================================================================================
+[  97/ 145] 🎯 rojgarnext/lib/features/resume/AI/resume_ai_service.dart
 📏 SIZE: 505 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -46060,7 +48325,7 @@ class ResumeAIService {
 
 
 ================================================================================
-[  88/ 134] 🎯 rojgarnext/lib/features/resume/AI/resume_score_widget.dart
+[  98/ 145] 🎯 rojgarnext/lib/features/resume/AI/resume_score_widget.dart
 📏 SIZE: 3.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -46198,7 +48463,138 @@ class _ResumeScoreWidgetState extends State<ResumeScoreWidget> {
 
 
 ================================================================================
-[  89/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/build_resume_screen.dart
+[  99/ 145] 🎯 rojgarnext/lib/features/resume/AI/services/resume_ai_service.dart
+📏 SIZE: 4.1 KB
+🕐 MODIFIED: 2026-09-25 10:56:41
+================================================================================
+
+// lib/features/resume/AI/services/resume_ai_service.dart
+// ✅ AI Resume Service — talks to backend /resume/ai/* routes
+
+import 'package:dio/dio.dart';
+import 'package:rojgarnext/core/network/dio_client.dart';
+
+class ResumeAIService {
+  static Dio get _dio => DioClient.dio;
+
+  // ============================================================
+  // 1. ATS SCORE (with optional JD)
+  // ============================================================
+  static Future<Map<String, dynamic>> scoreResume({
+    String? jobDescription,
+    List<String>? jobSkills,
+  }) async {
+    final res = await _dio.post(
+      '/resume/ai/score',
+      data: {
+        if (jobDescription != null && jobDescription.isNotEmpty)
+          'job_description': jobDescription,
+        if (jobSkills != null && jobSkills.isNotEmpty)
+          'job_skills': jobSkills,
+      },
+    );
+    return Map<String, dynamic>.from(res.data['data']);
+  }
+
+  // ============================================================
+  // 2. FULL AUTO GENERATE
+  // ============================================================
+  static Future<Map<String, dynamic>> generateResume({
+    String? jobDescription,
+    String? targetRole,
+    String style = 'modern',
+  }) async {
+    final res = await _dio.post(
+      '/resume/ai/generate',
+      data: {
+        if (jobDescription != null && jobDescription.isNotEmpty)
+          'job_description': jobDescription,
+        if (targetRole != null && targetRole.isNotEmpty)
+          'target_role': targetRole,
+        'style': style,
+      },
+    );
+    return Map<String, dynamic>.from(res.data['data']);
+  }
+
+  // ============================================================
+  // 3. GENERATE + SCORE (combined)
+  // ============================================================
+  static Future<Map<String, dynamic>> generateAndScore({
+    String? jobDescription,
+    String? targetRole,
+    String style = 'modern',
+  }) async {
+    final res = await _dio.post(
+      '/resume/ai/generate-and-score',
+      data: {
+        if (jobDescription != null && jobDescription.isNotEmpty)
+          'job_description': jobDescription,
+        if (targetRole != null && targetRole.isNotEmpty)
+          'target_role': targetRole,
+        'style': style,
+      },
+    );
+    return Map<String, dynamic>.from(res.data['data']);
+  }
+
+  // ============================================================
+  // 4. ENHANCE BULLETS
+  // ============================================================
+  static Future<List<String>> enhanceBullets({
+    required List<String> bullets,
+    String? role,
+    String? jobDescription,
+    int count = 5,
+  }) async {
+    final res = await _dio.post(
+      '/resume/ai/enhance-bullets',
+      data: {
+        'bullets': bullets,
+        if (role != null && role.isNotEmpty) 'role': role,
+        if (jobDescription != null && jobDescription.isNotEmpty)
+          'job_description': jobDescription,
+        'count': count,
+      },
+    );
+    return List<String>.from(res.data['data']['bullets']);
+  }
+
+  // ============================================================
+  // 5. ENHANCE SUMMARY
+  // ============================================================
+  static Future<String> enhanceSummary({
+    required String baseSummary,
+    required String role,
+    required List<String> skills,
+    required int yearsExperience,
+    String? jobDescription,
+  }) async {
+    final res = await _dio.post(
+      '/resume/ai/enhance-summary',
+      data: {
+        'base_summary': baseSummary,
+        'role': role,
+        'skills': skills,
+        'years_experience': yearsExperience,
+        if (jobDescription != null && jobDescription.isNotEmpty)
+          'job_description': jobDescription,
+      },
+    );
+    return res.data['data']['summary'] as String;
+  }
+
+  // ============================================================
+  // 6. QUICK ATS SCORE (no JD)
+  // ============================================================
+  static Future<Map<String, dynamic>> quickScore() async {
+    final res = await _dio.get('/resume/ai/quick-score');
+    return Map<String, dynamic>.from(res.data['data']);
+  }
+}
+
+================================================================================
+[ 100/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/build_resume_screen.dart
 📏 SIZE: 42.5 KB
 🕐 MODIFIED: 2026-09-24 23:34:59
 ================================================================================
@@ -47463,7 +49859,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
 }
 
 ================================================================================
-[  90/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/classic_format.dart
+[ 101/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/classic_format.dart
 📏 SIZE: 21.4 KB
 🕐 MODIFIED: 2026-09-24 20:57:17
 ================================================================================
@@ -47979,7 +50375,7 @@ body{font-family:Georgia,serif;background:#f8f8f8;padding:30px 20px;line-height:
 }
 
 ================================================================================
-[  91/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/executive_format.dart
+[ 102/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/executive_format.dart
 📏 SIZE: 20.4 KB
 🕐 MODIFIED: 2026-09-24 20:59:40
 ================================================================================
@@ -48460,7 +50856,7 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
 }
 
 ================================================================================
-[  92/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/fresher_format.dart
+[ 103/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/fresher_format.dart
 📏 SIZE: 27.9 KB
 🕐 MODIFIED: 2026-09-24 21:00:36
 ================================================================================
@@ -49090,7 +51486,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#E0F2F1;padding:30px 2
 }
 
 ================================================================================
-[  93/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/government_format.dart
+[ 104/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/government_format.dart
 📏 SIZE: 27.9 KB
 🕐 MODIFIED: 2026-09-24 21:00:25
 ================================================================================
@@ -49777,7 +52173,7 @@ th{background:#F3F4F6;font-weight:bold;color:#1F2937}
 }
 
 ================================================================================
-[  94/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/modern_format.dart
+[ 105/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/modern_format.dart
 📏 SIZE: 26.8 KB
 🕐 MODIFIED: 2026-09-24 20:57:49
 ================================================================================
@@ -50397,7 +52793,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#f3f4f6;padding:30px 2
 }
 
 ================================================================================
-[  95/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/tech_format.dart
+[ 106/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/tech_format.dart
 📏 SIZE: 26.6 KB
 🕐 MODIFIED: 2026-09-24 20:58:16
 ================================================================================
@@ -51009,7 +53405,7 @@ body{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;background:#0F1
 }
 
 ================================================================================
-[  96/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_base.dart
+[ 107/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_base.dart
 📏 SIZE: 26.4 KB
 🕐 MODIFIED: 2026-09-24 22:11:08
 ================================================================================
@@ -51882,7 +54278,7 @@ abstract class ResumeFormatBase {
 }
 
 ================================================================================
-[  97/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_manager.dart
+[ 108/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_manager.dart
 📏 SIZE: 874 B
 🕐 MODIFIED: 2026-09-17 15:56:33
 ================================================================================
@@ -51920,7 +54316,7 @@ class ResumeFormatManager {
 }
 
 ================================================================================
-[  98/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_popup.dart
+[ 109/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_popup.dart
 📏 SIZE: 11.9 KB
 🕐 MODIFIED: 2026-09-24 22:01:56
 ================================================================================
@@ -52307,7 +54703,7 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
 }
 
 ================================================================================
-[  99/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_widget.dart
+[ 110/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_widget.dart
 📏 SIZE: 573 B
 🕐 MODIFIED: 2026-09-17 15:38:50
 ================================================================================
@@ -52336,7 +54732,7 @@ class ResumeFormatWidget extends StatelessWidget {
 }
 
 ================================================================================
-[ 100/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/resume_screen.dart
+[ 111/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/resume_screen.dart
 📏 SIZE: 59.4 KB
 🕐 MODIFIED: 2026-09-25 09:35:46
 ================================================================================
@@ -53959,7 +56355,7 @@ class _ResumeScreenState extends State<ResumeScreen>
 }
 
 ================================================================================
-[ 101/ 134] 🎯 rojgarnext/lib/features/resume/presentation/widgets/profile_photo_upload_dialog.dart
+[ 112/ 145] 🎯 rojgarnext/lib/features/resume/presentation/widgets/profile_photo_upload_dialog.dart
 📏 SIZE: 10.6 KB
 🕐 MODIFIED: 2026-09-25 09:55:11
 ================================================================================
@@ -54269,7 +56665,7 @@ class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
 }
 
 ================================================================================
-[ 102/ 134] 🎯 rojgarnext/lib/features/resume/services/resume_pdf_service.dart
+[ 113/ 145] 🎯 rojgarnext/lib/features/resume/services/resume_pdf_service.dart
 📏 SIZE: 5.2 KB
 🕐 MODIFIED: 2026-09-24 22:01:29
 ================================================================================
@@ -54445,7 +56841,7 @@ class ResumePdfService {
 }
 
 ================================================================================
-[ 103/ 134] 🎯 rojgarnext/lib/features/resume/services/resume_profile_service.dart
+[ 114/ 145] 🎯 rojgarnext/lib/features/resume/services/resume_profile_service.dart
 📏 SIZE: 1.9 KB
 🕐 MODIFIED: 2026-09-25 09:35:03
 ================================================================================
@@ -54510,7 +56906,7 @@ class ResumeProfileService {
 }
 
 ================================================================================
-[ 104/ 134] 🎯 rojgarnext/lib/features/services/data/service_data_source.dart
+[ 115/ 145] 🎯 rojgarnext/lib/features/services/data/service_data_source.dart
 📏 SIZE: 2.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -54609,7 +57005,7 @@ class ServiceDataSource {
 }
 
 ================================================================================
-[ 105/ 134] 🎯 rojgarnext/lib/features/services/data/service_repository.dart
+[ 116/ 145] 🎯 rojgarnext/lib/features/services/data/service_repository.dart
 📏 SIZE: 8.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -54882,7 +57278,7 @@ class ServiceRepository {
 }
 
 ================================================================================
-[ 106/ 134] 🎯 rojgarnext/lib/features/services/models/service_types.dart
+[ 117/ 145] 🎯 rojgarnext/lib/features/services/models/service_types.dart
 📏 SIZE: 25.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -55664,7 +58060,7 @@ class ServiceMasterData {
 }
 
 ================================================================================
-[ 107/ 134] 🎯 rojgarnext/lib/features/services/presentation/screens/apply_service_screen.dart
+[ 118/ 145] 🎯 rojgarnext/lib/features/services/presentation/screens/apply_service_screen.dart
 📏 SIZE: 64.8 KB
 🕐 MODIFIED: 2026-09-19 18:06:15
 ================================================================================
@@ -57716,7 +60112,7 @@ class _UploadedDoc {
 }
 
 ================================================================================
-[ 108/ 134] 🎯 rojgarnext/lib/features/services/presentation/screens/service_application_screen.dart
+[ 119/ 145] 🎯 rojgarnext/lib/features/services/presentation/screens/service_application_screen.dart
 📏 SIZE: 163.7 KB
 🕐 MODIFIED: 2026-09-24 18:30:13
 ================================================================================
@@ -62222,7 +64618,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
 }
 
 ================================================================================
-[ 109/ 134] 🎯 rojgarnext/lib/features/services/presentation/screens/user_service_applications_screen.dart
+[ 120/ 145] 🎯 rojgarnext/lib/features/services/presentation/screens/user_service_applications_screen.dart
 📏 SIZE: 137.3 KB
 🕐 MODIFIED: 2026-09-24 16:06:36
 ================================================================================
@@ -66140,7 +68536,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 }
 
 ================================================================================
-[ 110/ 134] 🎯 rojgarnext/lib/features/splash/splash_page.dart
+[ 121/ 145] 🎯 rojgarnext/lib/features/splash/splash_page.dart
 📏 SIZE: 10.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -66449,7 +68845,7 @@ class _SplashPageState extends State<SplashPage>
 }
 
 ================================================================================
-[ 111/ 134] 🎯 rojgarnext/lib/features/superadmin/AI/superadmin_ai_dashboard.dart
+[ 122/ 145] 🎯 rojgarnext/lib/features/superadmin/AI/superadmin_ai_dashboard.dart
 📏 SIZE: 1.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -66512,7 +68908,7 @@ class JobAIService {
 
 
 ================================================================================
-[ 112/ 134] 🎯 rojgarnext/lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
+[ 123/ 145] 🎯 rojgarnext/lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
 📏 SIZE: 25.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -67338,7 +69734,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
 }
 
 ================================================================================
-[ 113/ 134] 🎯 rojgarnext/lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
+[ 124/ 145] 🎯 rojgarnext/lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
 📏 SIZE: 4.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -67473,7 +69869,7 @@ class SuperAdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[ 114/ 134] 🎯 rojgarnext/lib/features/user/AI/user_ai_dashboard.dart
+[ 125/ 145] 🎯 rojgarnext/lib/features/user/AI/user_ai_dashboard.dart
 📏 SIZE: 43.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -68792,7 +71188,7 @@ class _LineChartPainter extends CustomPainter {
 
 
 ================================================================================
-[ 115/ 134] 🎯 rojgarnext/lib/features/user/AI/user_ai_screen.dart
+[ 126/ 145] 🎯 rojgarnext/lib/features/user/AI/user_ai_screen.dart
 📏 SIZE: 17.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -69354,7 +71750,7 @@ class _UserAIScreenState extends State<UserAIScreen> {
 
 
 ================================================================================
-[ 116/ 134] 🎯 rojgarnext/lib/features/user/AI/user_ai_service.dart
+[ 127/ 145] 🎯 rojgarnext/lib/features/user/AI/user_ai_service.dart
 📏 SIZE: 3.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -69481,7 +71877,7 @@ class UserAIService {
 
 
 ================================================================================
-[ 117/ 134] 🎯 rojgarnext/lib/features/user/AI/user_career_roadmap_screen.dart
+[ 128/ 145] 🎯 rojgarnext/lib/features/user/AI/user_career_roadmap_screen.dart
 📏 SIZE: 10.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -69828,7 +72224,7 @@ class _UserCareerRoadmapScreenState extends State<UserCareerRoadmapScreen> {
 
 
 ================================================================================
-[ 118/ 134] 🎯 rojgarnext/lib/features/user/data/user_service.dart
+[ 129/ 145] 🎯 rojgarnext/lib/features/user/data/user_service.dart
 📏 SIZE: 31.5 KB
 🕐 MODIFIED: 2026-09-13 20:38:56
 ================================================================================
@@ -70833,7 +73229,7 @@ class UserService {
 }
 
 ================================================================================
-[ 119/ 134] 🎯 rojgarnext/lib/features/user/presentation/controllers/user_profile_controller.dart
+[ 130/ 145] 🎯 rojgarnext/lib/features/user/presentation/controllers/user_profile_controller.dart
 📏 SIZE: 7.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -71126,7 +73522,7 @@ class UserProfileController extends ChangeNotifier {
 
 
 ================================================================================
-[ 120/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/advanced_details_screen.dart
+[ 131/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/advanced_details_screen.dart
 📏 SIZE: 74.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -73202,7 +75598,7 @@ class _AdvancedDetailsScreenState extends State<AdvancedDetailsScreen>
 
 
 ================================================================================
-[ 121/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/basic_details_screen.dart
+[ 132/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/basic_details_screen.dart
 📏 SIZE: 79.2 KB
 🕐 MODIFIED: 2026-09-14 19:46:34
 ================================================================================
@@ -75159,7 +77555,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
 }
 
 ================================================================================
-[ 122/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/education_screen.dart
+[ 133/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/education_screen.dart
 📏 SIZE: 60.3 KB
 🕐 MODIFIED: 2026-09-15 15:17:51
 ================================================================================
@@ -76960,7 +79356,7 @@ class _EducationScreenState extends State<EducationScreen> {
 }
 
 ================================================================================
-[ 123/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/experience_screen.dart
+[ 134/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/experience_screen.dart
 📏 SIZE: 76.4 KB
 🕐 MODIFIED: 2026-09-15 16:46:54
 ================================================================================
@@ -78861,7 +81257,7 @@ class _TabData {
 }
 
 ================================================================================
-[ 124/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/user_applications_screen.dart
+[ 135/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/user_applications_screen.dart
 📏 SIZE: 107.1 KB
 🕐 MODIFIED: 2026-09-24 19:13:15
 ================================================================================
@@ -81928,7 +84324,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 }
 
 ================================================================================
-[ 125/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
+[ 136/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
 📏 SIZE: 37.4 KB
 🕐 MODIFIED: 2026-09-24 23:20:08
 ================================================================================
@@ -83035,7 +85431,7 @@ class _UserDashboardState extends State<UserDashboard> {
 }
 
 ================================================================================
-[ 126/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/user_documents_screen.dart
+[ 137/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/user_documents_screen.dart
 📏 SIZE: 65.5 KB
 🕐 MODIFIED: 2026-09-24 23:54:36
 ================================================================================
@@ -84477,7 +86873,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 }
 
 ================================================================================
-[ 127/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/user_support_screen.dart
+[ 138/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/user_support_screen.dart
 📏 SIZE: 27.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -85363,7 +87759,7 @@ This message was sent from RojgarNext App
 }
 
 ================================================================================
-[ 128/ 134] 🎯 rojgarnext/lib/features/user/presentation/utils/menu_types.dart
+[ 139/ 145] 🎯 rojgarnext/lib/features/user/presentation/utils/menu_types.dart
 📏 SIZE: 462 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -85396,13 +87792,15 @@ enum MenuType {
 
 
 ================================================================================
-[ 129/ 134] 🎯 rojgarnext/lib/features/user/presentation/widgets/user_sidebar.dart
-📏 SIZE: 12.7 KB
-🕐 MODIFIED: 2026-09-24 23:30:48
+[ 140/ 145] 🎯 rojgarnext/lib/features/user/presentation/widgets/user_sidebar.dart
+📏 SIZE: 16.0 KB
+🕐 MODIFIED: 2026-09-25 10:07:51
 ================================================================================
 
 // lib/features/user/presentation/widgets/user_sidebar.dart
 // ✅ Listens to UserProfileProvider → photo updates everywhere instantly
+// ✅ NEW: Camera icon overlay on profile photo → tap to upload
+// ✅ Same pattern as Build Resume screen
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kReleaseMode;
@@ -85414,6 +87812,7 @@ import 'package:rojgarnext/core/storage/secure_storage.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/features/user/presentation/utils/menu_types.dart';
 import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
+import 'package:rojgarnext/features/resume/presentation/widgets/profile_photo_upload_dialog.dart';
 
 class UserSidebar extends StatefulWidget {
   final MenuType selectedMenu;
@@ -85591,28 +87990,102 @@ class _UserSidebarState extends State<UserSidebar> {
     );
   }
 
+  // ============================================================
+  // ✅ NEW: Open ProfilePhotoUploadDialog (same as Build Resume)
+  // ============================================================
+  Future<void> _openProfilePhotoUpload() async {
+    if (!mounted) return;
+
+    // Read current photo from provider (single source of truth)
+    final currentUrl =
+        Provider.of<UserProfileProvider>(context, listen: false)
+            .profilePhotoUrl ??
+        _fallbackPhotoUrl;
+
+    final uploadedUrl = await ProfilePhotoUploadDialog.show(
+      context,
+      currentPhotoUrl: currentUrl,
+    );
+
+    // ✅ Provider is already updated inside the dialog —
+    // no setState needed. But we refresh the local fallback anyway.
+    if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
+      setState(() {
+        _fallbackPhotoUrl = uploadedUrl;
+      });
+      debugPrint("✅ Sidebar: profile photo updated → $uploadedUrl");
+    }
+  }
+
+  // ============================================================
+  // ✅ Profile section with camera icon overlay
+  // ============================================================
   Widget _buildProfileSection() {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.blueAccent, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blueAccent.withAlpha(51),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+          // ✅ Photo + camera overlay (Stack — same as Build Resume)
+          GestureDetector(
+            onTap: _openProfilePhotoUpload,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Main avatar
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.blueAccent, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blueAccent.withAlpha(51),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: _buildProfilePhoto(),
+                ),
+
+                // ✅ Camera icon at bottom-right
+                Positioned(
+                  right: -2,
+                  bottom: -2,
+                  child: Material(
+                    color: Colors.white,
+                    shape: const CircleBorder(),
+                    elevation: 4,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: _openProfilePhotoUpload,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.blueAccent.shade400,
+                              Colors.purpleAccent.shade200,
+                            ],
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          size: 15,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: _buildProfilePhoto(),
           ),
+
           const SizedBox(height: 12),
+
           Text(
             _userName,
             style: const TextStyle(
@@ -85633,7 +88106,21 @@ class _UserSidebarState extends State<UserSidebar> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 12),
+
+          const SizedBox(height: 6),
+
+          // Small hint text
+          Text(
+            "Tap photo to update",
+            style: TextStyle(
+              color: Colors.white.withAlpha(120),
+              fontSize: 9,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
           Container(
             height: 1,
             margin: const EdgeInsets.symmetric(horizontal: 10),
@@ -85731,7 +88218,7 @@ class _UserSidebarState extends State<UserSidebar> {
           children: [
             const SizedBox(height: 30),
             _buildProfileSection(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
@@ -85794,7 +88281,7 @@ class _UserSidebarState extends State<UserSidebar> {
 }
 
 ================================================================================
-[ 130/ 134] 🎯 rojgarnext/lib/features/user/providers/user_profile_provider.dart
+[ 141/ 145] 🎯 rojgarnext/lib/features/user/providers/user_profile_provider.dart
 📏 SIZE: 5.1 KB
 🕐 MODIFIED: 2026-09-25 09:54:42
 ================================================================================
@@ -85941,7 +88428,7 @@ class UserProfileProvider extends ChangeNotifier {
 }
 
 ================================================================================
-[ 131/ 134] 🎯 rojgarnext/lib/main.dart
+[ 142/ 145] 🎯 rojgarnext/lib/main.dart
 📏 SIZE: 4.3 KB
 🕐 MODIFIED: 2026-09-24 23:30:21
 ================================================================================
@@ -86101,7 +88588,7 @@ class _NoGlowScrollBehavior extends ScrollBehavior {
 }
 
 ================================================================================
-[ 132/ 134] ⚙️ rojgarnext/pubspec.yaml
+[ 143/ 145] ⚙️ rojgarnext/pubspec.yaml
 📏 SIZE: 2.0 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -86194,7 +88681,7 @@ flutter:
     - assets/icons/
 
 ================================================================================
-[ 133/ 134] 🌐 rojgarnext/web/index.html
+[ 144/ 145] 🌐 rojgarnext/web/index.html
 📏 SIZE: 1.6 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -86250,7 +88737,7 @@ flutter:
 </html>
 
 ================================================================================
-[ 134/ 134] 📋 rojgarnext/web/manifest.json
+[ 145/ 145] 📋 rojgarnext/web/manifest.json
 📏 SIZE: 951 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -86295,6 +88782,6 @@ flutter:
 ================================================================================
 🎉 EXPORT COMPLETED!
 ================================================================================
-Total Files: 134
-Generated: 2026-09-25 10:05:52
+Total Files: 145
+Generated: 2026-09-25 13:32:01
 ================================================================================

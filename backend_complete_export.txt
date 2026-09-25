@@ -1,10 +1,10 @@
 ================================================================================
 ROJARGAR NEXT BACKEND - COMPLETE CODE EXPORT (SANITIZED)
 ================================================================================
-Generated: 2026-09-25 10:05:58
+Generated: 2026-09-25 13:31:52
 Source: E:\YOGESH\website\RojgarNext\backend\rojgarnext
-Total Files: 154
-  - Python Files: 150
+Total Files: 156
+  - Python Files: 152
   - ENV Files (Sanitized): 1
   - Other Files: 3
 ================================================================================
@@ -175,6 +175,8 @@ Total Files: 154
 │       │   │   ├── 🐍 __init__.py
 │       │   │   ├── 🐍 ai_routes.py
 │       │   │   ├── 🐍 ats_optimizer.py
+│       │   │   ├── 🐍 resume_enhancer.py
+│       │   │   ├── 🐍 resume_generator.py
 │       │   │   └── 🐍 resume_parser.py
 │       │   ├── 🐍 routes.py
 │       │   ├── 🐍 schema.py
@@ -229,7 +231,7 @@ Total Files: 154
 
 
 ================================================================================
-[   1/ 154] 📄 TEXT FILE: .dockerignore
+[   1/ 156] 📄 TEXT FILE: .dockerignore
 📏 SIZE: 95 bytes
 🕐 MODIFIED: 2026-07-10 20:23:54
 
@@ -250,7 +252,7 @@ models/
 
 
 ================================================================================
-[   2/ 154] 🔐 ENV FILE (SANITIZED - Dummy Values Only): .env
+[   2/ 156] 🔐 ENV FILE (SANITIZED - Dummy Values Only): .env
 📏 SIZE: 14,319 bytes
 🕐 MODIFIED: 2026-08-28 11:37:26
 
@@ -448,7 +450,7 @@ UPI_ID=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
 
 
 ================================================================================
-[   3/ 154] 📄 TEXT FILE: Dockerfile
+[   3/ 156] 📄 TEXT FILE: Dockerfile
 📏 SIZE: 694 bytes
 🕐 MODIFIED: 2026-07-10 20:35:08
 
@@ -484,7 +486,7 @@ CMD ["gunicorn", "app.main:app", "--workers", "4", "--worker-class", "uvicorn.wo
 
 
 ================================================================================
-[   4/ 154] 🐍 PYTHON FILE: app\core\__init__.py
+[   4/ 156] 🐍 PYTHON FILE: app\core\__init__.py
 📏 SIZE: 3,810 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -622,7 +624,7 @@ def create_refresh_token(data):
 
 
 ================================================================================
-[   5/ 154] 🐍 PYTHON FILE: app\core\ai\__init__.py
+[   5/ 156] 🐍 PYTHON FILE: app\core\ai\__init__.py
 📏 SIZE: 1,893 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -693,7 +695,7 @@ __all__ = [
 
 
 ================================================================================
-[   6/ 154] 🐍 PYTHON FILE: app\core\ai\ai_career_service.py
+[   6/ 156] 🐍 PYTHON FILE: app\core\ai\ai_career_service.py
 📏 SIZE: 13,113 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -994,7 +996,7 @@ ai_career_service = AICareerService()
 
 
 ================================================================================
-[   7/ 154] 🐍 PYTHON FILE: app\core\ai\ai_service.py
+[   7/ 156] 🐍 PYTHON FILE: app\core\ai\ai_service.py
 📏 SIZE: 1,241 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -1037,7 +1039,7 @@ PROFILE: {json.dumps({k: profile.get(k) for k in ['skills','experience','academi
 
 
 ================================================================================
-[   8/ 154] 🐍 PYTHON FILE: app\core\ai\ml_pipeline.py
+[   8/ 156] 🐍 PYTHON FILE: app\core\ai\ml_pipeline.py
 📏 SIZE: 2,607 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -1134,7 +1136,7 @@ auto_ml = AutoMLPipeline()
 
 
 ================================================================================
-[   9/ 154] 🐍 PYTHON FILE: app\core\ai\prompts.py
+[   9/ 156] 🐍 PYTHON FILE: app\core\ai\prompts.py
 📏 SIZE: 981 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -1175,7 +1177,7 @@ Return ONLY valid JSON."""
 
 
 ================================================================================
-[  10/ 154] 🐍 PYTHON FILE: app\core\ai\real_time_market_ai.py
+[  10/ 156] 🐍 PYTHON FILE: app\core\ai\real_time_market_ai.py
 📏 SIZE: 26,214 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -1827,7 +1829,7 @@ real_time_market_ai = RealTimeMarketAI()
 
 
 ================================================================================
-[  11/ 154] 🐍 PYTHON FILE: app\core\ai\ultra_ai_engine.py
+[  11/ 156] 🐍 PYTHON FILE: app\core\ai\ultra_ai_engine.py
 📏 SIZE: 31,023 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -2596,7 +2598,7 @@ ultra_ai_engine = UltraAIEngine()
 
 
 ================================================================================
-[  12/ 154] 🐍 PYTHON FILE: app\core\ai\ultra_career_ai.py
+[  12/ 156] 🐍 PYTHON FILE: app\core\ai\ultra_career_ai.py
 📏 SIZE: 57,503 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -3900,7 +3902,7 @@ ultra_career_ai = UltraCareerAI()
 
 
 ================================================================================
-[  13/ 154] 🐍 PYTHON FILE: app\core\analytics\__init__.py
+[  13/ 156] 🐍 PYTHON FILE: app\core\analytics\__init__.py
 📏 SIZE: 262 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -3915,7 +3917,7 @@ __all__ = ['BusinessIntelligence', 'MetricsCollector', 'ReportGenerator']
 
 
 ================================================================================
-[  14/ 154] 🐍 PYTHON FILE: app\core\backup\_init_.py
+[  14/ 156] 🐍 PYTHON FILE: app\core\backup\_init_.py
 📏 SIZE: 329 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -3938,7 +3940,7 @@ __all__ = [
 
 
 ================================================================================
-[  15/ 154] 🐍 PYTHON FILE: app\core\backup\backup_manager.py
+[  15/ 156] 🐍 PYTHON FILE: app\core\backup\backup_manager.py
 📏 SIZE: 8,099 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -4157,7 +4159,7 @@ backup_manager = BackupManager()
 
 
 ================================================================================
-[  16/ 154] 🐍 PYTHON FILE: app\core\base_model.py
+[  16/ 156] 🐍 PYTHON FILE: app\core\base_model.py
 📏 SIZE: 336 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -4177,7 +4179,7 @@ class BaseModel(PydanticBaseModel):
 
 
 ================================================================================
-[  17/ 154] 🐍 PYTHON FILE: app\core\cache\__init__.py
+[  17/ 156] 🐍 PYTHON FILE: app\core\cache\__init__.py
 📏 SIZE: 222 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -4192,7 +4194,7 @@ __all__ = ['CacheStrategy', 'DistributedCache', 'LocalCache']
 
 
 ================================================================================
-[  18/ 154] 🐍 PYTHON FILE: app\core\config\settings.py
+[  18/ 156] 🐍 PYTHON FILE: app\core\config\settings.py
 📏 SIZE: 8,833 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -4453,7 +4455,7 @@ print("=" * 60)
 
 
 ================================================================================
-[  19/ 154] 🐍 PYTHON FILE: app\core\database\__init__.py
+[  19/ 156] 🐍 PYTHON FILE: app\core\database\__init__.py
 📏 SIZE: 379 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -4478,7 +4480,7 @@ __all__ = [
 
 
 ================================================================================
-[  20/ 154] 🐍 PYTHON FILE: app\core\database\connection.py
+[  20/ 156] 🐍 PYTHON FILE: app\core\database\connection.py
 📏 SIZE: 10,479 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -4770,7 +4772,7 @@ print("✅ Database connection module loaded")
 
 
 ================================================================================
-[  21/ 154] 🐍 PYTHON FILE: app\core\database\indexes.py
+[  21/ 156] 🐍 PYTHON FILE: app\core\database\indexes.py
 📏 SIZE: 6,233 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -4915,7 +4917,7 @@ async def setup_all_indexes() -> Dict[str, Any]:
 
 
 ================================================================================
-[  22/ 154] 🐍 PYTHON FILE: app\core\database\redis.py
+[  22/ 156] 🐍 PYTHON FILE: app\core\database\redis.py
 📏 SIZE: 4,230 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5059,7 +5061,7 @@ print(f"✅ Redis client loaded (enabled: {redis_client.enabled})")
 
 
 ================================================================================
-[  23/ 154] 🐍 PYTHON FILE: app\core\gdpr\__init__.py
+[  23/ 156] 🐍 PYTHON FILE: app\core\gdpr\__init__.py
 📏 SIZE: 401 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5084,7 +5086,7 @@ __all__ = [
 
 
 ================================================================================
-[  24/ 154] 🐍 PYTHON FILE: app\core\gdpr\consent_manager.py
+[  24/ 156] 🐍 PYTHON FILE: app\core\gdpr\consent_manager.py
 📏 SIZE: 3,578 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5197,7 +5199,7 @@ consent_manager = ConsentManager()
 
 
 ================================================================================
-[  25/ 154] 🐍 PYTHON FILE: app\core\gdpr\data_anonymizer.py
+[  25/ 156] 🐍 PYTHON FILE: app\core\gdpr\data_anonymizer.py
 📏 SIZE: 3,568 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5307,7 +5309,7 @@ data_anonymizer = DataAnonymizer()
 
 
 ================================================================================
-[  26/ 154] 🐍 PYTHON FILE: app\core\location\__init__.py
+[  26/ 156] 🐍 PYTHON FILE: app\core\location\__init__.py
 📏 SIZE: 504 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5337,7 +5339,7 @@ __all__ = [
 
 
 ================================================================================
-[  27/ 154] 🐍 PYTHON FILE: app\core\location\distance_calculator.py
+[  27/ 156] 🐍 PYTHON FILE: app\core\location\distance_calculator.py
 📏 SIZE: 1,969 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5392,7 +5394,7 @@ class DistanceCalculator:
 
 
 ================================================================================
-[  28/ 154] 🐍 PYTHON FILE: app\core\location\location_handler.py
+[  28/ 156] 🐍 PYTHON FILE: app\core\location\location_handler.py
 📏 SIZE: 7,454 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5585,7 +5587,7 @@ logger.info("✅ Location Handler Loaded - NO HARDCODE, REAL GPS ONLY")
 
 
 ================================================================================
-[  29/ 154] 🐍 PYTHON FILE: app\core\location\location_service.py
+[  29/ 156] 🐍 PYTHON FILE: app\core\location\location_service.py
 📏 SIZE: 9,621 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5849,7 +5851,7 @@ print("✅ Location Helper Loaded - No Separate Database Table")
 
 
 ================================================================================
-[  30/ 154] 🐍 PYTHON FILE: app\core\middleware\__init__.py
+[  30/ 156] 🐍 PYTHON FILE: app\core\middleware\__init__.py
 📏 SIZE: 155 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5866,7 +5868,7 @@ __all__ = ['ApiResponse']
 
 
 ================================================================================
-[  31/ 154] 🐍 PYTHON FILE: app\core\middleware\response.py
+[  31/ 156] 🐍 PYTHON FILE: app\core\middleware\response.py
 📏 SIZE: 1,182 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5918,7 +5920,7 @@ class ApiResponse:
 
 
 ================================================================================
-[  32/ 154] 🐍 PYTHON FILE: app\core\monitoring\__init__.py
+[  32/ 156] 🐍 PYTHON FILE: app\core\monitoring\__init__.py
 📏 SIZE: 435 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5943,7 +5945,7 @@ __all__ = [
 
 
 ================================================================================
-[  33/ 154] 🐍 PYTHON FILE: app\core\monitoring\system_monitor.py
+[  33/ 156] 🐍 PYTHON FILE: app\core\monitoring\system_monitor.py
 📏 SIZE: 4,818 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6078,7 +6080,7 @@ system_monitor = SystemMonitor()
 
 
 ================================================================================
-[  34/ 154] 🐍 PYTHON FILE: app\core\security\__init__.py
+[  34/ 156] 🐍 PYTHON FILE: app\core\security\__init__.py
 📏 SIZE: 1,772 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6136,7 +6138,7 @@ __all__ = [
 
 
 ================================================================================
-[  35/ 154] 🐍 PYTHON FILE: app\core\security\encryption.py
+[  35/ 156] 🐍 PYTHON FILE: app\core\security\encryption.py
 📏 SIZE: 5,110 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6298,7 +6300,7 @@ class DataProtector:
 
 
 ================================================================================
-[  36/ 154] 🐍 PYTHON FILE: app\core\security\ip_blacklist.py
+[  36/ 156] 🐍 PYTHON FILE: app\core\security\ip_blacklist.py
 📏 SIZE: 8,159 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6531,7 +6533,7 @@ ip_blacklist = IPBlacklistManager()
 
 
 ================================================================================
-[  37/ 154] 🐍 PYTHON FILE: app\core\security\rate_limiter.py
+[  37/ 156] 🐍 PYTHON FILE: app\core\security\rate_limiter.py
 📏 SIZE: 2,082 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6600,7 +6602,7 @@ rate_limiter = RateLimiter()
 
 
 ================================================================================
-[  38/ 154] 🐍 PYTHON FILE: app\core\security\security.py
+[  38/ 156] 🐍 PYTHON FILE: app\core\security\security.py
 📏 SIZE: 2,634 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6681,7 +6683,7 @@ def create_refresh_token(data: dict):
 
 
 ================================================================================
-[  39/ 154] 🐍 PYTHON FILE: app\core\security\security_middleware.py
+[  39/ 156] 🐍 PYTHON FILE: app\core\security\security_middleware.py
 📏 SIZE: 15,394 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -7077,7 +7079,7 @@ print("✅ Security Middleware Loaded Successfully - Using Unified Collections")
 
 
 ================================================================================
-[  40/ 154] 🐍 PYTHON FILE: app\core\services\__init__.py
+[  40/ 156] 🐍 PYTHON FILE: app\core\services\__init__.py
 📏 SIZE: 484 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -7104,7 +7106,7 @@ __all__ = [
 
 
 ================================================================================
-[  41/ 154] 🐍 PYTHON FILE: app\core\services\cloudinary.py
+[  41/ 156] 🐍 PYTHON FILE: app\core\services\cloudinary.py
 📏 SIZE: 18,518 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -7645,7 +7647,7 @@ logger.info("   - URLs expire after 24 hours")
 
 
 ================================================================================
-[  42/ 154] 🐍 PYTHON FILE: app\core\services\dependencies.py
+[  42/ 156] 🐍 PYTHON FILE: app\core\services\dependencies.py
 📏 SIZE: 3,899 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -7767,7 +7769,7 @@ def role_required(allowed_roles: Union[str, List[str]]):
 
 
 ================================================================================
-[  43/ 154] 🐍 PYTHON FILE: app\core\services\email.py
+[  43/ 156] 🐍 PYTHON FILE: app\core\services\email.py
 📏 SIZE: 3,189 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -7857,7 +7859,7 @@ def send_html_email(to_email: str, subject: str, html_body: str):
 
 
 ================================================================================
-[  44/ 154] 🐍 PYTHON FILE: app\core\services\google_drive.py
+[  44/ 156] 🐍 PYTHON FILE: app\core\services\google_drive.py
 📏 SIZE: 11,976 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -8149,7 +8151,7 @@ google_drive_service = GoogleDriveService()
 
 
 ================================================================================
-[  45/ 154] 🐍 PYTHON FILE: app\core\services\mobile_api.py
+[  45/ 156] 🐍 PYTHON FILE: app\core\services\mobile_api.py
 📏 SIZE: 4,751 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -8290,7 +8292,7 @@ print("✅ Mobile API routes loaded")
 
 
 ================================================================================
-[  46/ 154] 🐍 PYTHON FILE: app\core\services\sms.py
+[  46/ 156] 🐍 PYTHON FILE: app\core\services\sms.py
 📏 SIZE: 1,023 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -8329,7 +8331,7 @@ def send_mobile_otp(mobile: str, otp: str):
 
 
 ================================================================================
-[  47/ 154] 🐍 PYTHON FILE: app\core\task\__init__.py
+[  47/ 156] 🐍 PYTHON FILE: app\core\task\__init__.py
 📏 SIZE: 154 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -8346,7 +8348,7 @@ __all__ = ['auto_scheduler']
 
 
 ================================================================================
-[  48/ 154] 🐍 PYTHON FILE: app\core\task\auto_scheduler.py
+[  48/ 156] 🐍 PYTHON FILE: app\core\task\auto_scheduler.py
 📏 SIZE: 13,577 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -8672,7 +8674,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  49/ 154] 🐍 PYTHON FILE: app\core\utils\__init__.py
+[  49/ 156] 🐍 PYTHON FILE: app\core\utils\__init__.py
 📏 SIZE: 1,152 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -8722,7 +8724,7 @@ __all__ = [
 
 
 ================================================================================
-[  50/ 154] 🐍 PYTHON FILE: app\core\utils\config.py
+[  50/ 156] 🐍 PYTHON FILE: app\core\utils\config.py
 📏 SIZE: 3,309 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -8831,7 +8833,7 @@ settings = Settings()
 
 
 ================================================================================
-[  51/ 154] 🐍 PYTHON FILE: app\core\utils\constants.py
+[  51/ 156] 🐍 PYTHON FILE: app\core\utils\constants.py
 📏 SIZE: 938 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -8888,7 +8890,7 @@ CACHE_TTL = {
 
 
 ================================================================================
-[  52/ 154] 🐍 PYTHON FILE: app\core\utils\decorators.py
+[  52/ 156] 🐍 PYTHON FILE: app\core\utils\decorators.py
 📏 SIZE: 1,515 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -8939,7 +8941,7 @@ def retry_on_failure(max_retries: int = 3, delay: int = 1):
 
 
 ================================================================================
-[  53/ 154] 🐍 PYTHON FILE: app\core\utils\exceptions.py
+[  53/ 156] 🐍 PYTHON FILE: app\core\utils\exceptions.py
 📏 SIZE: 1,232 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -8976,7 +8978,7 @@ class ForbiddenException(CustomException):
 
 
 ================================================================================
-[  54/ 154] 🐍 PYTHON FILE: app\core\utils\helpers.py
+[  54/ 156] 🐍 PYTHON FILE: app\core\utils\helpers.py
 📏 SIZE: 568 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -9006,7 +9008,7 @@ def clean_text(text: str) -> str:
 
 
 ================================================================================
-[  55/ 154] 🐍 PYTHON FILE: app\core\utils\logger.py
+[  55/ 156] 🐍 PYTHON FILE: app\core\utils\logger.py
 📏 SIZE: 177 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -9023,7 +9025,7 @@ logger = logging.getLogger("rojgarnext")
 
 
 ================================================================================
-[  56/ 154] 🐍 PYTHON FILE: app\core\utils\validators.py
+[  56/ 156] 🐍 PYTHON FILE: app\core\utils\validators.py
 📏 SIZE: 710 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -9055,7 +9057,7 @@ def validate_password(password: str) -> bool:
 
 
 ================================================================================
-[  57/ 154] 🐍 PYTHON FILE: app\db\career_data_manager.py
+[  57/ 156] 🐍 PYTHON FILE: app\db\career_data_manager.py
 📏 SIZE: 17,785 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -9511,7 +9513,7 @@ career_data_manager = CareerDataManager()
 
 
 ================================================================================
-[  58/ 154] 🐍 PYTHON FILE: app\db\connection.py
+[  58/ 156] 🐍 PYTHON FILE: app\db\connection.py
 📏 SIZE: 11,733 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -9797,7 +9799,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  59/ 154] 🐍 PYTHON FILE: app\db\indexes.py
+[  59/ 156] 🐍 PYTHON FILE: app\db\indexes.py
 📏 SIZE: 5,972 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -9936,7 +9938,7 @@ async def setup_all_indexes() -> Dict[str, Any]:
 
 
 ================================================================================
-[  60/ 154] 🐍 PYTHON FILE: app\db\session_manager.py
+[  60/ 156] 🐍 PYTHON FILE: app\db\session_manager.py
 📏 SIZE: 16,718 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -10357,7 +10359,7 @@ print("=" * 60)
 
 
 ================================================================================
-[  61/ 154] 🐍 PYTHON FILE: app\main.py
+[  61/ 156] 🐍 PYTHON FILE: app\main.py
 📏 SIZE: 15,680 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -10790,7 +10792,7 @@ print("=" * 60)
 
 
 ================================================================================
-[  62/ 154] 🐍 PYTHON FILE: app\models\ai_insights_model.py
+[  62/ 156] 🐍 PYTHON FILE: app\models\ai_insights_model.py
 📏 SIZE: 3,386 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -10893,7 +10895,7 @@ class AIInsightsModel(BaseModel):
 
 
 ================================================================================
-[  63/ 154] 🐍 PYTHON FILE: app\models\application_model.py
+[  63/ 156] 🐍 PYTHON FILE: app\models\application_model.py
 📏 SIZE: 9,139 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -11125,7 +11127,7 @@ print("✅ Application Model Updated - Uses status='saved' only, apply_mode remo
 
 
 ================================================================================
-[  64/ 154] 🐍 PYTHON FILE: app\models\auth_model.py
+[  64/ 156] 🐍 PYTHON FILE: app\models\auth_model.py
 📏 SIZE: 4,878 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -11265,7 +11267,7 @@ class AuthModel(BaseModel):
 
 
 ================================================================================
-[  65/ 154] 🐍 PYTHON FILE: app\models\job_model.py
+[  65/ 156] 🐍 PYTHON FILE: app\models\job_model.py
 📏 SIZE: 17,081 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -11731,7 +11733,7 @@ print("   Exported: JobModel, JobLocation, JobAttachment, IndividualPost, Multip
 
 
 ================================================================================
-[  66/ 154] 🐍 PYTHON FILE: app\models\notification_model.py
+[  66/ 156] 🐍 PYTHON FILE: app\models\notification_model.py
 📏 SIZE: 770 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -11761,7 +11763,7 @@ class NotificationModel(BaseModel):
 
 
 ================================================================================
-[  67/ 154] 🐍 PYTHON FILE: app\models\profile_model.py
+[  67/ 156] 🐍 PYTHON FILE: app\models\profile_model.py
 📏 SIZE: 53,719 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -13059,7 +13061,7 @@ print(f"   Total Models: {len(__all__)}")
 
 
 ================================================================================
-[  68/ 154] 🐍 PYTHON FILE: app\models\security_model.py
+[  68/ 156] 🐍 PYTHON FILE: app\models\security_model.py
 📏 SIZE: 3,130 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -13166,7 +13168,7 @@ class SecurityModel(BaseModel):
 
 
 ================================================================================
-[  69/ 154] 🐍 PYTHON FILE: app\models\session_model.py
+[  69/ 156] 🐍 PYTHON FILE: app\models\session_model.py
 📏 SIZE: 3,333 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -13271,7 +13273,7 @@ print("✅ Session Model Loaded - Optimized with 3-day expiry and MAX 3 SESSIONS
 
 
 ================================================================================
-[  70/ 154] 🐍 PYTHON FILE: app\models\unified_application_model.py
+[  70/ 156] 🐍 PYTHON FILE: app\models\unified_application_model.py
 📏 SIZE: 15,745 bytes
 🕐 MODIFIED: 2026-09-19 18:05:08
 
@@ -13677,7 +13679,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  71/ 154] 🐍 PYTHON FILE: app\modules\admin\AI\__init__.py
+[  71/ 156] 🐍 PYTHON FILE: app\modules\admin\AI\__init__.py
 📏 SIZE: 412 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -13700,7 +13702,7 @@ __all__ = [
 
 
 ================================================================================
-[  72/ 154] 🐍 PYTHON FILE: app\modules\admin\AI\ai_routes.py
+[  72/ 156] 🐍 PYTHON FILE: app\modules\admin\AI\ai_routes.py
 📏 SIZE: 7,037 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -13894,7 +13896,7 @@ async def admin_ranked_applications(
 
 
 ================================================================================
-[  73/ 154] 🐍 PYTHON FILE: app\modules\admin\AI\candidate_scoring.py
+[  73/ 156] 🐍 PYTHON FILE: app\modules\admin\AI\candidate_scoring.py
 📏 SIZE: 2,164 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -13971,7 +13973,7 @@ Return ONLY JSON:
 
 
 ================================================================================
-[  74/ 154] 🐍 PYTHON FILE: app\modules\admin\AI\fraud_detection.py
+[  74/ 156] 🐍 PYTHON FILE: app\modules\admin\AI\fraud_detection.py
 📏 SIZE: 1,828 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -14039,7 +14041,7 @@ Return ONLY JSON:
 
 
 ================================================================================
-[  75/ 154] 🐍 PYTHON FILE: app\modules\admin\AI\hiring_predictions.py
+[  75/ 156] 🐍 PYTHON FILE: app\modules\admin\AI\hiring_predictions.py
 📏 SIZE: 2,174 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -14113,7 +14115,7 @@ Return ONLY JSON:
 
 
 ================================================================================
-[  76/ 154] 🐍 PYTHON FILE: app\modules\admin\AI\resume_analyzer.py
+[  76/ 156] 🐍 PYTHON FILE: app\modules\admin\AI\resume_analyzer.py
 📏 SIZE: 1,864 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -14181,7 +14183,7 @@ Return ONLY JSON:
 
 
 ================================================================================
-[  77/ 154] 🐍 PYTHON FILE: app\modules\admin\routes.py
+[  77/ 156] 🐍 PYTHON FILE: app\modules\admin\routes.py
 📏 SIZE: 50,279 bytes
 🕐 MODIFIED: 2026-09-20 10:35:00
 
@@ -15390,7 +15392,7 @@ print("✅ Admin Routes Loaded - Delegates to centralized JobService")
 
 
 ================================================================================
-[  78/ 154] 🐍 PYTHON FILE: app\modules\admin\schema.py
+[  78/ 156] 🐍 PYTHON FILE: app\modules\admin\schema.py
 📏 SIZE: 1,858 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -15460,7 +15462,7 @@ class BulkStatusUpdateSchema(BaseModel):
 
 
 ================================================================================
-[  79/ 154] 🐍 PYTHON FILE: app\modules\admin\service.py
+[  79/ 156] 🐍 PYTHON FILE: app\modules\admin\service.py
 📏 SIZE: 15,509 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -15825,7 +15827,7 @@ print("✅ Admin Service Loaded - Optimized (No status_history)")
 
 
 ================================================================================
-[  80/ 154] 🐍 PYTHON FILE: app\modules\auth\routes.py
+[  80/ 156] 🐍 PYTHON FILE: app\modules\auth\routes.py
 📏 SIZE: 21,605 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -16421,7 +16423,7 @@ print("✅ Auth Routes Loaded - All login types with PERMANENT biometric storage
 
 
 ================================================================================
-[  81/ 154] 🐍 PYTHON FILE: app\modules\auth\schema.py
+[  81/ 156] 🐍 PYTHON FILE: app\modules\auth\schema.py
 📏 SIZE: 4,252 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -16566,7 +16568,7 @@ class UserRoleResponseSchema(BaseModel):
 
 
 ================================================================================
-[  82/ 154] 🐍 PYTHON FILE: app\modules\auth\service.py
+[  82/ 156] 🐍 PYTHON FILE: app\modules\auth\service.py
 📏 SIZE: 36,667 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -17494,7 +17496,7 @@ async def send_verification_notification(email: str, user_id: str, name: str):
 
 
 ================================================================================
-[  83/ 154] 🐍 PYTHON FILE: app\modules\auth\utils.py
+[  83/ 156] 🐍 PYTHON FILE: app\modules\auth\utils.py
 📏 SIZE: 454 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -17520,7 +17522,7 @@ def get_role_dashboard(role: str) -> str:
 
 
 ================================================================================
-[  84/ 154] 🐍 PYTHON FILE: app\modules\blockchain\routes.py
+[  84/ 156] 🐍 PYTHON FILE: app\modules\blockchain\routes.py
 📏 SIZE: 5,445 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -17691,7 +17693,7 @@ print("✅ Blockchain module loaded (Mock implementation)")
 
 
 ================================================================================
-[  85/ 154] 🐍 PYTHON FILE: app\modules\chat\websocket.py
+[  85/ 156] 🐍 PYTHON FILE: app\modules\chat\websocket.py
 📏 SIZE: 6,677 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -17901,7 +17903,7 @@ print("✅ Chat module loaded")
 
 
 ================================================================================
-[  86/ 154] 🐍 PYTHON FILE: app\modules\common\__init__.py
+[  86/ 156] 🐍 PYTHON FILE: app\modules\common\__init__.py
 📏 SIZE: 179 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -17915,7 +17917,7 @@ __all__ = ['get_ai_client', 'PROMPT_TEMPLATES']
 
 
 ================================================================================
-[  87/ 154] 🐍 PYTHON FILE: app\modules\common\ai_client.py
+[  87/ 156] 🐍 PYTHON FILE: app\modules\common\ai_client.py
 📏 SIZE: 385 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -17936,7 +17938,7 @@ def get_ai_client():
 
 
 ================================================================================
-[  88/ 154] 🐍 PYTHON FILE: app\modules\customadmin\routes.py
+[  88/ 156] 🐍 PYTHON FILE: app\modules\customadmin\routes.py
 📏 SIZE: 59,316 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -19346,7 +19348,7 @@ print("✅ Custom Admin Routes Loaded - All actions send BLUE bell notifications
 
 
 ================================================================================
-[  89/ 154] 🐍 PYTHON FILE: app\modules\customadmin\service.py
+[  89/ 156] 🐍 PYTHON FILE: app\modules\customadmin\service.py
 📏 SIZE: 14,923 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -19682,7 +19684,7 @@ print("✅ Custom Admin Service Loaded - Optimized (No status_history)")
 
 
 ================================================================================
-[  90/ 154] 🐍 PYTHON FILE: app\modules\jobs\AI\__init__.py
+[  90/ 156] 🐍 PYTHON FILE: app\modules\jobs\AI\__init__.py
 📏 SIZE: 320 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -19703,7 +19705,7 @@ __all__ = [
 
 
 ================================================================================
-[  91/ 154] 🐍 PYTHON FILE: app\modules\jobs\AI\ai_routes.py
+[  91/ 156] 🐍 PYTHON FILE: app\modules\jobs\AI\ai_routes.py
 📏 SIZE: 23,489 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -20382,7 +20384,7 @@ print("✅ Jobs AI Routes Loaded - Real-time Analysis & Matching")
 
 
 ================================================================================
-[  92/ 154] 🐍 PYTHON FILE: app\modules\jobs\AI\fake_job_detector.py
+[  92/ 156] 🐍 PYTHON FILE: app\modules\jobs\AI\fake_job_detector.py
 📏 SIZE: 4,005 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -20504,7 +20506,7 @@ fake_job_detector = FakeJobDetectorAI()
 
 
 ================================================================================
-[  93/ 154] 🐍 PYTHON FILE: app\modules\jobs\AI\job_parser.py
+[  93/ 156] 🐍 PYTHON FILE: app\modules\jobs\AI\job_parser.py
 📏 SIZE: 2,348 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -20576,7 +20578,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[  94/ 154] 🐍 PYTHON FILE: app\modules\jobs\AI\salary_predictor.py
+[  94/ 156] 🐍 PYTHON FILE: app\modules\jobs\AI\salary_predictor.py
 📏 SIZE: 2,481 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -20656,7 +20658,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[  95/ 154] 🐍 PYTHON FILE: app\modules\jobs\AI\ultra_career_ai.py
+[  95/ 156] 🐍 PYTHON FILE: app\modules\jobs\AI\ultra_career_ai.py
 📏 SIZE: 58,932 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -21988,7 +21990,7 @@ ultra_career_ai = UltraCareerAI()
 
 
 ================================================================================
-[  96/ 154] 🐍 PYTHON FILE: app\modules\jobs\job_fetch.py
+[  96/ 156] 🐍 PYTHON FILE: app\modules\jobs\job_fetch.py
 📏 SIZE: 27,600 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -22660,7 +22662,7 @@ print("✅ Job Fetch Module Loaded (With job_location and short location names)"
 
 
 ================================================================================
-[  97/ 154] 🐍 PYTHON FILE: app\modules\jobs\routes.py
+[  97/ 156] 🐍 PYTHON FILE: app\modules\jobs\routes.py
 📏 SIZE: 41,146 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -23743,7 +23745,7 @@ print("✅ update-payment-status endpoint FIXED - Logger added, Idempotent, NO p
 
 
 ================================================================================
-[  98/ 154] 🐍 PYTHON FILE: app\modules\jobs\schema.py
+[  98/ 156] 🐍 PYTHON FILE: app\modules\jobs\schema.py
 📏 SIZE: 1,643 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -23806,7 +23808,7 @@ class RecommendedJobResponse(BaseModel):
 
 
 ================================================================================
-[  99/ 154] 🐍 PYTHON FILE: app\modules\jobs\service.py
+[  99/ 156] 🐍 PYTHON FILE: app\modules\jobs\service.py
 📏 SIZE: 56,275 bytes
 🕐 MODIFIED: 2026-09-20 10:34:54
 
@@ -25124,7 +25126,7 @@ print("=" * 70)
 
 
 ================================================================================
-[ 100/ 154] 🐍 PYTHON FILE: app\modules\location\__init__.py
+[ 100/ 156] 🐍 PYTHON FILE: app\modules\location\__init__.py
 📏 SIZE: 283 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -25143,7 +25145,7 @@ __all__ = ['router', 'LocationService']
 
 
 ================================================================================
-[ 101/ 154] 🐍 PYTHON FILE: app\modules\location\routes.py
+[ 101/ 156] 🐍 PYTHON FILE: app\modules\location\routes.py
 📏 SIZE: 16,545 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -25649,7 +25651,7 @@ print("✅ Centralized Location Module Routes Loaded")
 
 
 ================================================================================
-[ 102/ 154] 🐍 PYTHON FILE: app\modules\location\schema.py
+[ 102/ 156] 🐍 PYTHON FILE: app\modules\location\schema.py
 📏 SIZE: 2,232 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -25729,7 +25731,7 @@ class LocationResponse(BaseModel):
 
 
 ================================================================================
-[ 103/ 154] 🐍 PYTHON FILE: app\modules\location\service.py
+[ 103/ 156] 🐍 PYTHON FILE: app\modules\location\service.py
 📏 SIZE: 23,154 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -26324,7 +26326,7 @@ print("✅ Centralized Location Service Loaded - Can be called from any module")
 
 
 ================================================================================
-[ 104/ 154] 🐍 PYTHON FILE: app\modules\market\AI\__init__.py
+[ 104/ 156] 🐍 PYTHON FILE: app\modules\market\AI\__init__.py
 📏 SIZE: 106 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -26337,7 +26339,7 @@ __all__ = ['ai_router']
 
 
 ================================================================================
-[ 105/ 154] 🐍 PYTHON FILE: app\modules\market\AI\ai_routes.py
+[ 105/ 156] 🐍 PYTHON FILE: app\modules\market\AI\ai_routes.py
 📏 SIZE: 1,925 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -26402,7 +26404,7 @@ async def skill_forecast(
 
 
 ================================================================================
-[ 106/ 154] 🐍 PYTHON FILE: app\modules\market\routes.py
+[ 106/ 156] 🐍 PYTHON FILE: app\modules\market\routes.py
 📏 SIZE: 12,245 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -26772,7 +26774,7 @@ print("✅ Real-Time Market Intelligence Routes loaded - World's First Live Mark
 
 
 ================================================================================
-[ 107/ 154] 🐍 PYTHON FILE: app\modules\notification\AI\__init__.py
+[ 107/ 156] 🐍 PYTHON FILE: app\modules\notification\AI\__init__.py
 📏 SIZE: 112 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -26785,7 +26787,7 @@ __all__ = ['ai_router']
 
 
 ================================================================================
-[ 108/ 154] 🐍 PYTHON FILE: app\modules\notification\AI\ai_routes.py
+[ 108/ 156] 🐍 PYTHON FILE: app\modules\notification\AI\ai_routes.py
 📏 SIZE: 3,086 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -26891,7 +26893,7 @@ print("✅ Notification AI Routes Loaded")
 
 
 ================================================================================
-[ 109/ 154] 🐍 PYTHON FILE: app\modules\notification\routes.py
+[ 109/ 156] 🐍 PYTHON FILE: app\modules\notification\routes.py
 📏 SIZE: 7,391 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -27149,7 +27151,7 @@ print("✅ Notification Routes Loaded")
 
 
 ================================================================================
-[ 110/ 154] 🐍 PYTHON FILE: app\modules\notification\schema.py
+[ 110/ 156] 🐍 PYTHON FILE: app\modules\notification\schema.py
 📏 SIZE: 929 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -27195,7 +27197,7 @@ class NotificationResponseSchema(BaseModel):
 
 
 ================================================================================
-[ 111/ 154] 🐍 PYTHON FILE: app\modules\notification\service.py
+[ 111/ 156] 🐍 PYTHON FILE: app\modules\notification\service.py
 📏 SIZE: 66,503 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -28820,7 +28822,7 @@ print("   💰 Payment verification notification method added")
 
 
 ================================================================================
-[ 112/ 154] 🐍 PYTHON FILE: app\modules\notification\watcher.py
+[ 112/ 156] 🐍 PYTHON FILE: app\modules\notification\watcher.py
 📏 SIZE: 1,183 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -28854,7 +28856,7 @@ async def start_job_watcher():
 
 
 ================================================================================
-[ 113/ 154] 🐍 PYTHON FILE: app\modules\notification\websocket.py
+[ 113/ 156] 🐍 PYTHON FILE: app\modules\notification\websocket.py
 📏 SIZE: 10,066 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -29135,7 +29137,7 @@ print("✅ WebSocket Manager Loaded - Fixed token verification")
 
 
 ================================================================================
-[ 114/ 154] 🐍 PYTHON FILE: app\modules\payment\phonepe_sdk_service.py
+[ 114/ 156] 🐍 PYTHON FILE: app\modules\payment\phonepe_sdk_service.py
 📏 SIZE: 8,096 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -29344,7 +29346,7 @@ phonepe_sdk_service = PhonePeSDKService()
 
 
 ================================================================================
-[ 115/ 154] 🐍 PYTHON FILE: app\modules\payment\phonepe_simple_service.py
+[ 115/ 156] 🐍 PYTHON FILE: app\modules\payment\phonepe_simple_service.py
 📏 SIZE: 5,447 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -29492,7 +29494,7 @@ phonepe_simple_service = PhonePeSimpleService()
 
 
 ================================================================================
-[ 116/ 154] 🐍 PYTHON FILE: app\modules\payment\razorpay_integration.py
+[ 116/ 156] 🐍 PYTHON FILE: app\modules\payment\razorpay_integration.py
 📏 SIZE: 36,067 bytes
 🕐 MODIFIED: 2026-09-20 16:58:19
 
@@ -30316,7 +30318,7 @@ print("=" * 70)
 
 
 ================================================================================
-[ 117/ 154] 🐍 PYTHON FILE: app\modules\payment\routes.py
+[ 117/ 156] 🐍 PYTHON FILE: app\modules\payment\routes.py
 📏 SIZE: 75,144 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -32204,206 +32206,1599 @@ print("=" * 70)
 
 
 ================================================================================
-[ 118/ 154] 🐍 PYTHON FILE: app\modules\resume\AI\__init__.py
-📏 SIZE: 246 bytes
-🕐 MODIFIED: 2026-09-10 10:40:32
+[ 118/ 156] 🐍 PYTHON FILE: app\modules\resume\AI\__init__.py
+📏 SIZE: 2,045 bytes
+🕐 MODIFIED: 2026-09-25 11:15:06
 
 ================================================================================
 
 # app/modules/resume/AI/__init__.py
-from .ai_routes import router as ai_router
-from .resume_parser import ResumeParserAI
-from .ats_optimizer import ATSOptimizerAI
+# ============================================================
+# AI Resume Module — Exports + Backward Compatibility Aliases
+# Mirrors: app/modules/resume/AI/
+# ============================================================
 
+# ---------- NEW AI Classes (from our new files) ----------
+from app.modules.resume.AI.ats_optimizer import (
+    ATSOptimizer,
+    ats_optimizer,
+)
+from app.modules.resume.AI.resume_generator import (
+    ResumeGenerator,
+    resume_generator,
+)
+from app.modules.resume.AI.resume_enhancer import (
+    ResumeEnhancer,
+    resume_enhancer,
+)
+
+# ---------- BACKWARD COMPATIBILITY: ResumeParserAI ----------
+# The original resume_parser.py existed before we added the new AI files.
+# We must export ResumeParserAI so that service.py (line 14) keeps working.
+try:
+    from app.modules.resume.AI.resume_parser import ResumeParserAI
+except ImportError:
+    # Fallback — if resume_parser.py doesn't exist, provide a safe stub
+    class ResumeParserAI:
+        """
+        Backward-compatible stub for ResumeParserAI.
+        The new AI pipeline uses resume_generator + ats_optimizer instead.
+        This stub exists only to keep old imports from breaking.
+        """
+        def __init__(self):
+            pass
+
+        async def parse(self, *args, **kwargs):
+            return {}
+
+        async def extract(self, *args, **kwargs):
+            return {}
+
+        async def analyze(self, *args, **kwargs):
+            return {}
+
+
+# ---------- BACKWARD COMPATIBILITY: ATSOptimizerAI ----------
+# Old service.py imported 'ATSOptimizerAI'. Our new class is 'ATSOptimizer'.
+# Alias them so both names work.
+ATSOptimizerAI = ATSOptimizer
+
+
+# ---------- EXPORTS ----------
 __all__ = [
-    'ai_router',
-    'ResumeParserAI',
-    'ATSOptimizerAI'
+    # New classes (preferred)
+    "ATSOptimizer",
+    "ats_optimizer",
+    "ResumeGenerator",
+    "resume_generator",
+    "ResumeEnhancer",
+    "resume_enhancer",
+    # Backward-compatible aliases
+    "ATSOptimizerAI",
+    "ResumeParserAI",
 ]
 
 
 ================================================================================
-[ 119/ 154] 🐍 PYTHON FILE: app\modules\resume\AI\ai_routes.py
-📏 SIZE: 2,301 bytes
-🕐 MODIFIED: 2026-09-10 10:40:32
+[ 119/ 156] 🐍 PYTHON FILE: app\modules\resume\AI\ai_routes.py
+📏 SIZE: 7,684 bytes
+🕐 MODIFIED: 2026-09-25 10:35:41
 
 ================================================================================
 
 # app/modules/resume/AI/ai_routes.py
-"""
-Resume AI Routes - Accessed via /api/v1/resume/ai/*
-"""
+# ============================================================
+# AI RESUME ROUTES — Full API surface
+# ============================================================
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from bson import ObjectId
-import logging
+from fastapi import APIRouter, Depends, HTTPException, Body
+from typing import Dict, Any, List, Optional
+from pydantic import BaseModel, Field
 
 from app.core.services.dependencies import get_current_user
-from app.db.connection import get_db
+from app.modules.resume.AI.ats_optimizer import ats_optimizer
+from app.modules.resume.AI.resume_generator import resume_generator
+from app.modules.resume.AI.resume_enhancer import resume_enhancer
+from app.core.utils.logger import logger
 
-logger = logging.getLogger(__name__)
-
-router = APIRouter(prefix="/ai", tags=["Resume AI Services"])
+router = APIRouter(prefix="/resume/ai", tags=["Resume AI"])
 
 
-@router.get("/score")
-async def resume_score(
+# ============================================================
+# REQUEST MODELS
+# ============================================================
+class ScoreRequest(BaseModel):
+    job_description: Optional[str] = None
+    job_skills: Optional[List[str]] = None
+
+
+class GenerateRequest(BaseModel):
+    job_description: Optional[str] = None
+    target_role: Optional[str] = None
+    style: str = Field(default="modern", description="classic|modern|tech|executive|government|fresher")
+
+
+class BulletRequest(BaseModel):
+    bullets: List[str]
+    role: Optional[str] = ""
+    job_description: Optional[str] = None
+    count: int = 5
+
+
+class SummaryRequest(BaseModel):
+    base_summary: str = ""
+    role: str = ""
+    skills: List[str] = []
+    years_experience: int = 0
+    job_description: Optional[str] = None
+
+
+# ============================================================
+# 1. SCORE RESUME (ATS)
+# ============================================================
+@router.post("/score")
+async def score_resume(
+    payload: ScoreRequest,
     current_user: dict = Depends(get_current_user),
-    db=Depends(get_db)
 ):
-    """AI-powered resume scoring"""
-    email = current_user.get("email")
-    if not email:
-        raise HTTPException(status_code=400, detail="User email not found")
-    
-    profile = await db.profile.find_one({"email": email})
-    if not profile:
-        return {"resume_score": 0, "suggestions": ["Complete your profile first"]}
-    
-    score = 0
-    suggestions = []
-    
-    if profile.get('full_name'):
-        score += 10
-    else:
-        suggestions.append("Add your full name")
-    
-    if profile.get('summary'):
-        score += 15
-    else:
-        suggestions.append("Add a professional summary")
-    
-    skills_count = len(profile.get('skills', []))
-    if skills_count >= 10:
-        score += 20
-    elif skills_count >= 5:
-        score += 15
-        suggestions.append(f"Add {10 - skills_count} more skills")
-    else:
-        score += 5
-        suggestions.append("Add at least 5-10 relevant skills")
-    
-    exp_count = len(profile.get('experience', []))
-    if exp_count >= 3:
-        score += 20
-    elif exp_count >= 1:
-        score += 10
-        suggestions.append("Add more work experience details")
-    else:
-        suggestions.append("Add work experience or internships")
-    
-    edu_count = len(profile.get('academic_records', []))
-    if edu_count >= 2:
-        score += 15
-    elif edu_count >= 1:
-        score += 10
-        suggestions.append("Add your educational qualifications")
-    
-    return {
-        "resume_score": min(100, score),
-        "rating": "Excellent" if score >= 80 else "Good" if score >= 60 else "Average" if score >= 40 else "Needs Improvement",
-        "suggestions": suggestions[:10],
-        "profile_completion": min(100, score)
-    }
+    """
+    Score the current user's resume against an optional job description.
+    """
+    try:
+        email = current_user.get("email")
+        if not email:
+            raise HTTPException(status_code=401, detail="Email missing in token")
+
+        # Generate fresh resume object (uses real profile data)
+        resume = await resume_generator.generate_full_resume(
+            email=email,
+            job_description=payload.job_description,
+            style="modern",
+        )
+
+        report = await ats_optimizer.score_resume(
+            resume_data=resume,
+            job_description=payload.job_description,
+            job_skills=payload.job_skills or [],
+        )
+
+        return {"success": True, "data": report}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"score_resume error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# 2. AUTO-GENERATE FULL RESUME
+# ============================================================
+@router.post("/generate")
+async def generate_resume(
+    payload: GenerateRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Fully automatic AI resume generation from the user's profile.
+    """
+    try:
+        email = current_user.get("email")
+        if not email:
+            raise HTTPException(status_code=401, detail="Email missing in token")
+
+        resume = await resume_generator.generate_full_resume(
+            email=email,
+            job_description=payload.job_description,
+            target_role=payload.target_role,
+            style=payload.style,
+        )
+
+        return {"success": True, "data": resume}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"generate_resume error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# 3. SCORE + GENERATE (Combo — one call, both results)
+# ============================================================
+@router.post("/generate-and-score")
+async def generate_and_score(
+    payload: GenerateRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    try:
+        email = current_user.get("email")
+        if not email:
+            raise HTTPException(status_code=401, detail="Email missing in token")
+
+        resume = await resume_generator.generate_full_resume(
+            email=email,
+            job_description=payload.job_description,
+            target_role=payload.target_role,
+            style=payload.style,
+        )
+
+        report = await ats_optimizer.score_resume(
+            resume_data=resume,
+            job_description=payload.job_description,
+        )
+
+        return {"success": True, "data": {"resume": resume, "ats_report": report}}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"generate_and_score error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# 4. ENHANCE BULLET POINTS
+# ============================================================
+@router.post("/enhance-bullets")
+async def enhance_bullets(
+    payload: BulletRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    try:
+        bullets = await resume_enhancer.enhance_bullet_points(
+            raw_bullets=payload.bullets,
+            role=payload.role or "",
+            job_description=payload.job_description,
+            count=payload.count,
+        )
+        return {"success": True, "data": {"bullets": bullets}}
+    except Exception as e:
+        logger.error(f"enhance_bullets error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# 5. ENHANCE SUMMARY
+# ============================================================
+@router.post("/enhance-summary")
+async def enhance_summary(
+    payload: SummaryRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    try:
+        summary = await resume_enhancer.enhance_summary(
+            base_summary=payload.base_summary,
+            role=payload.role,
+            skills=payload.skills,
+            years_experience=payload.years_experience,
+            job_description=payload.job_description,
+        )
+        return {"success": True, "data": {"summary": summary}}
+    except Exception as e:
+        logger.error(f"enhance_summary error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# 6. QUICK ATS SCORE (no JD)
+# ============================================================
+@router.get("/quick-score")
+async def quick_score(current_user: dict = Depends(get_current_user)):
+    try:
+        email = current_user.get("email")
+        if not email:
+            raise HTTPException(status_code=401, detail="Email missing in token")
+
+        resume = await resume_generator.generate_full_resume(email=email)
+        report = await ats_optimizer.score_resume(resume_data=resume)
+
+        return {
+            "success": True,
+            "data": {
+                "overall_score": report["overall_score"],
+                "grade": report["grade"],
+                "section_scores": report["section_scores"],
+                "top_fixes": report["prioritized_fixes"][:3],
+                "ai_summary": report["ai_summary"],
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"quick_score error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 ================================================================================
-[ 120/ 154] 🐍 PYTHON FILE: app\modules\resume\AI\ats_optimizer.py
-📏 SIZE: 3,330 bytes
-🕐 MODIFIED: 2026-09-10 10:40:32
+[ 120/ 156] 🐍 PYTHON FILE: app\modules\resume\AI\ats_optimizer.py
+📏 SIZE: 26,858 bytes
+🕐 MODIFIED: 2026-09-25 10:34:09
 
 ================================================================================
 
 # app/modules/resume/AI/ats_optimizer.py
-"""Resume: AI ATS Optimizer"""
+# ============================================================
+# COMPLETE ATS (Applicant Tracking System) OPTIMIZATION ENGINE
+# Works with: OpenAI GPT-4o + Rule-based scoring + ML heuristics
+# ============================================================
 
+import re
 import json
 import logging
-from typing import Dict, Any, List
+import hashlib
+from datetime import datetime
+from typing import Dict, Any, List, Optional, Tuple
+from collections import Counter
+
 from openai import AsyncOpenAI
-
 from app.core.config.settings import settings
+from app.core.utils.logger import logger
 
-logger = logging.getLogger(__name__)
+module_logger = logging.getLogger(__name__)
 
 
-class ATSOptimizerAI:
-    """Optimize resume for ATS systems"""
-    
+# ============================================================
+# ATS CONSTANTS — Industry-standard keyword banks
+# ============================================================
+ACTION_VERBS = {
+    "strong": [
+        "achieved", "accelerated", "accomplished", "architected", "automated",
+        "built", "boosted", "championed", "consolidated", "created",
+        "delivered", "designed", "developed", "directed", "drove",
+        "eliminated", "engineered", "established", "executed", "expanded",
+        "generated", "grew", "implemented", "improved", "increased",
+        "initiated", "innovated", "launched", "led", "managed",
+        "maximized", "mentored", "optimized", "orchestrated", "overhauled",
+        "pioneered", "produced", "reduced", "redesigned", "scaled",
+        "secured", "spearheaded", "streamlined", "strengthened", "transformed",
+    ],
+    "weak": [
+        "assisted", "helped", "worked", "responsible for", "duties included",
+        "participated", "involved in", "supported", "tried", "attempted",
+    ],
+}
+
+TECHNICAL_SKILL_BANK = {
+    "programming_languages": [
+        "python", "java", "javascript", "typescript", "c++", "c#", "go",
+        "rust", "ruby", "php", "swift", "kotlin", "scala", "r", "matlab",
+        "dart", "perl", "bash", "shell", "powershell", "sql", "nosql",
+    ],
+    "web_frameworks": [
+        "react", "angular", "vue", "svelte", "next.js", "nuxt", "django",
+        "flask", "fastapi", "spring", "spring boot", "express", "nestjs",
+        "laravel", "rails", "asp.net", ".net core", "flutter",
+    ],
+    "databases": [
+        "mongodb", "postgresql", "mysql", "sqlite", "oracle", "redis",
+        "cassandra", "dynamodb", "elasticsearch", "neo4j", "firebase",
+    ],
+    "cloud_devops": [
+        "aws", "azure", "gcp", "docker", "kubernetes", "jenkins", "terraform",
+        "ansible", "ci/cd", "github actions", "gitlab ci", "circleci",
+        "prometheus", "grafana", "datadog", "cloudformation",
+    ],
+    "data_ai": [
+        "machine learning", "deep learning", "tensorflow", "pytorch",
+        "scikit-learn", "pandas", "numpy", "keras", "nlp", "computer vision",
+        "data science", "data analysis", "power bi", "tableau", "looker",
+        "apache spark", "hadoop", "kafka", "airflow",
+    ],
+    "soft_skills": [
+        "leadership", "communication", "teamwork", "problem solving",
+        "critical thinking", "time management", "adaptability", "creativity",
+        "collaboration", "project management", "agile", "scrum",
+    ],
+}
+
+QUANTIFICATION_PATTERNS = [
+    r"\b\d+(\.\d+)?\s*%",
+    r"\b\d+(\.\d+)?\s*(k|m|b|lakh|crore|million|billion)\b",
+    r"\$\s*\d+",
+    r"₹\s*\d+",
+    r"\b\d+\s*(users|customers|clients|projects|people|members|employees)\b",
+    r"\b(increased|decreased|reduced|improved|grew|saved)\s+by\s+\d+",
+]
+
+
+class ATSOptimizer:
+    """
+    Complete ATS Optimization Engine
+    - Scores resume against job description
+    - Checks ATS-compatible formatting
+    - Suggests fixes with priority
+    - Generates optimized resume (auto-rewrite)
+    """
+
     def __init__(self):
         self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else None
-    
-    async def optimize_for_ats(self, resume_data: Dict, job: Dict) -> Dict[str, Any]:
-        """Get ATS optimization suggestions"""
-        if not self.client:
-            return self._fallback_optimization(resume_data, job)
-        
+        self._all_skills = self._flatten_skill_bank()
+        module_logger.info("✅ ATS Optimizer initialized")
+
+    # ============================================================
+    # MAIN ENTRY: Score a resume against a job description
+    # ============================================================
+    async def score_resume(
+        self,
+        resume_data: Dict[str, Any],
+        job_description: Optional[str] = None,
+        job_skills: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Return complete ATS report:
+        - overall_score (0-100)
+        - section_scores
+        - keyword_analysis
+        - formatting_issues
+        - action_verbs_analysis
+        - quantification_score
+        - prioritized_fixes
+        - ai_summary
+        """
         try:
-            job_skills = []
-            for skill in job.get('required_skills', []):
-                if isinstance(skill, dict):
-                    job_skills.append(skill.get('name', ''))
-                else:
-                    job_skills.append(str(skill))
-            
-            prompt = f"""Optimize this resume for ATS and job matching:
+            resume_text = self._flatten_resume(resume_data)
+            jd_text = (job_description or "").strip()
 
-RESUME SKILLS: {resume_data.get('skills', [])}
-JOB TITLE: {job.get('post_name', 'Unknown')}
-JOB SKILLS: {job_skills}
+            # 1. Rule-based scoring
+            keyword_analysis = self._keyword_analysis(resume_text, jd_text, job_skills or [])
+            formatting = self._formatting_check(resume_data)
+            action_verbs = self._action_verbs_check(resume_data)
+            quantification = self._quantification_check(resume_data)
+            section_scores = self._section_scores(resume_data, keyword_analysis, formatting)
 
-Return ONLY valid JSON:
-{{
-  "match_percentage": <0-100>,
-  "missing_keywords": ["keyword1", "keyword2"],
-  "suggested_additions": ["addition1", "addition2"],
-  "format_issues": ["issue1", "issue2"],
-  "improvement_score": <0-100>,
-  "recommendations": ["rec1", "rec2", "rec3"]
-}}"""
-            
-            response = await self.client.chat.completions.create(
+            # 2. Overall score (weighted)
+            overall = self._compute_overall_score(
+                section_scores, keyword_analysis, formatting,
+                action_verbs, quantification
+            )
+
+            # 3. AI-generated insight
+            ai_summary = await self._ai_summary(
+                resume_data, jd_text, overall, keyword_analysis
+            )
+
+            # 4. Prioritized fixes
+            fixes = self._prioritized_fixes(
+                keyword_analysis, formatting, action_verbs, quantification
+            )
+
+            return {
+                "overall_score": round(overall, 1),
+                "grade": self._grade(overall),
+                "section_scores": section_scores,
+                "keyword_analysis": keyword_analysis,
+                "formatting_issues": formatting,
+                "action_verbs": action_verbs,
+                "quantification": quantification,
+                "prioritized_fixes": fixes,
+                "ai_summary": ai_summary,
+                "scored_at": datetime.utcnow().isoformat(),
+            }
+
+        except Exception as e:
+            module_logger.error(f"ATS scoring failed: {e}")
+            return self._fallback_report(resume_data)
+
+    # ============================================================
+    # KEYWORD ANALYSIS
+    # ============================================================
+    def _keyword_analysis(
+        self,
+        resume_text: str,
+        jd_text: str,
+        explicit_job_skills: List[str],
+    ) -> Dict[str, Any]:
+        resume_lower = resume_text.lower()
+        jd_lower = jd_text.lower()
+
+        # Extract skill keywords from JD
+        jd_skills = self._extract_skills_from_text(jd_text)
+        resume_skills = self._extract_skills_from_text(resume_text)
+
+        # Merge with explicit job skills
+        jd_skills_set = set(jd_skills) | set(s.lower() for s in explicit_job_skills)
+
+        if not jd_skills_set:
+            # No JD → score against bank
+            matched = [s for s in self._all_skills if s in resume_lower][:50]
+            missing = []
+            density = self._keyword_density(resume_lower, matched)
+            return {
+                "has_job_description": False,
+                "matched_keywords": matched,
+                "missing_keywords": [],
+                "match_percentage": min(100.0, len(matched) * 2.5),
+                "keyword_density": density,
+                "recommended_density": "1.5% – 2.5%",
+                "top_priority_missing": [],
+            }
+
+        # Match against JD
+        matched = []
+        missing = []
+        for skill in jd_skills_set:
+            if self._contains_keyword(resume_lower, skill):
+                matched.append(skill)
+            else:
+                missing.append(skill)
+
+        match_pct = (len(matched) / max(1, len(jd_skills_set))) * 100
+        density = self._keyword_density(resume_lower, matched)
+
+        # Priority missing = skills that appear most in JD
+        jd_counter = Counter(self._extract_skills_from_text(jd_text))
+        priority_missing = sorted(
+            missing,
+            key=lambda s: jd_counter.get(s, 0),
+            reverse=True,
+        )[:10]
+
+        return {
+            "has_job_description": True,
+            "jd_total_keywords": len(jd_skills_set),
+            "matched_keywords": sorted(matched),
+            "missing_keywords": sorted(missing),
+            "top_priority_missing": priority_missing,
+            "match_percentage": round(match_pct, 1),
+            "keyword_density": round(density, 2),
+            "recommended_density": "1.5% – 2.5%",
+        }
+
+    def _extract_skills_from_text(self, text: str) -> List[str]:
+        if not text:
+            return []
+        lower = text.lower()
+        found = set()
+        for skill in self._all_skills:
+            if self._contains_keyword(lower, skill):
+                found.add(skill)
+        return sorted(found)
+
+    def _contains_keyword(self, text: str, keyword: str) -> bool:
+        """Word-boundary aware matching (avoids 'Go' matching 'Google')."""
+        pattern = r"(?<![a-zA-Z0-9])" + re.escape(keyword) + r"(?![a-zA-Z0-9])"
+        return bool(re.search(pattern, text))
+
+    def _keyword_density(self, text: str, keywords: List[str]) -> float:
+        if not text:
+            return 0.0
+        words = re.findall(r"\b\w+\b", text)
+        if not words:
+            return 0.0
+        hits = 0
+        for kw in keywords:
+            hits += text.count(kw)
+        return (hits / len(words)) * 100
+
+    # ============================================================
+    # FORMATTING CHECK (ATS-friendliness)
+    # ============================================================
+    def _formatting_check(self, resume_data: Dict[str, Any]) -> Dict[str, Any]:
+        issues: List[Dict[str, Any]] = []
+        warnings: List[str] = []
+
+        # Contact info
+        contact = resume_data.get("contact_info") or {}
+        if not contact.get("email"):
+            issues.append({"severity": "critical", "issue": "Missing email address"})
+        if not contact.get("phone"):
+            issues.append({"severity": "critical", "issue": "Missing phone number"})
+
+        # Summary length
+        summary = (resume_data.get("professional_summary") or "").strip()
+        if not summary:
+            issues.append({"severity": "high", "issue": "No professional summary found"})
+        elif len(summary.split()) < 30:
+            warnings.append("Professional summary is too short (< 30 words)")
+        elif len(summary.split()) > 120:
+            warnings.append("Professional summary is too long (> 120 words)")
+
+        # Experience
+        experience = resume_data.get("experience") or []
+        if not experience:
+            warnings.append("No work experience section found")
+        else:
+            for i, exp in enumerate(experience):
+                desc = (exp.get("description") or "")
+                if len(desc.split()) < 15:
+                    warnings.append(f"Experience #{i+1} description is too short")
+                if not exp.get("start_date"):
+                    warnings.append(f"Experience #{i+1} missing start date")
+
+        # Education
+        education = resume_data.get("education") or []
+        if not education:
+            warnings.append("No education section found")
+
+        # Skills
+        skills_data = resume_data.get("skills") or {}
+        all_skills = skills_data.get("all") or []
+        if len(all_skills) < 5:
+            warnings.append("List at least 5–15 skills for better ATS matching")
+        elif len(all_skills) > 40:
+            warnings.append("Too many skills listed (aim for 15–30)")
+
+        # Format compatibility flags
+        formatting_score = 100
+        formatting_score -= len(issues) * 15
+        formatting_score -= len(warnings) * 3
+        formatting_score = max(0, formatting_score)
+
+        return {
+            "score": formatting_score,
+            "critical_issues": [i for i in issues if i["severity"] == "critical"],
+            "issues": issues,
+            "warnings": warnings,
+            "ats_compatible": formatting_score >= 70,
+        }
+
+    # ============================================================
+    # ACTION VERBS ANALYSIS
+    # ============================================================
+    def _action_verbs_check(self, resume_data: Dict[str, Any]) -> Dict[str, Any]:
+        experience = resume_data.get("experience") or []
+        all_text = " ".join(
+            (exp.get("description") or "") for exp in experience
+        ).lower()
+
+        strong_found = [v for v in ACTION_VERBS["strong"] if re.search(rf"\b{v}\b", all_text)]
+        weak_found = [v for v in ACTION_VERBS["weak"] if re.search(rf"\b{v}\b", all_text)]
+
+        total = len(strong_found) + len(weak_found)
+        strength_score = 100 if total == 0 else int((len(strong_found) / total) * 100)
+
+        suggestions = []
+        if weak_found:
+            suggestions.append(
+                f"Replace weak verbs {weak_found[:5]} with strong action verbs "
+                f"like: achieved, led, built, optimized, spearheaded."
+            )
+        if len(strong_found) < 5:
+            suggestions.append(
+                "Use more strong action verbs — aim for at least 5 unique ones."
+            )
+
+        return {
+            "score": strength_score,
+            "strong_verbs_found": strong_found,
+            "weak_verbs_found": weak_found,
+            "suggestions": suggestions,
+        }
+
+    # ============================================================
+    # QUANTIFICATION CHECK
+    # ============================================================
+    def _quantification_check(self, resume_data: Dict[str, Any]) -> Dict[str, Any]:
+        experience = resume_data.get("experience") or []
+        combined = " ".join(
+            (exp.get("description") or "") + " " + " ".join(exp.get("achievements") or [])
+            for exp in experience
+        )
+
+        hits = 0
+        samples: List[str] = []
+        for pattern in QUANTIFICATION_PATTERNS:
+            for m in re.finditer(pattern, combined, re.IGNORECASE):
+                hits += 1
+                if len(samples) < 5:
+                    samples.append(m.group(0))
+
+        score = min(100, hits * 15)
+
+        suggestions = []
+        if hits < 3:
+            suggestions.append(
+                "Add measurable numbers (%, ₹, users, projects) to at least 3 achievements."
+            )
+        if hits == 0:
+            suggestions.append(
+                "Example: 'Reduced API latency by 42%' instead of 'Improved API performance'."
+            )
+
+        return {
+            "score": score,
+            "quantified_mentions": hits,
+            "samples": samples,
+            "suggestions": suggestions,
+        }
+
+    # ============================================================
+    # SECTION SCORES
+    # ============================================================
+    def _section_scores(
+        self,
+        resume_data: Dict[str, Any],
+        keyword_analysis: Dict[str, Any],
+        formatting: Dict[str, Any],
+    ) -> Dict[str, int]:
+        contact = resume_data.get("contact_info") or {}
+        experience = resume_data.get("experience") or []
+        education = resume_data.get("education") or []
+        skills_data = resume_data.get("skills") or {}
+        projects = resume_data.get("projects") or []
+        certifications = resume_data.get("certifications") or []
+
+        contact_score = 100
+        if not contact.get("email"): contact_score -= 30
+        if not contact.get("phone"): contact_score -= 30
+        if not contact.get("location"): contact_score -= 20
+
+        summary_words = len((resume_data.get("professional_summary") or "").split())
+        summary_score = min(100, int(summary_words * 2.5)) if summary_words else 0
+
+        experience_score = min(100, len(experience) * 25) if experience else 0
+        if experience:
+            with_desc = sum(1 for e in experience if len((e.get("description") or "").split()) >= 20)
+            experience_score = min(100, int((with_desc / len(experience)) * 100))
+
+        skills_count = len(skills_data.get("all") or [])
+        skills_score = min(100, skills_count * 6)
+
+        education_score = min(100, len(education) * 30) if education else 0
+        projects_score = min(100, len(projects) * 25) if projects else 0
+        certs_score = min(100, len(certifications) * 20) if certifications else 0
+
+        return {
+            "contact": contact_score,
+            "summary": summary_score,
+            "experience": experience_score,
+            "skills": skills_score,
+            "education": education_score,
+            "projects": projects_score,
+            "certifications": certs_score,
+            "keywords": int(keyword_analysis.get("match_percentage", 0)),
+            "formatting": formatting.get("score", 0),
+        }
+
+    def _compute_overall_score(
+        self,
+        section_scores: Dict[str, int],
+        keyword_analysis: Dict[str, Any],
+        formatting: Dict[str, Any],
+        action_verbs: Dict[str, Any],
+        quantification: Dict[str, Any],
+    ) -> float:
+        weights = {
+            "keywords": 0.25,
+            "experience": 0.20,
+            "skills": 0.15,
+            "formatting": 0.10,
+            "summary": 0.10,
+            "education": 0.05,
+            "projects": 0.05,
+            "certifications": 0.05,
+            "contact": 0.05,
+        }
+        total = 0.0
+        for key, w in weights.items():
+            total += section_scores.get(key, 0) * w
+
+        # Bonus / penalty
+        total += (action_verbs.get("score", 0) * 0.05)
+        total += (quantification.get("score", 0) * 0.05)
+
+        return min(100.0, max(0.0, total))
+
+    def _grade(self, score: float) -> str:
+        if score >= 90: return "A+ (Excellent)"
+        if score >= 80: return "A (Very Good)"
+        if score >= 70: return "B (Good)"
+        if score >= 60: return "C (Average)"
+        if score >= 50: return "D (Below Average)"
+        return "F (Needs Major Work)"
+
+    # ============================================================
+    # PRIORITIZED FIXES
+    # ============================================================
+    def _prioritized_fixes(
+        self,
+        keyword_analysis: Dict[str, Any],
+        formatting: Dict[str, Any],
+        action_verbs: Dict[str, Any],
+        quantification: Dict[str, Any],
+    ) -> List[Dict[str, Any]]:
+        fixes: List[Dict[str, Any]] = []
+
+        # 1. Critical formatting
+        for issue in formatting.get("critical_issues", []):
+            fixes.append({
+                "priority": 1,
+                "category": "Critical",
+                "issue": issue["issue"],
+                "impact": "High",
+                "fix": self._suggest_fix(issue["issue"]),
+            })
+
+        # 2. Missing keywords
+        top_missing = keyword_analysis.get("top_priority_missing", [])
+        if top_missing:
+            fixes.append({
+                "priority": 1,
+                "category": "Keywords",
+                "issue": f"Missing {len(top_missing)} high-priority keywords from JD",
+                "impact": "High",
+                "fix": f"Add these to Skills/Experience: {', '.join(top_missing[:8])}",
+            })
+
+        # 3. Weak verbs
+        if action_verbs.get("weak_verbs_found"):
+            fixes.append({
+                "priority": 2,
+                "category": "Content",
+                "issue": f"Weak verbs detected: {', '.join(action_verbs['weak_verbs_found'][:3])}",
+                "impact": "Medium",
+                "fix": "Replace with strong verbs: led, built, optimized, delivered.",
+            })
+
+        # 4. Quantification
+        if quantification.get("score", 0) < 50:
+            fixes.append({
+                "priority": 2,
+                "category": "Content",
+                "issue": "Not enough measurable achievements",
+                "impact": "Medium",
+                "fix": "Add numbers: %, ₹, users, projects, latency, revenue.",
+            })
+
+        # 5. Warnings
+        for w in formatting.get("warnings", [])[:5]:
+            fixes.append({
+                "priority": 3,
+                "category": "Improvement",
+                "issue": w,
+                "impact": "Low",
+                "fix": self._suggest_fix(w),
+            })
+
+        fixes.sort(key=lambda x: x["priority"])
+        return fixes
+
+    def _suggest_fix(self, issue: str) -> str:
+        issue_lower = issue.lower()
+        if "email" in issue_lower: return "Add a professional email (name@domain.com)."
+        if "phone" in issue_lower: return "Add a 10-digit mobile number."
+        if "summary" in issue_lower: return "Write 40–80 words summarising your experience + goals."
+        if "experience" in issue_lower: return "Add at least 1 experience entry with 3+ bullet points."
+        if "education" in issue_lower: return "Add highest degree with year and institute."
+        if "skill" in issue_lower: return "List 10–20 relevant skills (mix technical + soft)."
+        if "too short" in issue_lower: return "Expand with specific project details, tools, and outcomes."
+        return "Improve this section for better ATS score."
+
+    # ============================================================
+    # AI-GENERATED SUMMARY
+    # ============================================================
+    async def _ai_summary(
+        self,
+        resume_data: Dict[str, Any],
+        jd_text: str,
+        overall: float,
+        keyword_analysis: Dict[str, Any],
+    ) -> str:
+        if not self.client:
+            return (
+                f"Your resume scores {overall:.1f}/100. "
+                f"Focus on the top-priority fixes below to reach 85+."
+            )
+        try:
+            name = (resume_data.get("user_info") or {}).get("full_name", "Candidate")
+            exp_count = len(resume_data.get("experience") or [])
+            skills_count = len((resume_data.get("skills") or {}).get("all") or [])
+            missing = keyword_analysis.get("top_priority_missing", [])[:6]
+
+            prompt = f"""You are a senior ATS recruiter. Give a SHORT (max 4 sentences) summary of this resume.
+
+Candidate: {name}
+Score: {overall:.1f}/100
+Experience entries: {exp_count}
+Skills: {skills_count}
+Missing high-priority keywords: {missing}
+Has JD: {bool(jd_text)}
+
+Be direct, professional, encouraging. Mention the #1 fix needed.
+Return plain text only — no JSON, no markdown."""
+
+            resp = await self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
-                max_tokens=600
+                temperature=0.4,
+                max_tokens=250,
             )
-            
-            return json.loads(response.choices[0].message.content.strip())
-            
+            return resp.choices[0].message.content.strip()
         except Exception as e:
-            logger.error(f"ATS optimization failed: {e}")
-            return self._fallback_optimization(resume_data, job)
-    
-    def _fallback_optimization(self, resume_data: Dict, job: Dict) -> Dict:
-        resume_skills = set([s.lower() for s in resume_data.get('skills', [])])
-        job_skills = set()
-        for skill in job.get('required_skills', []):
-            if isinstance(skill, dict):
-                job_skills.add(skill.get('name', '').lower())
+            module_logger.error(f"AI summary failed: {e}")
+            return f"Resume score: {overall:.1f}/100. Review prioritized fixes below."
+
+    # ============================================================
+    # UTILITIES
+    # ============================================================
+    def _flatten_skill_bank(self) -> List[str]:
+        flat: List[str] = []
+        for group in TECHNICAL_SKILL_BANK.values():
+            flat.extend(group)
+        return sorted(set(flat))
+
+    def _flatten_resume(self, resume_data: Dict[str, Any]) -> str:
+        parts: List[str] = []
+
+        user = resume_data.get("user_info") or {}
+        parts.append(str(user.get("full_name", "")))
+
+        contact = resume_data.get("contact_info") or {}
+        parts.append(str(contact.get("email", "")))
+        parts.append(str(contact.get("phone", "")))
+        parts.append(str(contact.get("location", "")))
+
+        parts.append(str(resume_data.get("professional_summary", "")))
+        parts.append(str(resume_data.get("career_objective", "")))
+
+        for exp in resume_data.get("experience") or []:
+            parts.append(str(exp.get("role", "")))
+            parts.append(str(exp.get("company", "")))
+            parts.append(str(exp.get("description", "")))
+            parts.extend([str(a) for a in (exp.get("achievements") or [])])
+            parts.extend([str(s) for s in (exp.get("skills_used") or [])])
+
+        for edu in resume_data.get("education") or []:
+            parts.append(str(edu.get("degree", "")))
+            parts.append(str(edu.get("institute", "")))
+
+        skills = resume_data.get("skills") or {}
+        for s in skills.get("all") or []:
+            if isinstance(s, dict):
+                parts.append(str(s.get("name", "")))
             else:
-                job_skills.add(str(skill).lower())
-        
-        matching_skills = resume_skills & job_skills
-        match_percentage = int((len(matching_skills) / max(1, len(job_skills))) * 100)
-        
+                parts.append(str(s))
+
+        for p in resume_data.get("projects") or []:
+            parts.append(str(p.get("title", "")))
+            parts.append(str(p.get("description", "")))
+            parts.extend([str(t) for t in (p.get("technologies") or [])])
+
+        for c in resume_data.get("certifications") or []:
+            parts.append(str(c.get("name", "")))
+
+        return " ".join(parts)
+
+    def _fallback_report(self, resume_data: Dict[str, Any]) -> Dict[str, Any]:
         return {
-            "match_percentage": match_percentage,
-            "missing_keywords": list(job_skills - resume_skills)[:5],
-            "suggested_additions": ["Add more relevant keywords", "Customize for each application"],
-            "format_issues": ["Use standard section headings", "Avoid graphics and tables"],
-            "improvement_score": max(0, 100 - match_percentage),
-            "recommendations": [
-                f"Add {', '.join(list(job_skills - resume_skills)[:3])} to your skills",
-                "Use a clean, text-based format",
-                "Include keywords from job description",
-                "Customize your resume for each application"
-            ]
+            "overall_score": 50.0,
+            "grade": "D (Below Average)",
+            "section_scores": {},
+            "keyword_analysis": {"match_percentage": 0, "matched_keywords": [], "missing_keywords": []},
+            "formatting_issues": {"score": 50, "issues": [], "warnings": []},
+            "action_verbs": {"score": 50, "suggestions": []},
+            "quantification": {"score": 0, "suggestions": ["Enable AI for detailed analysis"]},
+            "prioritized_fixes": [{
+                "priority": 1,
+                "category": "Critical",
+                "issue": "AI analysis unavailable",
+                "impact": "High",
+                "fix": "Check OpenAI API key and retry.",
+            }],
+            "ai_summary": "Could not analyze resume. Please retry.",
+            "scored_at": datetime.utcnow().isoformat(),
         }
 
 
+ats_optimizer = ATSOptimizer()
+
+
 ================================================================================
-[ 121/ 154] 🐍 PYTHON FILE: app\modules\resume\AI\resume_parser.py
+[ 121/ 156] 🐍 PYTHON FILE: app\modules\resume\AI\resume_enhancer.py
+📏 SIZE: 3,503 bytes
+🕐 MODIFIED: 2026-09-25 10:35:19
+
+================================================================================
+
+# app/modules/resume/AI/resume_enhancer.py
+# ============================================================
+# AI RESUME ENHANCER — standalone bullet/summary/achievement rewriter
+# ============================================================
+
+import json
+import logging
+from typing import Dict, Any, List, Optional
+
+from openai import AsyncOpenAI
+from app.core.config.settings import settings
+
+module_logger = logging.getLogger(__name__)
+
+
+class ResumeEnhancer:
+    """Enhance individual resume pieces on demand."""
+
+    def __init__(self):
+        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else None
+
+    async def enhance_bullet_points(
+        self,
+        raw_bullets: List[str],
+        role: str = "",
+        job_description: Optional[str] = None,
+        count: int = 5,
+    ) -> List[str]:
+        if not self.client or not raw_bullets:
+            return raw_bullets[:count]
+
+        try:
+            prompt = f"""Rewrite these raw bullet points into ATS-optimized achievements.
+
+ROLE: {role or "Professional"}
+JOB DESCRIPTION: {(job_description or "")[:1500]}
+
+RAW BULLETS:
+{json.dumps(raw_bullets, indent=2)}
+
+Rules:
+- Start each bullet with a STRONG action verb (Led, Built, Optimized, Delivered…).
+- Add measurable numbers where plausible (%, ₹, users, projects).
+- 1–2 lines each, max 25 words.
+- Return EXACTLY {count} bullets as a JSON array of strings.
+"""
+            resp = await self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Return only a JSON array of strings."},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.5,
+                max_tokens=800,
+            )
+            text = resp.choices[0].message.content.strip()
+            if text.startswith("```"):
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+            return json.loads(text.strip())[:count]
+        except Exception as e:
+            module_logger.error(f"enhance_bullet_points failed: {e}")
+            return raw_bullets[:count]
+
+    async def enhance_summary(
+        self,
+        base_summary: str,
+        role: str,
+        skills: List[str],
+        years_experience: int,
+        job_description: Optional[str] = None,
+    ) -> str:
+        if not self.client:
+            return base_summary
+
+        try:
+            prompt = f"""Rewrite this resume summary into a powerful 3–4 sentence ATS-optimized paragraph.
+
+ROLE: {role}
+YEARS: {years_experience}
+SKILLS: {skills[:15]}
+JOB DESCRIPTION: {(job_description or "")[:1000]}
+EXISTING SUMMARY: {base_summary or "(none)"}
+
+Rules:
+- 50–90 words.
+- Mention role + years + 3–5 key skills + one measurable achievement area.
+- Natural language, no buzzword overload.
+- Return plain text only.
+"""
+            resp = await self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.5,
+                max_tokens=300,
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception as e:
+            module_logger.error(f"enhance_summary failed: {e}")
+            return base_summary
+
+
+resume_enhancer = ResumeEnhancer()
+
+
+================================================================================
+[ 122/ 156] 🐍 PYTHON FILE: app\modules\resume\AI\resume_generator.py
+📏 SIZE: 20,695 bytes
+🕐 MODIFIED: 2026-09-25 10:34:55
+
+================================================================================
+
+# app/modules/resume/AI/resume_generator.py
+# ============================================================
+# FULLY AUTOMATIC AI RESUME GENERATOR
+# Builds complete resumes from user profile + optional JD
+# ============================================================
+
+import json
+import logging
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+
+from openai import AsyncOpenAI
+from app.core.config.settings import settings
+from app.db.connection import get_db
+from app.core.utils.logger import logger
+
+module_logger = logging.getLogger(__name__)
+
+
+class ResumeGenerator:
+    """
+    Fully automatic resume generator:
+    - Reads user's full profile from DB
+    - Uses AI to rewrite/enhance every section
+    - Auto-inserts keywords from a JD (if provided)
+    - Returns both a rich object AND ready-to-render sections
+    """
+
+    def __init__(self):
+        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else None
+        module_logger.info("✅ Resume Generator initialized")
+
+    # ============================================================
+    # MAIN: Generate full resume for an email
+    # ============================================================
+    async def generate_full_resume(
+        self,
+        email: str,
+        job_description: Optional[str] = None,
+        target_role: Optional[str] = None,
+        style: str = "modern",  # classic | modern | tech | executive | government | fresher
+    ) -> Dict[str, Any]:
+        db = get_db()
+
+        profile = await db.profile.find_one({"email": email}) or {}
+        auth = await db.auth.find_one({"email": email}) or {}
+
+        # Step 1: Build base sections from real data (never fake)
+        base = self._build_base_sections(profile, auth)
+
+        # Step 2: AI enhance each section (parallel-safe, sequential here for clarity)
+        enhanced = await self._ai_enhance_all(
+            base=base,
+            job_description=job_description,
+            target_role=target_role or base["user_info"].get("current_role") or "",
+            style=style,
+        )
+
+        # Step 3: Build final resume object
+        final = {
+            "user_info": enhanced["user_info"],
+            "contact_info": enhanced["contact_info"],
+            "professional_summary": enhanced["professional_summary"],
+            "career_objective": enhanced["career_objective"],
+            "experience": enhanced["experience"],
+            "education": enhanced["education"],
+            "skills": enhanced["skills"],
+            "projects": enhanced["projects"],
+            "certifications": enhanced["certifications"],
+            "languages": enhanced["languages"],
+            "social_links": enhanced["social_links"],
+            "generated_at": datetime.utcnow().isoformat(),
+            "style": style,
+            "target_role": target_role,
+            "has_jd": bool(job_description),
+            "ai_powered": bool(self.client),
+            "statistics": self._statistics(enhanced),
+        }
+
+        return final
+
+    # ============================================================
+    # BUILD BASE SECTIONS (raw from profile — no AI yet)
+    # ============================================================
+    def _build_base_sections(
+        self, profile: Dict[str, Any], auth: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        # -------- User info --------
+        full_name = (
+            profile.get("full_name")
+            or auth.get("name")
+            or ""
+        ).strip()
+
+        dob = profile.get("dob") or ""
+        age = self._calc_age(dob)
+
+        current_role = ""
+        experience_list = profile.get("experience") or []
+        if experience_list:
+            # Latest role = first non-null end_date or top entry
+            current = next(
+                (e for e in experience_list if not e.get("end_date")),
+                experience_list[0],
+            )
+            current_role = current.get("role", "")
+
+        user_info = {
+            "full_name": full_name,
+            "first_name": profile.get("first_name") or full_name.split(" ")[0] if full_name else "",
+            "last_name": profile.get("last_name") or (full_name.split(" ")[-1] if full_name else ""),
+            "email": auth.get("email", profile.get("email", "")),
+            "mobile": auth.get("mobile", profile.get("mobile", "")),
+            "dob": dob,
+            "age": age,
+            "gender": profile.get("gender", ""),
+            "category": profile.get("category", ""),
+            "current_role": current_role,
+        }
+
+        # -------- Contact --------
+        addr = profile.get("current_address") or {}
+        location_parts = [
+            addr.get("village_name") or addr.get("city") or "",
+            addr.get("district") or "",
+            addr.get("state") or "",
+            addr.get("country") or "",
+        ]
+        location = ", ".join([p for p in location_parts if p])
+
+        contact_info = {
+            "email": user_info["email"],
+            "phone": user_info["mobile"],
+            "location": location,
+            "linkedin": (profile.get("social_links") or {}).get("linkedin", ""),
+            "github": (profile.get("social_links") or {}).get("github", ""),
+            "portfolio": (profile.get("social_links") or {}).get("portfolio", ""),
+            "website": (profile.get("social_links") or {}).get("personal_website", ""),
+        }
+
+        # -------- Experience --------
+        experience = []
+        for exp in experience_list:
+            experience.append({
+                "role": exp.get("role", ""),
+                "company": exp.get("company", ""),
+                "location": exp.get("location", ""),
+                "start_date": exp.get("start_date", ""),
+                "end_date": exp.get("end_date") or "Present",
+                "description": exp.get("description", ""),
+                "achievements": exp.get("achievements") or [],
+                "skills_used": exp.get("skills_used") or [],
+            })
+
+        # -------- Education --------
+        education = []
+        for edu in profile.get("academic_records") or []:
+            education.append({
+                "level": edu.get("level", ""),
+                "degree": edu.get("degree") or edu.get("stream") or "",
+                "institute": edu.get("institute", ""),
+                "board_university": edu.get("board_university", ""),
+                "year_of_passing": edu.get("year_of_passing", ""),
+                "score": edu.get("cgpa_percentage", ""),
+                "result_type": edu.get("result_type", ""),
+            })
+
+        # -------- Skills --------
+        raw_skills = profile.get("skills") or []
+        skills = {
+            "all": [
+                {"name": (s.get("name") if isinstance(s, dict) else str(s)),
+                 "level": (s.get("level") if isinstance(s, dict) else "intermediate")}
+                for s in raw_skills
+            ],
+        }
+
+        # -------- Projects --------
+        projects = []
+        for p in profile.get("projects") or []:
+            projects.append({
+                "title": p.get("title", ""),
+                "description": p.get("description", ""),
+                "technologies": p.get("technologies") or [],
+                "role": p.get("role", ""),
+                "url": p.get("url", ""),
+                "github_url": p.get("github_url", ""),
+            })
+
+        # -------- Certifications --------
+        certifications = []
+        for c in profile.get("certifications") or []:
+            certifications.append({
+                "name": c.get("name", ""),
+                "issuer": c.get("issuer", ""),
+                "year": c.get("year", ""),
+                "credential_id": c.get("credential_id", ""),
+            })
+
+        # -------- Languages --------
+        languages = profile.get("languages") or []
+
+        return {
+            "user_info": user_info,
+            "contact_info": contact_info,
+            "professional_summary": profile.get("summary") or "",
+            "career_objective": profile.get("career_objective") or "",
+            "experience": experience,
+            "education": education,
+            "skills": skills,
+            "projects": projects,
+            "certifications": certifications,
+            "languages": languages,
+            "social_links": profile.get("social_links") or {},
+        }
+
+    # ============================================================
+    # AI ENHANCEMENT — every section
+    # ============================================================
+    async def _ai_enhance_all(
+        self,
+        base: Dict[str, Any],
+        job_description: Optional[str],
+        target_role: str,
+        style: str,
+    ) -> Dict[str, Any]:
+        if not self.client:
+            # No AI → return base but with safe defaults
+            base["professional_summary"] = base["professional_summary"] or self._default_summary(base, target_role)
+            base["career_objective"] = base["career_objective"] or self._default_objective(target_role)
+            base["experience"] = self._ensure_bullets(base["experience"])
+            return base
+
+        try:
+            prompt = self._build_master_prompt(base, job_description, target_role, style)
+            resp = await self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are an expert resume writer + ATS optimizer. "
+                            "Rewrite the user's resume content to be ATS-perfect, "
+                            "quantified, achievement-focused, and keyword-rich. "
+                            "NEVER invent facts, companies, dates, or degrees. "
+                            "Only enhance phrasing, add measurable structure, and "
+                            "insert keywords ONLY when they truthfully match the user's skills. "
+                            "Return ONLY valid JSON — no markdown, no code fences."
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.4,
+                max_tokens=3500,
+            )
+
+            raw = resp.choices[0].message.content.strip()
+            raw = self._strip_code_fences(raw)
+            enhanced = json.loads(raw)
+
+            # Merge with base (never lose real data)
+            return self._merge_safely(base, enhanced)
+
+        except Exception as e:
+            module_logger.error(f"AI enhancement failed: {e}")
+            base["professional_summary"] = base["professional_summary"] or self._default_summary(base, target_role)
+            base["career_objective"] = base["career_objective"] or self._default_objective(target_role)
+            base["experience"] = self._ensure_bullets(base["experience"])
+            return base
+
+    def _build_master_prompt(
+        self,
+        base: Dict[str, Any],
+        job_description: Optional[str],
+        target_role: str,
+        style: str,
+    ) -> str:
+        user = base["user_info"]
+        exps = base["experience"]
+        edus = base["education"]
+        skills = [s["name"] for s in base["skills"]["all"]]
+        projects = base["projects"]
+        certs = base["certifications"]
+
+        return f"""Rewrite this resume for ATS + human recruiters.
+
+STYLE TARGET: {style}
+TARGET ROLE: {target_role or "Not specified"}
+
+----- USER -----
+Name: {user['full_name']}
+Email: {user['email']}
+Phone: {user['mobile']}
+Location: {base['contact_info']['location']}
+Experience entries: {len(exps)}
+Education entries: {len(edus)}
+Skills: {skills}
+Projects: {len(projects)}
+Certifications: {len(certs)}
+
+----- JOB DESCRIPTION -----
+{(job_description or "None provided")[:3000]}
+
+----- EXISTING DATA -----
+Current summary: {base['professional_summary'] or "(empty)"}
+Current objective: {base['career_objective'] or "(empty)"}
+Experience:
+{json.dumps(exps, default=str)[:3500]}
+Education:
+{json.dumps(edus, default=str)[:1500]}
+Projects:
+{json.dumps(projects, default=str)[:1500]}
+Certifications:
+{json.dumps(certs, default=str)[:800]}
+
+----- REWRITE INSTRUCTIONS -----
+1. professional_summary: 3–4 sentences, 50–90 words. Include role, years exp, key skills, top achievement.
+2. career_objective: 2 sentences, forward-looking.
+3. experience: for EACH entry, keep role/company/dates EXACTLY. Rewrite `description` (2–4 sentences). Rewrite `achievements` as 3–5 bullet points starting with strong verbs and numbers where possible.
+4. skills: group into {{all, technical, soft, tools}}. Never invent — only reuse + infer common tools for mentioned domains.
+5. projects: keep title/url. Enhance `description` with impact + tech stack.
+6. education: never modify factual fields.
+
+----- OUTPUT JSON (EXACT SHAPE) -----
+{{
+  "professional_summary": "...",
+  "career_objective": "...",
+  "experience": [
+    {{
+      "role": "...",
+      "company": "...",
+      "start_date": "...",
+      "end_date": "...",
+      "description": "...",
+      "achievements": ["...", "...", "..."]
+    }}
+  ],
+  "skills": {{
+    "all": [{{"name": "...", "level": "..."}}],
+    "technical": ["..."],
+    "soft": ["..."],
+    "tools": ["..."]
+  }},
+  "projects": [
+    {{"title": "...", "description": "...", "technologies": ["..."]}}
+  ],
+  "certifications": [{{"name": "...", "issuer": "...", "year": "..."}}]
+}}"""
+
+    # ============================================================
+    # SAFE MERGE — never lose real data
+    # ============================================================
+    def _merge_safely(self, base: Dict[str, Any], enhanced: Dict[str, Any]) -> Dict[str, Any]:
+        merged = dict(base)
+
+        if enhanced.get("professional_summary"):
+            merged["professional_summary"] = enhanced["professional_summary"]
+        if enhanced.get("career_objective"):
+            merged["career_objective"] = enhanced["career_objective"]
+
+        # Experience — keep base facts
+        if isinstance(enhanced.get("experience"), list):
+            merged_exp = []
+            for i, base_exp in enumerate(base["experience"]):
+                enh_exp = enhanced["experience"][i] if i < len(enhanced["experience"]) else {}
+                merged_exp.append({
+                    "role": base_exp["role"] or enh_exp.get("role", ""),
+                    "company": base_exp["company"] or enh_exp.get("company", ""),
+                    "start_date": base_exp["start_date"] or enh_exp.get("start_date", ""),
+                    "end_date": base_exp["end_date"] or enh_exp.get("end_date", ""),
+                    "description": enh_exp.get("description") or base_exp["description"],
+                    "achievements": enh_exp.get("achievements") or base_exp["achievements"],
+                    "skills_used": base_exp["skills_used"],
+                    "location": base_exp.get("location", ""),
+                })
+            merged["experience"] = merged_exp
+
+        # Skills — merge
+        if isinstance(enhanced.get("skills"), dict):
+            all_skills = enhanced["skills"].get("all") or base["skills"]["all"]
+            merged["skills"] = {
+                "all": all_skills,
+                "technical": enhanced["skills"].get("technical", []),
+                "soft": enhanced["skills"].get("soft", []),
+                "tools": enhanced["skills"].get("tools", []),
+            }
+
+        # Projects — keep title from base
+        if isinstance(enhanced.get("projects"), list):
+            merged_projects = []
+            for i, base_p in enumerate(base["projects"]):
+                enh_p = enhanced["projects"][i] if i < len(enhanced["projects"]) else {}
+                merged_projects.append({
+                    "title": base_p["title"] or enh_p.get("title", ""),
+                    "description": enh_p.get("description") or base_p["description"],
+                    "technologies": enh_p.get("technologies") or base_p["technologies"],
+                    "url": base_p.get("url", ""),
+                    "github_url": base_p.get("github_url", ""),
+                    "role": base_p.get("role", ""),
+                })
+            merged["projects"] = merged_projects
+
+        # Certifications — keep name
+        if isinstance(enhanced.get("certifications"), list):
+            merged_certs = []
+            for i, base_c in enumerate(base["certifications"]):
+                enh_c = enhanced["certifications"][i] if i < len(enhanced["certifications"]) else {}
+                merged_certs.append({
+                    "name": base_c["name"] or enh_c.get("name", ""),
+                    "issuer": enh_c.get("issuer") or base_c.get("issuer", ""),
+                    "year": enh_c.get("year") or base_c.get("year", ""),
+                })
+            merged["certifications"] = merged_certs
+
+        return merged
+
+    # ============================================================
+    # HELPERS
+    # ============================================================
+    def _strip_code_fences(self, text: str) -> str:
+        text = text.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        if text.endswith("```"):
+            text = text[:-3]
+        return text.strip()
+
+    def _calc_age(self, dob: str) -> Optional[int]:
+        if not dob:
+            return None
+        try:
+            birth = datetime.strptime(dob[:10], "%Y-%m-%d")
+            today = datetime.now()
+            age = today.year - birth.year
+            if (today.month, today.day) < (birth.month, birth.day):
+                age -= 1
+            return age
+        except Exception:
+            return None
+
+    def _default_summary(self, base: Dict[str, Any], target_role: str) -> str:
+        role = target_role or base["user_info"].get("current_role") or "professional"
+        skills = ", ".join([s["name"] for s in base["skills"]["all"][:5]])
+        years = len(base["experience"])
+        return (
+            f"{role} with {years}+ years of experience. "
+            f"Skilled in {skills}. "
+            f"Passionate about delivering measurable results and continuously learning new technologies."
+        )
+
+    def _default_objective(self, target_role: str) -> str:
+        role = target_role or "a challenging role"
+        return (
+            f"Seeking {role} where I can apply my technical expertise, "
+            f"contribute to impactful projects, and grow as a professional."
+        )
+
+    def _ensure_bullets(self, experience: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        for exp in experience:
+            if not exp.get("achievements"):
+                desc = exp.get("description", "")
+                if desc:
+                    parts = [p.strip() for p in desc.split(".") if p.strip()]
+                    exp["achievements"] = [f"{p}." for p in parts[:5]]
+        return experience
+
+    def _statistics(self, resume: Dict[str, Any]) -> Dict[str, Any]:
+        skills_all = resume.get("skills", {}).get("all", [])
+        return {
+            "total_experience_entries": len(resume.get("experience") or []),
+            "total_education_entries": len(resume.get("education") or []),
+            "total_skills": len(skills_all),
+            "total_projects": len(resume.get("projects") or []),
+            "total_certifications": len(resume.get("certifications") or []),
+            "profile_completion": self._completion(resume),
+        }
+
+    def _completion(self, resume: Dict[str, Any]) -> int:
+        checks = [
+            bool((resume.get("user_info") or {}).get("full_name")),
+            bool((resume.get("contact_info") or {}).get("email")),
+            bool((resume.get("contact_info") or {}).get("phone")),
+            bool(resume.get("professional_summary")),
+            bool(resume.get("experience")),
+            bool(resume.get("education")),
+            bool((resume.get("skills") or {}).get("all")),
+            bool(resume.get("projects")),
+        ]
+        return int((sum(checks) / len(checks)) * 100)
+
+
+resume_generator = ResumeGenerator()
+
+
+================================================================================
+[ 123/ 156] 🐍 PYTHON FILE: app\modules\resume\AI\resume_parser.py
 📏 SIZE: 2,373 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -32484,7 +33879,7 @@ RESUME CONTENT: {content[:2000]}
 
 
 ================================================================================
-[ 122/ 154] 🐍 PYTHON FILE: app\modules\resume\routes.py
+[ 124/ 156] 🐍 PYTHON FILE: app\modules\resume\routes.py
 📏 SIZE: 13,126 bytes
 🕐 MODIFIED: 2026-09-24 23:14:26
 
@@ -32895,7 +34290,7 @@ print("✅ NEW: /profile-photo — lightweight current photo URL endpoint")
 
 
 ================================================================================
-[ 123/ 154] 🐍 PYTHON FILE: app\modules\resume\schema.py
+[ 125/ 156] 🐍 PYTHON FILE: app\modules\resume\schema.py
 📏 SIZE: 557 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -32928,7 +34323,7 @@ class ResumeListResponse(BaseModel):
 
 
 ================================================================================
-[ 124/ 154] 🐍 PYTHON FILE: app\modules\resume\service.py
+[ 126/ 156] 🐍 PYTHON FILE: app\modules\resume\service.py
 📏 SIZE: 48,639 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -34065,7 +35460,7 @@ print("✅ Resume Service Loaded - Complete Profile Resume View Available")
 
 
 ================================================================================
-[ 125/ 154] 🐍 PYTHON FILE: app\modules\services\__init__.py
+[ 127/ 156] 🐍 PYTHON FILE: app\modules\services\__init__.py
 📏 SIZE: 200 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -34083,7 +35478,7 @@ __all__ = ['router', 'ServiceService']
 
 
 ================================================================================
-[ 126/ 154] 🐍 PYTHON FILE: app\modules\services\models\service_types.py
+[ 128/ 156] 🐍 PYTHON FILE: app\modules\services\models\service_types.py
 📏 SIZE: 18,287 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -34518,7 +35913,7 @@ class ServiceMasterData:
 
 
 ================================================================================
-[ 127/ 154] 🐍 PYTHON FILE: app\modules\services\routes.py
+[ 129/ 156] 🐍 PYTHON FILE: app\modules\services\routes.py
 📏 SIZE: 28,905 bytes
 🕐 MODIFIED: 2026-09-22 20:33:39
 
@@ -35297,7 +36692,7 @@ print("   payment_status='completed' + verification='pending' → 'approved'")
 
 
 ================================================================================
-[ 128/ 154] 🐍 PYTHON FILE: app\modules\services\schema.py
+[ 130/ 156] 🐍 PYTHON FILE: app\modules\services\schema.py
 📏 SIZE: 5,743 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -35479,7 +36874,7 @@ print("✅ Services Schema Loaded - With CONFIRMED_APPLICATION and UPDATE_APPLIC
 
 
 ================================================================================
-[ 129/ 154] 🐍 PYTHON FILE: app\modules\services\service.py
+[ 131/ 156] 🐍 PYTHON FILE: app\modules\services\service.py
 📏 SIZE: 42,963 bytes
 🕐 MODIFIED: 2026-09-20 16:58:47
 
@@ -36483,7 +37878,7 @@ print("=" * 70)
 
 
 ================================================================================
-[ 130/ 154] 🐍 PYTHON FILE: app\modules\superadmin\AI\__init__.py
+[ 132/ 156] 🐍 PYTHON FILE: app\modules\superadmin\AI\__init__.py
 📏 SIZE: 433 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -36506,7 +37901,7 @@ __all__ = [
 
 
 ================================================================================
-[ 131/ 154] 🐍 PYTHON FILE: app\modules\superadmin\AI\ai_routes.py
+[ 133/ 156] 🐍 PYTHON FILE: app\modules\superadmin\AI\ai_routes.py
 📏 SIZE: 4,037 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -36625,7 +38020,7 @@ async def superadmin_sentiment_analysis(
 
 
 ================================================================================
-[ 132/ 154] 🐍 PYTHON FILE: app\modules\superadmin\AI\anomaly_detection.py
+[ 134/ 156] 🐍 PYTHON FILE: app\modules\superadmin\AI\anomaly_detection.py
 📏 SIZE: 2,307 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -36701,7 +38096,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[ 133/ 154] 🐍 PYTHON FILE: app\modules\superadmin\AI\growth_predictor.py
+[ 135/ 156] 🐍 PYTHON FILE: app\modules\superadmin\AI\growth_predictor.py
 📏 SIZE: 2,302 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -36775,7 +38170,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[ 134/ 154] 🐍 PYTHON FILE: app\modules\superadmin\AI\platform_analytics.py
+[ 136/ 156] 🐍 PYTHON FILE: app\modules\superadmin\AI\platform_analytics.py
 📏 SIZE: 2,387 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -36848,7 +38243,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[ 135/ 154] 🐍 PYTHON FILE: app\modules\superadmin\AI\sentiment_analysis.py
+[ 137/ 156] 🐍 PYTHON FILE: app\modules\superadmin\AI\sentiment_analysis.py
 📏 SIZE: 4,412 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -36976,7 +38371,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[ 136/ 154] 🐍 PYTHON FILE: app\modules\superadmin\routes.py
+[ 138/ 156] 🐍 PYTHON FILE: app\modules\superadmin\routes.py
 📏 SIZE: 7,264 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -37198,7 +38593,7 @@ print("✅ SuperAdmin Routes Loaded - AUTH DELETION DISABLED (Soft Delete Only)"
 
 
 ================================================================================
-[ 137/ 154] 🐍 PYTHON FILE: app\modules\superadmin\schema.py
+[ 139/ 156] 🐍 PYTHON FILE: app\modules\superadmin\schema.py
 📏 SIZE: 1,427 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -37257,7 +38652,7 @@ class AISmartDashboardResponse(BaseModel):
 
 
 ================================================================================
-[ 138/ 154] 🐍 PYTHON FILE: app\modules\superadmin\service.py
+[ 140/ 156] 🐍 PYTHON FILE: app\modules\superadmin\service.py
 📏 SIZE: 10,088 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -37508,7 +38903,7 @@ print("✅ SuperAdmin Service Loaded - AUTH DELETION DISABLED (Soft Delete Only)
 
 
 ================================================================================
-[ 139/ 154] 🐍 PYTHON FILE: app\modules\support\routes.py
+[ 141/ 156] 🐍 PYTHON FILE: app\modules\support\routes.py
 📏 SIZE: 10,934 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -37839,7 +39234,7 @@ print("✅ Support Routes Loaded")
 
 
 ================================================================================
-[ 140/ 154] 🐍 PYTHON FILE: app\modules\user\AI\__init__.py
+[ 142/ 156] 🐍 PYTHON FILE: app\modules\user\AI\__init__.py
 📏 SIZE: 291 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -37855,7 +39250,7 @@ __all__ = ['AICareerAnalyzer', 'AIJobMatcher', 'AISkillAnalyzer', 'ai_router']
 
 
 ================================================================================
-[ 141/ 154] 🐍 PYTHON FILE: app\modules\user\AI\ai_routes.py
+[ 143/ 156] 🐍 PYTHON FILE: app\modules\user\AI\ai_routes.py
 📏 SIZE: 41,523 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -38914,7 +40309,7 @@ print("✅ User AI Routes Loaded - Real-time Data & Full Analysis")
 
 
 ================================================================================
-[ 142/ 154] 🐍 PYTHON FILE: app\modules\user\AI\career_analysis.py
+[ 144/ 156] 🐍 PYTHON FILE: app\modules\user\AI\career_analysis.py
 📏 SIZE: 13,305 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -39220,7 +40615,7 @@ print("✅ AICareerAnalyzer loaded")
 
 
 ================================================================================
-[ 143/ 154] 🐍 PYTHON FILE: app\modules\user\AI\job_matching.py
+[ 145/ 156] 🐍 PYTHON FILE: app\modules\user\AI\job_matching.py
 📏 SIZE: 4,749 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -39349,7 +40744,7 @@ print("✅ AIJobMatcher loaded")
 
 
 ================================================================================
-[ 144/ 154] 🐍 PYTHON FILE: app\modules\user\AI\skill_analyzer.py
+[ 146/ 156] 🐍 PYTHON FILE: app\modules\user\AI\skill_analyzer.py
 📏 SIZE: 3,416 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -39443,7 +40838,7 @@ print("✅ AISkillAnalyzer loaded")
 
 
 ================================================================================
-[ 145/ 154] 🐍 PYTHON FILE: app\modules\user\career_routes.py
+[ 147/ 156] 🐍 PYTHON FILE: app\modules\user\career_routes.py
 📏 SIZE: 18,241 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -39942,7 +41337,7 @@ print("✅ Ultra Career Guidance Routes loaded - Using Unified AI Insights Colle
 
 
 ================================================================================
-[ 146/ 154] 🐍 PYTHON FILE: app\modules\user\routes.py
+[ 148/ 156] 🐍 PYTHON FILE: app\modules\user\routes.py
 📏 SIZE: 71,946 bytes
 🕐 MODIFIED: 2026-09-25 09:38:50
 
@@ -41913,7 +43308,7 @@ print("✅ NEW: /upload-profile-photo — auto-rebuilds resume after photo uploa
 
 
 ================================================================================
-[ 147/ 154] 🐍 PYTHON FILE: app\modules\user\schema.py
+[ 149/ 156] 🐍 PYTHON FILE: app\modules\user\schema.py
 📏 SIZE: 13,620 bytes
 🕐 MODIFIED: 2026-09-13 20:56:43
 
@@ -42389,7 +43784,7 @@ class OtherDetailsSchema(BaseModel):
 
 
 ================================================================================
-[ 148/ 154] 🐍 PYTHON FILE: app\modules\user\service.py
+[ 150/ 156] 🐍 PYTHON FILE: app\modules\user\service.py
 📏 SIZE: 70,006 bytes
 🕐 MODIFIED: 2026-09-13 21:01:58
 
@@ -43921,7 +45316,7 @@ print("✅ Profile Service Loaded - Fixed for KeyError issues and Phone sync")
 
 
 ================================================================================
-[ 149/ 154] 🐍 PYTHON FILE: app\modules\voice\routes.py
+[ 151/ 156] 🐍 PYTHON FILE: app\modules\voice\routes.py
 📏 SIZE: 6,027 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -44088,7 +45483,7 @@ print("✅ Voice module loaded")
 
 
 ================================================================================
-[ 150/ 154] 🐍 PYTHON FILE: python test_atlas_connection.py
+[ 152/ 156] 🐍 PYTHON FILE: python test_atlas_connection.py
 📏 SIZE: 9,492 bytes
 🕐 MODIFIED: 2026-07-16 19:38:08
 
@@ -44350,7 +45745,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[ 151/ 154] 📄 TEXT FILE: requirements.txt
+[ 153/ 156] 📄 TEXT FILE: requirements.txt
 📏 SIZE: 5,234 bytes
 🕐 MODIFIED: 2026-08-28 19:54:28
 
@@ -44499,7 +45894,7 @@ yarl==1.23.0
 
 
 ================================================================================
-[ 152/ 154] 🐍 PYTHON FILE: test.py
+[ 154/ 156] 🐍 PYTHON FILE: test.py
 📏 SIZE: 2,028 bytes
 🕐 MODIFIED: 2026-08-28 19:07:08
 
@@ -44569,7 +45964,7 @@ print("=" * 60)
 
 
 ================================================================================
-[ 153/ 154] 🐍 PYTHON FILE: test_connection.py
+[ 155/ 156] 🐍 PYTHON FILE: test_connection.py
 📏 SIZE: 1,552 bytes
 🕐 MODIFIED: 2026-06-17 20:14:04
 
@@ -44620,7 +46015,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[ 154/ 154] 🐍 PYTHON FILE: test_network.py
+[ 156/ 156] 🐍 PYTHON FILE: test_network.py
 📏 SIZE: 5,509 bytes
 🕐 MODIFIED: 2026-06-15 19:48:54
 

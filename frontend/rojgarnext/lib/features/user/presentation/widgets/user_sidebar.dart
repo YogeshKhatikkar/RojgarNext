@@ -1,7 +1,8 @@
 // lib/features/user/presentation/widgets/user_sidebar.dart
 // ✅ Listens to UserProfileProvider → photo updates everywhere instantly
 // ✅ NEW: Camera icon overlay on profile photo → tap to upload
-// ✅ Same pattern as Build Resume screen
+// ✅ FIXED: No black placeholder — always shows initials on failure
+// ✅ FIXED: Auto-sync with provider on every rebuild
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kReleaseMode;
@@ -32,7 +33,6 @@ class UserSidebar extends StatefulWidget {
 class _UserSidebarState extends State<UserSidebar> {
   String _userName = "User";
   String _userEmail = "";
-  String? _fallbackPhotoUrl;
   bool _isLoading = true;
 
   @override
@@ -57,7 +57,7 @@ class _UserSidebarState extends State<UserSidebar> {
         _userName = name;
       }
 
-      // Fetch profile photo (also syncs to provider)
+      // ✅ Fetch profile + push photo to provider
       try {
         final response = await DioClient.dio.get('/user/full-profile');
         Map<String, dynamic> profile = {};
@@ -79,14 +79,10 @@ class _UserSidebarState extends State<UserSidebar> {
             .toString()
             .trim();
 
-        if (photoUrl.isNotEmpty && photoUrl.startsWith('http')) {
-          _fallbackPhotoUrl = photoUrl;
-
-          // ✅ Push to provider so all screens see it
-          if (mounted) {
-            Provider.of<UserProfileProvider>(context, listen: false)
-                .updateProfilePhotoFromUrl(photoUrl);
-          }
+        if (photoUrl.isNotEmpty && mounted) {
+          // ✅ Push to provider (provider validates + normalizes)
+          Provider.of<UserProfileProvider>(context, listen: false)
+              .updateProfilePhotoFromUrl(photoUrl);
         }
 
         final fullName = profile['full_name'] as String?;
@@ -135,104 +131,87 @@ class _UserSidebarState extends State<UserSidebar> {
     );
   }
 
+  // ============================================================
+  // ✅ PROFILE PHOTO — bulletproof version
+  // - reads from provider (single source of truth)
+  // - never shows black — falls back to initials
+  // ============================================================
   Widget _buildProfilePhoto() {
-    // ✅ Listen to provider — auto-updates when photo changes anywhere
     return Consumer<UserProfileProvider>(
       builder: (context, provider, _) {
-        final url = provider.profilePhotoUrl ?? _fallbackPhotoUrl;
+        final url = provider.profilePhotoUrl;
 
-        if (_isLoading && (url == null || url.isEmpty)) {
-          return Container(
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.grey,
-            ),
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          );
-        }
-
-        if (url != null && url.isNotEmpty) {
-          return ClipOval(
-            child: CachedNetworkImage(
-              key: ValueKey(url),
-              imageUrl: url,
-              fit: BoxFit.cover,
-              width: 80,
-              height: 80,
-              placeholder: (context, u) => Container(
+        // No photo → initials
+        if (url == null || url.trim().isEmpty) {
+          if (_isLoading) {
+            return Container(
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
                 color: Colors.grey,
-                child: const Center(
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
+              ),
+              child: const Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
                   ),
                 ),
               ),
-              errorWidget: (context, u, error) => _initialsAvatar(),
-            ),
-          );
+            );
+          }
+          return _initialsAvatar();
         }
 
-        return _initialsAvatar();
+        // Has photo → render with fallback to initials
+        return ClipOval(
+          child: CachedNetworkImage(
+            key: ValueKey('sidebar_photo_${provider.version}_$url'),
+            imageUrl: url,
+            fit: BoxFit.cover,
+            width: 80,
+            height: 80,
+            fadeInDuration: const Duration(milliseconds: 200),
+            placeholder: (context, u) => _initialsAvatar(),
+            errorWidget: (context, u, error) {
+              debugPrint('❌ Sidebar photo load failed: $error');
+              return _initialsAvatar();
+            },
+          ),
+        );
       },
     );
   }
 
-  // ============================================================
-  // ✅ NEW: Open ProfilePhotoUploadDialog (same as Build Resume)
-  // ============================================================
   Future<void> _openProfilePhotoUpload() async {
     if (!mounted) return;
 
-    // Read current photo from provider (single source of truth)
     final currentUrl =
         Provider.of<UserProfileProvider>(context, listen: false)
-            .profilePhotoUrl ??
-        _fallbackPhotoUrl;
+            .profilePhotoUrl;
 
     final uploadedUrl = await ProfilePhotoUploadDialog.show(
       context,
       currentPhotoUrl: currentUrl,
     );
 
-    // ✅ Provider is already updated inside the dialog —
-    // no setState needed. But we refresh the local fallback anyway.
     if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
-      setState(() {
-        _fallbackPhotoUrl = uploadedUrl;
-      });
       debugPrint("✅ Sidebar: profile photo updated → $uploadedUrl");
+      // Provider already notified listeners — no setState needed
     }
   }
 
-  // ============================================================
-  // ✅ Profile section with camera icon overlay
-  // ============================================================
   Widget _buildProfileSection() {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // ✅ Photo + camera overlay (Stack — same as Build Resume)
           GestureDetector(
             onTap: _openProfilePhotoUpload,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // Main avatar
                 Container(
                   width: 80,
                   height: 80,
@@ -249,8 +228,6 @@ class _UserSidebarState extends State<UserSidebar> {
                   ),
                   child: _buildProfilePhoto(),
                 ),
-
-                // ✅ Camera icon at bottom-right
                 Positioned(
                   right: -2,
                   bottom: -2,
@@ -284,9 +261,7 @@ class _UserSidebarState extends State<UserSidebar> {
               ],
             ),
           ),
-
           const SizedBox(height: 12),
-
           Text(
             _userName,
             style: const TextStyle(
@@ -307,10 +282,7 @@ class _UserSidebarState extends State<UserSidebar> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-
           const SizedBox(height: 6),
-
-          // Small hint text
           Text(
             "Tap photo to update",
             style: TextStyle(
@@ -319,9 +291,7 @@ class _UserSidebarState extends State<UserSidebar> {
               fontStyle: FontStyle.italic,
             ),
           ),
-
           const SizedBox(height: 10),
-
           Container(
             height: 1,
             margin: const EdgeInsets.symmetric(horizontal: 10),
@@ -394,7 +364,6 @@ class _UserSidebarState extends State<UserSidebar> {
           style: TextStyle(color: Colors.white),
         ),
         onTap: () async {
-          // Clear the provider state
           if (mounted) {
             Provider.of<UserProfileProvider>(context, listen: false).clear();
           }
@@ -410,6 +379,9 @@ class _UserSidebarState extends State<UserSidebar> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Watch provider → any photo change anywhere rebuilds sidebar
+    context.watch<UserProfileProvider>();
+
     return Container(
       width: 280,
       color: const Color(0xFF1E293B),

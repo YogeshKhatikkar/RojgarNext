@@ -1,7 +1,8 @@
 // lib/features/user/providers/user_profile_provider.dart
 // ✅ SINGLE SOURCE OF TRUTH for profile photo across entire app
-// ✅ Notifies listeners on every change → no page reload needed
-// ✅ Added: loadProfile() + clear() methods (fixes compile errors)
+// ✅ FIXED: Image URL validation, force notify, version tracking
+// ✅ FIXED: Cloudinary raw → image URL conversion
+// ✅ FIXED: Added loadProfile() + clear() methods
 
 import 'package:flutter/foundation.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
@@ -15,6 +16,9 @@ class UserProfileProvider extends ChangeNotifier {
   /// Current profile photo Cloudinary public_id (for deletion)
   String? _profilePhotoPublicId;
 
+  /// Bumped on every update — forces dependent widgets to recompute
+  int _version = 0;
+
   // ============================================================
   // GETTERS
   // ============================================================
@@ -22,52 +26,118 @@ class UserProfileProvider extends ChangeNotifier {
   String? get profilePhotoUrl => _profilePhotoUrl;
   String? get profilePhotoPublicId => _profilePhotoPublicId;
   bool get hasPhoto => (_profilePhotoUrl ?? '').trim().isNotEmpty;
+  int get version => _version;
+
+  // ============================================================
+  // ✅ URL VALIDATOR — rejects garbage / non-image / raw-type URLs
+  // ============================================================
+  bool _isValidImageUrl(String? url) {
+    if (url == null) return false;
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return false;
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      return false;
+    }
+    final lower = trimmed.toLowerCase();
+    if (lower == 'null' ||
+        lower == 'undefined' ||
+        lower == 'none' ||
+        lower == 'n/a') {
+      return false;
+    }
+    return true;
+  }
+
+  /// ✅ Converts Cloudinary raw upload URL → image-renderable URL.
+  /// Example:
+  ///   https://res.cloudinary.com/demo/raw/upload/v1/folder/photo.jpg
+  ///   → https://res.cloudinary.com/demo/image/upload/v1/folder/photo.jpg
+  String _normalizeCloudinaryUrl(String url) {
+    try {
+      final lower = url.toLowerCase();
+
+      // Only touch Cloudinary URLs
+      if (!lower.contains('cloudinary.com')) return url;
+
+      // Skip if already image/upload or video/upload
+      if (lower.contains('/image/upload/') ||
+          lower.contains('/video/upload/')) {
+        return url;
+      }
+
+      // Convert raw/upload → image/upload
+      if (lower.contains('/raw/upload/')) {
+        final fixed = url.replaceFirst('/raw/upload/', '/image/upload/');
+        debugPrint('🔄 Converted raw URL → image URL: $fixed');
+        return fixed;
+      }
+
+      return url;
+    } catch (e) {
+      debugPrint('⚠️ URL normalize error: $e');
+      return url;
+    }
+  }
 
   // ============================================================
   // ✅ SET PROFILE PHOTO (from any upload source)
   // ============================================================
   void setProfilePhoto({required String url, String? publicId}) {
-    if (url.trim().isEmpty) {
-      clearProfilePhoto();
+    if (!_isValidImageUrl(url)) {
+      debugPrint('❌ setProfilePhoto: invalid URL → $url');
       return;
     }
-    _profilePhotoUrl = url.trim();
+
+    final normalized = _normalizeCloudinaryUrl(url.trim());
+
+    // ✅ Only notify if URL actually changed
+    final changed = _profilePhotoUrl != normalized ||
+        _profilePhotoPublicId != publicId;
+
+    _profilePhotoUrl = normalized;
     _profilePhotoPublicId = publicId;
-    notifyListeners();
-    debugPrint('✅ Provider photo set: $_profilePhotoUrl');
+
+    if (changed) {
+      _version++;
+      notifyListeners();
+      debugPrint('✅ Provider photo set (v$_version): $_profilePhotoUrl');
+    }
   }
 
-  /// Same as setProfilePhoto — alias used by ResumeScreen
+  /// Alias — used by some screens
   void updateProfilePhotoFromUrl(String url, {String? publicId}) {
     setProfilePhoto(url: url, publicId: publicId);
   }
 
   // ============================================================
-  // ✅ CLEAR PROFILE PHOTO (from delete action)
+  // ✅ CLEAR PROFILE PHOTO
   // ============================================================
   void clearProfilePhoto() {
+    final hadPhoto = (_profilePhotoUrl ?? '').isNotEmpty;
     _profilePhotoUrl = null;
     _profilePhotoPublicId = null;
-    notifyListeners();
-    debugPrint('🗑️ Provider photo cleared');
+    if (hadPhoto) {
+      _version++;
+      notifyListeners();
+      debugPrint('🗑️ Provider photo cleared (v$_version)');
+    }
   }
 
   // ============================================================
-  // ✅ NEW: loadProfile() — called from main.dart on app start
-  // Alias for fetchProfile() for backward compatibility
+  // ✅ LOAD PROFILE — called from main.dart on app start
   // ============================================================
   Future<void> loadProfile() async {
     await fetchProfile();
   }
 
   // ============================================================
-  // ✅ NEW: clear() — called from sidebar logout
-  // Clears ALL cached profile data + photo
+  // ✅ CLEAR — called from sidebar logout
   // ============================================================
   void clear() {
     _profile = null;
     _profilePhotoUrl = null;
     _profilePhotoPublicId = null;
+    _version++;
     notifyListeners();
     debugPrint('🗑️ Provider: Full profile state cleared (logout)');
   }
@@ -90,8 +160,9 @@ class UserProfileProvider extends ChangeNotifier {
       _profile = data;
 
       final additional = (data['additional_details'] as Map?) ?? {};
-      final photoUrl = (additional['profile_photo_url']?.toString() ??
+      final rawUrl = (additional['profile_photo_url']?.toString() ??
               data['profile_photo_url']?.toString() ??
+              data['photo_url']?.toString() ??
               '')
           .trim();
 
@@ -99,42 +170,47 @@ class UserProfileProvider extends ChangeNotifier {
               data['profile_photo_public_id'])
           ?.toString();
 
-      if (photoUrl.isNotEmpty) {
-        _profilePhotoUrl = photoUrl;
+      if (_isValidImageUrl(rawUrl)) {
+        final normalized = _normalizeCloudinaryUrl(rawUrl);
+        final changed = _profilePhotoUrl != normalized;
+        _profilePhotoUrl = normalized;
+        if (changed) _version++;
       } else {
         _profilePhotoUrl = null;
         _profilePhotoPublicId = null;
       }
 
       notifyListeners();
-      debugPrint('✅ Provider profile fetched — photo: $_profilePhotoUrl');
+      debugPrint('✅ Provider profile fetched (v$_version) — photo: $_profilePhotoUrl');
     } catch (e) {
       debugPrint('❌ Provider fetchProfile failed: $e');
     }
   }
 
   // ============================================================
-  // ✅ REFRESH FROM BACKEND (safe — keeps old value on failure)
+  // ✅ REFRESH FROM BACKEND
   // ============================================================
   Future<void> refresh() async {
     await fetchProfile();
   }
 
   // ============================================================
-  // ✅ FULL PROFILE UPDATE (for other profile screens)
+  // ✅ FULL PROFILE UPDATE
   // ============================================================
   void updateProfile(Map<String, dynamic> newProfile) {
     _profile = newProfile;
     final additional = (newProfile['additional_details'] as Map?) ?? {};
-    final photoUrl = (additional['profile_photo_url']?.toString() ??
+    final rawUrl = (additional['profile_photo_url']?.toString() ??
             newProfile['profile_photo_url']?.toString() ??
             '')
         .trim();
-    if (photoUrl.isNotEmpty) {
-      _profilePhotoUrl = photoUrl;
+
+    if (_isValidImageUrl(rawUrl)) {
+      _profilePhotoUrl = _normalizeCloudinaryUrl(rawUrl);
     } else {
       _profilePhotoUrl = null;
     }
+    _version++;
     notifyListeners();
   }
 }
