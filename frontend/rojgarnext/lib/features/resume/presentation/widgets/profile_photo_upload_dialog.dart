@@ -1,35 +1,31 @@
 // lib/features/resume/presentation/widgets/profile_photo_upload_dialog.dart
-// ✅ Has static show() → returns uploaded URL (String?)
-// ✅ Uses UserProfileProvider → auto-syncs everywhere
-// ✅ Shows current photo preview if provided
+// ✅ Static .show() helper returns uploaded URL (or null)
+// ✅ Broadcasts change via UserProfileProvider → no page reload
+// ✅ FIXED: onSendProgress moved OUT of Options (Dio 5.x requirement)
 
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:rojgarnext/core/widgets/platform_file_picker.dart';
+import 'package:dio/dio.dart';
+import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
+import 'package:rojgarnext/core/widgets/platform_file_picker.dart';
 import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 
 class ProfilePhotoUploadDialog extends StatefulWidget {
-  final VoidCallback? onUploadSuccess;
   final String? currentPhotoUrl;
 
-  const ProfilePhotoUploadDialog({
-    super.key,
-    this.onUploadSuccess,
-    this.currentPhotoUrl,
-  });
+  const ProfilePhotoUploadDialog({super.key, this.currentPhotoUrl});
 
-  /// ✅ STATIC SHOW METHOD — returns the uploaded URL (or null if cancelled)
-  /// Usage:
-  ///   final url = await ProfilePhotoUploadDialog.show(context, currentPhotoUrl: url);
+  /// ✅ Convenience method — shows dialog and returns uploaded URL (or null)
   static Future<String?> show(
     BuildContext context, {
     String? currentPhotoUrl,
   }) async {
-    return showDialog<String?>(
+    return await showDialog<String>(
       context: context,
-      barrierDismissible: true,
-      builder: (ctx) => ProfilePhotoUploadDialog(
+      barrierDismissible: false,
+      builder: (_) => ProfilePhotoUploadDialog(
         currentPhotoUrl: currentPhotoUrl,
       ),
     );
@@ -41,144 +37,265 @@ class ProfilePhotoUploadDialog extends StatefulWidget {
 }
 
 class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
-  bool _isPicking = false;
+  bool _isUploading = false;
+  String? _fileName;
+  Uint8List? _fileBytes;
+  double _progress = 0;
 
-  Future<void> _pickAndUpload() async {
-    if (_isPicking) return;
-    setState(() => _isPicking = true);
+  Future<void> _pickImage() async {
+    try {
+      final result = await PlatformFilePicker.pickFile(
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+      );
+      if (result == null) return;
+      if (result.bytes == null) {
+        if (mounted) {
+          showMessage(context, "File data unavailable", isError: true);
+        }
+        return;
+      }
+      if (result.size > 5 * 1024 * 1024) {
+        if (mounted) showMessage(context, "Max 5MB allowed", isError: true);
+        return;
+      }
+      setState(() {
+        _fileName = result.name;
+        _fileBytes = result.bytes;
+      });
+    } catch (e) {
+      if (mounted) showMessage(context, "Error: $e", isError: true);
+    }
+  }
+
+  Future<void> _upload() async {
+    if (_fileBytes == null || _fileName == null) {
+      showMessage(context, "Please select a photo first", isError: true);
+      return;
+    }
+
+    setState(() {
+      _isUploading = true;
+      _progress = 0;
+    });
 
     try {
-      final result = await PlatformFilePicker.pickImage();
-      if (result == null || result.bytes == null) {
-        if (mounted) setState(() => _isPicking = false);
-        return;
-      }
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(_fileBytes!, filename: _fileName!),
+      });
 
-      final bytes = result.bytes!;
-      if (bytes.length > 5 * 1024 * 1024) {
-        if (!mounted) return;
-        showMessage(context, "Image too large. Max: 5MB", isError: true);
-        if (mounted) setState(() => _isPicking = false);
-        return;
-      }
-
-      if (!mounted) return;
-      final provider =
-          Provider.of<UserProfileProvider>(context, listen: false);
-
-      final ok = await provider.uploadProfilePhoto(
-        fileBytes: bytes,
-        fileName: result.name,
+      // ✅ FIXED: onSendProgress is a parameter of `.post()`, NOT of `Options()`
+      final response = await DioClient.dio.post(
+        '/user/upload-profile-photo',
+        data: formData,
+        options: Options(
+          contentType: 'multipart/form-data',
+        ),
+        onSendProgress: (sent, total) {
+          if (total > 0 && mounted) {
+            setState(() => _progress = sent / total);
+          }
+        },
       );
 
-      if (!mounted) return;
-      if (ok) {
-        final newUrl = provider.profilePhotoUrl ?? '';
+      final data = response.data;
+      final url = (data['url'] ??
+              data['data']?['url'] ??
+              '')
+          .toString()
+          .trim();
+      final publicId =
+          (data['public_id'] ?? data['data']?['public_id'])?.toString();
+
+      if (url.isEmpty) {
+        throw Exception("Server returned no photo URL");
+      }
+
+      // ✅ Broadcast — every listening widget updates instantly
+      if (mounted) {
+        Provider.of<UserProfileProvider>(context, listen: false)
+            .setProfilePhoto(url: url, publicId: publicId);
+      }
+
+      if (mounted) {
         showMessage(context, "✅ Profile photo updated!");
-        widget.onUploadSuccess?.call();
-        Navigator.of(context).pop(newUrl); // ✅ returns String?
-      } else {
+        Navigator.pop(context, url);
+      }
+    } catch (e) {
+      if (mounted) {
         showMessage(
           context,
-          provider.errorMessage ?? "Upload failed",
+          "Upload failed: ${e.toString().replaceAll('Exception:', '').trim()}",
           isError: true,
         );
       }
-    } catch (e) {
-      if (!mounted) return;
-      showMessage(context, "Error: $e", isError: true);
     } finally {
-      if (mounted) setState(() => _isPicking = false);
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final hasExisting =
-        widget.currentPhotoUrl != null && widget.currentPhotoUrl!.isNotEmpty;
-
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
+      insetPadding: const EdgeInsets.all(20),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 460),
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ✅ Preview existing photo (if any)
-            if (hasExisting)
-              ClipOval(
-                child: Image.network(
-                  widget.currentPhotoUrl!,
-                  width: 90,
-                  height: 90,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-            if (hasExisting) const SizedBox(height: 12),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.camera_alt,
-                color: Colors.white,
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              "Upload Profile Photo",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Photo will be auto-applied to resume & dashboard instantly.",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 20),
-            Consumer<UserProfileProvider>(
-              builder: (context, provider, _) {
-                if (provider.isUploadingPhoto) {
-                  return const Column(
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 12),
-                      Text("Uploading & rebuilding resume..."),
-                    ],
-                  );
-                }
-                return Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text("Cancel"),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
                       ),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _isPicking ? null : _pickAndUpload,
-                        icon: const Icon(Icons.upload, size: 18),
-                        label: const Text("Select Photo"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6C63FF),
-                          foregroundColor: Colors.white,
+                    child: const Icon(Icons.person,
+                        color: Colors.white, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Profile Photo Required",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          "Add a photo to complete your resume",
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Preview / picker
+              GestureDetector(
+                onTap: _isUploading ? null : _pickImage,
+                child: Container(
+                  width: double.infinity,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _fileBytes != null
+                          ? Colors.green
+                          : const Color(0xFF6C63FF),
+                      width: 2,
+                    ),
+                  ),
+                  child: _fileBytes != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.memory(
+                            _fileBytes!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          ),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_a_photo,
+                                size: 48, color: Colors.grey.shade600),
+                            const SizedBox(height: 8),
+                            const Text(
+                              "Tap to select photo",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              "JPG / PNG / WEBP · Max 5MB",
+                              style:
+                                  TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+
+              if (_fileName != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _fileName!,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+
+              if (_isUploading) ...[
+                const SizedBox(height: 16),
+                LinearProgressIndicator(
+                  value: _progress > 0 ? _progress : null,
+                  backgroundColor: Colors.grey.shade200,
+                  color: const Color(0xFF6C63FF),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Uploading ${(_progress * 100).toStringAsFixed(0)}%",
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+
+              const SizedBox(height: 20),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed:
+                          _isUploading ? null : () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
+                      child: const Text("Skip for Now"),
                     ),
-                  ],
-                );
-              },
-            ),
-          ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isUploading ? null : _upload,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6C63FF),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isUploading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text("Upload Photo"),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

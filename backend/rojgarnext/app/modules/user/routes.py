@@ -1819,9 +1819,27 @@ async def delete_document(
 
     profile = await db.profile.find_one({"email": email})
     additional = (profile or {}).get("additional_details", {}) or {}
-    old_url = additional.get(document_key) or (profile or {}).get(document_key)
-    old_public_id = additional.get(f"{document_key}_public_id")
 
+    # ✅ Check for profile photo FIRST (has separate public_id key)
+    is_profile_photo = document_key in (
+        "profile_photo_url", "profile_photo",
+        "profile_picture", "profile_picture_url"
+    )
+
+    if is_profile_photo:
+        old_url = (
+            (profile or {}).get("profile_photo_url")
+            or additional.get("profile_photo_url")
+        )
+        old_public_id = (
+            (profile or {}).get("profile_photo_public_id")
+            or additional.get("profile_photo_public_id")
+        )
+    else:
+        old_url = additional.get(document_key) or (profile or {}).get(document_key)
+        old_public_id = additional.get(f"{document_key}_public_id")
+
+    # ─── Delete from Cloudinary ───
     if old_public_id or old_url:
         try:
             from app.core.services.cloudinary import delete_from_cloudinary
@@ -1831,7 +1849,7 @@ async def delete_document(
 
             if not public_id and old_url:
                 try:
-                    parts = old_url.split("/upload/")
+                    parts = str(old_url).split("/upload/")
                     if len(parts) == 2:
                         tail = parts[1]
                         if tail.startswith("v"):
@@ -1842,7 +1860,7 @@ async def delete_document(
                             tail = tail[:-4]
                         public_id = tail
 
-                    if "/image/upload/" in old_url:
+                    if "/image/upload/" in str(old_url):
                         resource_type = "image"
                 except Exception as infer_err:
                     logger.warning(f"Could not infer Cloudinary public_id: {infer_err}")
@@ -1853,11 +1871,22 @@ async def delete_document(
         except Exception as e:
             logger.warning(f"Cloudinary delete skipped: {e}")
 
+    # ─── Build $unset map ───
     unset_fields = {
         f"additional_details.{document_key}": "",
         f"additional_details.{document_key}_public_id": "",
         document_key: "",
     }
+
+    # ✅ Also clear profile-photo-specific keys
+    if is_profile_photo:
+        unset_fields.update({
+            "profile_photo_url": "",
+            "profile_photo_public_id": "",
+            "profile_photo_updated_at": "",
+            "additional_details.profile_photo_url": "",
+            "additional_details.profile_photo_public_id": "",
+        })
 
     result = await db.profile.update_one(
         {"email": email},

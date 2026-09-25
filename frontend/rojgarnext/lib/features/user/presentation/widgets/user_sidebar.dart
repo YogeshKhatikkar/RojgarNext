@@ -1,5 +1,7 @@
 // lib/features/user/presentation/widgets/user_sidebar.dart
 // ✅ Listens to UserProfileProvider → photo updates everywhere instantly
+// ✅ NEW: Camera icon overlay on profile photo → tap to upload
+// ✅ Same pattern as Build Resume screen
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kReleaseMode;
@@ -11,6 +13,7 @@ import 'package:rojgarnext/core/storage/secure_storage.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/features/user/presentation/utils/menu_types.dart';
 import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
+import 'package:rojgarnext/features/resume/presentation/widgets/profile_photo_upload_dialog.dart';
 
 class UserSidebar extends StatefulWidget {
   final MenuType selectedMenu;
@@ -188,28 +191,102 @@ class _UserSidebarState extends State<UserSidebar> {
     );
   }
 
+  // ============================================================
+  // ✅ NEW: Open ProfilePhotoUploadDialog (same as Build Resume)
+  // ============================================================
+  Future<void> _openProfilePhotoUpload() async {
+    if (!mounted) return;
+
+    // Read current photo from provider (single source of truth)
+    final currentUrl =
+        Provider.of<UserProfileProvider>(context, listen: false)
+            .profilePhotoUrl ??
+        _fallbackPhotoUrl;
+
+    final uploadedUrl = await ProfilePhotoUploadDialog.show(
+      context,
+      currentPhotoUrl: currentUrl,
+    );
+
+    // ✅ Provider is already updated inside the dialog —
+    // no setState needed. But we refresh the local fallback anyway.
+    if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
+      setState(() {
+        _fallbackPhotoUrl = uploadedUrl;
+      });
+      debugPrint("✅ Sidebar: profile photo updated → $uploadedUrl");
+    }
+  }
+
+  // ============================================================
+  // ✅ Profile section with camera icon overlay
+  // ============================================================
   Widget _buildProfileSection() {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.blueAccent, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blueAccent.withAlpha(51),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+          // ✅ Photo + camera overlay (Stack — same as Build Resume)
+          GestureDetector(
+            onTap: _openProfilePhotoUpload,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Main avatar
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.blueAccent, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blueAccent.withAlpha(51),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: _buildProfilePhoto(),
+                ),
+
+                // ✅ Camera icon at bottom-right
+                Positioned(
+                  right: -2,
+                  bottom: -2,
+                  child: Material(
+                    color: Colors.white,
+                    shape: const CircleBorder(),
+                    elevation: 4,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: _openProfilePhotoUpload,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.blueAccent.shade400,
+                              Colors.purpleAccent.shade200,
+                            ],
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          size: 15,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: _buildProfilePhoto(),
           ),
+
           const SizedBox(height: 12),
+
           Text(
             _userName,
             style: const TextStyle(
@@ -230,7 +307,21 @@ class _UserSidebarState extends State<UserSidebar> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 12),
+
+          const SizedBox(height: 6),
+
+          // Small hint text
+          Text(
+            "Tap photo to update",
+            style: TextStyle(
+              color: Colors.white.withAlpha(120),
+              fontSize: 9,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
           Container(
             height: 1,
             margin: const EdgeInsets.symmetric(horizontal: 10),
@@ -328,7 +419,7 @@ class _UserSidebarState extends State<UserSidebar> {
           children: [
             const SizedBox(height: 30),
             _buildProfileSection(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,

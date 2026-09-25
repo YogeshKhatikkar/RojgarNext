@@ -1,9 +1,9 @@
 ================================================================================
 ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-Generated: 2026-09-24 23:45:34
+Generated: 2026-09-25 10:05:51
 Source: E:\yogesh\website\rojgarnext\frontend
-Total Files: 133
+Total Files: 134
 Total Size: 2.9 MB
 ================================================================================
 
@@ -34,6 +34,7 @@ Total Size: 2.9 MB
     │   │   │   ├── 🎯 geocoding_service.dart
     │   │   │   ├── 🎯 location_service.dart
     │   │   │   ├── 🎯 permission_service.dart
+    │   │   │   ├── 🎯 profile_state_service.dart
     │   │   │   ├── 🎯 real_location_service.dart
     │   │   │   ├── 🎯 unified_location_service.dart
     │   │   │   ├── 🎯 universal_location_service.dart
@@ -231,11 +232,11 @@ Total Size: 2.9 MB
 📊 FILE SUMMARY
 ================================================================================
 
-Total Files: 133
+Total Files: 134
 Total Size: 2.9 MB
 
 File Types:
-  .dart: 127 files (2.9 MB)
+  .dart: 128 files (2.9 MB)
   .yaml: 2 files (2.5 KB)
   (no extension): 1 files (274 B)
   .md: 1 files (649 B)
@@ -248,7 +249,7 @@ File Types:
 ================================================================================
 
 ================================================================================
-[   1/ 133] 📄 rojgarnext/Dockerfile
+[   1/ 134] 📄 rojgarnext/Dockerfile
 📏 SIZE: 274 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -265,7 +266,7 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 
 ================================================================================
-[   2/ 133] 📝 rojgarnext/README.md
+[   2/ 134] 📝 rojgarnext/README.md
 📏 SIZE: 649 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -290,7 +291,7 @@ samples, guidance on mobile development, and a full API reference.
 
 
 ================================================================================
-[   3/ 133] ⚙️ rojgarnext/analysis_options.yaml
+[   3/ 134] ⚙️ rojgarnext/analysis_options.yaml
 📏 SIZE: 559 B
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -320,7 +321,7 @@ linter:
     use_key_in_widget_constructors: true
 
 ================================================================================
-[   4/ 133] 🎯 rojgarnext/lib/core/config/api_config.dart
+[   4/ 134] 🎯 rojgarnext/lib/core/config/api_config.dart
 📏 SIZE: 2.2 KB
 🕐 MODIFIED: 2026-09-12 12:05:34
 ================================================================================
@@ -405,7 +406,7 @@ class ApiConfig {
 }
 
 ================================================================================
-[   5/ 133] 🎯 rojgarnext/lib/core/master_date/education.dart
+[   5/ 134] 🎯 rojgarnext/lib/core/master_date/education.dart
 📏 SIZE: 40.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -1955,7 +1956,7 @@ class EducationMasterData {
 
 
 ================================================================================
-[   6/ 133] 🎯 rojgarnext/lib/core/master_date/locations.dart
+[   6/ 134] 🎯 rojgarnext/lib/core/master_date/locations.dart
 📏 SIZE: 2.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2055,7 +2056,7 @@ class LocationData {
 
 
 ================================================================================
-[   7/ 133] 🎯 rojgarnext/lib/core/network/dio_client.dart
+[   7/ 134] 🎯 rojgarnext/lib/core/network/dio_client.dart
 📏 SIZE: 4.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2199,7 +2200,7 @@ void initDioClient() {
 }
 
 ================================================================================
-[   8/ 133] 🎯 rojgarnext/lib/core/routes/app_routes.dart
+[   8/ 134] 🎯 rojgarnext/lib/core/routes/app_routes.dart
 📏 SIZE: 3.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2298,7 +2299,7 @@ class AppRoutes {
 }
 
 ================================================================================
-[   9/ 133] 🎯 rojgarnext/lib/core/services/cloudinary_service.dart
+[   9/ 134] 🎯 rojgarnext/lib/core/services/cloudinary_service.dart
 📏 SIZE: 7.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2532,7 +2533,7 @@ class CloudinaryService {
 }
 
 ================================================================================
-[  10/ 133] 🎯 rojgarnext/lib/core/services/geocoding_service.dart
+[  10/ 134] 🎯 rojgarnext/lib/core/services/geocoding_service.dart
 📏 SIZE: 806 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2569,7 +2570,7 @@ class GeocodingService {
 
 
 ================================================================================
-[  11/ 133] 🎯 rojgarnext/lib/core/services/location_service.dart
+[  11/ 134] 🎯 rojgarnext/lib/core/services/location_service.dart
 📏 SIZE: 5.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2749,7 +2750,7 @@ class LocationService {
 
 
 ================================================================================
-[  12/ 133] 🎯 rojgarnext/lib/core/services/permission_service.dart
+[  12/ 134] 🎯 rojgarnext/lib/core/services/permission_service.dart
 📏 SIZE: 3.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2880,7 +2881,52 @@ class PermissionService {
 
 
 ================================================================================
-[  13/ 133] 🎯 rojgarnext/lib/core/services/real_location_service.dart
+[  13/ 134] 🎯 rojgarnext/lib/core/services/profile_state_service.dart
+📏 SIZE: 1.4 KB
+🕐 MODIFIED: 2026-09-25 09:30:35
+================================================================================
+
+// lib/core/services/profile_state_service.dart
+// ✅ GLOBAL PROFILE STATE — Broadcasts photo changes app-wide instantly
+// ✅ No page reload needed when photo is added/removed
+
+import 'package:flutter/foundation.dart';
+
+class ProfileStateService {
+  static final ProfileStateService _instance = ProfileStateService._internal();
+  factory ProfileStateService() => _instance;
+  ProfileStateService._internal();
+
+  /// Current profile photo URL — null / empty means NO photo
+  final ValueNotifier<String?> profilePhotoUrl = ValueNotifier<String?>(null);
+
+  /// Bumped whenever ANY profile data changes (triggers resume re-fetch/re-render)
+  final ValueNotifier<int> profileDataVersion = ValueNotifier<int>(0);
+
+  /// True once the initial load has completed (prevents popup before data arrives)
+  final ValueNotifier<bool> hasInitialPhotoLoaded = ValueNotifier<bool>(false);
+
+  void updatePhotoUrl(String? url) {
+    final normalized = (url == null || url.trim().isEmpty) ? null : url.trim();
+    profilePhotoUrl.value = normalized;
+    hasInitialPhotoLoaded.value = true;
+  }
+
+  void clearPhoto() {
+    profilePhotoUrl.value = null;
+    hasInitialPhotoLoaded.value = true;
+  }
+
+  void bumpVersion() {
+    profileDataVersion.value = profileDataVersion.value + 1;
+  }
+
+  String? get currentPhotoUrl => profilePhotoUrl.value;
+  bool get hasPhoto => (profilePhotoUrl.value ?? '').isNotEmpty;
+}
+
+================================================================================
+[  14/ 134] 🎯 rojgarnext/lib/core/services/real_location_service.dart
 📏 SIZE: 7.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3122,7 +3168,7 @@ class RealLocationService {
 
 
 ================================================================================
-[  14/ 133] 🎯 rojgarnext/lib/core/services/unified_location_service.dart
+[  15/ 134] 🎯 rojgarnext/lib/core/services/unified_location_service.dart
 📏 SIZE: 1.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3160,7 +3206,7 @@ class UnifiedLocationService {
 
 
 ================================================================================
-[  15/ 133] 🎯 rojgarnext/lib/core/services/universal_location_service.dart
+[  16/ 134] 🎯 rojgarnext/lib/core/services/universal_location_service.dart
 📏 SIZE: 9.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3445,7 +3491,7 @@ Please try:
 }
 
 ================================================================================
-[  16/ 133] 🎯 rojgarnext/lib/core/services/web_location_service.dart
+[  17/ 134] 🎯 rojgarnext/lib/core/services/web_location_service.dart
 📏 SIZE: 3.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3565,7 +3611,7 @@ class WebLocationService {
 
 
 ================================================================================
-[  17/ 133] 🎯 rojgarnext/lib/core/storage/secure_storage.dart
+[  18/ 134] 🎯 rojgarnext/lib/core/storage/secure_storage.dart
 📏 SIZE: 6.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3762,7 +3808,7 @@ class SecureStorage {
 }
 
 ================================================================================
-[  18/ 133] 🎯 rojgarnext/lib/core/utils/app_snackbar.dart
+[  19/ 134] 🎯 rojgarnext/lib/core/utils/app_snackbar.dart
 📏 SIZE: 2.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3848,7 +3894,7 @@ void showGlobalSnackBar(String message, {bool isError = false}) {
 }
 
 ================================================================================
-[  19/ 133] 🎯 rojgarnext/lib/core/utils/auth_guard.dart
+[  20/ 134] 🎯 rojgarnext/lib/core/utils/auth_guard.dart
 📏 SIZE: 798 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3888,7 +3934,7 @@ class AuthGuard extends StatelessWidget {
 
 
 ================================================================================
-[  20/ 133] 🎯 rojgarnext/lib/core/utils/constants.dart
+[  21/ 134] 🎯 rojgarnext/lib/core/utils/constants.dart
 📏 SIZE: 967 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3924,7 +3970,7 @@ class AppConstants {
 
 
 ================================================================================
-[  21/ 133] 🎯 rojgarnext/lib/core/utils/coordinate_parser.dart
+[  22/ 134] 🎯 rojgarnext/lib/core/utils/coordinate_parser.dart
 📏 SIZE: 5.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4106,7 +4152,7 @@ class CoordinateParser {
 
 
 ================================================================================
-[  22/ 133] 🎯 rojgarnext/lib/core/utils/distance_calculator.dart
+[  23/ 134] 🎯 rojgarnext/lib/core/utils/distance_calculator.dart
 📏 SIZE: 1.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4188,7 +4234,7 @@ class DistanceCalculator {
 }
 
 ================================================================================
-[  23/ 133] 🎯 rojgarnext/lib/core/utils/js_stub.dart
+[  24/ 134] 🎯 rojgarnext/lib/core/utils/js_stub.dart
 📏 SIZE: 1.1 KB
 🕐 MODIFIED: 2026-09-10 12:53:05
 ================================================================================
@@ -4234,7 +4280,7 @@ typedef JsArrayBuffer = dynamic;
 typedef JSAny = dynamic;
 
 ================================================================================
-[  24/ 133] 🎯 rojgarnext/lib/core/utils/logger.dart
+[  25/ 134] 🎯 rojgarnext/lib/core/utils/logger.dart
 📏 SIZE: 999 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4282,7 +4328,7 @@ class Logger {
 }
 
 ================================================================================
-[  25/ 133] 🎯 rojgarnext/lib/core/utils/platform_utils.dart
+[  26/ 134] 🎯 rojgarnext/lib/core/utils/platform_utils.dart
 📏 SIZE: 2.8 KB
 🕐 MODIFIED: 2026-09-12 12:06:10
 ================================================================================
@@ -4389,7 +4435,7 @@ class PlatformUtils {
 }
 
 ================================================================================
-[  26/ 133] 🎯 rojgarnext/lib/core/utils/safe_async.dart
+[  27/ 134] 🎯 rojgarnext/lib/core/utils/safe_async.dart
 📏 SIZE: 2 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4398,7 +4444,7 @@ class PlatformUtils {
 
 
 ================================================================================
-[  27/ 133] 🎯 rojgarnext/lib/core/utils/stub_device_info.dart
+[  28/ 134] 🎯 rojgarnext/lib/core/utils/stub_device_info.dart
 📏 SIZE: 608 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4428,7 +4474,7 @@ class IosDeviceInfo {
 
 
 ================================================================================
-[  28/ 133] 🎯 rojgarnext/lib/core/utils/stub_local_auth.dart
+[  29/ 134] 🎯 rojgarnext/lib/core/utils/stub_local_auth.dart
 📏 SIZE: 816 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4466,7 +4512,7 @@ class BiometricType {
 }
 
 ================================================================================
-[  29/ 133] 🎯 rojgarnext/lib/core/utils/widgets.dart
+[  30/ 134] 🎯 rojgarnext/lib/core/utils/widgets.dart
 📏 SIZE: 1.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4511,7 +4557,7 @@ class ModernButton extends StatelessWidget {
 
 
 ================================================================================
-[  30/ 133] 🎯 rojgarnext/lib/core/widgets/base_page.dart
+[  31/ 134] 🎯 rojgarnext/lib/core/widgets/base_page.dart
 📏 SIZE: 970 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4557,7 +4603,7 @@ class BasePage extends StatelessWidget {
 
 
 ================================================================================
-[  31/ 133] 🎯 rojgarnext/lib/core/widgets/file_viewer_screen.dart
+[  32/ 134] 🎯 rojgarnext/lib/core/widgets/file_viewer_screen.dart
 📏 SIZE: 43.9 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -5929,7 +5975,7 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
 }
 
 ================================================================================
-[  32/ 133] 🎯 rojgarnext/lib/core/widgets/location_dropdowns.dart
+[  33/ 134] 🎯 rojgarnext/lib/core/widgets/location_dropdowns.dart
 📏 SIZE: 9.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -6231,7 +6277,7 @@ class _LocationDropdownsState extends State<LocationDropdowns> {
 
 
 ================================================================================
-[  33/ 133] 🎯 rojgarnext/lib/core/widgets/modern_button.dart
+[  34/ 134] 🎯 rojgarnext/lib/core/widgets/modern_button.dart
 📏 SIZE: 2.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -6322,7 +6368,7 @@ class ModernButton extends StatelessWidget {
 
 
 ================================================================================
-[  34/ 133] 🎯 rojgarnext/lib/core/widgets/platform_aware.dart
+[  35/ 134] 🎯 rojgarnext/lib/core/widgets/platform_aware.dart
 📏 SIZE: 2.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -6407,44 +6453,58 @@ class PlatformAware {
 
 
 ================================================================================
-[  35/ 133] 🎯 rojgarnext/lib/core/widgets/platform_file_picker.dart
-📏 SIZE: 2.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+[  36/ 134] 🎯 rojgarnext/lib/core/widgets/platform_file_picker.dart
+📏 SIZE: 3.3 KB
+🕐 MODIFIED: 2026-09-24 23:53:51
 ================================================================================
 
 // lib/core/widgets/platform_file_picker.dart
-// ✅ COMPLETE FILE PICKER - Works on ALL Platforms (Mobile, Web, Desktop)
+// ✅ FIXED: NEVER accesses `file.path` on Web (was crashing)
+// ✅ Works on ALL platforms: Mobile, Web, Desktop
+// ✅ Complete file — no lines skipped
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
 import '../utils/platform_utils.dart';
 
 class PlatformFilePicker {
+  /// ✅ CRITICAL FIX: Safely extract path — NEVER touches .path on web
+  /// On web, `PlatformFile.path` throws UnimplementedError.
+  static String? _safePath(PlatformFile file) {
+    if (kIsWeb) return null;
+    try {
+      return file.path;
+    } catch (e) {
+      debugPrint('⚠️ Could not read file.path: $e');
+      return null;
+    }
+  }
+
   /// Pick a file with platform-aware error handling
   static Future<PlatformFileResult?> pickFile({
     required List<String> allowedExtensions,
     bool allowMultiple = false,
   }) async {
     try {
-      // ✅ Works on all platforms (Mobile, Web, Desktop)
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: allowedExtensions,
         allowMultiple: allowMultiple,
-        withData: true, // ✅ CRITICAL: Gets bytes for web compatibility
+        withData: true, // ✅ CRITICAL: Gets bytes for web
       );
 
       if (result == null) return null;
+      if (result.files.isEmpty) return null;
 
       final file = result.files.first;
-      
+
       return PlatformFileResult(
         name: file.name,
         bytes: file.bytes,
         size: file.size,
-        path: file.path,
+        path: _safePath(file), // ✅ SAFE on all platforms
         extension: file.extension ?? '',
       );
     } catch (e) {
@@ -6475,14 +6535,16 @@ class PlatformFilePicker {
         type: FileType.any,
         withData: true,
       );
-      
-      if (result == null) return null;
+
+      if (result == null || result.files.isEmpty) return null;
+
       final file = result.files.first;
+
       return PlatformFileResult(
         name: file.name,
         bytes: file.bytes,
         size: file.size,
-        path: file.path,
+        path: _safePath(file), // ✅ SAFE on all platforms
         extension: file.extension ?? '',
       );
     } catch (e) {
@@ -6507,12 +6569,12 @@ class PlatformFileResult {
     required this.extension,
   });
 
-  bool get hasBytes => bytes != null;
+  bool get hasBytes => bytes != null && bytes!.isNotEmpty;
   bool get hasPath => path != null && path!.isNotEmpty;
 }
 
 ================================================================================
-[  36/ 133] 🎯 rojgarnext/lib/core/widgets/platform_webview.dart
+[  37/ 134] 🎯 rojgarnext/lib/core/widgets/platform_webview.dart
 📏 SIZE: 3.0 KB
 🕐 MODIFIED: 2026-09-10 12:54:26
 ================================================================================
@@ -6619,7 +6681,7 @@ class _PlatformWebViewState extends State<PlatformWebView> {
 }
 
 ================================================================================
-[  37/ 133] 🎯 rojgarnext/lib/core/widgets/responsive_widget.dart
+[  38/ 134] 🎯 rojgarnext/lib/core/widgets/responsive_widget.dart
 📏 SIZE: 2.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -6716,7 +6778,7 @@ class ResponsiveWidget extends StatelessWidget {
 
 
 ================================================================================
-[  38/ 133] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_stub.dart
+[  39/ 134] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_stub.dart
 📏 SIZE: 3.1 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -6817,7 +6879,7 @@ void openPdfInNewTab(String url) {
 }
 
 ================================================================================
-[  39/ 133] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_web.dart
+[  40/ 134] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_web.dart
 📏 SIZE: 10.1 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -7161,7 +7223,7 @@ void openPdfInNewTab(String url) {
 }
 
 ================================================================================
-[  40/ 133] 🎯 rojgarnext/lib/features/admin/AI/admin_ai_dashboard.dart
+[  41/ 134] 🎯 rojgarnext/lib/features/admin/AI/admin_ai_dashboard.dart
 📏 SIZE: 10.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -7526,7 +7588,7 @@ class _AdminAIDashboardState extends State<AdminAIDashboard> {
 
 
 ================================================================================
-[  41/ 133] 🎯 rojgarnext/lib/features/admin/data/admin_service.dart
+[  42/ 134] 🎯 rojgarnext/lib/features/admin/data/admin_service.dart
 📏 SIZE: 6.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -7770,7 +7832,7 @@ class AdminService {
 
 
 ================================================================================
-[  42/ 133] 🎯 rojgarnext/lib/features/admin/presentation/models/admin_menu.dart
+[  43/ 134] 🎯 rojgarnext/lib/features/admin/presentation/models/admin_menu.dart
 📏 SIZE: 433 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -7798,7 +7860,7 @@ enum ApplicationSubMenu {
 
 
 ================================================================================
-[  43/ 133] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_dashboard.dart
+[  44/ 134] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_dashboard.dart
 📏 SIZE: 29.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -8637,7 +8699,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 }
 
 ================================================================================
-[  44/ 133] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_reports_screen.dart
+[  45/ 134] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_reports_screen.dart
 📏 SIZE: 911 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -8674,7 +8736,7 @@ class AdminReportsScreen extends StatelessWidget {
 
 
 ================================================================================
-[  45/ 133] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_settings_screen.dart
+[  46/ 134] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_settings_screen.dart
 📏 SIZE: 1.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -8723,7 +8785,7 @@ class AdminSettingsScreen extends StatelessWidget {
 
 
 ================================================================================
-[  46/ 133] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_users_screen.dart
+[  47/ 134] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_users_screen.dart
 📏 SIZE: 3.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -8835,7 +8897,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
 
 ================================================================================
-[  47/ 133] 🎯 rojgarnext/lib/features/admin/presentation/screens/pending_payments_screen.dart
+[  48/ 134] 🎯 rojgarnext/lib/features/admin/presentation/screens/pending_payments_screen.dart
 📏 SIZE: 5.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -9009,7 +9071,7 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
 
 
 ================================================================================
-[  48/ 133] 🎯 rojgarnext/lib/features/admin/presentation/widgets/admin_sidebar.dart
+[  49/ 134] 🎯 rojgarnext/lib/features/admin/presentation/widgets/admin_sidebar.dart
 📏 SIZE: 7.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -9238,7 +9300,7 @@ class AdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[  49/ 133] 🎯 rojgarnext/lib/features/auth/presentation/controllers/auth_controller.dart
+[  50/ 134] 🎯 rojgarnext/lib/features/auth/presentation/controllers/auth_controller.dart
 📏 SIZE: 29.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -10022,7 +10084,7 @@ class AuthController extends ChangeNotifier {
 }
 
 ================================================================================
-[  50/ 133] 🎯 rojgarnext/lib/features/auth/presentation/screens/change_password_screen.dart
+[  51/ 134] 🎯 rojgarnext/lib/features/auth/presentation/screens/change_password_screen.dart
 📏 SIZE: 36.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -11126,7 +11188,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 }
 
 ================================================================================
-[  51/ 133] 🎯 rojgarnext/lib/features/auth/presentation/screens/fingerprint_setup_page.dart
+[  52/ 134] 🎯 rojgarnext/lib/features/auth/presentation/screens/fingerprint_setup_page.dart
 📏 SIZE: 40.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -12344,7 +12406,7 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
 }
 
 ================================================================================
-[  52/ 133] 🎯 rojgarnext/lib/features/auth/presentation/screens/mpin_setup_page.dart
+[  53/ 134] 🎯 rojgarnext/lib/features/auth/presentation/screens/mpin_setup_page.dart
 📏 SIZE: 41.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -13583,7 +13645,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
 }
 
 ================================================================================
-[  53/ 133] 🎯 rojgarnext/lib/features/auth/presentation/screens/register_login_page.dart
+[  54/ 134] 🎯 rojgarnext/lib/features/auth/presentation/screens/register_login_page.dart
 📏 SIZE: 42.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -14854,7 +14916,7 @@ class _ModernButton extends StatelessWidget {
 }
 
 ================================================================================
-[  54/ 133] 🎯 rojgarnext/lib/features/auth/presentation/screens/verify_otp_page.dart
+[  55/ 134] 🎯 rojgarnext/lib/features/auth/presentation/screens/verify_otp_page.dart
 📏 SIZE: 21.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -15556,7 +15618,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 }
 
 ================================================================================
-[  55/ 133] 🎯 rojgarnext/lib/features/auth/services/auth_service.dart
+[  56/ 134] 🎯 rojgarnext/lib/features/auth/services/auth_service.dart
 📏 SIZE: 14.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -15996,7 +16058,7 @@ class AuthService {
 }
 
 ================================================================================
-[  56/ 133] 🎯 rojgarnext/lib/features/common/widgets/internet_checker.dart
+[  57/ 134] 🎯 rojgarnext/lib/features/common/widgets/internet_checker.dart
 📏 SIZE: 4.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -16147,7 +16209,7 @@ class _InternetCheckerState extends State<InternetChecker> {
 }
 
 ================================================================================
-[  57/ 133] 🎯 rojgarnext/lib/features/common/widgets/location_display.dart
+[  58/ 134] 🎯 rojgarnext/lib/features/common/widgets/location_display.dart
 📏 SIZE: 3.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -16274,7 +16336,7 @@ class _LocationDisplayState extends State<LocationDisplay> {
 
 
 ================================================================================
-[  58/ 133] 🎯 rojgarnext/lib/features/customadmin/data/customadmin_service.dart
+[  59/ 134] 🎯 rojgarnext/lib/features/customadmin/data/customadmin_service.dart
 📏 SIZE: 8.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -16574,7 +16636,7 @@ class CustomAdminService {
 }
 
 ================================================================================
-[  59/ 133] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
+[  60/ 134] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
 📏 SIZE: 27.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -17367,7 +17429,7 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
 }
 
 ================================================================================
-[  60/ 133] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/pending_payments_screen.dart
+[  61/ 134] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/pending_payments_screen.dart
 📏 SIZE: 5.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -17543,7 +17605,7 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
 
 
 ================================================================================
-[  61/ 133] 🎯 rojgarnext/lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
+[  62/ 134] 🎯 rojgarnext/lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
 📏 SIZE: 7.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -17769,7 +17831,7 @@ class CustomAdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[  62/ 133] 🎯 rojgarnext/lib/features/home/home_screen.dart
+[  63/ 134] 🎯 rojgarnext/lib/features/home/home_screen.dart
 📏 SIZE: 55.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -19391,7 +19453,7 @@ class _HomeScreenState extends State<HomeScreen>
 }
 
 ================================================================================
-[  63/ 133] 🎯 rojgarnext/lib/features/jobs/AI/job_ai_service.dart
+[  64/ 134] 🎯 rojgarnext/lib/features/jobs/AI/job_ai_service.dart
 📏 SIZE: 1.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -19454,7 +19516,7 @@ class JobAIService {
 
 
 ================================================================================
-[  64/ 133] 🎯 rojgarnext/lib/features/jobs/AI/job_match_score_widget.dart
+[  65/ 134] 🎯 rojgarnext/lib/features/jobs/AI/job_match_score_widget.dart
 📏 SIZE: 5.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -19640,7 +19702,7 @@ class _JobMatchScoreWidgetState extends State<JobMatchScoreWidget> {
 
 
 ================================================================================
-[  65/ 133] 🎯 rojgarnext/lib/features/jobs/presentation/screens/add_job_screen.dart
+[  66/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/add_job_screen.dart
 📏 SIZE: 196.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -24979,7 +25041,7 @@ Future<void> _pickAdvertisement() async {
 
 
 ================================================================================
-[  66/ 133] 🎯 rojgarnext/lib/features/jobs/presentation/screens/applications_screen.dart
+[  67/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/applications_screen.dart
 📏 SIZE: 156.7 KB
 🕐 MODIFIED: 2026-09-24 18:26:22
 ================================================================================
@@ -29300,7 +29362,7 @@ class _FinalSubmitDialogContentState
 }
 
 ================================================================================
-[  67/ 133] 🎯 rojgarnext/lib/features/jobs/presentation/screens/candidate_profile_screen.dart
+[  68/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/candidate_profile_screen.dart
 📏 SIZE: 79.0 KB
 🕐 MODIFIED: 2026-09-23 21:59:36
 ================================================================================
@@ -31461,7 +31523,7 @@ class _CandidateProfileScreenState extends State<CandidateProfileScreen>
 }
 
 ================================================================================
-[  68/ 133] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_detail_screen.dart
+[  69/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_detail_screen.dart
 📏 SIZE: 173.6 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -36385,7 +36447,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 }
 
 ================================================================================
-[  69/ 133] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_list_screen.dart
+[  70/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_list_screen.dart
 📏 SIZE: 57.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -37967,7 +38029,7 @@ class _JobListScreenState extends State<JobListScreen>
 }
 
 ================================================================================
-[  70/ 133] 🎯 rojgarnext/lib/features/jobs/presentation/screens/saved_jobs_screen.dart
+[  71/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/saved_jobs_screen.dart
 📏 SIZE: 15.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -38450,7 +38512,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
 
 
 ================================================================================
-[  71/ 133] 🎯 rojgarnext/lib/features/jobs/presentation/screens/show_jobs_screen.dart
+[  72/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/show_jobs_screen.dart
 📏 SIZE: 33.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -39466,7 +39528,7 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
 }
 
 ================================================================================
-[  72/ 133] 🎯 rojgarnext/lib/features/jobs/presentation/screens/user_applications_screen.dart
+[  73/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/screens/user_applications_screen.dart
 📏 SIZE: 116.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -42810,7 +42872,7 @@ class _UserApplicationScreenState extends State<UserApplicationScreen>
 }
 
 ================================================================================
-[  73/ 133] 🎯 rojgarnext/lib/features/jobs/presentation/widgets/submit_document_dialog.dart
+[  74/ 134] 🎯 rojgarnext/lib/features/jobs/presentation/widgets/submit_document_dialog.dart
 📏 SIZE: 10.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -43128,7 +43190,7 @@ Future<void> _pickFile() async {
 
 
 ================================================================================
-[  74/ 133] 🎯 rojgarnext/lib/features/location/distance_test_screen.dart
+[  75/ 134] 🎯 rojgarnext/lib/features/location/distance_test_screen.dart
 📏 SIZE: 15.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -43558,7 +43620,7 @@ class _DistanceTestScreenState extends State<DistanceTestScreen> {
 
 
 ================================================================================
-[  75/ 133] 🎯 rojgarnext/lib/features/location/location_test_screen.dart
+[  76/ 134] 🎯 rojgarnext/lib/features/location/location_test_screen.dart
 📏 SIZE: 6.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -43751,7 +43813,7 @@ class _LocationTestScreenState extends State<LocationTestScreen> {
 
 
 ================================================================================
-[  76/ 133] 🎯 rojgarnext/lib/features/market/AI/market_ai_service.dart
+[  77/ 134] 🎯 rojgarnext/lib/features/market/AI/market_ai_service.dart
 📏 SIZE: 1.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -43797,7 +43859,7 @@ class MarketAIService {
 
 
 ================================================================================
-[  77/ 133] 🎯 rojgarnext/lib/features/notification/screens/notifications_list_screen.dart
+[  78/ 134] 🎯 rojgarnext/lib/features/notification/screens/notifications_list_screen.dart
 📏 SIZE: 14.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -44275,7 +44337,7 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
 
 
 ================================================================================
-[  78/ 133] 🎯 rojgarnext/lib/features/notification/service/notification_service.dart
+[  79/ 134] 🎯 rojgarnext/lib/features/notification/service/notification_service.dart
 📏 SIZE: 5.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -44474,7 +44536,7 @@ class NotificationService {
 
 
 ================================================================================
-[  79/ 133] 🎯 rojgarnext/lib/features/notification/widgets/notification_bell.dart
+[  80/ 134] 🎯 rojgarnext/lib/features/notification/widgets/notification_bell.dart
 📏 SIZE: 5.6 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -44679,7 +44741,7 @@ class _NotificationBellState extends State<NotificationBell>
 }
 
 ================================================================================
-[  80/ 133] 🎯 rojgarnext/lib/features/payment/presentation/payment.dart
+[  81/ 134] 🎯 rojgarnext/lib/features/payment/presentation/payment.dart
 📏 SIZE: 92 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -44691,7 +44753,7 @@ enum PaymentType {
 }
 
 ================================================================================
-[  81/ 133] 🎯 rojgarnext/lib/features/payment/presentation/screens/payment_screen.dart
+[  82/ 134] 🎯 rojgarnext/lib/features/payment/presentation/screens/payment_screen.dart
 📏 SIZE: 30.4 KB
 🕐 MODIFIED: 2026-09-12 20:49:04
 ================================================================================
@@ -45533,7 +45595,7 @@ class _PaymentScreenState extends State<PaymentScreen>
 }
 
 ================================================================================
-[  82/ 133] 🎯 rojgarnext/lib/features/payment/razorpay_mobile_service.dart
+[  83/ 134] 🎯 rojgarnext/lib/features/payment/razorpay_mobile_service.dart
 📏 SIZE: 2.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -45635,7 +45697,7 @@ class RazorpayMobileService {
 }
 
 ================================================================================
-[  83/ 133] 🎯 rojgarnext/lib/features/payment/razorpay_service.dart
+[  84/ 134] 🎯 rojgarnext/lib/features/payment/razorpay_service.dart
 📏 SIZE: 2.0 KB
 🕐 MODIFIED: 2026-09-10 12:54:00
 ================================================================================
@@ -45712,7 +45774,7 @@ class RazorpayService {
 }
 
 ================================================================================
-[  84/ 133] 🎯 rojgarnext/lib/features/payment/razorpay_web_service.dart
+[  85/ 134] 🎯 rojgarnext/lib/features/payment/razorpay_web_service.dart
 📏 SIZE: 6.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -45931,7 +45993,7 @@ class RazorpayWebService {
 }
 
 ================================================================================
-[  85/ 133] 🎯 rojgarnext/lib/features/payment/razorpay_web_stub.dart
+[  86/ 134] 🎯 rojgarnext/lib/features/payment/razorpay_web_stub.dart
 📏 SIZE: 967 B
 🕐 MODIFIED: 2026-09-10 12:53:43
 ================================================================================
@@ -45972,7 +46034,7 @@ class RazorpayWebService {
 }
 
 ================================================================================
-[  86/ 133] 🎯 rojgarnext/lib/features/resume/AI/resume_ai_service.dart
+[  87/ 134] 🎯 rojgarnext/lib/features/resume/AI/resume_ai_service.dart
 📏 SIZE: 505 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -45998,7 +46060,7 @@ class ResumeAIService {
 
 
 ================================================================================
-[  87/ 133] 🎯 rojgarnext/lib/features/resume/AI/resume_score_widget.dart
+[  88/ 134] 🎯 rojgarnext/lib/features/resume/AI/resume_score_widget.dart
 📏 SIZE: 3.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -46136,7 +46198,7 @@ class _ResumeScoreWidgetState extends State<ResumeScoreWidget> {
 
 
 ================================================================================
-[  88/ 133] 🎯 rojgarnext/lib/features/resume/presentation/screens/build_resume_screen.dart
+[  89/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/build_resume_screen.dart
 📏 SIZE: 42.5 KB
 🕐 MODIFIED: 2026-09-24 23:34:59
 ================================================================================
@@ -47401,7 +47463,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
 }
 
 ================================================================================
-[  89/ 133] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/classic_format.dart
+[  90/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/classic_format.dart
 📏 SIZE: 21.4 KB
 🕐 MODIFIED: 2026-09-24 20:57:17
 ================================================================================
@@ -47917,7 +47979,7 @@ body{font-family:Georgia,serif;background:#f8f8f8;padding:30px 20px;line-height:
 }
 
 ================================================================================
-[  90/ 133] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/executive_format.dart
+[  91/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/executive_format.dart
 📏 SIZE: 20.4 KB
 🕐 MODIFIED: 2026-09-24 20:59:40
 ================================================================================
@@ -48398,7 +48460,7 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
 }
 
 ================================================================================
-[  91/ 133] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/fresher_format.dart
+[  92/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/fresher_format.dart
 📏 SIZE: 27.9 KB
 🕐 MODIFIED: 2026-09-24 21:00:36
 ================================================================================
@@ -49028,7 +49090,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#E0F2F1;padding:30px 2
 }
 
 ================================================================================
-[  92/ 133] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/government_format.dart
+[  93/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/government_format.dart
 📏 SIZE: 27.9 KB
 🕐 MODIFIED: 2026-09-24 21:00:25
 ================================================================================
@@ -49715,7 +49777,7 @@ th{background:#F3F4F6;font-weight:bold;color:#1F2937}
 }
 
 ================================================================================
-[  93/ 133] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/modern_format.dart
+[  94/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/modern_format.dart
 📏 SIZE: 26.8 KB
 🕐 MODIFIED: 2026-09-24 20:57:49
 ================================================================================
@@ -50335,7 +50397,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#f3f4f6;padding:30px 2
 }
 
 ================================================================================
-[  94/ 133] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/tech_format.dart
+[  95/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/tech_format.dart
 📏 SIZE: 26.6 KB
 🕐 MODIFIED: 2026-09-24 20:58:16
 ================================================================================
@@ -50947,7 +51009,7 @@ body{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;background:#0F1
 }
 
 ================================================================================
-[  95/ 133] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_base.dart
+[  96/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_base.dart
 📏 SIZE: 26.4 KB
 🕐 MODIFIED: 2026-09-24 22:11:08
 ================================================================================
@@ -51820,7 +51882,7 @@ abstract class ResumeFormatBase {
 }
 
 ================================================================================
-[  96/ 133] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_manager.dart
+[  97/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_manager.dart
 📏 SIZE: 874 B
 🕐 MODIFIED: 2026-09-17 15:56:33
 ================================================================================
@@ -51858,7 +51920,7 @@ class ResumeFormatManager {
 }
 
 ================================================================================
-[  97/ 133] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_popup.dart
+[  98/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_popup.dart
 📏 SIZE: 11.9 KB
 🕐 MODIFIED: 2026-09-24 22:01:56
 ================================================================================
@@ -52245,7 +52307,7 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
 }
 
 ================================================================================
-[  98/ 133] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_widget.dart
+[  99/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_widget.dart
 📏 SIZE: 573 B
 🕐 MODIFIED: 2026-09-17 15:38:50
 ================================================================================
@@ -52274,18 +52336,18 @@ class ResumeFormatWidget extends StatelessWidget {
 }
 
 ================================================================================
-[  99/ 133] 🎯 rojgarnext/lib/features/resume/presentation/screens/resume_screen.dart
-📏 SIZE: 60.7 KB
-🕐 MODIFIED: 2026-09-24 23:35:42
+[ 100/ 134] 🎯 rojgarnext/lib/features/resume/presentation/screens/resume_screen.dart
+📏 SIZE: 59.4 KB
+🕐 MODIFIED: 2026-09-25 09:35:46
 ================================================================================
 
 // lib/features/resume/presentation/screens/resume_screen.dart
-// ✅ Profile photo integration: fetches URL, triggers upload popup if missing
-// ✅ NEW: UserProfileProvider watch → auto-update photo everywhere without refresh
+// ✅ Provider is SINGLE SOURCE OF TRUTH for photo
+// ✅ Auto-popup if no photo (once per screen session)
+// ✅ Live sync — upload/delete anywhere updates here instantly
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
@@ -52307,22 +52369,20 @@ class ResumeScreen extends StatefulWidget {
 class _ResumeScreenState extends State<ResumeScreen>
     with TickerProviderStateMixin {
   bool _isLoading = true;
-  bool _isExporting = false;
   Map<String, dynamic> _resumeData = {};
   String? _errorMessage;
 
-  // ✅ profile photo state
-  String? _profilePhotoUrl;
+  /// ✅ Prevents repeated popup in same screen session
+  bool _photoDialogShown = false;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
-  // Cache keys
   static const String CACHE_KEY = 'resume_data_cache';
   static const String CACHE_TIMESTAMP = 'resume_cache_timestamp';
-  static const int CACHE_DURATION = 5; // minutes
+  static const int CACHE_DURATION = 5;
 
   @override
   void initState() {
@@ -52334,7 +52394,6 @@ class _ResumeScreenState extends State<ResumeScreen>
     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
-
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -52343,7 +52402,16 @@ class _ResumeScreenState extends State<ResumeScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    _loadResumeData();
+    // Ensure provider is loaded fresh
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<UserProfileProvider>(context, listen: false)
+            .fetchProfile()
+            .then((_) {
+          if (mounted) _loadResumeData();
+        });
+      }
+    });
   }
 
   @override
@@ -52354,37 +52422,28 @@ class _ResumeScreenState extends State<ResumeScreen>
   }
 
   // ============================================================
-  // ✅ EFFECTIVE PHOTO URL — local state → provider → null
-  // Makes photo uploads from ANY screen show up here instantly.
+  // ✅ SINGLE SOURCE OF TRUTH — read directly from provider
   // ============================================================
   String? get _effectivePhotoUrl {
-    if (_profilePhotoUrl != null && _profilePhotoUrl!.trim().isNotEmpty) {
-      return _profilePhotoUrl;
-    }
     try {
-      final providerUrl =
-          Provider.of<UserProfileProvider>(context, listen: false)
-              .profilePhotoUrl;
-      if (providerUrl != null && providerUrl.trim().isNotEmpty) {
-        return providerUrl;
-      }
+      final url =
+          Provider.of<UserProfileProvider>(context, listen: false).profilePhotoUrl;
+      if (url != null && url.trim().isNotEmpty) return url;
     } catch (_) {}
     return null;
   }
 
   // ============================================================
-  // ✅ FAST LOADING — CACHE FIRST
+  // FAST LOADING — CACHE FIRST
   // ============================================================
   Future<void> _loadResumeData() async {
     if (!mounted) return;
-
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      // Step 1: Load from cache immediately
       final cachedData = await _loadFromCache();
       if (cachedData != null && mounted) {
         _resumeData = cachedData;
@@ -52392,16 +52451,12 @@ class _ResumeScreenState extends State<ResumeScreen>
         _animationController.forward();
         _pulseController.stop();
       }
-
-      // Step 2: Fetch fresh data in background
       await _fetchFreshData();
     } catch (e) {
       if (!mounted) return;
       if (_resumeData.isEmpty) {
         _errorMessage = 'Failed to load resume';
-        if (mounted) {
-          showMessage(context, _errorMessage!, isError: true);
-        }
+        showMessage(context, _errorMessage!, isError: true);
       }
     } finally {
       if (mounted) {
@@ -52415,22 +52470,15 @@ class _ResumeScreenState extends State<ResumeScreen>
     try {
       final prefs = await SharedPreferences.getInstance();
       final timestamp = prefs.getInt(CACHE_TIMESTAMP);
-
       if (timestamp != null) {
         final elapsed = DateTime.now().millisecondsSinceEpoch - timestamp;
-        final minutes = elapsed / (1000 * 60);
-        if (minutes > CACHE_DURATION) {
-          return null;
-        }
+        if (elapsed / (1000 * 60) > CACHE_DURATION) return null;
       }
-
       final cachedJson = prefs.getString(CACHE_KEY);
       if (cachedJson != null) {
-        final Map<String, dynamic> data = Map<String, dynamic>.from(
+        return Map<String, dynamic>.from(
           jsonDecode(cachedJson) as Map<String, dynamic>,
         );
-        debugPrint('✅ Loaded resume from cache (fast)');
-        return data;
       }
     } catch (e) {
       debugPrint('Cache read error: $e');
@@ -52444,7 +52492,6 @@ class _ResumeScreenState extends State<ResumeScreen>
       await prefs.setString(CACHE_KEY, jsonEncode(data));
       await prefs.setInt(
           CACHE_TIMESTAMP, DateTime.now().millisecondsSinceEpoch);
-      debugPrint('✅ Resume saved to cache');
     } catch (e) {
       debugPrint('Cache save error: $e');
     }
@@ -52452,29 +52499,28 @@ class _ResumeScreenState extends State<ResumeScreen>
 
   Future<void> _fetchFreshData() async {
     try {
-      // ✅ Fetch profile photo URL FIRST
+      // ✅ First, sync provider with server truth
       try {
         final photoUrl = await ResumeProfileService.getProfilePhotoUrl();
+        final publicId = await ResumeProfileService.getProfilePhotoPublicId();
+        if (!mounted) return;
+        final provider =
+            Provider.of<UserProfileProvider>(context, listen: false);
         if (photoUrl != null && photoUrl.isNotEmpty) {
-          _profilePhotoUrl = photoUrl;
-          // Push to provider so all screens see it
-          if (mounted) {
-            Provider.of<UserProfileProvider>(context, listen: false)
-                .updateProfilePhotoFromUrl(photoUrl);
-          }
+          provider.setProfilePhoto(url: photoUrl, publicId: publicId);
+        } else {
+          provider.clearProfilePhoto();
         }
-        debugPrint('📸 ResumeScreen profile photo: $photoUrl');
+        debugPrint('📸 ResumeScreen synced photo: $photoUrl');
       } catch (e) {
-        debugPrint('⚠️ Could not fetch profile photo: $e');
+        debugPrint('⚠️ Could not sync profile photo: $e');
       }
 
       final response = await DioClient.dio.get('/resume/profile-resume');
-
       if (!mounted) return;
 
       if (response.data['success'] == true) {
         final data = response.data as Map<String, dynamic>;
-
         data['user_info'] = data['user_info'] ?? {};
         data['contact_info'] = data['contact_info'] ?? {};
         data['education'] = data['education'] ?? [];
@@ -52486,34 +52532,17 @@ class _ResumeScreenState extends State<ResumeScreen>
         data['social_links'] = data['social_links'] ?? {};
         data['statistics'] = data['statistics'] ?? {};
 
-        // ✅ inject profile photo URL into resume data
-        final photo = _effectivePhotoUrl;
-        if (photo != null && photo.isNotEmpty) {
-          (data['user_info'] as Map)['profile_photo_url'] = photo;
-          (data['contact_info'] as Map)['profile_photo_url'] = photo;
-        }
-
         setState(() {
           _resumeData = data;
         });
-
         await _saveToCache(data);
 
         if (_animationController.status == AnimationStatus.dismissed) {
           _animationController.forward();
         }
-
-        // ✅ Trigger popup if no profile photo
-        if (_effectivePhotoUrl == null && mounted) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _showProfilePhotoDialog();
-          });
-        }
       } else if (_resumeData.isEmpty) {
         _errorMessage = response.data['message'] ?? 'Failed to load resume';
-        if (mounted) {
-          showMessage(context, _errorMessage!, isError: true);
-        }
+        if (mounted) showMessage(context, _errorMessage!, isError: true);
       }
     } catch (e) {
       debugPrint('Fresh data fetch error: $e');
@@ -52523,18 +52552,25 @@ class _ResumeScreenState extends State<ResumeScreen>
     }
   }
 
-  // ✅ Popup to upload profile photo, then refresh
+  // ✅ Auto-popup (only once)
+  void _maybeShowPhotoPopup() {
+    if (_photoDialogShown || !mounted) return;
+    if (_effectivePhotoUrl != null) return;
+    _photoDialogShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showProfilePhotoDialog();
+    });
+  }
+
   Future<void> _showProfilePhotoDialog() async {
     if (!mounted) return;
-
     final uploadedUrl = await ProfilePhotoUploadDialog.show(
       context,
       currentPhotoUrl: _effectivePhotoUrl,
     );
-
     if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
-      setState(() => _profilePhotoUrl = uploadedUrl);
-      // Provider already notified → all listeners rebuild
+      // Provider already notified → resume + all screens rebuild
+      debugPrint('✅ Photo uploaded via dialog: $uploadedUrl');
     }
   }
 
@@ -52544,14 +52580,14 @@ class _ResumeScreenState extends State<ResumeScreen>
       await prefs.remove(CACHE_KEY);
       await prefs.remove(CACHE_TIMESTAMP);
     } catch (_) {}
-
     _animationController.reset();
     _pulseController.repeat(reverse: true);
+    _photoDialogShown = false; // allow popup again on manual refresh
     await _loadResumeData();
   }
 
   // ============================================================
-  // ✅ AI LOADING SCREEN
+  // LOADING SCREEN
   // ============================================================
   Widget _buildLoadingScreen() {
     return Scaffold(
@@ -52579,11 +52615,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                   ],
                 ),
                 child: const Center(
-                  child: Icon(
-                    Icons.auto_awesome,
-                    color: Colors.white,
-                    size: 40,
-                  ),
+                  child: Icon(Icons.auto_awesome,
+                      color: Colors.white, size: 40),
                 ),
               ),
             ),
@@ -52606,15 +52639,11 @@ class _ResumeScreenState extends State<ResumeScreen>
               valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C63FF)),
             ),
             const SizedBox(height: 24),
-            Opacity(
+            const Opacity(
               opacity: 0.6,
-              child: const Text(
+              child: Text(
                 "Please wait while we prepare your resume",
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF6B6B80),
-                  fontWeight: FontWeight.w400,
-                ),
+                style: TextStyle(fontSize: 14, color: Color(0xFF6B6B80)),
               ),
             ),
           ],
@@ -52624,11 +52653,11 @@ class _ResumeScreenState extends State<ResumeScreen>
   }
 
   // ============================================================
-  // ✅ BUILD
+  // BUILD
   // ============================================================
   @override
   Widget build(BuildContext context) {
-    // ✅ Watch provider → any photo upload anywhere triggers rebuild
+    // ✅ Watch provider — any photo change anywhere rebuilds this screen
     context.watch<UserProfileProvider>();
 
     if (_isLoading && _resumeData.isEmpty) {
@@ -52650,11 +52679,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                   color: Colors.red.shade50,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.error_outline,
-                  size: 50,
-                  color: Colors.red.shade400,
-                ),
+                child: Icon(Icons.error_outline,
+                    size: 50, color: Colors.red.shade400),
               ),
               const SizedBox(height: 24),
               const Text(
@@ -52672,9 +52698,7 @@ class _ResumeScreenState extends State<ResumeScreen>
                   _errorMessage!,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: Color(0xFF6B6B80),
-                    fontSize: 14,
-                  ),
+                      color: Color(0xFF6B6B80), fontSize: 14),
                 ),
               ),
               const SizedBox(height: 24),
@@ -52696,6 +52720,9 @@ class _ResumeScreenState extends State<ResumeScreen>
         ),
       );
     }
+
+    // ✅ Trigger popup AFTER first build if no photo
+    _maybeShowPhotoPopup();
 
     final userInfo = _resumeData['user_info'] as Map<String, dynamic>? ?? {};
     final contactInfo =
@@ -52739,10 +52766,9 @@ class _ResumeScreenState extends State<ResumeScreen>
                     child: Text(
                       summary,
                       style: const TextStyle(
-                        height: 1.6,
-                        fontSize: 14,
-                        color: Color(0xFF2D2D3F),
-                      ),
+                          height: 1.6,
+                          fontSize: 14,
+                          color: Color(0xFF2D2D3F)),
                     ),
                   ),
                 if (summary.isNotEmpty) const SizedBox(height: 16),
@@ -52754,10 +52780,9 @@ class _ResumeScreenState extends State<ResumeScreen>
                     child: Text(
                       objective,
                       style: const TextStyle(
-                        height: 1.6,
-                        fontSize: 14,
-                        color: Color(0xFF2D2D3F),
-                      ),
+                          height: 1.6,
+                          fontSize: 14,
+                          color: Color(0xFF2D2D3F)),
                     ),
                   ),
                 if (objective.isNotEmpty) const SizedBox(height: 16),
@@ -52806,7 +52831,6 @@ class _ResumeScreenState extends State<ResumeScreen>
       centerTitle: true,
       automaticallyImplyLeading: false,
       actions: [
-        // ✅ Change Profile Photo action
         IconButton(
           icon: const Icon(Icons.photo_camera, color: Color(0xFF6C63FF)),
           onPressed: _showProfilePhotoDialog,
@@ -52868,11 +52892,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                     color: (stat['color'] as Color).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    stat['icon'] as IconData,
-                    color: stat['color'] as Color,
-                    size: 18,
-                  ),
+                  child: Icon(stat['icon'] as IconData,
+                      color: stat['color'] as Color, size: 18),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -52938,7 +52959,6 @@ class _ResumeScreenState extends State<ResumeScreen>
         children: [
           Row(
             children: [
-              // ✅ Show profile photo if available, else initials
               if (hasPhoto)
                 Container(
                   width: 80,
@@ -52972,11 +52992,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                       ),
                       errorWidget: (_, __, ___) => Container(
                         color: Colors.white24,
-                        child: const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 40,
-                        ),
+                        child: const Icon(Icons.person,
+                            color: Colors.white, size: 40),
                       ),
                     ),
                   ),
@@ -53211,17 +53228,15 @@ class _ResumeScreenState extends State<ResumeScreen>
                             Text(
                               "${exp['start_date'] ?? ''} - ${exp['end_date'] ?? 'Present'}",
                               style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF6B6B80),
-                              ),
+                                  fontSize: 12, color: Color(0xFF6B6B80)),
                             ),
                             const SizedBox(width: 16),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFF6B6B)
-                                    .withOpacity(0.1),
+                                color:
+                                    const Color(0xFFFF6B6B).withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -53256,37 +53271,36 @@ class _ResumeScreenState extends State<ResumeScreen>
                             ),
                           ),
                           const SizedBox(height: 6),
-                          ...(exp['achievements'] as List).map((ach) =>
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: Row(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      margin:
-                                          const EdgeInsets.only(top: 6),
-                                      width: 4,
-                                      height: 4,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFFFF6B6B),
-                                        shape: BoxShape.circle,
+                          ...(exp['achievements'] as List).map(
+                            (ach) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 6),
+                                    width: 4,
+                                    height: 4,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFFF6B6B),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      ach.toString(),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF2D2D3F),
+                                        height: 1.4,
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        ach.toString(),
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Color(0xFF2D2D3F),
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ],
                       ],
                     ),
@@ -53363,17 +53377,15 @@ class _ResumeScreenState extends State<ResumeScreen>
                             Text(
                               edu['year_of_passing']?.toString() ?? '',
                               style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF6B6B80),
-                              ),
+                                  fontSize: 12, color: Color(0xFF6B6B80)),
                             ),
                             const SizedBox(width: 16),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF4ECDC4)
-                                    .withOpacity(0.1),
+                                color:
+                                    const Color(0xFF4ECDC4).withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -53406,9 +53418,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                                       child: Text(
                                         subj.toString(),
                                         style: const TextStyle(
-                                          fontSize: 11,
-                                          color: Color(0xFF4ECDC4),
-                                        ),
+                                            fontSize: 11,
+                                            color: Color(0xFF4ECDC4)),
                                       ),
                                     ))
                                 .toList(),
@@ -53443,10 +53454,10 @@ class _ResumeScreenState extends State<ResumeScreen>
         children: [
           if (expertSkills.isNotEmpty) ...[
             Row(
-              children: [
-                const Icon(Icons.star, size: 16, color: Color(0xFFFFB800)),
-                const SizedBox(width: 6),
-                const Text(
+              children: const [
+                Icon(Icons.star, size: 16, color: Color(0xFFFFB800)),
+                SizedBox(width: 6),
+                Text(
                   "Expert",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -53460,34 +53471,35 @@ class _ResumeScreenState extends State<ResumeScreen>
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: expertSkills.map((skill) => Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFFB800), Color(0xFFFFD233)],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      skill['name'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  )).toList(),
+              children: expertSkills
+                  .map((skill) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFB800), Color(0xFFFFD233)],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          skill['name'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ))
+                  .toList(),
             ),
             const SizedBox(height: 12),
           ],
           if (advancedSkills.isNotEmpty) ...[
             Row(
-              children: [
-                const Icon(Icons.auto_awesome,
-                    size: 16, color: Color(0xFF6C63FF)),
-                const SizedBox(width: 6),
-                const Text(
+              children: const [
+                Icon(Icons.auto_awesome, size: 16, color: Color(0xFF6C63FF)),
+                SizedBox(width: 6),
+                Text(
                   "Advanced",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -53501,35 +53513,36 @@ class _ResumeScreenState extends State<ResumeScreen>
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: advancedSkills.map((skill) => Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6C63FF).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFF6C63FF).withOpacity(0.2),
-                      ),
-                    ),
-                    child: Text(
-                      skill['name'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF6C63FF),
-                      ),
-                    ),
-                  )).toList(),
+              children: advancedSkills
+                  .map((skill) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6C63FF).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(0xFF6C63FF).withOpacity(0.2),
+                          ),
+                        ),
+                        child: Text(
+                          skill['name'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF6C63FF),
+                          ),
+                        ),
+                      ))
+                  .toList(),
             ),
             const SizedBox(height: 12),
           ],
           if (intermediateSkills.isNotEmpty) ...[
             Row(
-              children: [
-                const Icon(Icons.trending_up,
-                    size: 16, color: Color(0xFF4ECDC4)),
-                const SizedBox(width: 6),
-                const Text(
+              children: const [
+                Icon(Icons.trending_up, size: 16, color: Color(0xFF4ECDC4)),
+                SizedBox(width: 6),
+                Text(
                   "Intermediate",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -53543,25 +53556,27 @@ class _ResumeScreenState extends State<ResumeScreen>
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: intermediateSkills.map((skill) => Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4ECDC4).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFF4ECDC4).withOpacity(0.2),
-                      ),
-                    ),
-                    child: Text(
-                      skill['name'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF4ECDC4),
-                      ),
-                    ),
-                  )).toList(),
+              children: intermediateSkills
+                  .map((skill) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4ECDC4).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(0xFF4ECDC4).withOpacity(0.2),
+                          ),
+                        ),
+                        child: Text(
+                          skill['name'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF4ECDC4),
+                          ),
+                        ),
+                      ))
+                  .toList(),
             ),
           ],
         ],
@@ -53603,11 +53618,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                     color: const Color(0xFFFF6B6B).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.verified,
-                    size: 16,
-                    color: Color(0xFFFF6B6B),
-                  ),
+                  child: const Icon(Icons.verified,
+                      size: 16, color: Color(0xFFFF6B6B)),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -53628,9 +53640,7 @@ class _ResumeScreenState extends State<ResumeScreen>
                       Text(
                         "${cert['issuer'] ?? ''} (${cert['year'] ?? ''})",
                         style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF6B6B80),
-                        ),
+                            fontSize: 11, color: Color(0xFF6B6B80)),
                       ),
                     ],
                   ),
@@ -53714,10 +53724,9 @@ class _ResumeScreenState extends State<ResumeScreen>
                     Text(
                       project['description'] ?? '',
                       style: const TextStyle(
-                        fontSize: 13,
-                        height: 1.5,
-                        color: Color(0xFF2D2D3F),
-                      ),
+                          fontSize: 13,
+                          height: 1.5,
+                          color: Color(0xFF2D2D3F)),
                     ),
                   ],
                 ),
@@ -53754,7 +53763,6 @@ class _ResumeScreenState extends State<ResumeScreen>
             default:
               color = const Color(0xFFFF6B6B);
           }
-
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
@@ -53765,11 +53773,7 @@ class _ResumeScreenState extends State<ResumeScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.circle,
-                  size: 8,
-                  color: color,
-                ),
+                Icon(Icons.circle, size: 8, color: color),
                 const SizedBox(width: 8),
                 Text(
                   "${lang['name'] ?? ''} - $proficiency",
@@ -53863,13 +53867,13 @@ class _ResumeScreenState extends State<ResumeScreen>
     if (value.isEmpty) return const SizedBox();
     return Row(
       children: [
-        Icon(icon, size: 16, color: Color(0xFF6B6B80)),
+        Icon(icon, size: 16, color: const Color(0xFF6B6B80)),
         const SizedBox(width: 8),
         SizedBox(
           width: 85,
           child: Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 13,
               color: Color(0xFF6B6B80),
               fontWeight: FontWeight.w500,
@@ -53918,8 +53922,7 @@ class _ResumeScreenState extends State<ResumeScreen>
                   color: const Color(0xFF6C63FF).withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child:
-                    Icon(icon, size: 16, color: const Color(0xFF6C63FF)),
+                child: Icon(icon, size: 16, color: const Color(0xFF6C63FF)),
               ),
               const SizedBox(width: 10),
               SizedBox(
@@ -53945,11 +53948,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(
-                Icons.open_in_new,
-                size: 14,
-                color: Color(0xFF6C63FF),
-              ),
+              const Icon(Icons.open_in_new,
+                  size: 14, color: Color(0xFF6C63FF)),
             ],
           ),
         ),
@@ -53959,43 +53959,39 @@ class _ResumeScreenState extends State<ResumeScreen>
 }
 
 ================================================================================
-[ 100/ 133] 🎯 rojgarnext/lib/features/resume/presentation/widgets/profile_photo_upload_dialog.dart
-📏 SIZE: 6.2 KB
-🕐 MODIFIED: 2026-09-24 23:30:02
+[ 101/ 134] 🎯 rojgarnext/lib/features/resume/presentation/widgets/profile_photo_upload_dialog.dart
+📏 SIZE: 10.6 KB
+🕐 MODIFIED: 2026-09-25 09:55:11
 ================================================================================
 
 // lib/features/resume/presentation/widgets/profile_photo_upload_dialog.dart
-// ✅ Has static show() → returns uploaded URL (String?)
-// ✅ Uses UserProfileProvider → auto-syncs everywhere
-// ✅ Shows current photo preview if provided
+// ✅ Static .show() helper returns uploaded URL (or null)
+// ✅ Broadcasts change via UserProfileProvider → no page reload
+// ✅ FIXED: onSendProgress moved OUT of Options (Dio 5.x requirement)
 
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:rojgarnext/core/widgets/platform_file_picker.dart';
+import 'package:dio/dio.dart';
+import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
+import 'package:rojgarnext/core/widgets/platform_file_picker.dart';
 import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 
 class ProfilePhotoUploadDialog extends StatefulWidget {
-  final VoidCallback? onUploadSuccess;
   final String? currentPhotoUrl;
 
-  const ProfilePhotoUploadDialog({
-    super.key,
-    this.onUploadSuccess,
-    this.currentPhotoUrl,
-  });
+  const ProfilePhotoUploadDialog({super.key, this.currentPhotoUrl});
 
-  /// ✅ STATIC SHOW METHOD — returns the uploaded URL (or null if cancelled)
-  /// Usage:
-  ///   final url = await ProfilePhotoUploadDialog.show(context, currentPhotoUrl: url);
+  /// ✅ Convenience method — shows dialog and returns uploaded URL (or null)
   static Future<String?> show(
     BuildContext context, {
     String? currentPhotoUrl,
   }) async {
-    return showDialog<String?>(
+    return await showDialog<String>(
       context: context,
-      barrierDismissible: true,
-      builder: (ctx) => ProfilePhotoUploadDialog(
+      barrierDismissible: false,
+      builder: (_) => ProfilePhotoUploadDialog(
         currentPhotoUrl: currentPhotoUrl,
       ),
     );
@@ -54007,144 +54003,265 @@ class ProfilePhotoUploadDialog extends StatefulWidget {
 }
 
 class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
-  bool _isPicking = false;
+  bool _isUploading = false;
+  String? _fileName;
+  Uint8List? _fileBytes;
+  double _progress = 0;
 
-  Future<void> _pickAndUpload() async {
-    if (_isPicking) return;
-    setState(() => _isPicking = true);
+  Future<void> _pickImage() async {
+    try {
+      final result = await PlatformFilePicker.pickFile(
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+      );
+      if (result == null) return;
+      if (result.bytes == null) {
+        if (mounted) {
+          showMessage(context, "File data unavailable", isError: true);
+        }
+        return;
+      }
+      if (result.size > 5 * 1024 * 1024) {
+        if (mounted) showMessage(context, "Max 5MB allowed", isError: true);
+        return;
+      }
+      setState(() {
+        _fileName = result.name;
+        _fileBytes = result.bytes;
+      });
+    } catch (e) {
+      if (mounted) showMessage(context, "Error: $e", isError: true);
+    }
+  }
+
+  Future<void> _upload() async {
+    if (_fileBytes == null || _fileName == null) {
+      showMessage(context, "Please select a photo first", isError: true);
+      return;
+    }
+
+    setState(() {
+      _isUploading = true;
+      _progress = 0;
+    });
 
     try {
-      final result = await PlatformFilePicker.pickImage();
-      if (result == null || result.bytes == null) {
-        if (mounted) setState(() => _isPicking = false);
-        return;
-      }
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(_fileBytes!, filename: _fileName!),
+      });
 
-      final bytes = result.bytes!;
-      if (bytes.length > 5 * 1024 * 1024) {
-        if (!mounted) return;
-        showMessage(context, "Image too large. Max: 5MB", isError: true);
-        if (mounted) setState(() => _isPicking = false);
-        return;
-      }
-
-      if (!mounted) return;
-      final provider =
-          Provider.of<UserProfileProvider>(context, listen: false);
-
-      final ok = await provider.uploadProfilePhoto(
-        fileBytes: bytes,
-        fileName: result.name,
+      // ✅ FIXED: onSendProgress is a parameter of `.post()`, NOT of `Options()`
+      final response = await DioClient.dio.post(
+        '/user/upload-profile-photo',
+        data: formData,
+        options: Options(
+          contentType: 'multipart/form-data',
+        ),
+        onSendProgress: (sent, total) {
+          if (total > 0 && mounted) {
+            setState(() => _progress = sent / total);
+          }
+        },
       );
 
-      if (!mounted) return;
-      if (ok) {
-        final newUrl = provider.profilePhotoUrl ?? '';
+      final data = response.data;
+      final url = (data['url'] ??
+              data['data']?['url'] ??
+              '')
+          .toString()
+          .trim();
+      final publicId =
+          (data['public_id'] ?? data['data']?['public_id'])?.toString();
+
+      if (url.isEmpty) {
+        throw Exception("Server returned no photo URL");
+      }
+
+      // ✅ Broadcast — every listening widget updates instantly
+      if (mounted) {
+        Provider.of<UserProfileProvider>(context, listen: false)
+            .setProfilePhoto(url: url, publicId: publicId);
+      }
+
+      if (mounted) {
         showMessage(context, "✅ Profile photo updated!");
-        widget.onUploadSuccess?.call();
-        Navigator.of(context).pop(newUrl); // ✅ returns String?
-      } else {
+        Navigator.pop(context, url);
+      }
+    } catch (e) {
+      if (mounted) {
         showMessage(
           context,
-          provider.errorMessage ?? "Upload failed",
+          "Upload failed: ${e.toString().replaceAll('Exception:', '').trim()}",
           isError: true,
         );
       }
-    } catch (e) {
-      if (!mounted) return;
-      showMessage(context, "Error: $e", isError: true);
     } finally {
-      if (mounted) setState(() => _isPicking = false);
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final hasExisting =
-        widget.currentPhotoUrl != null && widget.currentPhotoUrl!.isNotEmpty;
-
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
+      insetPadding: const EdgeInsets.all(20),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 460),
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ✅ Preview existing photo (if any)
-            if (hasExisting)
-              ClipOval(
-                child: Image.network(
-                  widget.currentPhotoUrl!,
-                  width: 90,
-                  height: 90,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
-              ),
-            if (hasExisting) const SizedBox(height: 12),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.camera_alt,
-                color: Colors.white,
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              "Upload Profile Photo",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Photo will be auto-applied to resume & dashboard instantly.",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 20),
-            Consumer<UserProfileProvider>(
-              builder: (context, provider, _) {
-                if (provider.isUploadingPhoto) {
-                  return const Column(
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 12),
-                      Text("Uploading & rebuilding resume..."),
-                    ],
-                  );
-                }
-                return Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text("Cancel"),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
                       ),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _isPicking ? null : _pickAndUpload,
-                        icon: const Icon(Icons.upload, size: 18),
-                        label: const Text("Select Photo"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6C63FF),
-                          foregroundColor: Colors.white,
+                    child: const Icon(Icons.person,
+                        color: Colors.white, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Profile Photo Required",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          "Add a photo to complete your resume",
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Preview / picker
+              GestureDetector(
+                onTap: _isUploading ? null : _pickImage,
+                child: Container(
+                  width: double.infinity,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _fileBytes != null
+                          ? Colors.green
+                          : const Color(0xFF6C63FF),
+                      width: 2,
+                    ),
+                  ),
+                  child: _fileBytes != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.memory(
+                            _fileBytes!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          ),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_a_photo,
+                                size: 48, color: Colors.grey.shade600),
+                            const SizedBox(height: 8),
+                            const Text(
+                              "Tap to select photo",
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              "JPG / PNG / WEBP · Max 5MB",
+                              style:
+                                  TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+
+              if (_fileName != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _fileName!,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+
+              if (_isUploading) ...[
+                const SizedBox(height: 16),
+                LinearProgressIndicator(
+                  value: _progress > 0 ? _progress : null,
+                  backgroundColor: Colors.grey.shade200,
+                  color: const Color(0xFF6C63FF),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Uploading ${(_progress * 100).toStringAsFixed(0)}%",
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+
+              const SizedBox(height: 20),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed:
+                          _isUploading ? null : () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
+                      child: const Text("Skip for Now"),
                     ),
-                  ],
-                );
-              },
-            ),
-          ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isUploading ? null : _upload,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6C63FF),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isUploading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text("Upload Photo"),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -54152,7 +54269,7 @@ class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
 }
 
 ================================================================================
-[ 101/ 133] 🎯 rojgarnext/lib/features/resume/services/resume_pdf_service.dart
+[ 102/ 134] 🎯 rojgarnext/lib/features/resume/services/resume_pdf_service.dart
 📏 SIZE: 5.2 KB
 🕐 MODIFIED: 2026-09-24 22:01:29
 ================================================================================
@@ -54328,117 +54445,72 @@ class ResumePdfService {
 }
 
 ================================================================================
-[ 102/ 133] 🎯 rojgarnext/lib/features/resume/services/resume_profile_service.dart
-📏 SIZE: 3.4 KB
-🕐 MODIFIED: 2026-09-24 21:59:42
+[ 103/ 134] 🎯 rojgarnext/lib/features/resume/services/resume_profile_service.dart
+📏 SIZE: 1.9 KB
+🕐 MODIFIED: 2026-09-25 09:35:03
 ================================================================================
 
 // lib/features/resume/services/resume_profile_service.dart
-// ✅ Helper service to fetch / check / upload profile photo
-// ✅ Used by ResumeScreen AND BuildResumeScreen
+// ✅ Fetches profile photo URL from backend — used by ResumeScreen on load
 
-import 'dart:typed_data';
-import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 
 class ResumeProfileService {
-  // ============================================================
-  // ✅ GET PROFILE PHOTO URL
-  // Returns null if not uploaded
-  // ============================================================
+  /// Returns the current profile photo URL from backend, or null if not set
   static Future<String?> getProfilePhotoUrl() async {
     try {
-      final res = await DioClient.dio.get('/user/full-profile');
+      final response = await DioClient.dio.get('/user/full-profile');
 
-      Map<String, dynamic> profile = {};
-      if (res.data is Map) {
-        if (res.data.containsKey('data') && res.data['data'] is Map) {
-          profile = Map<String, dynamic>.from(res.data['data']);
+      Map<String, dynamic> data = {};
+      if (response.data is Map) {
+        final body = response.data as Map;
+        if (body['data'] is Map) {
+          data = Map<String, dynamic>.from(body['data']);
         } else {
-          profile = Map<String, dynamic>.from(res.data);
+          data = Map<String, dynamic>.from(body);
         }
       }
 
-      final additional = profile['additional_details'] as Map? ?? {};
+      final additional = (data['additional_details'] as Map?) ?? {};
+      final photoUrl = (additional['profile_photo_url']?.toString() ??
+              data['profile_photo_url']?.toString() ??
+              '')
+          .trim();
 
-      final candidates = <dynamic>[
-        additional['profile_photo_url'],
-        profile['profile_photo_url'],
-        profile['photo_url'],
-      ];
-
-      for (final c in candidates) {
-        final s = (c ?? '').toString().trim();
-        if (s.isNotEmpty && (s.startsWith('http://') || s.startsWith('https://'))) {
-          debugPrint('✅ Profile photo URL: $s');
-          return s;
-        }
-      }
-
-      debugPrint('ℹ️ No profile photo URL found');
-      return null;
+      if (photoUrl.isEmpty) return null;
+      return photoUrl;
     } catch (e) {
-      debugPrint('❌ getProfilePhotoUrl error: $e');
+      debugPrint('❌ ResumeProfileService.getProfilePhotoUrl failed: $e');
       return null;
     }
   }
 
-  // ============================================================
-  // ✅ CHECK IF PROFILE PHOTO EXISTS
-  // ============================================================
-  static Future<bool> hasProfilePhoto() async {
-    final url = await getProfilePhotoUrl();
-    return url != null && url.isNotEmpty;
-  }
-
-  // ============================================================
-  // ✅ UPLOAD PROFILE PHOTO BYTES
-  // Returns public URL on success, throws on failure
-  // ============================================================
-  static Future<String> uploadProfilePhoto({
-    required Uint8List fileBytes,
-    required String fileName,
-  }) async {
+  /// Returns profile photo public_id (for delete tracking)
+  static Future<String?> getProfilePhotoPublicId() async {
     try {
-      final formData = FormData.fromMap({
-        'file': MultipartFile.fromBytes(fileBytes, filename: fileName),
-        'document_type': 'profile_photo_url',
-      });
-
-      final res = await DioClient.dio.post(
-        '/user/upload-document',
-        data: formData,
-        options: Options(
-          headers: {"Content-Type": "multipart/form-data"},
-          sendTimeout: const Duration(seconds: 60),
-          receiveTimeout: const Duration(seconds: 60),
-        ),
-      );
-
-      if (res.data is Map && res.data['success'] == true) {
-        final url = (res.data['url'] as String?) ?? '';
-        if (url.isNotEmpty && url.startsWith('http')) {
-          debugPrint('✅ Profile photo uploaded: $url');
-          return url;
+      final response = await DioClient.dio.get('/user/full-profile');
+      Map<String, dynamic> data = {};
+      if (response.data is Map) {
+        final body = response.data as Map;
+        if (body['data'] is Map) {
+          data = Map<String, dynamic>.from(body['data']);
+        } else {
+          data = Map<String, dynamic>.from(body);
         }
-        throw Exception('Server returned invalid URL');
       }
-
-      throw Exception(
-        res.data is Map
-            ? (res.data['message'] ?? 'Upload failed')
-            : 'Upload failed',
-      );
+      final additional = (data['additional_details'] as Map?) ?? {};
+      return (additional['profile_photo_public_id'] ??
+              data['profile_photo_public_id'])
+          ?.toString();
     } catch (e) {
-      debugPrint('❌ uploadProfilePhoto error: $e');
-      rethrow;
+      return null;
     }
   }
 }
 
 ================================================================================
-[ 103/ 133] 🎯 rojgarnext/lib/features/services/data/service_data_source.dart
+[ 104/ 134] 🎯 rojgarnext/lib/features/services/data/service_data_source.dart
 📏 SIZE: 2.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -54537,7 +54609,7 @@ class ServiceDataSource {
 }
 
 ================================================================================
-[ 104/ 133] 🎯 rojgarnext/lib/features/services/data/service_repository.dart
+[ 105/ 134] 🎯 rojgarnext/lib/features/services/data/service_repository.dart
 📏 SIZE: 8.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -54810,7 +54882,7 @@ class ServiceRepository {
 }
 
 ================================================================================
-[ 105/ 133] 🎯 rojgarnext/lib/features/services/models/service_types.dart
+[ 106/ 134] 🎯 rojgarnext/lib/features/services/models/service_types.dart
 📏 SIZE: 25.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -55592,7 +55664,7 @@ class ServiceMasterData {
 }
 
 ================================================================================
-[ 106/ 133] 🎯 rojgarnext/lib/features/services/presentation/screens/apply_service_screen.dart
+[ 107/ 134] 🎯 rojgarnext/lib/features/services/presentation/screens/apply_service_screen.dart
 📏 SIZE: 64.8 KB
 🕐 MODIFIED: 2026-09-19 18:06:15
 ================================================================================
@@ -57644,7 +57716,7 @@ class _UploadedDoc {
 }
 
 ================================================================================
-[ 107/ 133] 🎯 rojgarnext/lib/features/services/presentation/screens/service_application_screen.dart
+[ 108/ 134] 🎯 rojgarnext/lib/features/services/presentation/screens/service_application_screen.dart
 📏 SIZE: 163.7 KB
 🕐 MODIFIED: 2026-09-24 18:30:13
 ================================================================================
@@ -62150,7 +62222,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
 }
 
 ================================================================================
-[ 108/ 133] 🎯 rojgarnext/lib/features/services/presentation/screens/user_service_applications_screen.dart
+[ 109/ 134] 🎯 rojgarnext/lib/features/services/presentation/screens/user_service_applications_screen.dart
 📏 SIZE: 137.3 KB
 🕐 MODIFIED: 2026-09-24 16:06:36
 ================================================================================
@@ -66068,7 +66140,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 }
 
 ================================================================================
-[ 109/ 133] 🎯 rojgarnext/lib/features/splash/splash_page.dart
+[ 110/ 134] 🎯 rojgarnext/lib/features/splash/splash_page.dart
 📏 SIZE: 10.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -66377,7 +66449,7 @@ class _SplashPageState extends State<SplashPage>
 }
 
 ================================================================================
-[ 110/ 133] 🎯 rojgarnext/lib/features/superadmin/AI/superadmin_ai_dashboard.dart
+[ 111/ 134] 🎯 rojgarnext/lib/features/superadmin/AI/superadmin_ai_dashboard.dart
 📏 SIZE: 1.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -66440,7 +66512,7 @@ class JobAIService {
 
 
 ================================================================================
-[ 111/ 133] 🎯 rojgarnext/lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
+[ 112/ 134] 🎯 rojgarnext/lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
 📏 SIZE: 25.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -67266,7 +67338,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
 }
 
 ================================================================================
-[ 112/ 133] 🎯 rojgarnext/lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
+[ 113/ 134] 🎯 rojgarnext/lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
 📏 SIZE: 4.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -67401,7 +67473,7 @@ class SuperAdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[ 113/ 133] 🎯 rojgarnext/lib/features/user/AI/user_ai_dashboard.dart
+[ 114/ 134] 🎯 rojgarnext/lib/features/user/AI/user_ai_dashboard.dart
 📏 SIZE: 43.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -68720,7 +68792,7 @@ class _LineChartPainter extends CustomPainter {
 
 
 ================================================================================
-[ 114/ 133] 🎯 rojgarnext/lib/features/user/AI/user_ai_screen.dart
+[ 115/ 134] 🎯 rojgarnext/lib/features/user/AI/user_ai_screen.dart
 📏 SIZE: 17.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -69282,7 +69354,7 @@ class _UserAIScreenState extends State<UserAIScreen> {
 
 
 ================================================================================
-[ 115/ 133] 🎯 rojgarnext/lib/features/user/AI/user_ai_service.dart
+[ 116/ 134] 🎯 rojgarnext/lib/features/user/AI/user_ai_service.dart
 📏 SIZE: 3.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -69409,7 +69481,7 @@ class UserAIService {
 
 
 ================================================================================
-[ 116/ 133] 🎯 rojgarnext/lib/features/user/AI/user_career_roadmap_screen.dart
+[ 117/ 134] 🎯 rojgarnext/lib/features/user/AI/user_career_roadmap_screen.dart
 📏 SIZE: 10.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -69756,7 +69828,7 @@ class _UserCareerRoadmapScreenState extends State<UserCareerRoadmapScreen> {
 
 
 ================================================================================
-[ 117/ 133] 🎯 rojgarnext/lib/features/user/data/user_service.dart
+[ 118/ 134] 🎯 rojgarnext/lib/features/user/data/user_service.dart
 📏 SIZE: 31.5 KB
 🕐 MODIFIED: 2026-09-13 20:38:56
 ================================================================================
@@ -70761,7 +70833,7 @@ class UserService {
 }
 
 ================================================================================
-[ 118/ 133] 🎯 rojgarnext/lib/features/user/presentation/controllers/user_profile_controller.dart
+[ 119/ 134] 🎯 rojgarnext/lib/features/user/presentation/controllers/user_profile_controller.dart
 📏 SIZE: 7.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -71054,7 +71126,7 @@ class UserProfileController extends ChangeNotifier {
 
 
 ================================================================================
-[ 119/ 133] 🎯 rojgarnext/lib/features/user/presentation/screens/advanced_details_screen.dart
+[ 120/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/advanced_details_screen.dart
 📏 SIZE: 74.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -73130,7 +73202,7 @@ class _AdvancedDetailsScreenState extends State<AdvancedDetailsScreen>
 
 
 ================================================================================
-[ 120/ 133] 🎯 rojgarnext/lib/features/user/presentation/screens/basic_details_screen.dart
+[ 121/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/basic_details_screen.dart
 📏 SIZE: 79.2 KB
 🕐 MODIFIED: 2026-09-14 19:46:34
 ================================================================================
@@ -75087,7 +75159,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
 }
 
 ================================================================================
-[ 121/ 133] 🎯 rojgarnext/lib/features/user/presentation/screens/education_screen.dart
+[ 122/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/education_screen.dart
 📏 SIZE: 60.3 KB
 🕐 MODIFIED: 2026-09-15 15:17:51
 ================================================================================
@@ -76888,7 +76960,7 @@ class _EducationScreenState extends State<EducationScreen> {
 }
 
 ================================================================================
-[ 122/ 133] 🎯 rojgarnext/lib/features/user/presentation/screens/experience_screen.dart
+[ 123/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/experience_screen.dart
 📏 SIZE: 76.4 KB
 🕐 MODIFIED: 2026-09-15 16:46:54
 ================================================================================
@@ -78789,7 +78861,7 @@ class _TabData {
 }
 
 ================================================================================
-[ 123/ 133] 🎯 rojgarnext/lib/features/user/presentation/screens/user_applications_screen.dart
+[ 124/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/user_applications_screen.dart
 📏 SIZE: 107.1 KB
 🕐 MODIFIED: 2026-09-24 19:13:15
 ================================================================================
@@ -81856,7 +81928,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 }
 
 ================================================================================
-[ 124/ 133] 🎯 rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
+[ 125/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
 📏 SIZE: 37.4 KB
 🕐 MODIFIED: 2026-09-24 23:20:08
 ================================================================================
@@ -82963,27 +83035,31 @@ class _UserDashboardState extends State<UserDashboard> {
 }
 
 ================================================================================
-[ 125/ 133] 🎯 rojgarnext/lib/features/user/presentation/screens/user_documents_screen.dart
-📏 SIZE: 63.1 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+[ 126/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/user_documents_screen.dart
+📏 SIZE: 65.5 KB
+🕐 MODIFIED: 2026-09-24 23:54:36
 ================================================================================
 
 // lib/features/user/presentation/screens/user_documents_screen.dart
 // ✅ COMPLETE AI-BASED MODERN DESIGN
 // ✅ FIXED: Dropdown list with white background and black text
 // ✅ FIXED: Loading animation on page load
-// ✅ FIXED: Consistent design with Experience and Education screens
-// ✅ Works on Mobile and Web
+// ✅ FIXED: Works on Mobile and Web
+// ✅ NEW: Profile photo upload/delete syncs to UserProfileProvider
+//         → Sidebar + all Resume formats update WITHOUT page reload
+// ✅ Complete file — no lines skipped
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/core/widgets/file_viewer_screen.dart';
+import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 
 class UserDocumentsScreen extends StatefulWidget {
   const UserDocumentsScreen({super.key});
@@ -83230,9 +83306,12 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 
         // Check file extension
         final extension = file.name.toLowerCase().split('.').last;
-        if (extension != 'jpg' && extension != 'jpeg' && extension != 'png' && extension != 'pdf') {
-          showMessage(context,
-              "❌ Only JPG, JPEG, PNG, and PDF files are supported.",
+        if (extension != 'jpg' &&
+            extension != 'jpeg' &&
+            extension != 'png' &&
+            extension != 'pdf') {
+          showMessage(
+              context, "❌ Only JPG, JPEG, PNG, and PDF files are supported.",
               isError: true);
           return;
         }
@@ -83254,7 +83333,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
           _selectedFileBytes = file.bytes!;
         });
 
-        debugPrint("✅ File selected: ${file.name}, Size: ${file.size} bytes, Platform: ${kIsWeb ? 'Web' : 'Mobile'}");
+        debugPrint(
+            "✅ File selected: ${file.name}, Size: ${file.size} bytes, Platform: ${kIsWeb ? 'Web' : 'Mobile'}");
       }
     } catch (e) {
       debugPrint("❌ Error picking file: $e");
@@ -83265,7 +83345,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
   }
 
   // ============================================================
-  // ✅ UPLOAD DOCUMENT
+  // ✅ UPLOAD DOCUMENT — with provider sync for profile photo
   // ============================================================
   Future<void> _uploadDocument() async {
     if (_selectedDocumentType == null || _selectedDocumentKey == null) {
@@ -83291,7 +83371,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
         'document_type': _selectedDocumentKey,
       });
 
-      debugPrint("📤 Uploading document: $_selectedFileName to document_type: $_selectedDocumentKey");
+      debugPrint(
+          "📤 Uploading document: $_selectedFileName to document_type: $_selectedDocumentKey");
 
       final res = await DioClient.dio.post(
         '/user/upload-document',
@@ -83307,6 +83388,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 
       if (res.data['success'] == true) {
         final fileUrl = res.data['url'] as String;
+        final publicId = res.data['public_id'] as String?;
 
         if (mounted) {
           setState(() {
@@ -83314,10 +83396,20 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
           });
         }
 
+        // ✅ Persist to profile DB
         await _updateProfileDocument(_selectedDocumentKey!, fileUrl);
 
+        // ✅ CRITICAL: Sync profile photo to global provider
+        if (_selectedDocumentKey == 'profile_photo_url' && mounted) {
+          Provider.of<UserProfileProvider>(context, listen: false)
+              .setProfilePhoto(url: fileUrl, publicId: publicId);
+          debugPrint(
+              "✅ Profile photo synced to provider → sidebar + resume updated");
+        }
+
         if (mounted) {
-          showMessage(context, "$_selectedDocumentType uploaded successfully!");
+          showMessage(
+              context, "$_selectedDocumentType uploaded successfully!");
           setState(() {
             _selectedDocumentType = null;
             _selectedDocumentKey = null;
@@ -83332,7 +83424,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
       if (mounted) {
         String errorMsg = e.toString();
         if (errorMsg.contains("Invalid file type")) {
-          errorMsg = "File type not supported. Please upload JPG, JPEG, PNG images only.";
+          errorMsg =
+              "File type not supported. Please upload JPG, JPEG, PNG images only.";
         }
         showMessage(context, "Upload failed: $errorMsg", isError: true);
       }
@@ -83344,7 +83437,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
   }
 
   // ============================================================
-  // ✅ UPDATE PROFILE DOCUMENT
+  // ✅ UPDATE PROFILE DOCUMENT (DB persist)
   // ============================================================
   Future<void> _updateProfileDocument(String key, String url) async {
     try {
@@ -83352,12 +83445,13 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
       await DioClient.dio.put('/user/update-profile', data: updateData);
       debugPrint("✅ Updated profile document: $key");
     } catch (e) {
-      debugPrint("⚠️ Could not update profile: $e");
+      debugPrint("⚠️ Could not update profile via PUT: $e");
       try {
         await DioClient.dio.post('/user/update-document', data: {
           'document_key': key,
           'document_url': url,
         });
+        debugPrint("✅ Updated profile document via POST: $key");
       } catch (e2) {
         debugPrint("⚠️ Alternative update also failed: $e2");
       }
@@ -83365,7 +83459,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
   }
 
   // ============================================================
-  // ✅ DELETE DOCUMENT
+  // ✅ DELETE DOCUMENT — with provider sync for profile photo
   // ============================================================
   Future<void> _deleteDocument(String key, String docName) async {
     final confirm = await showDialog<bool>(
@@ -83398,6 +83492,17 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
       if (res.data['success'] == true) {
         if (mounted) {
           setState(() => _documents.remove(key));
+        }
+
+        // ✅ CRITICAL: If profile photo deleted → clear from provider too
+        if (key == 'profile_photo_url' && mounted) {
+          Provider.of<UserProfileProvider>(context, listen: false)
+              .clearProfilePhoto();
+          debugPrint(
+              "🗑️ Profile photo cleared from provider → sidebar + resume updated");
+        }
+
+        if (mounted) {
           showMessage(context, "$docName deleted successfully");
         }
       } else {
@@ -83484,18 +83589,30 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 
   Color _getCategoryColor(String category) {
     switch (category) {
-      case 'Education': return Colors.blue;
-      case 'Professional': return Colors.green;
-      case 'Identity': return Colors.purple;
-      case 'Caste': return Colors.orange;
-      case 'Disability': return Colors.teal;
-      case 'Income': return Colors.green;
-      case 'Residence': return Colors.indigo;
-      case 'Family': return Colors.pink;
-      case 'Government': return Colors.blueGrey;
-      case 'Certification': return Colors.deepPurple;
-      case 'Miscellaneous': return Colors.amber;
-      default: return Colors.grey;
+      case 'Education':
+        return Colors.blue;
+      case 'Professional':
+        return Colors.green;
+      case 'Identity':
+        return Colors.purple;
+      case 'Caste':
+        return Colors.orange;
+      case 'Disability':
+        return Colors.teal;
+      case 'Income':
+        return Colors.green;
+      case 'Residence':
+        return Colors.indigo;
+      case 'Family':
+        return Colors.pink;
+      case 'Government':
+        return Colors.blueGrey;
+      case 'Certification':
+        return Colors.deepPurple;
+      case 'Miscellaneous':
+        return Colors.amber;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -83869,7 +83986,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
               children: [
                 _buildHeader(),
                 const SizedBox(height: 20),
-                
+
                 // ============================================================
                 // ✅ UPLOAD SECTION
                 // ============================================================
@@ -83878,7 +83995,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _sectionHeader("Upload New Document", Icons.cloud_upload),
-                      
+
                       // Category Selection
                       const Text(
                         "Select Document Category",
@@ -83914,8 +84031,10 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 14),
-                            prefixIcon: Icon(Icons.folder_open, color: Colors.grey.shade600),
-                            suffixIcon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
+                            prefixIcon: Icon(Icons.folder_open,
+                                color: Colors.grey.shade600),
+                            suffixIcon: Icon(Icons.arrow_drop_down,
+                                color: Colors.grey.shade600),
                           ),
                           dropdownColor: Colors.white,
                           style: const TextStyle(
@@ -83928,7 +84047,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                   value: category,
                                   child: Row(children: [
                                     Icon(Icons.folder,
-                                        size: 18, color: _getCategoryColor(category)),
+                                        size: 18,
+                                        color: _getCategoryColor(category)),
                                     const SizedBox(width: 8),
                                     Text(
                                       "$category (${groupedDocs[category]!.length})",
@@ -83968,8 +84088,10 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                 decoration: BoxDecoration(
                                     color: Colors.blue,
                                     borderRadius: BorderRadius.circular(10)),
-                                child: Icon(_getDocumentIcon(_selectedDocumentKey!),
-                                    color: Colors.white, size: 20),
+                                child: Icon(
+                                    _getDocumentIcon(_selectedDocumentKey!),
+                                    color: Colors.white,
+                                    size: 20),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -84053,7 +84175,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                 Text(
                                     "${(_selectedFileBytes!.length / 1024).toStringAsFixed(1)} KB",
                                     style: TextStyle(
-                                        fontSize: 11, color: Colors.grey.shade600)),
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600)),
                               ],
                               const SizedBox(height: 8),
                               Container(
@@ -84102,7 +84225,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                 ? const SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white))
                                 : Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
@@ -84118,10 +84242,13 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                       ),
                                       const SizedBox(width: 8),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(10),
+                                          color:
+                                              Colors.white.withOpacity(0.2),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
                                         ),
                                         child: const Text(
                                           "AI",
@@ -84200,12 +84327,14 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                             SizedBox(height: 12),
                             Text(
                               "No documents uploaded yet",
-                              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                              style: TextStyle(
+                                  fontSize: 16, color: Colors.grey.shade600),
                             ),
                             SizedBox(height: 4),
                             Text(
                               "Select a category and document type to upload",
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey.shade500),
                             ),
                           ]),
                         )
@@ -84225,19 +84354,25 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                               margin: const EdgeInsets.only(bottom: 12),
                               decoration: BoxDecoration(
                                   gradient: LinearGradient(
-                                      colors: [Colors.grey.shade50, Colors.white],
+                                      colors: [
+                                        Colors.grey.shade50,
+                                        Colors.white
+                                      ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight),
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.grey.shade300)),
+                                  border: Border.all(
+                                      color: Colors.grey.shade300)),
                               child: ListTile(
                                 leading: Container(
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
                                         color: Colors.blue.shade100,
-                                        borderRadius: BorderRadius.circular(12)),
+                                        borderRadius:
+                                            BorderRadius.circular(12)),
                                     child: Icon(docIcon,
-                                        color: Colors.blue.shade700, size: 24)),
+                                        color: Colors.blue.shade700,
+                                        size: 24)),
                                 title: Text(
                                   docName,
                                   style: TextStyle(
@@ -84252,7 +84387,9 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                   const SizedBox(width: 4),
                                   Text(
                                     "Uploaded",
-                                    style: TextStyle(fontSize: 11, color: Colors.green.shade700),
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.green.shade700),
                                   ),
                                   const SizedBox(width: 12),
                                   Icon(Icons.access_time,
@@ -84272,7 +84409,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                     Container(
                                         decoration: BoxDecoration(
                                             color: Colors.blue.shade50,
-                                            borderRadius: BorderRadius.circular(8)),
+                                            borderRadius:
+                                                BorderRadius.circular(8)),
                                         child: IconButton(
                                             icon: const Icon(Icons.visibility,
                                                 color: Colors.blue, size: 20),
@@ -84283,12 +84421,13 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                                     Container(
                                         decoration: BoxDecoration(
                                             color: Colors.red.shade50,
-                                            borderRadius: BorderRadius.circular(8)),
+                                            borderRadius:
+                                                BorderRadius.circular(8)),
                                         child: IconButton(
                                             icon: const Icon(Icons.delete,
                                                 color: Colors.red, size: 20),
-                                            onPressed: () =>
-                                                _deleteDocument(docKey, docName),
+                                            onPressed: () => _deleteDocument(
+                                                docKey, docName),
                                             tooltip: "Delete Document")),
                                   ],
                                 ),
@@ -84309,7 +84448,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                       color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(12)),
                   child: Row(children: [
-                    Icon(Icons.info_outline, size: 20, color: Colors.blue.shade700),
+                    Icon(Icons.info_outline,
+                        size: 20, color: Colors.blue.shade700),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -84320,7 +84460,8 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
                         "🗑️ You can delete any document anytime.\n\n"
                         "📜 Special Documents include: Skip Certificate, Gap Certificate, Bonafide, NOC, etc.\n\n"
                         "📱 Works on both Mobile and Web platforms!",
-                        style: TextStyle(fontSize: 12, color: Colors.blue.shade900),
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.blue.shade900),
                       ),
                     ),
                   ]),
@@ -84336,7 +84477,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 }
 
 ================================================================================
-[ 126/ 133] 🎯 rojgarnext/lib/features/user/presentation/screens/user_support_screen.dart
+[ 127/ 134] 🎯 rojgarnext/lib/features/user/presentation/screens/user_support_screen.dart
 📏 SIZE: 27.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -85222,7 +85363,7 @@ This message was sent from RojgarNext App
 }
 
 ================================================================================
-[ 127/ 133] 🎯 rojgarnext/lib/features/user/presentation/utils/menu_types.dart
+[ 128/ 134] 🎯 rojgarnext/lib/features/user/presentation/utils/menu_types.dart
 📏 SIZE: 462 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -85255,7 +85396,7 @@ enum MenuType {
 
 
 ================================================================================
-[ 128/ 133] 🎯 rojgarnext/lib/features/user/presentation/widgets/user_sidebar.dart
+[ 129/ 134] 🎯 rojgarnext/lib/features/user/presentation/widgets/user_sidebar.dart
 📏 SIZE: 12.7 KB
 🕐 MODIFIED: 2026-09-24 23:30:48
 ================================================================================
@@ -85653,302 +85794,154 @@ class _UserSidebarState extends State<UserSidebar> {
 }
 
 ================================================================================
-[ 129/ 133] 🎯 rojgarnext/lib/features/user/providers/user_profile_provider.dart
-📏 SIZE: 9.5 KB
-🕐 MODIFIED: 2026-09-24 23:29:37
+[ 130/ 134] 🎯 rojgarnext/lib/features/user/providers/user_profile_provider.dart
+📏 SIZE: 5.1 KB
+🕐 MODIFIED: 2026-09-25 09:54:42
 ================================================================================
 
 // lib/features/user/providers/user_profile_provider.dart
-// ✅ GLOBAL STATE - SAME PHOTO EVERYWHERE WITHOUT RELOAD
-// ✅ Used by: UserDashboard, ResumeScreen, BuildResumeScreen, UserSidebar
-// ✅ When photo updates → notifyListeners() → all listeners rebuild instantly
+// ✅ SINGLE SOURCE OF TRUTH for profile photo across entire app
+// ✅ Notifies listeners on every change → no page reload needed
+// ✅ Added: loadProfile() + clear() methods (fixes compile errors)
 
-import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
-import 'package:rojgarnext/core/storage/secure_storage.dart';
-import 'package:rojgarnext/core/config/api_config.dart';
 
 class UserProfileProvider extends ChangeNotifier {
-  // ============================================================
-  // STATE
-  // ============================================================
-  String? _profilePhotoUrl;
-  String? _profilePhotoPublicId;
-  Map<String, dynamic>? _profileData;
-  Map<String, dynamic>? _resumeData;
-  List<String> _availableResumeFormats = [];
-  bool _isLoading = false;
-  bool _isUploadingPhoto = false;
-  String? _errorMessage;
+  Map<String, dynamic>? _profile;
 
-  // Getters
+  /// Current profile photo URL — null / empty means NO photo
+  String? _profilePhotoUrl;
+
+  /// Current profile photo Cloudinary public_id (for deletion)
+  String? _profilePhotoPublicId;
+
+  // ============================================================
+  // GETTERS
+  // ============================================================
+  Map<String, dynamic>? get profile => _profile;
   String? get profilePhotoUrl => _profilePhotoUrl;
   String? get profilePhotoPublicId => _profilePhotoPublicId;
-  Map<String, dynamic>? get profileData => _profileData;
-  Map<String, dynamic>? get resumeData => _resumeData;
-  List<String> get availableResumeFormats => _availableResumeFormats;
-  bool get isLoading => _isLoading;
-  bool get isUploadingPhoto => _isUploadingPhoto;
-  String? get errorMessage => _errorMessage;
-  bool get hasProfilePhoto =>
-      _profilePhotoUrl != null && _profilePhotoUrl!.trim().isNotEmpty;
+  bool get hasPhoto => (_profilePhotoUrl ?? '').trim().isNotEmpty;
 
   // ============================================================
-  // LOAD PROFILE (from /user/full-profile)
+  // ✅ SET PROFILE PHOTO (from any upload source)
   // ============================================================
-  Future<void> loadProfile({bool force = false}) async {
-    if (_isLoading && !force) return;
+  void setProfilePhoto({required String url, String? publicId}) {
+    if (url.trim().isEmpty) {
+      clearProfilePhoto();
+      return;
+    }
+    _profilePhotoUrl = url.trim();
+    _profilePhotoPublicId = publicId;
+    notifyListeners();
+    debugPrint('✅ Provider photo set: $_profilePhotoUrl');
+  }
 
-    _setLoading(true);
-    _errorMessage = null;
+  /// Same as setProfilePhoto — alias used by ResumeScreen
+  void updateProfilePhotoFromUrl(String url, {String? publicId}) {
+    setProfilePhoto(url: url, publicId: publicId);
+  }
 
+  // ============================================================
+  // ✅ CLEAR PROFILE PHOTO (from delete action)
+  // ============================================================
+  void clearProfilePhoto() {
+    _profilePhotoUrl = null;
+    _profilePhotoPublicId = null;
+    notifyListeners();
+    debugPrint('🗑️ Provider photo cleared');
+  }
+
+  // ============================================================
+  // ✅ NEW: loadProfile() — called from main.dart on app start
+  // Alias for fetchProfile() for backward compatibility
+  // ============================================================
+  Future<void> loadProfile() async {
+    await fetchProfile();
+  }
+
+  // ============================================================
+  // ✅ NEW: clear() — called from sidebar logout
+  // Clears ALL cached profile data + photo
+  // ============================================================
+  void clear() {
+    _profile = null;
+    _profilePhotoUrl = null;
+    _profilePhotoPublicId = null;
+    notifyListeners();
+    debugPrint('🗑️ Provider: Full profile state cleared (logout)');
+  }
+
+  // ============================================================
+  // ✅ FETCH FULL PROFILE + EXTRACT PHOTO URL
+  // ============================================================
+  Future<void> fetchProfile() async {
     try {
-      final token = await SecureStorage.getToken();
-      if (token == null) {
-        _profileData = null;
-        _profilePhotoUrl = null;
-        _notify();
-        return;
-      }
-
       final response = await DioClient.dio.get('/user/full-profile');
       Map<String, dynamic> data = {};
       if (response.data is Map) {
-        final rd = response.data;
-        if (rd.containsKey('data') && rd['data'] is Map) {
-          data = Map<String, dynamic>.from(rd['data']);
+        final body = response.data as Map;
+        if (body['data'] is Map) {
+          data = Map<String, dynamic>.from(body['data']);
         } else {
-          data = Map<String, dynamic>.from(rd);
+          data = Map<String, dynamic>.from(body);
         }
       }
-      _profileData = data;
+      _profile = data;
 
-      // Extract profile photo URL — check multiple places
-      final additional = data['additional_details'] as Map? ?? {};
-      final photo = (data['profile_photo_url']?.toString() ??
-              additional['profile_photo_url']?.toString() ??
-              data['photo_url']?.toString() ??
+      final additional = (data['additional_details'] as Map?) ?? {};
+      final photoUrl = (additional['profile_photo_url']?.toString() ??
+              data['profile_photo_url']?.toString() ??
               '')
           .trim();
 
-      if (photo.isNotEmpty && (photo.startsWith('http://') || photo.startsWith('https://'))) {
-        _profilePhotoUrl = photo;
-        _profilePhotoPublicId = data['profile_photo_public_id']?.toString() ??
-            additional['profile_photo_public_id']?.toString();
+      _profilePhotoPublicId = (additional['profile_photo_public_id'] ??
+              data['profile_photo_public_id'])
+          ?.toString();
+
+      if (photoUrl.isNotEmpty) {
+        _profilePhotoUrl = photoUrl;
       } else {
         _profilePhotoUrl = null;
         _profilePhotoPublicId = null;
       }
 
-      _availableResumeFormats =
-          List<String>.from(data['resume_formats_available'] ?? []);
-
-      debugPrint("✅ ProfileProvider loaded: photo=$_profilePhotoUrl");
+      notifyListeners();
+      debugPrint('✅ Provider profile fetched — photo: $_profilePhotoUrl');
     } catch (e) {
-      _errorMessage = e.toString();
-      debugPrint("❌ ProfileProvider load failed: $e");
-    } finally {
-      _setLoading(false);
+      debugPrint('❌ Provider fetchProfile failed: $e');
     }
   }
 
   // ============================================================
-  // UPLOAD PROFILE PHOTO — uses /user/upload-document
-  // Same endpoint used by ResumeProfileService
+  // ✅ REFRESH FROM BACKEND (safe — keeps old value on failure)
   // ============================================================
-  Future<bool> uploadProfilePhoto({
-    required Uint8List fileBytes,
-    required String fileName,
-  }) async {
-    if (_isUploadingPhoto) return false;
-
-    _isUploadingPhoto = true;
-    _errorMessage = null;
-    _notify();
-
-    try {
-      final token = await SecureStorage.getToken();
-      if (token == null) {
-        throw Exception("No authentication token found");
-      }
-
-      final uri = Uri.parse('${ApiConfig.baseUrl}/user/upload-document');
-      final request = http.MultipartRequest('POST', uri);
-      request.headers['Authorization'] = 'Bearer $token';
-
-      // Determine MIME type
-      final ext = fileName.toLowerCase().split('.').last;
-      String mimeType = 'image/jpeg';
-      switch (ext) {
-        case 'png':
-          mimeType = 'image/png';
-          break;
-        case 'gif':
-          mimeType = 'image/gif';
-          break;
-        case 'webp':
-          mimeType = 'image/webp';
-          break;
-        case 'bmp':
-          mimeType = 'image/bmp';
-          break;
-        case 'jpg':
-        case 'jpeg':
-        default:
-          mimeType = 'image/jpeg';
-      }
-
-      request.files.add(http.MultipartFile.fromBytes(
-        'file',
-        fileBytes,
-        filename: fileName,
-        contentType: MediaType.parse(mimeType),
-      ));
-      request.fields['document_type'] = 'profile_photo_url';
-
-      debugPrint("📤 Uploading profile photo: $fileName ($mimeType)");
-      final streamed = await request.send();
-      final response = await http.Response.fromStream(streamed);
-
-      debugPrint("📥 Upload status: ${response.statusCode}");
-      debugPrint("📥 Upload body: ${response.body}");
-
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        throw Exception(
-            "Upload failed: ${response.statusCode} - ${response.body}");
-      }
-
-      final responseData = jsonDecode(response.body) as Map<String, dynamic>;
-      final newUrl = (responseData['url']?.toString() ??
-              responseData['data']?['url']?.toString() ??
-              '')
-          .trim();
-
-      if (newUrl.isEmpty || !newUrl.startsWith('http')) {
-        throw Exception("Server did not return a valid photo URL");
-      }
-
-      // ✅ Update local state IMMEDIATELY — UI updates without reload
-      _profilePhotoUrl = newUrl;
-      _profilePhotoPublicId =
-          responseData['public_id']?.toString() ??
-              responseData['data']?['public_id']?.toString();
-
-      // ✅ Notify all listeners — sidebar + resume + dashboard rebuild instantly
-      _notify();
-
-      // ✅ Refresh full profile in background (non-blocking)
-      unawaited(loadProfile(force: true));
-
-      return true;
-    } catch (e) {
-      _errorMessage = e.toString();
-      debugPrint("❌ Upload profile photo failed: $e");
-      _notify();
-      return false;
-    } finally {
-      _isUploadingPhoto = false;
-      _notify();
-    }
+  Future<void> refresh() async {
+    await fetchProfile();
   }
 
   // ============================================================
-  // UPDATE PHOTO FROM EXTERNAL URL (called by other services)
+  // ✅ FULL PROFILE UPDATE (for other profile screens)
   // ============================================================
-  void updateProfilePhotoFromUrl(String url, {String? publicId}) {
-    final trimmed = url.trim();
-    if (trimmed.isEmpty) return;
-    if (_profilePhotoUrl == trimmed) return; // avoid redundant notify
-
-    _profilePhotoUrl = trimmed;
-    if (publicId != null) _profilePhotoPublicId = publicId;
-    _notify();
-  }
-
-  // ============================================================
-  // REBUILD RESUME (manual trigger)
-  // ============================================================
-  Future<bool> rebuildResume() async {
-    try {
-      final token = await SecureStorage.getToken();
-      if (token == null) return false;
-
-      final response = await DioClient.dio.post('/resume/rebuild');
-      if (response.data['success'] == true) {
-        _resumeData = Map<String, dynamic>.from(
-          response.data['resume_data'] ?? {},
-        );
-        _availableResumeFormats =
-            List<String>.from(response.data['formats'] ?? []);
-        _notify();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      debugPrint("❌ rebuildResume failed: $e");
-      return false;
-    }
-  }
-
-  // ============================================================
-  // UPDATE PROFILE DATA (merge)
-  // ============================================================
-  void updateProfileData(Map<String, dynamic> newData) {
-    _profileData = {...?_profileData, ...newData};
-    final additional = _profileData?['additional_details'] as Map? ?? {};
-    final photo = (_profileData?['profile_photo_url']?.toString() ??
-            additional['profile_photo_url']?.toString() ??
+  void updateProfile(Map<String, dynamic> newProfile) {
+    _profile = newProfile;
+    final additional = (newProfile['additional_details'] as Map?) ?? {};
+    final photoUrl = (additional['profile_photo_url']?.toString() ??
+            newProfile['profile_photo_url']?.toString() ??
             '')
         .trim();
-    if (photo.isNotEmpty) {
-      _profilePhotoUrl = photo;
+    if (photoUrl.isNotEmpty) {
+      _profilePhotoUrl = photoUrl;
+    } else {
+      _profilePhotoUrl = null;
     }
-    _notify();
+    notifyListeners();
   }
-
-  // ============================================================
-  // CLEAR (on logout)
-  // ============================================================
-  void clear() {
-    _profilePhotoUrl = null;
-    _profilePhotoPublicId = null;
-    _profileData = null;
-    _resumeData = null;
-    _availableResumeFormats = [];
-    _errorMessage = null;
-    _notify();
-  }
-
-  // ============================================================
-  // INTERNAL
-  // ============================================================
-  void _setLoading(bool v) {
-    _isLoading = v;
-    _notify();
-  }
-
-  void _notify() {
-    try {
-      notifyListeners();
-    } catch (e) {
-      debugPrint("⚠️ Provider notify error: $e");
-    }
-  }
-}
-
-// Helper to run futures without awaiting
-void unawaited(Future<void> f) {
-  // ignore: discarded_futures
-  f;
 }
 
 ================================================================================
-[ 130/ 133] 🎯 rojgarnext/lib/main.dart
+[ 131/ 134] 🎯 rojgarnext/lib/main.dart
 📏 SIZE: 4.3 KB
 🕐 MODIFIED: 2026-09-24 23:30:21
 ================================================================================
@@ -86108,7 +86101,7 @@ class _NoGlowScrollBehavior extends ScrollBehavior {
 }
 
 ================================================================================
-[ 131/ 133] ⚙️ rojgarnext/pubspec.yaml
+[ 132/ 134] ⚙️ rojgarnext/pubspec.yaml
 📏 SIZE: 2.0 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -86201,7 +86194,7 @@ flutter:
     - assets/icons/
 
 ================================================================================
-[ 132/ 133] 🌐 rojgarnext/web/index.html
+[ 133/ 134] 🌐 rojgarnext/web/index.html
 📏 SIZE: 1.6 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -86257,7 +86250,7 @@ flutter:
 </html>
 
 ================================================================================
-[ 133/ 133] 📋 rojgarnext/web/manifest.json
+[ 134/ 134] 📋 rojgarnext/web/manifest.json
 📏 SIZE: 951 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -86302,6 +86295,6 @@ flutter:
 ================================================================================
 🎉 EXPORT COMPLETED!
 ================================================================================
-Total Files: 133
-Generated: 2026-09-24 23:45:35
+Total Files: 134
+Generated: 2026-09-25 10:05:52
 ================================================================================

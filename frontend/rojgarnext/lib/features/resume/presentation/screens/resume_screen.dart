@@ -1,10 +1,10 @@
 // lib/features/resume/presentation/screens/resume_screen.dart
-// ✅ Profile photo integration: fetches URL, triggers upload popup if missing
-// ✅ NEW: UserProfileProvider watch → auto-update photo everywhere without refresh
+// ✅ Provider is SINGLE SOURCE OF TRUTH for photo
+// ✅ Auto-popup if no photo (once per screen session)
+// ✅ Live sync — upload/delete anywhere updates here instantly
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
@@ -26,22 +26,20 @@ class ResumeScreen extends StatefulWidget {
 class _ResumeScreenState extends State<ResumeScreen>
     with TickerProviderStateMixin {
   bool _isLoading = true;
-  bool _isExporting = false;
   Map<String, dynamic> _resumeData = {};
   String? _errorMessage;
 
-  // ✅ profile photo state
-  String? _profilePhotoUrl;
+  /// ✅ Prevents repeated popup in same screen session
+  bool _photoDialogShown = false;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
-  // Cache keys
   static const String CACHE_KEY = 'resume_data_cache';
   static const String CACHE_TIMESTAMP = 'resume_cache_timestamp';
-  static const int CACHE_DURATION = 5; // minutes
+  static const int CACHE_DURATION = 5;
 
   @override
   void initState() {
@@ -53,7 +51,6 @@ class _ResumeScreenState extends State<ResumeScreen>
     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
-
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -62,7 +59,16 @@ class _ResumeScreenState extends State<ResumeScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    _loadResumeData();
+    // Ensure provider is loaded fresh
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<UserProfileProvider>(context, listen: false)
+            .fetchProfile()
+            .then((_) {
+          if (mounted) _loadResumeData();
+        });
+      }
+    });
   }
 
   @override
@@ -73,37 +79,28 @@ class _ResumeScreenState extends State<ResumeScreen>
   }
 
   // ============================================================
-  // ✅ EFFECTIVE PHOTO URL — local state → provider → null
-  // Makes photo uploads from ANY screen show up here instantly.
+  // ✅ SINGLE SOURCE OF TRUTH — read directly from provider
   // ============================================================
   String? get _effectivePhotoUrl {
-    if (_profilePhotoUrl != null && _profilePhotoUrl!.trim().isNotEmpty) {
-      return _profilePhotoUrl;
-    }
     try {
-      final providerUrl =
-          Provider.of<UserProfileProvider>(context, listen: false)
-              .profilePhotoUrl;
-      if (providerUrl != null && providerUrl.trim().isNotEmpty) {
-        return providerUrl;
-      }
+      final url =
+          Provider.of<UserProfileProvider>(context, listen: false).profilePhotoUrl;
+      if (url != null && url.trim().isNotEmpty) return url;
     } catch (_) {}
     return null;
   }
 
   // ============================================================
-  // ✅ FAST LOADING — CACHE FIRST
+  // FAST LOADING — CACHE FIRST
   // ============================================================
   Future<void> _loadResumeData() async {
     if (!mounted) return;
-
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      // Step 1: Load from cache immediately
       final cachedData = await _loadFromCache();
       if (cachedData != null && mounted) {
         _resumeData = cachedData;
@@ -111,16 +108,12 @@ class _ResumeScreenState extends State<ResumeScreen>
         _animationController.forward();
         _pulseController.stop();
       }
-
-      // Step 2: Fetch fresh data in background
       await _fetchFreshData();
     } catch (e) {
       if (!mounted) return;
       if (_resumeData.isEmpty) {
         _errorMessage = 'Failed to load resume';
-        if (mounted) {
-          showMessage(context, _errorMessage!, isError: true);
-        }
+        showMessage(context, _errorMessage!, isError: true);
       }
     } finally {
       if (mounted) {
@@ -134,22 +127,15 @@ class _ResumeScreenState extends State<ResumeScreen>
     try {
       final prefs = await SharedPreferences.getInstance();
       final timestamp = prefs.getInt(CACHE_TIMESTAMP);
-
       if (timestamp != null) {
         final elapsed = DateTime.now().millisecondsSinceEpoch - timestamp;
-        final minutes = elapsed / (1000 * 60);
-        if (minutes > CACHE_DURATION) {
-          return null;
-        }
+        if (elapsed / (1000 * 60) > CACHE_DURATION) return null;
       }
-
       final cachedJson = prefs.getString(CACHE_KEY);
       if (cachedJson != null) {
-        final Map<String, dynamic> data = Map<String, dynamic>.from(
+        return Map<String, dynamic>.from(
           jsonDecode(cachedJson) as Map<String, dynamic>,
         );
-        debugPrint('✅ Loaded resume from cache (fast)');
-        return data;
       }
     } catch (e) {
       debugPrint('Cache read error: $e');
@@ -163,7 +149,6 @@ class _ResumeScreenState extends State<ResumeScreen>
       await prefs.setString(CACHE_KEY, jsonEncode(data));
       await prefs.setInt(
           CACHE_TIMESTAMP, DateTime.now().millisecondsSinceEpoch);
-      debugPrint('✅ Resume saved to cache');
     } catch (e) {
       debugPrint('Cache save error: $e');
     }
@@ -171,29 +156,28 @@ class _ResumeScreenState extends State<ResumeScreen>
 
   Future<void> _fetchFreshData() async {
     try {
-      // ✅ Fetch profile photo URL FIRST
+      // ✅ First, sync provider with server truth
       try {
         final photoUrl = await ResumeProfileService.getProfilePhotoUrl();
+        final publicId = await ResumeProfileService.getProfilePhotoPublicId();
+        if (!mounted) return;
+        final provider =
+            Provider.of<UserProfileProvider>(context, listen: false);
         if (photoUrl != null && photoUrl.isNotEmpty) {
-          _profilePhotoUrl = photoUrl;
-          // Push to provider so all screens see it
-          if (mounted) {
-            Provider.of<UserProfileProvider>(context, listen: false)
-                .updateProfilePhotoFromUrl(photoUrl);
-          }
+          provider.setProfilePhoto(url: photoUrl, publicId: publicId);
+        } else {
+          provider.clearProfilePhoto();
         }
-        debugPrint('📸 ResumeScreen profile photo: $photoUrl');
+        debugPrint('📸 ResumeScreen synced photo: $photoUrl');
       } catch (e) {
-        debugPrint('⚠️ Could not fetch profile photo: $e');
+        debugPrint('⚠️ Could not sync profile photo: $e');
       }
 
       final response = await DioClient.dio.get('/resume/profile-resume');
-
       if (!mounted) return;
 
       if (response.data['success'] == true) {
         final data = response.data as Map<String, dynamic>;
-
         data['user_info'] = data['user_info'] ?? {};
         data['contact_info'] = data['contact_info'] ?? {};
         data['education'] = data['education'] ?? [];
@@ -205,34 +189,17 @@ class _ResumeScreenState extends State<ResumeScreen>
         data['social_links'] = data['social_links'] ?? {};
         data['statistics'] = data['statistics'] ?? {};
 
-        // ✅ inject profile photo URL into resume data
-        final photo = _effectivePhotoUrl;
-        if (photo != null && photo.isNotEmpty) {
-          (data['user_info'] as Map)['profile_photo_url'] = photo;
-          (data['contact_info'] as Map)['profile_photo_url'] = photo;
-        }
-
         setState(() {
           _resumeData = data;
         });
-
         await _saveToCache(data);
 
         if (_animationController.status == AnimationStatus.dismissed) {
           _animationController.forward();
         }
-
-        // ✅ Trigger popup if no profile photo
-        if (_effectivePhotoUrl == null && mounted) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _showProfilePhotoDialog();
-          });
-        }
       } else if (_resumeData.isEmpty) {
         _errorMessage = response.data['message'] ?? 'Failed to load resume';
-        if (mounted) {
-          showMessage(context, _errorMessage!, isError: true);
-        }
+        if (mounted) showMessage(context, _errorMessage!, isError: true);
       }
     } catch (e) {
       debugPrint('Fresh data fetch error: $e');
@@ -242,18 +209,25 @@ class _ResumeScreenState extends State<ResumeScreen>
     }
   }
 
-  // ✅ Popup to upload profile photo, then refresh
+  // ✅ Auto-popup (only once)
+  void _maybeShowPhotoPopup() {
+    if (_photoDialogShown || !mounted) return;
+    if (_effectivePhotoUrl != null) return;
+    _photoDialogShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showProfilePhotoDialog();
+    });
+  }
+
   Future<void> _showProfilePhotoDialog() async {
     if (!mounted) return;
-
     final uploadedUrl = await ProfilePhotoUploadDialog.show(
       context,
       currentPhotoUrl: _effectivePhotoUrl,
     );
-
     if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
-      setState(() => _profilePhotoUrl = uploadedUrl);
-      // Provider already notified → all listeners rebuild
+      // Provider already notified → resume + all screens rebuild
+      debugPrint('✅ Photo uploaded via dialog: $uploadedUrl');
     }
   }
 
@@ -263,14 +237,14 @@ class _ResumeScreenState extends State<ResumeScreen>
       await prefs.remove(CACHE_KEY);
       await prefs.remove(CACHE_TIMESTAMP);
     } catch (_) {}
-
     _animationController.reset();
     _pulseController.repeat(reverse: true);
+    _photoDialogShown = false; // allow popup again on manual refresh
     await _loadResumeData();
   }
 
   // ============================================================
-  // ✅ AI LOADING SCREEN
+  // LOADING SCREEN
   // ============================================================
   Widget _buildLoadingScreen() {
     return Scaffold(
@@ -298,11 +272,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                   ],
                 ),
                 child: const Center(
-                  child: Icon(
-                    Icons.auto_awesome,
-                    color: Colors.white,
-                    size: 40,
-                  ),
+                  child: Icon(Icons.auto_awesome,
+                      color: Colors.white, size: 40),
                 ),
               ),
             ),
@@ -325,15 +296,11 @@ class _ResumeScreenState extends State<ResumeScreen>
               valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C63FF)),
             ),
             const SizedBox(height: 24),
-            Opacity(
+            const Opacity(
               opacity: 0.6,
-              child: const Text(
+              child: Text(
                 "Please wait while we prepare your resume",
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF6B6B80),
-                  fontWeight: FontWeight.w400,
-                ),
+                style: TextStyle(fontSize: 14, color: Color(0xFF6B6B80)),
               ),
             ),
           ],
@@ -343,11 +310,11 @@ class _ResumeScreenState extends State<ResumeScreen>
   }
 
   // ============================================================
-  // ✅ BUILD
+  // BUILD
   // ============================================================
   @override
   Widget build(BuildContext context) {
-    // ✅ Watch provider → any photo upload anywhere triggers rebuild
+    // ✅ Watch provider — any photo change anywhere rebuilds this screen
     context.watch<UserProfileProvider>();
 
     if (_isLoading && _resumeData.isEmpty) {
@@ -369,11 +336,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                   color: Colors.red.shade50,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.error_outline,
-                  size: 50,
-                  color: Colors.red.shade400,
-                ),
+                child: Icon(Icons.error_outline,
+                    size: 50, color: Colors.red.shade400),
               ),
               const SizedBox(height: 24),
               const Text(
@@ -391,9 +355,7 @@ class _ResumeScreenState extends State<ResumeScreen>
                   _errorMessage!,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: Color(0xFF6B6B80),
-                    fontSize: 14,
-                  ),
+                      color: Color(0xFF6B6B80), fontSize: 14),
                 ),
               ),
               const SizedBox(height: 24),
@@ -415,6 +377,9 @@ class _ResumeScreenState extends State<ResumeScreen>
         ),
       );
     }
+
+    // ✅ Trigger popup AFTER first build if no photo
+    _maybeShowPhotoPopup();
 
     final userInfo = _resumeData['user_info'] as Map<String, dynamic>? ?? {};
     final contactInfo =
@@ -458,10 +423,9 @@ class _ResumeScreenState extends State<ResumeScreen>
                     child: Text(
                       summary,
                       style: const TextStyle(
-                        height: 1.6,
-                        fontSize: 14,
-                        color: Color(0xFF2D2D3F),
-                      ),
+                          height: 1.6,
+                          fontSize: 14,
+                          color: Color(0xFF2D2D3F)),
                     ),
                   ),
                 if (summary.isNotEmpty) const SizedBox(height: 16),
@@ -473,10 +437,9 @@ class _ResumeScreenState extends State<ResumeScreen>
                     child: Text(
                       objective,
                       style: const TextStyle(
-                        height: 1.6,
-                        fontSize: 14,
-                        color: Color(0xFF2D2D3F),
-                      ),
+                          height: 1.6,
+                          fontSize: 14,
+                          color: Color(0xFF2D2D3F)),
                     ),
                   ),
                 if (objective.isNotEmpty) const SizedBox(height: 16),
@@ -525,7 +488,6 @@ class _ResumeScreenState extends State<ResumeScreen>
       centerTitle: true,
       automaticallyImplyLeading: false,
       actions: [
-        // ✅ Change Profile Photo action
         IconButton(
           icon: const Icon(Icons.photo_camera, color: Color(0xFF6C63FF)),
           onPressed: _showProfilePhotoDialog,
@@ -587,11 +549,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                     color: (stat['color'] as Color).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    stat['icon'] as IconData,
-                    color: stat['color'] as Color,
-                    size: 18,
-                  ),
+                  child: Icon(stat['icon'] as IconData,
+                      color: stat['color'] as Color, size: 18),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -657,7 +616,6 @@ class _ResumeScreenState extends State<ResumeScreen>
         children: [
           Row(
             children: [
-              // ✅ Show profile photo if available, else initials
               if (hasPhoto)
                 Container(
                   width: 80,
@@ -691,11 +649,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                       ),
                       errorWidget: (_, __, ___) => Container(
                         color: Colors.white24,
-                        child: const Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 40,
-                        ),
+                        child: const Icon(Icons.person,
+                            color: Colors.white, size: 40),
                       ),
                     ),
                   ),
@@ -930,17 +885,15 @@ class _ResumeScreenState extends State<ResumeScreen>
                             Text(
                               "${exp['start_date'] ?? ''} - ${exp['end_date'] ?? 'Present'}",
                               style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF6B6B80),
-                              ),
+                                  fontSize: 12, color: Color(0xFF6B6B80)),
                             ),
                             const SizedBox(width: 16),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFF6B6B)
-                                    .withOpacity(0.1),
+                                color:
+                                    const Color(0xFFFF6B6B).withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -975,37 +928,36 @@ class _ResumeScreenState extends State<ResumeScreen>
                             ),
                           ),
                           const SizedBox(height: 6),
-                          ...(exp['achievements'] as List).map((ach) =>
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: Row(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      margin:
-                                          const EdgeInsets.only(top: 6),
-                                      width: 4,
-                                      height: 4,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFFFF6B6B),
-                                        shape: BoxShape.circle,
+                          ...(exp['achievements'] as List).map(
+                            (ach) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 6),
+                                    width: 4,
+                                    height: 4,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFFF6B6B),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      ach.toString(),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF2D2D3F),
+                                        height: 1.4,
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        ach.toString(),
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Color(0xFF2D2D3F),
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ],
                       ],
                     ),
@@ -1082,17 +1034,15 @@ class _ResumeScreenState extends State<ResumeScreen>
                             Text(
                               edu['year_of_passing']?.toString() ?? '',
                               style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF6B6B80),
-                              ),
+                                  fontSize: 12, color: Color(0xFF6B6B80)),
                             ),
                             const SizedBox(width: 16),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF4ECDC4)
-                                    .withOpacity(0.1),
+                                color:
+                                    const Color(0xFF4ECDC4).withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -1125,9 +1075,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                                       child: Text(
                                         subj.toString(),
                                         style: const TextStyle(
-                                          fontSize: 11,
-                                          color: Color(0xFF4ECDC4),
-                                        ),
+                                            fontSize: 11,
+                                            color: Color(0xFF4ECDC4)),
                                       ),
                                     ))
                                 .toList(),
@@ -1162,10 +1111,10 @@ class _ResumeScreenState extends State<ResumeScreen>
         children: [
           if (expertSkills.isNotEmpty) ...[
             Row(
-              children: [
-                const Icon(Icons.star, size: 16, color: Color(0xFFFFB800)),
-                const SizedBox(width: 6),
-                const Text(
+              children: const [
+                Icon(Icons.star, size: 16, color: Color(0xFFFFB800)),
+                SizedBox(width: 6),
+                Text(
                   "Expert",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -1179,34 +1128,35 @@ class _ResumeScreenState extends State<ResumeScreen>
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: expertSkills.map((skill) => Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFFB800), Color(0xFFFFD233)],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      skill['name'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  )).toList(),
+              children: expertSkills
+                  .map((skill) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFB800), Color(0xFFFFD233)],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          skill['name'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ))
+                  .toList(),
             ),
             const SizedBox(height: 12),
           ],
           if (advancedSkills.isNotEmpty) ...[
             Row(
-              children: [
-                const Icon(Icons.auto_awesome,
-                    size: 16, color: Color(0xFF6C63FF)),
-                const SizedBox(width: 6),
-                const Text(
+              children: const [
+                Icon(Icons.auto_awesome, size: 16, color: Color(0xFF6C63FF)),
+                SizedBox(width: 6),
+                Text(
                   "Advanced",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -1220,35 +1170,36 @@ class _ResumeScreenState extends State<ResumeScreen>
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: advancedSkills.map((skill) => Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6C63FF).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFF6C63FF).withOpacity(0.2),
-                      ),
-                    ),
-                    child: Text(
-                      skill['name'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF6C63FF),
-                      ),
-                    ),
-                  )).toList(),
+              children: advancedSkills
+                  .map((skill) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6C63FF).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(0xFF6C63FF).withOpacity(0.2),
+                          ),
+                        ),
+                        child: Text(
+                          skill['name'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF6C63FF),
+                          ),
+                        ),
+                      ))
+                  .toList(),
             ),
             const SizedBox(height: 12),
           ],
           if (intermediateSkills.isNotEmpty) ...[
             Row(
-              children: [
-                const Icon(Icons.trending_up,
-                    size: 16, color: Color(0xFF4ECDC4)),
-                const SizedBox(width: 6),
-                const Text(
+              children: const [
+                Icon(Icons.trending_up, size: 16, color: Color(0xFF4ECDC4)),
+                SizedBox(width: 6),
+                Text(
                   "Intermediate",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -1262,25 +1213,27 @@ class _ResumeScreenState extends State<ResumeScreen>
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: intermediateSkills.map((skill) => Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4ECDC4).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFF4ECDC4).withOpacity(0.2),
-                      ),
-                    ),
-                    child: Text(
-                      skill['name'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF4ECDC4),
-                      ),
-                    ),
-                  )).toList(),
+              children: intermediateSkills
+                  .map((skill) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4ECDC4).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(0xFF4ECDC4).withOpacity(0.2),
+                          ),
+                        ),
+                        child: Text(
+                          skill['name'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF4ECDC4),
+                          ),
+                        ),
+                      ))
+                  .toList(),
             ),
           ],
         ],
@@ -1322,11 +1275,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                     color: const Color(0xFFFF6B6B).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.verified,
-                    size: 16,
-                    color: Color(0xFFFF6B6B),
-                  ),
+                  child: const Icon(Icons.verified,
+                      size: 16, color: Color(0xFFFF6B6B)),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -1347,9 +1297,7 @@ class _ResumeScreenState extends State<ResumeScreen>
                       Text(
                         "${cert['issuer'] ?? ''} (${cert['year'] ?? ''})",
                         style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF6B6B80),
-                        ),
+                            fontSize: 11, color: Color(0xFF6B6B80)),
                       ),
                     ],
                   ),
@@ -1433,10 +1381,9 @@ class _ResumeScreenState extends State<ResumeScreen>
                     Text(
                       project['description'] ?? '',
                       style: const TextStyle(
-                        fontSize: 13,
-                        height: 1.5,
-                        color: Color(0xFF2D2D3F),
-                      ),
+                          fontSize: 13,
+                          height: 1.5,
+                          color: Color(0xFF2D2D3F)),
                     ),
                   ],
                 ),
@@ -1473,7 +1420,6 @@ class _ResumeScreenState extends State<ResumeScreen>
             default:
               color = const Color(0xFFFF6B6B);
           }
-
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
@@ -1484,11 +1430,7 @@ class _ResumeScreenState extends State<ResumeScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.circle,
-                  size: 8,
-                  color: color,
-                ),
+                Icon(Icons.circle, size: 8, color: color),
                 const SizedBox(width: 8),
                 Text(
                   "${lang['name'] ?? ''} - $proficiency",
@@ -1582,13 +1524,13 @@ class _ResumeScreenState extends State<ResumeScreen>
     if (value.isEmpty) return const SizedBox();
     return Row(
       children: [
-        Icon(icon, size: 16, color: Color(0xFF6B6B80)),
+        Icon(icon, size: 16, color: const Color(0xFF6B6B80)),
         const SizedBox(width: 8),
         SizedBox(
           width: 85,
           child: Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 13,
               color: Color(0xFF6B6B80),
               fontWeight: FontWeight.w500,
@@ -1637,8 +1579,7 @@ class _ResumeScreenState extends State<ResumeScreen>
                   color: const Color(0xFF6C63FF).withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child:
-                    Icon(icon, size: 16, color: const Color(0xFF6C63FF)),
+                child: Icon(icon, size: 16, color: const Color(0xFF6C63FF)),
               ),
               const SizedBox(width: 10),
               SizedBox(
@@ -1664,11 +1605,8 @@ class _ResumeScreenState extends State<ResumeScreen>
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(
-                Icons.open_in_new,
-                size: 14,
-                color: Color(0xFF6C63FF),
-              ),
+              const Icon(Icons.open_in_new,
+                  size: 14, color: Color(0xFF6C63FF)),
             ],
           ),
         ),

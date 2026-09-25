@@ -1,103 +1,58 @@
 // lib/features/resume/services/resume_profile_service.dart
-// ✅ Helper service to fetch / check / upload profile photo
-// ✅ Used by ResumeScreen AND BuildResumeScreen
+// ✅ Fetches profile photo URL from backend — used by ResumeScreen on load
 
-import 'dart:typed_data';
-import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 
 class ResumeProfileService {
-  // ============================================================
-  // ✅ GET PROFILE PHOTO URL
-  // Returns null if not uploaded
-  // ============================================================
+  /// Returns the current profile photo URL from backend, or null if not set
   static Future<String?> getProfilePhotoUrl() async {
     try {
-      final res = await DioClient.dio.get('/user/full-profile');
+      final response = await DioClient.dio.get('/user/full-profile');
 
-      Map<String, dynamic> profile = {};
-      if (res.data is Map) {
-        if (res.data.containsKey('data') && res.data['data'] is Map) {
-          profile = Map<String, dynamic>.from(res.data['data']);
+      Map<String, dynamic> data = {};
+      if (response.data is Map) {
+        final body = response.data as Map;
+        if (body['data'] is Map) {
+          data = Map<String, dynamic>.from(body['data']);
         } else {
-          profile = Map<String, dynamic>.from(res.data);
+          data = Map<String, dynamic>.from(body);
         }
       }
 
-      final additional = profile['additional_details'] as Map? ?? {};
+      final additional = (data['additional_details'] as Map?) ?? {};
+      final photoUrl = (additional['profile_photo_url']?.toString() ??
+              data['profile_photo_url']?.toString() ??
+              '')
+          .trim();
 
-      final candidates = <dynamic>[
-        additional['profile_photo_url'],
-        profile['profile_photo_url'],
-        profile['photo_url'],
-      ];
-
-      for (final c in candidates) {
-        final s = (c ?? '').toString().trim();
-        if (s.isNotEmpty && (s.startsWith('http://') || s.startsWith('https://'))) {
-          debugPrint('✅ Profile photo URL: $s');
-          return s;
-        }
-      }
-
-      debugPrint('ℹ️ No profile photo URL found');
-      return null;
+      if (photoUrl.isEmpty) return null;
+      return photoUrl;
     } catch (e) {
-      debugPrint('❌ getProfilePhotoUrl error: $e');
+      debugPrint('❌ ResumeProfileService.getProfilePhotoUrl failed: $e');
       return null;
     }
   }
 
-  // ============================================================
-  // ✅ CHECK IF PROFILE PHOTO EXISTS
-  // ============================================================
-  static Future<bool> hasProfilePhoto() async {
-    final url = await getProfilePhotoUrl();
-    return url != null && url.isNotEmpty;
-  }
-
-  // ============================================================
-  // ✅ UPLOAD PROFILE PHOTO BYTES
-  // Returns public URL on success, throws on failure
-  // ============================================================
-  static Future<String> uploadProfilePhoto({
-    required Uint8List fileBytes,
-    required String fileName,
-  }) async {
+  /// Returns profile photo public_id (for delete tracking)
+  static Future<String?> getProfilePhotoPublicId() async {
     try {
-      final formData = FormData.fromMap({
-        'file': MultipartFile.fromBytes(fileBytes, filename: fileName),
-        'document_type': 'profile_photo_url',
-      });
-
-      final res = await DioClient.dio.post(
-        '/user/upload-document',
-        data: formData,
-        options: Options(
-          headers: {"Content-Type": "multipart/form-data"},
-          sendTimeout: const Duration(seconds: 60),
-          receiveTimeout: const Duration(seconds: 60),
-        ),
-      );
-
-      if (res.data is Map && res.data['success'] == true) {
-        final url = (res.data['url'] as String?) ?? '';
-        if (url.isNotEmpty && url.startsWith('http')) {
-          debugPrint('✅ Profile photo uploaded: $url');
-          return url;
+      final response = await DioClient.dio.get('/user/full-profile');
+      Map<String, dynamic> data = {};
+      if (response.data is Map) {
+        final body = response.data as Map;
+        if (body['data'] is Map) {
+          data = Map<String, dynamic>.from(body['data']);
+        } else {
+          data = Map<String, dynamic>.from(body);
         }
-        throw Exception('Server returned invalid URL');
       }
-
-      throw Exception(
-        res.data is Map
-            ? (res.data['message'] ?? 'Upload failed')
-            : 'Upload failed',
-      );
+      final additional = (data['additional_details'] as Map?) ?? {};
+      return (additional['profile_photo_public_id'] ??
+              data['profile_photo_public_id'])
+          ?.toString();
     } catch (e) {
-      debugPrint('❌ uploadProfilePhoto error: $e');
-      rethrow;
+      return null;
     }
   }
 }
