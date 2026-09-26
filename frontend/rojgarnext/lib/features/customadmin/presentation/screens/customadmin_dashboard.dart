@@ -1,6 +1,9 @@
 // lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
-// ✅ COMPLETE UPDATED VERSION - With Job & Service Applications submenus
-// ✅ FIXED: Notification bell now navigates to Service Applications
+// ✅ COMPLETE UPDATED VERSION
+// ✅ REMOVED: Reports menu handling
+// ✅ REMOVED: Pending Payments menu handling
+// ✅ PRESERVED: Settings submenu (Change Password, Setup MPIN, Fingerprint)
+// ✅ All original functionality preserved
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/features/customadmin/presentation/widgets/customadmin_sidebar.dart';
@@ -14,30 +17,42 @@ import 'package:rojgarnext/features/jobs/presentation/screens/add_job_screen.dar
 import 'package:rojgarnext/features/jobs/presentation/screens/show_jobs_screen.dart';
 import 'package:rojgarnext/features/jobs/presentation/screens/applications_screen.dart';
 
-// Reuse existing admin screens for other sections
-import 'package:rojgarnext/features/admin/presentation/screens/admin_reports_screen.dart';
-import 'package:rojgarnext/features/admin/presentation/screens/admin_settings_screen.dart';
-import 'pending_payments_screen.dart';
-
 // ✅ SERVICE SCREEN IMPORT
 import 'package:rojgarnext/features/services/presentation/screens/service_application_screen.dart';
+
+// ✅ AUTH SCREENS IMPORT - Same as User Dashboard
+import 'package:rojgarnext/features/auth/presentation/screens/change_password_screen.dart';
+import 'package:rojgarnext/features/auth/presentation/screens/mpin_setup_page.dart';
+import 'package:rojgarnext/features/auth/presentation/screens/fingerprint_setup_page.dart';
+import 'package:rojgarnext/core/storage/secure_storage.dart';
+
+// ❌ REMOVED IMPORTS:
+// - admin_reports_screen.dart (Reports removed)
+// - pending_payments_screen.dart (Pending Payments removed)
+
 // ===============================================================
 
 enum CustomAdminMenu {
   dashboard,
   jobManagement,
   applicationManagement,
-  reports,
   settings,
-  pendingPayments,
+  // ❌ REMOVED: reports
+  // ❌ REMOVED: pendingPayments
 }
 
 enum JobSubMenu { allJobs, addNewJob }
 
-// ✅ SIMPLIFIED: Only Job Applications and Service Applications
 enum ApplicationSubMenu {
-  jobApplications,   // Shows ApplicationsScreen
-  serviceApplications, // Shows ServiceApplicationScreen
+  jobApplications,
+  serviceApplications,
+}
+
+// ✅ Settings SubMenu
+enum SettingsSubMenu {
+  changePassword,
+  setupMpin,
+  fingerprint,
 }
 
 class CustomAdminDashboard extends StatefulWidget {
@@ -51,9 +66,11 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
   CustomAdminMenu selectedMenu = CustomAdminMenu.dashboard;
   JobSubMenu selectedJobSubMenu = JobSubMenu.allJobs;
   ApplicationSubMenu selectedAppSubMenu = ApplicationSubMenu.jobApplications;
+  SettingsSubMenu selectedSettingsSubMenu = SettingsSubMenu.changePassword;
 
   Map<String, dynamic>? _dashboardStats;
   bool _isLoading = true;
+  String? _adminEmail;
 
   // For candidate profile viewing
   bool _showCandidateProfile = false;
@@ -66,7 +83,18 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
   @override
   void initState() {
     super.initState();
+    _loadAdminEmail();
     _loadDashboardStats();
+  }
+
+  Future<void> _loadAdminEmail() async {
+    final email = await SecureStorage.getEmail();
+    if (mounted) {
+      setState(() {
+        _adminEmail = email;
+      });
+      debugPrint("📧 CustomAdmin Email loaded: $_adminEmail");
+    }
   }
 
   Future<void> _loadDashboardStats() async {
@@ -91,7 +119,6 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
   }
 
   void _showCandidateProfileFromApplication(Map<String, dynamic> application) {
-    // Close drawer on mobile
     if (_scaffoldKey.currentState?.isDrawerOpen == true) {
       Navigator.of(context).pop();
     }
@@ -136,10 +163,9 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
     });
   }
 
-  // ==================== ✅ FIXED: Navigate to Service Applications ====================
   void _navigateToApplicationsFromNotification() {
-    debugPrint("🔔 CUSTOM ADMIN: Navigating to Application Management > Service Applications");
-    // Close drawer on mobile
+    debugPrint(
+        "🔔 CUSTOM ADMIN: Navigating to Application Management > Service Applications");
     if (_scaffoldKey.currentState?.isDrawerOpen == true) {
       Navigator.of(context).pop();
     }
@@ -148,7 +174,6 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
         _closeCandidateProfile();
         setState(() {
           selectedMenu = CustomAdminMenu.applicationManagement;
-          // ✅ CHANGE SUB-MENU TO SERVICE APPLICATIONS
           selectedAppSubMenu = ApplicationSubMenu.serviceApplications;
           _showCandidateProfile = false;
         });
@@ -174,6 +199,9 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
         setState(() {
           selectedMenu = menu;
           _showCandidateProfile = false;
+          if (menu == CustomAdminMenu.settings) {
+            selectedSettingsSubMenu = SettingsSubMenu.changePassword;
+          }
         });
       }
     });
@@ -209,6 +237,65 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
     });
   }
 
+  void _onSettingsSubMenuSelected(SettingsSubMenu subMenu) {
+    if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+      Navigator.of(context).pop();
+    }
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          selectedMenu = CustomAdminMenu.settings;
+          selectedSettingsSubMenu = subMenu;
+          _showCandidateProfile = false;
+        });
+      }
+    });
+  }
+
+  // ============================================================
+  // GET SETTINGS SCREEN BASED ON SUBMENU
+  // Same screens as User Dashboard (Auth folder)
+  // ============================================================
+  Widget _getSettingsScreen() {
+    switch (selectedSettingsSubMenu) {
+      case SettingsSubMenu.changePassword:
+        return const ChangePasswordScreen(
+          isForgotFlow: false,
+          isEmbedded: true,
+        );
+
+      case SettingsSubMenu.setupMpin:
+        if (_adminEmail == null || _adminEmail!.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text("Loading email..."),
+              ],
+            ),
+          );
+        }
+        return MpinSetupPage(email: _adminEmail!);
+
+      case SettingsSubMenu.fingerprint:
+        if (_adminEmail == null || _adminEmail!.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text("Loading email..."),
+              ],
+            ),
+          );
+        }
+        return FingerprintSetupPage(email: _adminEmail!);
+    }
+  }
+
   Widget _getContent() {
     if (_showCandidateProfile && _candidateEmail != null) {
       return CandidateProfileScreen(
@@ -221,6 +308,7 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
     switch (selectedMenu) {
       case CustomAdminMenu.dashboard:
         return _buildDashboardContent();
+
       case CustomAdminMenu.jobManagement:
         if (selectedJobSubMenu == JobSubMenu.addNewJob) {
           return AddJobScreen(
@@ -233,31 +321,29 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
           onJobDeleted: _refreshDashboard,
           onJobUpdated: _refreshDashboard,
         );
+
       case CustomAdminMenu.applicationManagement:
-        // ✅ Show appropriate screen based on submenu selection
         if (selectedAppSubMenu == ApplicationSubMenu.jobApplications) {
-          // ✅ JOB APPLICATIONS - Shows ApplicationsScreen
           return ApplicationsScreen(
             adminRole: 'customadmin',
-            filterStatus: 'all', // Show all job applications
+            filterStatus: 'all',
             onViewCandidateProfile: _showCandidateProfileFromApplication,
           );
-        } else if (selectedAppSubMenu == ApplicationSubMenu.serviceApplications) {
-          // ✅ SERVICE APPLICATIONS - Shows ServiceApplicationScreen
+        } else if (selectedAppSubMenu ==
+            ApplicationSubMenu.serviceApplications) {
           return const ServiceApplicationScreen();
         }
-        // Fallback: Show job applications
         return ApplicationsScreen(
           adminRole: 'customadmin',
           filterStatus: 'all',
           onViewCandidateProfile: _showCandidateProfileFromApplication,
         );
-      case CustomAdminMenu.reports:
-        return const AdminReportsScreen();
-      case CustomAdminMenu.pendingPayments:
-        return const PendingPaymentsScreen();
+
+      // ❌ REMOVED: Reports case
+      // ❌ REMOVED: Pending Payments case
+
       case CustomAdminMenu.settings:
-        return const AdminSettingsScreen();
+        return _getSettingsScreen();
     }
   }
 
@@ -274,6 +360,7 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Welcome Card
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -325,6 +412,8 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
             ),
           ),
           const SizedBox(height: 24),
+
+          // Stats Row 1
           Row(
             children: [
               Expanded(
@@ -356,6 +445,8 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
             ],
           ),
           const SizedBox(height: 12),
+
+          // Stats Row 2
           Row(
             children: [
               Expanded(
@@ -387,6 +478,8 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
             ],
           ),
           const SizedBox(height: 12),
+
+          // Stats Row 3
           Row(
             children: [
               Expanded(
@@ -418,6 +511,8 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
             ],
           ),
           const SizedBox(height: 24),
+
+          // Top Jobs
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -458,7 +553,8 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
                               color: Colors.blue.shade100,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.work, color: Colors.blue),
+                            child:
+                                const Icon(Icons.work, color: Colors.blue),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -494,6 +590,8 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // Quick Actions
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -519,10 +617,12 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
                         Icons.add_circle,
                         Colors.green,
                         () {
-                          if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+                          if (_scaffoldKey.currentState?.isDrawerOpen ==
+                              true) {
                             Navigator.of(context).pop();
                           }
-                          Future.delayed(const Duration(milliseconds: 300), () {
+                          Future.delayed(
+                              const Duration(milliseconds: 300), () {
                             if (mounted) {
                               setState(() {
                                 selectedMenu = CustomAdminMenu.jobManagement;
@@ -541,10 +641,12 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
                         Icons.list_alt,
                         Colors.blue,
                         () {
-                          if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+                          if (_scaffoldKey.currentState?.isDrawerOpen ==
+                              true) {
                             Navigator.of(context).pop();
                           }
-                          Future.delayed(const Duration(milliseconds: 300), () {
+                          Future.delayed(
+                              const Duration(milliseconds: 300), () {
                             if (mounted) {
                               setState(() {
                                 selectedMenu =
@@ -565,10 +667,12 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
                         Icons.workspace_premium,
                         Colors.purple,
                         () {
-                          if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+                          if (_scaffoldKey.currentState?.isDrawerOpen ==
+                              true) {
                             Navigator.of(context).pop();
                           }
-                          Future.delayed(const Duration(milliseconds: 300), () {
+                          Future.delayed(
+                              const Duration(milliseconds: 300), () {
                             if (mounted) {
                               setState(() {
                                 selectedMenu =
@@ -673,7 +777,7 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
           ? AppBar(
               title: Text(isShowingProfile
                   ? "Candidate Profile"
-                  : "Custom Admin Dashboard"),
+                  : _getAppBarTitle()),
               backgroundColor: Colors.blueAccent,
               foregroundColor: Colors.white,
               leading: isShowingProfile
@@ -684,7 +788,8 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
                   : Builder(
                       builder: (context) => IconButton(
                         icon: const Icon(Icons.menu),
-                        onPressed: () => Scaffold.of(context).openDrawer(),
+                        onPressed: () =>
+                            Scaffold.of(context).openDrawer(),
                       ),
                     ),
               actions: [
@@ -704,9 +809,12 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
                 selectedMenu: selectedMenu,
                 selectedJobSubMenu: selectedJobSubMenu,
                 selectedAppSubMenu: selectedAppSubMenu,
+                selectedSettingsSubMenu: selectedSettingsSubMenu,
                 onMenuSelected: _onMenuSelected,
                 onJobSubMenuSelected: _onJobSubMenuSelected,
-                onApplicationSubMenuSelected: _onApplicationSubMenuSelected,
+                onApplicationSubMenuSelected:
+                    _onApplicationSubMenuSelected,
+                onSettingsSubMenuSelected: _onSettingsSubMenuSelected,
               ),
             )
           : null,
@@ -717,9 +825,12 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
               selectedMenu: selectedMenu,
               selectedJobSubMenu: selectedJobSubMenu,
               selectedAppSubMenu: selectedAppSubMenu,
+              selectedSettingsSubMenu: selectedSettingsSubMenu,
               onMenuSelected: _onMenuSelected,
               onJobSubMenuSelected: _onJobSubMenuSelected,
-              onApplicationSubMenuSelected: _onApplicationSubMenuSelected,
+              onApplicationSubMenuSelected:
+                  _onApplicationSubMenuSelected,
+              onSettingsSubMenuSelected: _onSettingsSubMenuSelected,
             ),
           Expanded(
             child: Container(
@@ -743,12 +854,13 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
                         ],
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             isShowingProfile
                                 ? "Candidate Profile: $_candidateName"
-                                : "Custom Admin Panel",
+                                : _getAppBarTitle(),
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -782,5 +894,19 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
         ],
       ),
     );
+  }
+
+  String _getAppBarTitle() {
+    if (selectedMenu == CustomAdminMenu.settings) {
+      switch (selectedSettingsSubMenu) {
+        case SettingsSubMenu.changePassword:
+          return "Change Password";
+        case SettingsSubMenu.setupMpin:
+          return "Setup MPIN";
+        case SettingsSubMenu.fingerprint:
+          return "Fingerprint Setup";
+      }
+    }
+    return "Custom Admin Dashboard";
   }
 }

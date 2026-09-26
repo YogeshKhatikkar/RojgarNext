@@ -1,5 +1,10 @@
 // lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
-// ✅ COMPLETE UPDATED VERSION - FIXED ListTile Warning
+// ✅ COMPLETE UPDATED VERSION
+// ✅ REMOVED: Reports menu
+// ✅ REMOVED: Pending Payments menu
+// ✅ PRESERVED: Settings submenu (Change Password, Setup MPIN, Fingerprint)
+// ✅ FIXED ListTile Warning
+// ✅ All original functionality preserved
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -11,18 +16,22 @@ class CustomAdminSidebar extends StatelessWidget {
   final CustomAdminMenu selectedMenu;
   final JobSubMenu selectedJobSubMenu;
   final ApplicationSubMenu selectedAppSubMenu;
+  final SettingsSubMenu selectedSettingsSubMenu;
   final Function(CustomAdminMenu) onMenuSelected;
   final Function(JobSubMenu) onJobSubMenuSelected;
   final Function(ApplicationSubMenu) onApplicationSubMenuSelected;
+  final Function(SettingsSubMenu) onSettingsSubMenuSelected;
 
   const CustomAdminSidebar({
     super.key,
     required this.selectedMenu,
     required this.selectedJobSubMenu,
     required this.selectedAppSubMenu,
+    required this.selectedSettingsSubMenu,
     required this.onMenuSelected,
     required this.onJobSubMenuSelected,
     required this.onApplicationSubMenuSelected,
+    required this.onSettingsSubMenuSelected,
   });
 
   @override
@@ -30,7 +39,7 @@ class CustomAdminSidebar extends StatelessWidget {
     return Container(
       width: 280,
       color: const Color(0xFF1E293B),
-      child: Material( // ✅ FIX: Wrapped with Material to fix ListTile warning
+      child: Material(
         color: Colors.transparent,
         child: Column(
           children: [
@@ -66,16 +75,21 @@ class CustomAdminSidebar extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 physics: const BouncingScrollPhysics(),
                 children: [
+                  // ✅ Dashboard
                   _buildMenuItem("Dashboard", Icons.dashboard,
                       CustomAdminMenu.dashboard),
+
+                  // ✅ Job Management (with submenu)
                   _buildJobManagementMenu(),
+
+                  // ✅ Application Management (with submenu)
                   _buildApplicationManagementMenu(),
-                  _buildMenuItem("Reports", Icons.bar_chart,
-                      CustomAdminMenu.reports),
-                  _buildMenuItem("Pending Payments", Icons.payment,
-                      CustomAdminMenu.pendingPayments),
-                  _buildMenuItem("Settings", Icons.settings,
-                      CustomAdminMenu.settings),
+
+                  // ❌ REMOVED: Reports menu
+                  // ❌ REMOVED: Pending Payments menu
+
+                  // ✅ Settings (with submenu)
+                  _buildSettingsMenu(),
                 ],
               ),
             ),
@@ -84,7 +98,8 @@ class CustomAdminSidebar extends StatelessWidget {
               color: Colors.transparent,
               child: ListTile(
                 leading: const Icon(Icons.logout, color: Colors.redAccent),
-                title: const Text("Logout", style: TextStyle(color: Colors.white)),
+                title:
+                    const Text("Logout", style: TextStyle(color: Colors.white)),
                 onTap: () async {
                   await SecureStorage.logout();
                   if (context.mounted) {
@@ -153,8 +168,10 @@ class CustomAdminSidebar extends StatelessWidget {
         backgroundColor: Colors.transparent,
         collapsedBackgroundColor: Colors.transparent,
         children: [
-          _buildSubMenuItem("All Jobs", Icons.list, () => onJobSubMenuSelected(JobSubMenu.allJobs)),
-          _buildSubMenuItem("Add New Job", Icons.add, () => onJobSubMenuSelected(JobSubMenu.addNewJob)),
+          _buildSubMenuItem("All Jobs", Icons.list,
+              () => onJobSubMenuSelected(JobSubMenu.allJobs)),
+          _buildSubMenuItem("Add New Job", Icons.add,
+              () => onJobSubMenuSelected(JobSubMenu.addNewJob)),
         ],
       ),
     );
@@ -190,12 +207,64 @@ class CustomAdminSidebar extends StatelessWidget {
           _buildSubMenuItem(
             "Job Applications",
             Icons.work,
-            () => onApplicationSubMenuSelected(ApplicationSubMenu.jobApplications),
+            () =>
+                onApplicationSubMenuSelected(ApplicationSubMenu.jobApplications),
           ),
           _buildSubMenuItem(
             "Service Applications",
             Icons.workspace_premium,
-            () => onApplicationSubMenuSelected(ApplicationSubMenu.serviceApplications),
+            () => onApplicationSubMenuSelected(
+                ApplicationSubMenu.serviceApplications),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // SETTINGS MENU WITH SUBMENU
+  // ============================================================
+  Widget _buildSettingsMenu() {
+    final isSelected = selectedMenu == CustomAdminMenu.settings;
+    return Theme(
+      data: ThemeData(
+        dividerColor: Colors.transparent,
+        listTileTheme: const ListTileThemeData(
+          tileColor: Colors.transparent,
+        ),
+      ),
+      child: ExpansionTile(
+        leading: Icon(
+          Icons.settings,
+          color: isSelected ? Colors.blueAccent : Colors.white70,
+        ),
+        title: Text(
+          "Settings",
+          style:
+              TextStyle(color: isSelected ? Colors.blueAccent : Colors.white),
+        ),
+        collapsedIconColor: Colors.white70,
+        iconColor: Colors.blueAccent,
+        initiallyExpanded: isSelected,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        childrenPadding: const EdgeInsets.only(left: 16),
+        backgroundColor: Colors.transparent,
+        collapsedBackgroundColor: Colors.transparent,
+        children: [
+          _buildSettingsSubMenuItem(
+            "Change Password",
+            Icons.lock,
+            SettingsSubMenu.changePassword,
+          ),
+          _buildSettingsSubMenuItem(
+            "Setup MPIN",
+            Icons.pin,
+            SettingsSubMenu.setupMpin,
+          ),
+          _buildSettingsSubMenuItem(
+            "Fingerprint",
+            Icons.fingerprint,
+            SettingsSubMenu.fingerprint,
           ),
         ],
       ),
@@ -212,6 +281,38 @@ class CustomAdminSidebar extends StatelessWidget {
           style: const TextStyle(color: Colors.white70, fontSize: 14),
         ),
         onTap: onTap,
+        tileColor: Colors.transparent,
+      ),
+    );
+  }
+
+  Widget _buildSettingsSubMenuItem(
+    String title,
+    IconData icon,
+    SettingsSubMenu subMenu,
+  ) {
+    final isSelected =
+        selectedMenu == CustomAdminMenu.settings &&
+            selectedSettingsSubMenu == subMenu;
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: isSelected ? Colors.blueAccent : Colors.white70,
+          size: 20,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.blueAccent : Colors.white70,
+            fontSize: 14,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        selected: isSelected,
+        selectedTileColor: Colors.blueAccent.withAlpha(25),
+        onTap: () => onSettingsSubMenuSelected(subMenu),
         tileColor: Colors.transparent,
       ),
     );
