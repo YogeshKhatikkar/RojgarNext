@@ -1,0 +1,95 @@
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:7.0
+    restart: always
+    volumes:
+      - mongo_data:/data/db
+    networks: [rojgarnext_net]
+    deploy:
+      resources:
+        limits: { memory: 2G }
+
+  redis:
+    image: redis:7.4-alpine
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks: [rojgarnext_net]
+
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-your-org}/rojgarnext-backend:${IMAGE_TAG:-latest}
+    restart: always
+    env_file:
+      - ../backend/rojgarnext/.env
+    environment:
+      MONGO_URI: mongodb://mongo:27017/rojgarnext
+      REDIS_URL: redis://redis:6379
+      ENVIRONMENT: production
+    volumes:
+      - backend_uploads:/app/uploads
+    networks: [rojgarnext_net]
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits: { cpus: '1.5', memory: 1G }
+        reservations: { cpus: '0.5', memory: 512M }
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-your-org}/rojgarnext-frontend:${IMAGE_TAG:-latest}
+    restart: always
+    networks: [rojgarnext_net]
+    deploy:
+      replicas: 2
+      resources:
+        limits: { cpus: '0.5', memory: 256M }
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    depends_on: [backend, frontend]
+    networks: [rojgarnext_net]
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    entrypoint: /bin/sh
+    command: -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+    networks: [rojgarnext_net]
+
+volumes:
+  mongo_data:
+  redis_data:
+  backend_uploads:
+  certbot_www:
+  certbot_conf:
+
+networks:
+  rojgarnext_net:
+    driver: overlay
+    attachable: true

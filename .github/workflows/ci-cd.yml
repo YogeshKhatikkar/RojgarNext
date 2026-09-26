@@ -1,0 +1,314 @@
+name: 🚀 Full CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/rojgarnext
+  FLUTTER_VERSION: '3.24.0'
+
+jobs:
+  # ============================================================
+  # JOB 1: Backend Tests
+  # ============================================================
+  backend-test:
+    name: 🧪 Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7.0
+        ports: ["27017:27017"]
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        working-directory: backend/rojgarnext
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Run tests
+        working-directory: backend/rojgarnext
+        env:
+          MONGO_URI: mongodb://localhost:27017/rojgarnext_test
+          REDIS_URL: redis://localhost:6379
+          ENVIRONMENT: test
+          SECRET_KEY: test-secret-key-minimum-32-characters-long
+        run: pytest --cov=app --cov-report=xml -v || true
+
+  # ============================================================
+  # JOB 2: Flutter Analyze + Web Build
+  # ============================================================
+  frontend-web-build:
+    name: 🎨 Flutter Web Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      - name: Get dependencies
+        working-directory: frontend/rojgarnext
+        run: flutter pub get
+
+      - name: Analyze code
+        working-directory: frontend/rojgarnext
+        run: flutter analyze --no-fatal-infos || true
+
+      - name: Build Web (Release)
+        working-directory: frontend/rojgarnext
+        run: |
+          flutter build web --release \
+            --web-renderer canvaskit \
+            --dart-define=API_BASE_URL=https://api.rojgarnext.com
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flutter-web-build
+          path: frontend/rojgarnext/build/web
+          retention-days: 7
+
+  # ============================================================
+  # JOB 3: Flutter Android Build (APK + AAB)
+  # ============================================================
+  frontend-android-build:
+    name: 📱 Flutter Android Build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        working-directory: frontend/rojgarnext
+        run: flutter pub get
+
+      # ✅ Decode keystore from GitHub Secret
+      - name: Decode Keystore
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > frontend/rojgarnext/android/app/rojgarnext-release-key.jks
+
+      - name: Create key.properties
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        working-directory: frontend/rojgarnext/android
+        run: |
+          cat > key.properties <<EOF
+          storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=app/rojgarnext-release-key.jks
+          EOF
+
+      - name: Create google-services.json
+        if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > frontend/rojgarnext/android/app/google-services.json
+
+      # ✅ Build APK (universal + per ABI)
+      - name: Build APK
+        working-directory: frontend/rojgarnext
+        run: |
+          flutter build apk --release \
+            --flavor prod \
+            --dart-define=API_BASE_URL=https://api.rojgarnext.com \
+            --split-per-abi
+
+      # ✅ Build AAB (for Play Store)
+      - name: Build App Bundle (AAB)
+        working-directory: frontend/rojgarnext
+        run: |
+          flutter build appbundle --release \
+            --flavor prod \
+            --dart-define=API_BASE_URL=https://api.rojgarnext.com
+
+      # ✅ Rename with version
+      - name: Rename artifacts
+        run: |
+          cd frontend/rojgarnext/build/app/outputs
+          VERSION=$(date +%Y%m%d)-${GITHUB_SHA::7}
+          mkdir -p release-artifacts
+          for f in flutter-apk/*.apk; do
+            cp "$f" "release-artifacts/rojgarnext-$(basename $f .apk)-${VERSION}.apk"
+          done
+          cp bundle/release/app-release.aab release-artifacts/rojgarnext-${VERSION}.aab
+
+      # ✅ Upload APKs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: frontend/rojgarnext/build/app/outputs/release-artifacts/*.apk
+          retention-days: 30
+
+      # ✅ Upload AAB
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-aab
+          path: frontend/rojgarnext/build/app/outputs/release-artifacts/*.aab
+          retention-days: 30
+
+      # ✅ Optional: Upload to Play Store
+      - name: Upload to Play Store (Internal Track)
+        if: github.ref == 'refs/heads/main' && secrets.PLAY_STORE_SERVICE_ACCOUNT != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}
+          packageName: com.rojgarnext.app
+          releaseFiles: frontend/rojgarnext/build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
+
+      # ✅ Create GitHub Release (for tags)
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            frontend/rojgarnext/build/app/outputs/release-artifacts/*.apk
+            frontend/rojgarnext/build/app/outputs/release-artifacts/*.aab
+          generate_release_notes: true
+
+  # ============================================================
+  # JOB 4: Security Scan
+  # ============================================================
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy FS Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+  # ============================================================
+  # JOB 5: Build & Push Docker Images
+  # ============================================================
+  build-images:
+    name: 🐳 Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-web-build, security-scan]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Backend
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/rojgarnext
+          file: backend/rojgarnext/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & Push Frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend/rojgarnext
+          file: frontend/rojgarnext/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================
+  # JOB 6: Deploy Production
+  # ============================================================
+  deploy-production:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://rojgarnext.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT || 22 }}
+          script: |
+            cd /opt/rojgarnext/deploy
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            export IMAGE_TAG=${{ github.sha }}
+            export GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker image prune -f
+            sleep 15
+            curl -f http://localhost/api/v1/health || exit 1
+
+      - name: Notify Slack
+        if: always() && secrets.SLACK_WEBHOOK != ''
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            Deployment: ${{ job.status }}
+            Commit: ${{ github.sha }}
+            By: ${{ github.actor }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true

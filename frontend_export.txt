@@ -1,9 +1,9 @@
 ================================================================================
 ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-Generated: 2026-09-25 18:14:13
+Generated: 2026-09-25 23:31:47
 Source: E:\yogesh\website\rojgarnext\frontend
-Total Files: 145
+Total Files: 146
 Total Size: 3.0 MB
 ================================================================================
 
@@ -237,6 +237,7 @@ Total Size: 3.0 MB
     │   │       └── 📁 providers/
     │   │           └── 🎯 user_profile_provider.dart
     │   └── 🎯 main.dart
+    ├── 🔧 nginx.conf
     ├── ⚙️ pubspec.yaml
     ├── 📝 README.md
     └── 📁 web/
@@ -249,14 +250,15 @@ Total Size: 3.0 MB
 📊 FILE SUMMARY
 ================================================================================
 
-Total Files: 145
+Total Files: 146
 Total Size: 3.0 MB
 
 File Types:
   .dart: 139 files (3.0 MB)
   .yaml: 2 files (2.5 KB)
-  (no extension): 1 files (274 B)
+  (no extension): 1 files (1.1 KB)
   .md: 1 files (649 B)
+  .conf: 1 files (1.1 KB)
   .html: 1 files (1.6 KB)
   .json: 1 files (951 B)
 
@@ -266,24 +268,51 @@ File Types:
 ================================================================================
 
 ================================================================================
-[   1/ 145] 📄 rojgarnext/Dockerfile
-📏 SIZE: 274 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+[   1/ 146] 📄 rojgarnext/Dockerfile
+📏 SIZE: 1.1 KB
+🕐 MODIFIED: 2026-09-25 20:03:48
 ================================================================================
 
-FROM cirrusci/flutter:stable AS builder
+# ============================================================
+# STAGE 1: Flutter Builder
+# ============================================================
+FROM ghcr.io/cirruslabs/flutter:stable AS builder
 
 WORKDIR /app
-COPY . .
-RUN flutter clean && flutter pub get && flutter build web --release --base-href=/
 
-FROM nginx:alpine
+# Cache deps
+COPY pubspec.yaml pubspec.lock ./
+RUN flutter pub get
+
+COPY . .
+
+ARG API_BASE_URL=https://api.rojgarnext.com
+ARG BUILD_NUMBER=1
+ARG BUILD_NAME=2.0.0
+
+RUN flutter build web --release \
+    --base-href=/ \
+    --web-renderer canvaskit \
+    --dart-define=API_BASE_URL=${API_BASE_URL} \
+    --dart-define=BUILD_NUMBER=${BUILD_NUMBER} \
+    --dart-define=BUILD_NAME=${BUILD_NAME}
+
+# ============================================================
+# STAGE 2: Nginx Runtime
+# ============================================================
+FROM nginx:1.27-alpine
+
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/build/web /usr/share/nginx/html
+
 EXPOSE 80
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD wget -q --spider http://localhost/ || exit 1
+
 CMD ["nginx", "-g", "daemon off;"]
 
 ================================================================================
-[   2/ 145] 📝 rojgarnext/README.md
+[   2/ 146] 📝 rojgarnext/README.md
 📏 SIZE: 649 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -308,7 +337,7 @@ samples, guidance on mobile development, and a full API reference.
 
 
 ================================================================================
-[   3/ 145] ⚙️ rojgarnext/analysis_options.yaml
+[   3/ 146] ⚙️ rojgarnext/analysis_options.yaml
 📏 SIZE: 559 B
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -338,7 +367,7 @@ linter:
     use_key_in_widget_constructors: true
 
 ================================================================================
-[   4/ 145] 🎯 rojgarnext/lib/core/config/api_config.dart
+[   4/ 146] 🎯 rojgarnext/lib/core/config/api_config.dart
 📏 SIZE: 2.2 KB
 🕐 MODIFIED: 2026-09-12 12:05:34
 ================================================================================
@@ -423,7 +452,7 @@ class ApiConfig {
 }
 
 ================================================================================
-[   5/ 145] 🎯 rojgarnext/lib/core/master_date/education.dart
+[   5/ 146] 🎯 rojgarnext/lib/core/master_date/education.dart
 📏 SIZE: 40.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -1973,7 +2002,7 @@ class EducationMasterData {
 
 
 ================================================================================
-[   6/ 145] 🎯 rojgarnext/lib/core/master_date/locations.dart
+[   6/ 146] 🎯 rojgarnext/lib/core/master_date/locations.dart
 📏 SIZE: 2.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2073,7 +2102,7 @@ class LocationData {
 
 
 ================================================================================
-[   7/ 145] 🎯 rojgarnext/lib/core/network/dio_client.dart
+[   7/ 146] 🎯 rojgarnext/lib/core/network/dio_client.dart
 📏 SIZE: 4.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2217,7 +2246,7 @@ void initDioClient() {
 }
 
 ================================================================================
-[   8/ 145] 🎯 rojgarnext/lib/core/routes/app_routes.dart
+[   8/ 146] 🎯 rojgarnext/lib/core/routes/app_routes.dart
 📏 SIZE: 3.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2316,7 +2345,7 @@ class AppRoutes {
 }
 
 ================================================================================
-[   9/ 145] 🎯 rojgarnext/lib/core/services/cloudinary_service.dart
+[   9/ 146] 🎯 rojgarnext/lib/core/services/cloudinary_service.dart
 📏 SIZE: 7.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2550,7 +2579,7 @@ class CloudinaryService {
 }
 
 ================================================================================
-[  10/ 145] 🎯 rojgarnext/lib/core/services/geocoding_service.dart
+[  10/ 146] 🎯 rojgarnext/lib/core/services/geocoding_service.dart
 📏 SIZE: 806 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2587,7 +2616,7 @@ class GeocodingService {
 
 
 ================================================================================
-[  11/ 145] 🎯 rojgarnext/lib/core/services/location_service.dart
+[  11/ 146] 🎯 rojgarnext/lib/core/services/location_service.dart
 📏 SIZE: 5.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2767,7 +2796,7 @@ class LocationService {
 
 
 ================================================================================
-[  12/ 145] 🎯 rojgarnext/lib/core/services/permission_service.dart
+[  12/ 146] 🎯 rojgarnext/lib/core/services/permission_service.dart
 📏 SIZE: 3.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2898,7 +2927,7 @@ class PermissionService {
 
 
 ================================================================================
-[  13/ 145] 🎯 rojgarnext/lib/core/services/profile_state_service.dart
+[  13/ 146] 🎯 rojgarnext/lib/core/services/profile_state_service.dart
 📏 SIZE: 1.4 KB
 🕐 MODIFIED: 2026-09-25 09:30:35
 ================================================================================
@@ -2943,7 +2972,7 @@ class ProfileStateService {
 }
 
 ================================================================================
-[  14/ 145] 🎯 rojgarnext/lib/core/services/real_location_service.dart
+[  14/ 146] 🎯 rojgarnext/lib/core/services/real_location_service.dart
 📏 SIZE: 7.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3185,7 +3214,7 @@ class RealLocationService {
 
 
 ================================================================================
-[  15/ 145] 🎯 rojgarnext/lib/core/services/unified_location_service.dart
+[  15/ 146] 🎯 rojgarnext/lib/core/services/unified_location_service.dart
 📏 SIZE: 1.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3223,7 +3252,7 @@ class UnifiedLocationService {
 
 
 ================================================================================
-[  16/ 145] 🎯 rojgarnext/lib/core/services/universal_location_service.dart
+[  16/ 146] 🎯 rojgarnext/lib/core/services/universal_location_service.dart
 📏 SIZE: 9.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3508,7 +3537,7 @@ Please try:
 }
 
 ================================================================================
-[  17/ 145] 🎯 rojgarnext/lib/core/services/web_location_service.dart
+[  17/ 146] 🎯 rojgarnext/lib/core/services/web_location_service.dart
 📏 SIZE: 3.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3628,7 +3657,7 @@ class WebLocationService {
 
 
 ================================================================================
-[  18/ 145] 🎯 rojgarnext/lib/core/storage/secure_storage.dart
+[  18/ 146] 🎯 rojgarnext/lib/core/storage/secure_storage.dart
 📏 SIZE: 6.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3825,7 +3854,7 @@ class SecureStorage {
 }
 
 ================================================================================
-[  19/ 145] 🎯 rojgarnext/lib/core/utils/app_snackbar.dart
+[  19/ 146] 🎯 rojgarnext/lib/core/utils/app_snackbar.dart
 📏 SIZE: 2.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3911,7 +3940,7 @@ void showGlobalSnackBar(String message, {bool isError = false}) {
 }
 
 ================================================================================
-[  20/ 145] 🎯 rojgarnext/lib/core/utils/auth_guard.dart
+[  20/ 146] 🎯 rojgarnext/lib/core/utils/auth_guard.dart
 📏 SIZE: 798 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3951,7 +3980,7 @@ class AuthGuard extends StatelessWidget {
 
 
 ================================================================================
-[  21/ 145] 🎯 rojgarnext/lib/core/utils/constants.dart
+[  21/ 146] 🎯 rojgarnext/lib/core/utils/constants.dart
 📏 SIZE: 967 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3987,7 +4016,7 @@ class AppConstants {
 
 
 ================================================================================
-[  22/ 145] 🎯 rojgarnext/lib/core/utils/coordinate_parser.dart
+[  22/ 146] 🎯 rojgarnext/lib/core/utils/coordinate_parser.dart
 📏 SIZE: 5.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4169,7 +4198,7 @@ class CoordinateParser {
 
 
 ================================================================================
-[  23/ 145] 🎯 rojgarnext/lib/core/utils/distance_calculator.dart
+[  23/ 146] 🎯 rojgarnext/lib/core/utils/distance_calculator.dart
 📏 SIZE: 1.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4251,7 +4280,7 @@ class DistanceCalculator {
 }
 
 ================================================================================
-[  24/ 145] 🎯 rojgarnext/lib/core/utils/js_stub.dart
+[  24/ 146] 🎯 rojgarnext/lib/core/utils/js_stub.dart
 📏 SIZE: 1.1 KB
 🕐 MODIFIED: 2026-09-10 12:53:05
 ================================================================================
@@ -4297,7 +4326,7 @@ typedef JsArrayBuffer = dynamic;
 typedef JSAny = dynamic;
 
 ================================================================================
-[  25/ 145] 🎯 rojgarnext/lib/core/utils/logger.dart
+[  25/ 146] 🎯 rojgarnext/lib/core/utils/logger.dart
 📏 SIZE: 999 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4345,7 +4374,7 @@ class Logger {
 }
 
 ================================================================================
-[  26/ 145] 🎯 rojgarnext/lib/core/utils/platform_utils.dart
+[  26/ 146] 🎯 rojgarnext/lib/core/utils/platform_utils.dart
 📏 SIZE: 2.8 KB
 🕐 MODIFIED: 2026-09-12 12:06:10
 ================================================================================
@@ -4452,7 +4481,7 @@ class PlatformUtils {
 }
 
 ================================================================================
-[  27/ 145] 🎯 rojgarnext/lib/core/utils/safe_async.dart
+[  27/ 146] 🎯 rojgarnext/lib/core/utils/safe_async.dart
 📏 SIZE: 2 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4461,7 +4490,7 @@ class PlatformUtils {
 
 
 ================================================================================
-[  28/ 145] 🎯 rojgarnext/lib/core/utils/stub_device_info.dart
+[  28/ 146] 🎯 rojgarnext/lib/core/utils/stub_device_info.dart
 📏 SIZE: 608 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4491,7 +4520,7 @@ class IosDeviceInfo {
 
 
 ================================================================================
-[  29/ 145] 🎯 rojgarnext/lib/core/utils/stub_local_auth.dart
+[  29/ 146] 🎯 rojgarnext/lib/core/utils/stub_local_auth.dart
 📏 SIZE: 816 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4529,7 +4558,7 @@ class BiometricType {
 }
 
 ================================================================================
-[  30/ 145] 🎯 rojgarnext/lib/core/utils/widgets.dart
+[  30/ 146] 🎯 rojgarnext/lib/core/utils/widgets.dart
 📏 SIZE: 1.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4574,7 +4603,7 @@ class ModernButton extends StatelessWidget {
 
 
 ================================================================================
-[  31/ 145] 🎯 rojgarnext/lib/core/widgets/base_page.dart
+[  31/ 146] 🎯 rojgarnext/lib/core/widgets/base_page.dart
 📏 SIZE: 970 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -4620,7 +4649,7 @@ class BasePage extends StatelessWidget {
 
 
 ================================================================================
-[  32/ 145] 🎯 rojgarnext/lib/core/widgets/file_viewer_screen.dart
+[  32/ 146] 🎯 rojgarnext/lib/core/widgets/file_viewer_screen.dart
 📏 SIZE: 43.9 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -5992,7 +6021,7 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
 }
 
 ================================================================================
-[  33/ 145] 🎯 rojgarnext/lib/core/widgets/location_dropdowns.dart
+[  33/ 146] 🎯 rojgarnext/lib/core/widgets/location_dropdowns.dart
 📏 SIZE: 9.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -6294,7 +6323,7 @@ class _LocationDropdownsState extends State<LocationDropdowns> {
 
 
 ================================================================================
-[  34/ 145] 🎯 rojgarnext/lib/core/widgets/modern_button.dart
+[  34/ 146] 🎯 rojgarnext/lib/core/widgets/modern_button.dart
 📏 SIZE: 2.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -6385,7 +6414,7 @@ class ModernButton extends StatelessWidget {
 
 
 ================================================================================
-[  35/ 145] 🎯 rojgarnext/lib/core/widgets/platform_aware.dart
+[  35/ 146] 🎯 rojgarnext/lib/core/widgets/platform_aware.dart
 📏 SIZE: 2.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -6470,7 +6499,7 @@ class PlatformAware {
 
 
 ================================================================================
-[  36/ 145] 🎯 rojgarnext/lib/core/widgets/platform_file_picker.dart
+[  36/ 146] 🎯 rojgarnext/lib/core/widgets/platform_file_picker.dart
 📏 SIZE: 3.3 KB
 🕐 MODIFIED: 2026-09-24 23:53:51
 ================================================================================
@@ -6591,7 +6620,7 @@ class PlatformFileResult {
 }
 
 ================================================================================
-[  37/ 145] 🎯 rojgarnext/lib/core/widgets/platform_webview.dart
+[  37/ 146] 🎯 rojgarnext/lib/core/widgets/platform_webview.dart
 📏 SIZE: 3.0 KB
 🕐 MODIFIED: 2026-09-10 12:54:26
 ================================================================================
@@ -6698,7 +6727,7 @@ class _PlatformWebViewState extends State<PlatformWebView> {
 }
 
 ================================================================================
-[  38/ 145] 🎯 rojgarnext/lib/core/widgets/responsive_widget.dart
+[  38/ 146] 🎯 rojgarnext/lib/core/widgets/responsive_widget.dart
 📏 SIZE: 2.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -6795,7 +6824,7 @@ class ResponsiveWidget extends StatelessWidget {
 
 
 ================================================================================
-[  39/ 145] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_stub.dart
+[  39/ 146] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_stub.dart
 📏 SIZE: 3.1 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -6896,7 +6925,7 @@ void openPdfInNewTab(String url) {
 }
 
 ================================================================================
-[  40/ 145] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_web.dart
+[  40/ 146] 🎯 rojgarnext/lib/core/widgets/web_pdf_viewer_web.dart
 📏 SIZE: 10.1 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -7240,7 +7269,7 @@ void openPdfInNewTab(String url) {
 }
 
 ================================================================================
-[  41/ 145] 🎯 rojgarnext/lib/features/admin/AI/admin_ai_dashboard.dart
+[  41/ 146] 🎯 rojgarnext/lib/features/admin/AI/admin_ai_dashboard.dart
 📏 SIZE: 10.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -7605,7 +7634,7 @@ class _AdminAIDashboardState extends State<AdminAIDashboard> {
 
 
 ================================================================================
-[  42/ 145] 🎯 rojgarnext/lib/features/admin/data/admin_service.dart
+[  42/ 146] 🎯 rojgarnext/lib/features/admin/data/admin_service.dart
 📏 SIZE: 6.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -7849,7 +7878,7 @@ class AdminService {
 
 
 ================================================================================
-[  43/ 145] 🎯 rojgarnext/lib/features/admin/presentation/models/admin_menu.dart
+[  43/ 146] 🎯 rojgarnext/lib/features/admin/presentation/models/admin_menu.dart
 📏 SIZE: 433 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -7877,7 +7906,7 @@ enum ApplicationSubMenu {
 
 
 ================================================================================
-[  44/ 145] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_dashboard.dart
+[  44/ 146] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_dashboard.dart
 📏 SIZE: 29.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -8716,7 +8745,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 }
 
 ================================================================================
-[  45/ 145] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_reports_screen.dart
+[  45/ 146] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_reports_screen.dart
 📏 SIZE: 911 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -8753,7 +8782,7 @@ class AdminReportsScreen extends StatelessWidget {
 
 
 ================================================================================
-[  46/ 145] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_settings_screen.dart
+[  46/ 146] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_settings_screen.dart
 📏 SIZE: 1.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -8802,7 +8831,7 @@ class AdminSettingsScreen extends StatelessWidget {
 
 
 ================================================================================
-[  47/ 145] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_users_screen.dart
+[  47/ 146] 🎯 rojgarnext/lib/features/admin/presentation/screens/admin_users_screen.dart
 📏 SIZE: 3.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -8914,7 +8943,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
 
 ================================================================================
-[  48/ 145] 🎯 rojgarnext/lib/features/admin/presentation/screens/pending_payments_screen.dart
+[  48/ 146] 🎯 rojgarnext/lib/features/admin/presentation/screens/pending_payments_screen.dart
 📏 SIZE: 5.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -9088,7 +9117,7 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
 
 
 ================================================================================
-[  49/ 145] 🎯 rojgarnext/lib/features/admin/presentation/widgets/admin_sidebar.dart
+[  49/ 146] 🎯 rojgarnext/lib/features/admin/presentation/widgets/admin_sidebar.dart
 📏 SIZE: 7.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -9317,7 +9346,7 @@ class AdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[  50/ 145] 🎯 rojgarnext/lib/features/auth/presentation/controllers/auth_controller.dart
+[  50/ 146] 🎯 rojgarnext/lib/features/auth/presentation/controllers/auth_controller.dart
 📏 SIZE: 29.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -10101,7 +10130,7 @@ class AuthController extends ChangeNotifier {
 }
 
 ================================================================================
-[  51/ 145] 🎯 rojgarnext/lib/features/auth/presentation/screens/change_password_screen.dart
+[  51/ 146] 🎯 rojgarnext/lib/features/auth/presentation/screens/change_password_screen.dart
 📏 SIZE: 36.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -11205,7 +11234,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 }
 
 ================================================================================
-[  52/ 145] 🎯 rojgarnext/lib/features/auth/presentation/screens/fingerprint_setup_page.dart
+[  52/ 146] 🎯 rojgarnext/lib/features/auth/presentation/screens/fingerprint_setup_page.dart
 📏 SIZE: 40.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -12423,18 +12452,21 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
 }
 
 ================================================================================
-[  53/ 145] 🎯 rojgarnext/lib/features/auth/presentation/screens/mpin_setup_page.dart
-📏 SIZE: 41.0 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+[  53/ 146] 🎯 rojgarnext/lib/features/auth/presentation/screens/mpin_setup_page.dart
+📏 SIZE: 43.0 KB
+🕐 MODIFIED: 2026-09-25 18:37:10
 ================================================================================
 
 // lib/features/auth/presentation/screens/mpin_setup_page.dart
-// ✅ AI‑BASED MODERN DESIGN (same as Basic Details / Education screens)
-// ✅ FULLY WORKING: On/Off Toggle, 6-digit input boxes, auto-tab
-// ✅ WORKS ON WEB AND MOBILE – all buttons visible
-// ✅ All original logic preserved (toggle, save, remove, back navigation)
+// ✅ AI‑BASED MODERN DESIGN
+// ✅ BULLETPROOF FIX for Android / iOS toggle not turning ON
+// ✅ Removed Transform.scale (hit-area misalignment)
+// ✅ Toggle state flips SYNCHRONOUSLY in one setState
+// ✅ Debug logs to trace exact behaviour
+// ✅ All original logic preserved
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
@@ -12456,7 +12488,14 @@ class MpinSetupPage extends StatefulWidget {
 
 class _MpinSetupPageState extends State<MpinSetupPage> {
   // ============================================================
-  // CONTROLLERS – 6 separate controllers for each digit
+  // DEBUG LOG HELPER
+  // ============================================================
+  void _log(String msg) {
+    if (kDebugMode) debugPrint('🎯 MPIN_TOGGLE | $msg');
+  }
+
+  // ============================================================
+  // CONTROLLERS
   // ============================================================
   final List<TextEditingController> _mpinControllers =
       List.generate(6, (_) => TextEditingController());
@@ -12464,7 +12503,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
       List.generate(6, (_) => TextEditingController());
 
   // ============================================================
-  // FOCUS NODES – For auto‑tabbing between fields
+  // FOCUS NODES
   // ============================================================
   final List<FocusNode> _mpinFocusNodes =
       List.generate(6, (_) => FocusNode());
@@ -12472,19 +12511,18 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
       List.generate(6, (_) => FocusNode());
 
   // ============================================================
-  // STATE VARIABLES
+  // STATE
   // ============================================================
   bool _isSaving = false;
   String _errorMessage = '';
   bool _isDisposed = false;
+  bool _isClearingControllers = false;
 
-  // Main state – Like Fingerprint Setup
   bool _isMpinEnabled = false;
   bool _isLoading = true;
   bool _hasExistingMpin = false;
-  bool _showForm = false; // Controls input box visibility
+  bool _showForm = false;
 
-  // PIN visibility
   bool _showMpin = false;
   bool _showConfirmMpin = false;
 
@@ -12496,24 +12534,42 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   bool get _isMpinComplete => _mpin.length == 6;
   bool get _isConfirmMpinComplete => _confirmMpin.length == 6;
 
+  // ============================================================
+  // LIFECYCLE
+  // ============================================================
   @override
   void initState() {
     super.initState();
+    _log('initState — checking MPIN status');
     _checkMpinStatus();
 
-    // Add listeners to update state on change
     for (int i = 0; i < 6; i++) {
       _mpinControllers[i].addListener(() {
-        if (mounted) setState(() {});
+        if (mounted && !_isDisposed && !_isClearingControllers) {
+          setState(() {});
+        }
       });
       _confirmMpinControllers[i].addListener(() {
-        if (mounted) setState(() {});
+        if (mounted && !_isDisposed && !_isClearingControllers) {
+          setState(() {});
+        }
       });
     }
   }
 
   @override
+  void didUpdateWidget(covariant MpinSetupPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _log('didUpdateWidget — email changed: ${oldWidget.email} → ${widget.email}');
+    // If email changed, restart status check
+    if (oldWidget.email != widget.email) {
+      _checkMpinStatus();
+    }
+  }
+
+  @override
   void dispose() {
+    _log('dispose called');
     _isDisposed = true;
     for (var controller in _mpinControllers) {
       controller.dispose();
@@ -12535,10 +12591,12 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   // ============================================================
   Future<void> _checkMpinStatus() async {
     if (!mounted) return;
+    _log('_checkMpinStatus — start');
     setState(() => _isLoading = true);
     try {
       final hasMpin = await SecureStorage.hasMpin();
       final isEnabled = await SecureStorage.isMpinEnabled();
+      _log('_checkMpinStatus — hasMpin=$hasMpin isEnabled=$isEnabled');
       if (!mounted) return;
       setState(() {
         _hasExistingMpin = hasMpin;
@@ -12546,7 +12604,9 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
         _showForm = false;
         _isLoading = false;
       });
+      _log('_checkMpinStatus — done. _isMpinEnabled=$_isMpinEnabled');
     } catch (e) {
+      _log('_checkMpinStatus — error: $e');
       if (mounted) {
         setState(() {
           _isMpinEnabled = false;
@@ -12559,139 +12619,172 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // TOGGLE MPIN – Like Fingerprint Setup
+  // SAFE CLEAR (NO setState, listeners suppressed)
   // ============================================================
-  Future<void> _toggleMpin(bool value) async {
+  void _clearControllersOnly() {
     if (_isDisposed) return;
-
-    // ==========================================================
-    // CASE 1: DISABLING MPIN – User explicitly turns OFF
-    // ==========================================================
-    if (!value) {
-      if (!_hasExistingMpin) {
-        setState(() {
-          _isMpinEnabled = false;
-          _showForm = false;
-          _clearAll();
-        });
-        return;
-      }
-
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text("Disable MPIN"),
-          content: const Text(
-            "Are you sure you want to disable MPIN login?\n\n"
-            "You can enable it again later from settings.",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text("Disable"),
-            ),
-          ],
-        ),
-      );
-
-      if (confirm == true) {
-        setState(() => _isLoading = true);
-        try {
-          await SecureStorage.setMpinEnabled(false);
-          setState(() {
-            _isMpinEnabled = false;
-            _showForm = false;
-            _clearAll();
-            _hasExistingMpin = false;
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("MPIN disabled successfully"),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Failed to disable MPIN: $e"), backgroundColor: Colors.red),
-            );
-          }
-        } finally {
-          setState(() => _isLoading = false);
-        }
-      }
-      return;
+    _isClearingControllers = true;
+    for (final c in _mpinControllers) {
+      c.clear();
     }
-
-    // ==========================================================
-    // CASE 2: ENABLING MPIN – User explicitly turns ON
-    // ==========================================================
-    if (_hasExistingMpin) {
-      setState(() => _isLoading = true);
-      try {
-        await SecureStorage.setMpinEnabled(true);
-        setState(() {
-          _isMpinEnabled = true;
-          _showForm = false;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("MPIN enabled successfully"),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Failed to enable MPIN: $e"), backgroundColor: Colors.red),
-          );
-        }
-      } finally {
-        setState(() => _isLoading = false);
-      }
-      return;
+    for (final c in _confirmMpinControllers) {
+      c.clear();
     }
+    _isClearingControllers = false;
+  }
 
-    // ==========================================================
-    // CASE 3: FIRST TIME SETUP – Show input form
-    // ==========================================================
-    setState(() {
-      _isMpinEnabled = true;
-      _showForm = true; // ✅ THIS SHOWS THE INPUT BOXES
-      _clearAll();
-      _errorMessage = '';
-    });
-
-    // Auto‑focus first field after form is shown
+  void _focusFirstMpinBox() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_isDisposed && _showForm) {
+      if (!mounted || _isDisposed || !_showForm) return;
+      try {
         FocusScope.of(context).requestFocus(_mpinFocusNodes[0]);
-      }
+      } catch (_) {}
     });
   }
 
-  void _clearAll() {
-    if (_isDisposed) return;
-    for (var c in _mpinControllers) c.clear();
-    for (var c in _confirmMpinControllers) c.clear();
-    setState(() {
-      _errorMessage = '';
-    });
+  // ============================================================
+  // ✅ BULLETPROOF TOGGLE HANDLER
+  //    The VERY FIRST thing this does after the guard, is either
+  //    flip the flag immediately via setState, or await a dialog.
+  //    No interleaved async work before the state flip.
+  // ============================================================
+  Future<void> _toggleMpin(bool value) async {
+    _log('════════════════════════════════════════');
+    _log('onChanged fired → value=$value');
+    _log('  _hasExistingMpin=$_hasExistingMpin');
+    _log('  _showForm=$_showForm');
+    _log('  _isMpinEnabled=$_isMpinEnabled');
+    _log('  _isLoading=$_isLoading');
+    _log('  mounted=$mounted, _isDisposed=$_isDisposed');
+
+    if (!mounted || _isDisposed) {
+      _log('  ABORT: not mounted / disposed');
+      return;
+    }
+
+    // ====================================================================
+    // TURNING ON
+    // ====================================================================
+    if (value) {
+      _log('  → TURNING ON');
+
+      // ----- CASE A: MPIN already saved → just enable -----
+      if (_hasExistingMpin) {
+        _log('  CASE A: existing MPIN → just flip flag');
+        setState(() {
+          _isMpinEnabled = true;
+          _showForm = false;
+          _errorMessage = '';
+        });
+        try {
+          await SecureStorage.setMpinEnabled(true);
+        } catch (e) {
+          _log('  error persisting enabled=true: $e');
+          if (mounted) {
+            setState(() => _isMpinEnabled = false);
+          }
+        }
+        return;
+      }
+
+      // ----- CASE B: First-time setup → show form -----
+      _log('  CASE B: first-time setup → show form');
+      _clearControllersOnly();
+      if (!mounted) return;
+      setState(() {
+        _isMpinEnabled = true;
+        _showForm = true;
+        _errorMessage = '';
+      });
+      _log('  AFTER setState → _isMpinEnabled=$_isMpinEnabled _showForm=$_showForm');
+      _focusFirstMpinBox();
+      return;
+    }
+
+    // ====================================================================
+    // TURNING OFF
+    // ====================================================================
+    _log('  → TURNING OFF');
+
+    // ----- CASE C: No MPIN saved → just hide form -----
+    if (!_hasExistingMpin) {
+      _log('  CASE C: no existing MPIN → just hide form');
+      _clearControllersOnly();
+      if (!mounted) return;
+      setState(() {
+        _isMpinEnabled = false;
+        _showForm = false;
+        _errorMessage = '';
+      });
+      return;
+    }
+
+    // ----- CASE D: Real MPIN → confirm before disable -----
+    _log('  CASE D: existing MPIN → confirm dialog');
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Disable MPIN"),
+        content: const Text(
+          "Are you sure you want to disable MPIN login?\n\n"
+          "You can enable it again later from settings.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text("Disable"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) {
+      _log('  Confirm dialog cancelled');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await SecureStorage.setMpinEnabled(false);
+      _clearControllersOnly();
+      if (!mounted) return;
+      setState(() {
+        _isMpinEnabled = false;
+        _showForm = false;
+        _hasExistingMpin = false;
+        _errorMessage = '';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("MPIN disabled successfully"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } catch (e) {
+      _log('  error disabling: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to disable MPIN: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   // ============================================================
@@ -12703,32 +12796,33 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
     final String mpin = _mpin;
     final String confirmMpin = _confirmMpin;
 
-    setState(() => _errorMessage = '');
-
     if (mpin.length != 6) {
+      if (!mounted) return;
       setState(() => _errorMessage = 'Please enter 6-digit MPIN');
       return;
     }
     if (confirmMpin.length != 6) {
+      if (!mounted) return;
       setState(() => _errorMessage = 'Please confirm your 6-digit MPIN');
       return;
     }
     if (mpin != confirmMpin) {
+      _clearControllersOnly();
+      if (!mounted) return;
       setState(() => _errorMessage = 'MPIN does not match. Please try again.');
-      _clearAll();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_isDisposed && _showForm) {
-          FocusScope.of(context).requestFocus(_mpinFocusNodes[0]);
-        }
-      });
+      _focusFirstMpinBox();
       return;
     }
 
     if (!mounted || _isDisposed) return;
-    setState(() => _isSaving = true);
+    setState(() {
+      _errorMessage = '';
+      _isSaving = true;
+    });
 
     try {
-      final authController = Provider.of<AuthController>(context, listen: false);
+      final authController =
+          Provider.of<AuthController>(context, listen: false);
       await authController.setupMpin(widget.email, mpin);
       await SecureStorage.saveMpin(mpin);
       await SecureStorage.setMpinEnabled(true);
@@ -12743,12 +12837,15 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
         ),
       );
 
+      _clearControllersOnly();
+
+      if (!mounted) return;
       setState(() {
         _hasExistingMpin = true;
         _isMpinEnabled = true;
         _showForm = false;
         _isSaving = false;
-        _clearAll();
+        _errorMessage = '';
       });
 
       await Future.delayed(const Duration(milliseconds: 500));
@@ -12760,22 +12857,28 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
         }
       }
     } catch (e) {
-      if (mounted && !_isDisposed) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to save MPIN: ${e.toString()}"), backgroundColor: Colors.red),
-        );
-        setState(() => _errorMessage = 'Failed to save MPIN. Please try again.');
-        setState(() => _isSaving = false);
-        setState(() => _showForm = true);
-      }
+      if (!mounted || _isDisposed) return;
+      setState(() {
+        _isSaving = false;
+        _showForm = true;
+        _errorMessage = 'Failed to save MPIN. Please try again.';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to save MPIN: ${e.toString()}"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   // ============================================================
-  // BUILD – AI‑BASED MODERN UI
+  // BUILD
   // ============================================================
   @override
   Widget build(BuildContext context) {
+    _log('build — _isLoading=$_isLoading _isMpinEnabled=$_isMpinEnabled _showForm=$_showForm');
+
     if (_isLoading) {
       return _buildLoadingScreen();
     }
@@ -12818,9 +12921,8 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // AI‑BASED DESIGN COMPONENTS
+  // DESIGN
   // ============================================================
-
   BoxDecoration _buildGradientBackground() {
     return const BoxDecoration(
       gradient: LinearGradient(
@@ -12855,7 +12957,8 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF6C63FF).withOpacity(0.3),
+                            color:
+                                const Color(0xFF6C63FF).withOpacity(0.3),
                             blurRadius: 20,
                             spreadRadius: 5,
                           ),
@@ -12997,76 +13100,80 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // TOGGLE CARD – Like Fingerprint Setup
+  // TOGGLE CARD
   // ============================================================
   Widget _buildToggleCard() {
     return _buildGlassContainer(
       child: Column(
         children: [
-          // Toggle Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: _isMpinEnabled
-                          ? Colors.green.withOpacity(0.2)
-                          : Colors.grey.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.pin,
-                      color: _isMpinEnabled ? Colors.green : Colors.grey.shade600,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "MPIN Login",
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: _isMpinEnabled ? Colors.green : Colors.black87,
-                        ),
+              Flexible(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _isMpinEnabled
+                            ? Colors.green.withOpacity(0.2)
+                            : Colors.grey.withOpacity(0.1),
+                        shape: BoxShape.circle,
                       ),
-                      Text(
-                        _isMpinEnabled && _hasExistingMpin
-                            ? "Quick login with 6‑digit PIN"
-                            : _showForm
-                                ? "Set your 6‑digit PIN below"
-                                : "Enable MPIN for faster login",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _isMpinEnabled
-                              ? Colors.green.shade700
-                              : Colors.grey.shade600,
-                        ),
+                      child: Icon(
+                        Icons.pin,
+                        color: _isMpinEnabled
+                            ? Colors.green
+                            : Colors.grey.shade600,
+                        size: 24,
                       ),
-                    ],
-                  ),
-                ],
-              ),
-              Transform.scale(
-                scale: 1.2,
-                child: Switch(
-                  value: _isMpinEnabled,
-                  onChanged: _toggleMpin,
-                  activeThumbColor: Colors.green,
-                  activeTrackColor: Colors.green.shade200,
-                  inactiveThumbColor: Colors.grey,
-                  inactiveTrackColor: Colors.grey.shade300,
+                    ),
+                    const SizedBox(width: 14),
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "MPIN Login",
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: _isMpinEnabled
+                                  ? Colors.green
+                                  : Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            _isMpinEnabled && _hasExistingMpin
+                                ? "Quick login with 6‑digit PIN"
+                                : _showForm
+                                    ? "Set your 6‑digit PIN below"
+                                    : "Enable MPIN for faster login",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _isMpinEnabled
+                                  ? Colors.green.shade700
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              // ✅ REMOVED Transform.scale — was breaking hit-area on mobile
+              Switch(
+                value: _isMpinEnabled,
+                onChanged: _toggleMpin,
+                activeThumbColor: Colors.green,
+                activeTrackColor: Colors.green.shade200,
+                inactiveThumbColor: Colors.grey,
+                inactiveTrackColor: Colors.grey.shade300,
               ),
             ],
           ),
 
-          // Status Indicators
           if (_isMpinEnabled && _hasExistingMpin)
             Container(
               margin: const EdgeInsets.only(top: 16),
@@ -13078,7 +13185,8 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                  const Icon(Icons.check_circle,
+                      color: Colors.green, size: 18),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -13105,7 +13213,8 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.warning_amber, color: Colors.orange, size: 18),
+                  const Icon(Icons.warning_amber,
+                      color: Colors.orange, size: 18),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -13120,7 +13229,6 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
               ),
             ),
 
-          // MPIN FORM
           if (_showForm) ...[
             const SizedBox(height: 20),
             const Divider(color: Colors.grey, thickness: 1),
@@ -13133,13 +13241,12 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // MPIN FORM – Input boxes for Android & Web
+  // MPIN FORM
   // ============================================================
   Widget _buildMpinForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Enter MPIN
         _buildSectionTitle("Enter MPIN", Icons.pin, Colors.blueAccent),
         const SizedBox(height: 12),
         _buildMpinInputRow(
@@ -13148,7 +13255,10 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
           isConfirm: false,
           onComplete: () {
             if (_mpin.length == 6) {
-              FocusScope.of(context).requestFocus(_confirmMpinFocusNodes[0]);
+              try {
+                FocusScope.of(context)
+                    .requestFocus(_confirmMpinFocusNodes[0]);
+              } catch (_) {}
             }
           },
         ),
@@ -13159,7 +13269,8 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
             GestureDetector(
               onTap: () => setState(() => _showMpin = !_showMpin),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(20),
@@ -13186,10 +13297,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
             ),
           ],
         ),
-
         const SizedBox(height: 24),
-
-        // Confirm MPIN
         _buildSectionTitle("Confirm MPIN", Icons.verified, Colors.green),
         const SizedBox(height: 12),
         _buildMpinInputRow(
@@ -13207,9 +13315,11 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             GestureDetector(
-              onTap: () => setState(() => _showConfirmMpin = !_showConfirmMpin),
+              onTap: () =>
+                  setState(() => _showConfirmMpin = !_showConfirmMpin),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(20),
@@ -13218,7 +13328,9 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _showConfirmMpin ? Icons.visibility : Icons.visibility_off,
+                      _showConfirmMpin
+                          ? Icons.visibility
+                          : Icons.visibility_off,
                       size: 16,
                       color: Colors.grey.shade700,
                     ),
@@ -13236,10 +13348,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
             ),
           ],
         ),
-
         const SizedBox(height: 24),
-
-        // Save Button or Info
         if (_isMpinComplete && _isConfirmMpinComplete)
           _buildSaveButton()
         else
@@ -13303,9 +13412,6 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
     );
   }
 
-  // ============================================================
-  // MPIN INPUT ROW – 6 Boxes with Auto‑Tab
-  // ============================================================
   Widget _buildMpinInputRow({
     required List<TextEditingController> controllers,
     required List<FocusNode> focusNodes,
@@ -13328,30 +13434,34 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
             controller: controllers[index],
             focusNode: focusNodes[index],
             onChanged: (value) {
-              // Auto‑tab to next field
               if (value.length == 1 && index < 5) {
-                FocusScope.of(context).requestFocus(focusNodes[index + 1]);
+                try {
+                  FocusScope.of(context)
+                      .requestFocus(focusNodes[index + 1]);
+                } catch (_) {}
               }
-              // Auto‑tab to previous on delete
               if (value.isEmpty && index > 0) {
-                FocusScope.of(context).requestFocus(focusNodes[index - 1]);
+                try {
+                  FocusScope.of(context)
+                      .requestFocus(focusNodes[index - 1]);
+                } catch (_) {}
               }
-
-              // Check if complete
-              final currentValue = controllers.map((c) => c.text).join();
+              final currentValue =
+                  controllers.map((c) => c.text).join();
               if (currentValue.length == 6) {
                 onComplete();
               }
-
               if (mounted) setState(() {});
             },
             onSubmitted: (_) {
               if (index < 5) {
-                FocusScope.of(context).requestFocus(focusNodes[index + 1]);
+                try {
+                  FocusScope.of(context)
+                      .requestFocus(focusNodes[index + 1]);
+                } catch (_) {}
               }
             },
             showPin: showPin,
-            isFirst: index == 0,
           );
         }),
       ),
@@ -13359,7 +13469,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
   }
 
   // ============================================================
-  // SINGLE MPIN BOX – Fully visible on Android & Web
+  // SINGLE MPIN BOX — no autofocus, explicit requestFocus elsewhere
   // ============================================================
   Widget _buildMpinBox({
     required TextEditingController controller,
@@ -13367,7 +13477,6 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
     required Function(String) onChanged,
     required Function(String) onSubmitted,
     required bool showPin,
-    required bool isFirst,
   }) {
     return SizedBox(
       width: 46,
@@ -13375,7 +13484,6 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
       child: TextField(
         controller: controller,
         focusNode: focusNode,
-        autofocus: isFirst && _showForm,
         textAlign: TextAlign.center,
         keyboardType: TextInputType.number,
         maxLength: 1,
@@ -13425,11 +13533,9 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
     );
   }
 
-  // ============================================================
-  // SAVE BUTTON – Visible on web & mobile
-  // ============================================================
   Widget _buildSaveButton() {
-    final bool isEnabled = _isMpinComplete && _isConfirmMpinComplete && !_isSaving;
+    final bool isEnabled =
+        _isMpinComplete && _isConfirmMpinComplete && !_isSaving;
 
     return SizedBox(
       width: double.infinity,
@@ -13504,9 +13610,6 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
     );
   }
 
-  // ============================================================
-  // ERROR WIDGET
-  // ============================================================
   Widget _buildErrorWidget() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -13517,7 +13620,8 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
+          const Icon(Icons.error_outline,
+              color: Colors.redAccent, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -13531,16 +13635,14 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
           ),
           GestureDetector(
             onTap: () => setState(() => _errorMessage = ''),
-            child: const Icon(Icons.close, color: Colors.redAccent, size: 16),
+            child: const Icon(Icons.close,
+                color: Colors.redAccent, size: 16),
           ),
         ],
       ),
     );
   }
 
-  // ============================================================
-  // REMOVE BUTTON – Visible on web & mobile
-  // ============================================================
   Widget _buildRemoveButton() {
     return SizedBox(
       width: double.infinity,
@@ -13550,9 +13652,11 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
           final confirm = await showDialog<bool>(
             context: context,
             builder: (dialogContext) => AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
               title: const Text("Remove MPIN"),
-              content: const Text("Are you sure you want to remove your MPIN?"),
+              content:
+                  const Text("Are you sure you want to remove your MPIN?"),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext, false),
@@ -13571,34 +13675,38 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
               ],
             ),
           );
-          if (confirm == true) {
-            setState(() => _isLoading = true);
-            try {
-              await SecureStorage.deleteMpin();
-              await SecureStorage.setMpinEnabled(false);
-              setState(() {
-                _isMpinEnabled = false;
-                _hasExistingMpin = false;
-                _showForm = false;
-                _clearAll();
-              });
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("MPIN removed successfully"),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Failed to remove MPIN: $e"), backgroundColor: Colors.red),
-                );
-              }
-            } finally {
-              setState(() => _isLoading = false);
+
+          if (confirm != true || !mounted) return;
+
+          setState(() => _isLoading = true);
+          try {
+            await SecureStorage.deleteMpin();
+            await SecureStorage.setMpinEnabled(false);
+            _clearControllersOnly();
+            if (!mounted) return;
+            setState(() {
+              _isMpinEnabled = false;
+              _hasExistingMpin = false;
+              _showForm = false;
+              _errorMessage = '';
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("MPIN removed successfully"),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("Failed to remove MPIN: $e"),
+                  backgroundColor: Colors.red,
+                ),
+              );
             }
+          } finally {
+            if (mounted) setState(() => _isLoading = false);
           }
         },
         icon: const Icon(Icons.delete_outline, size: 18),
@@ -13617,9 +13725,6 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
     );
   }
 
-  // ============================================================
-  // ON WILL POP – Prevent accidental back navigation
-  // ============================================================
   Future<bool> _onWillPop() async {
     if (_showForm && !_hasExistingMpin) {
       final confirm = await showDialog<bool>(
@@ -13627,8 +13732,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
         builder: (context) => AlertDialog(
           title: const Text("Cancel MPIN Setup"),
           content: const Text(
-            "You haven't completed MPIN setup. Are you sure you want to leave?"
-          ),
+              "You haven't completed MPIN setup. Are you sure you want to leave?"),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -13647,12 +13751,16 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
           ],
         ),
       );
+
       if (confirm == true) {
-        setState(() {
-          _isMpinEnabled = false;
-          _showForm = false;
-          _clearAll();
-        });
+        _clearControllersOnly();
+        if (mounted) {
+          setState(() {
+            _isMpinEnabled = false;
+            _showForm = false;
+            _errorMessage = '';
+          });
+        }
         return true;
       }
       return false;
@@ -13662,14 +13770,15 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
 }
 
 ================================================================================
-[  54/ 145] 🎯 rojgarnext/lib/features/auth/presentation/screens/register_login_page.dart
-📏 SIZE: 42.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+[  54/ 146] 🎯 rojgarnext/lib/features/auth/presentation/screens/register_login_page.dart
+📏 SIZE: 47.5 KB
+🕐 MODIFIED: 2026-09-25 19:28:30
 ================================================================================
 
 // lib/features/auth/presentation/screens/register_login_page.dart
 // ✅ AI‑BASED MODERN DESIGN (light gradient, glass containers, consistent with other screens)
 // ✅ MPIN Login Button Always Visible (fixed)
+// ✅ MPIN section: NO scrollbar, email + keypad + button fit on screen (web & mobile)
 // ✅ All original logic preserved (login, register, MPIN, biometric, password strength)
 
 import 'package:flutter/material.dart';
@@ -13798,25 +13907,29 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
             decoration: _buildGradientBackground(),
             child: SafeArea(
               child: Center(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
+                child: Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: isMobile ? 16 : 32,
                     vertical: 20,
                   ),
                   child: Container(
                     width: isMobile ? double.infinity : 440,
+                    // ✅ Allow the container to shrink/grow with available height
+                    constraints: BoxConstraints(
+                      maxHeight: size.height - (isMobile ? 80 : 120),
+                    ),
                     padding: const EdgeInsets.all(24),
                     decoration: _buildGlassContainerDecoration(),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _buildHeader(),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
                         _buildTabBar(),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          height: _tabController.index == 0 ? 650 : 540,
+                        const SizedBox(height: 20),
+                        // ✅ Expanded gives TabBarView the remaining height so it
+                        //    can be laid out without a hard-coded pixel height.
+                        Expanded(
                           child: TabBarView(
                             controller: _tabController,
                             physics: const NeverScrollableScrollPhysics(),
@@ -13880,7 +13993,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
@@ -13897,10 +14010,10 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           child: const Icon(
             Icons.work_outline,
             color: Colors.white,
-            size: 36,
+            size: 30,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
             colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
@@ -13908,7 +14021,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           child: const Text(
             "RojgarNext",
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.white,
               letterSpacing: 1,
@@ -13919,7 +14032,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
         Text(
           "Find Your Dream Job",
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 13,
             color: Colors.grey.shade600,
           ),
         ),
@@ -14003,12 +14116,15 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+        // ✅ Email / Fingerprint tabs may scroll; MPIN tab handles its own layout.
         Expanded(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: _getLoginContent(auth),
-          ),
+          child: _loginMethodIndex == 1
+              ? _buildMpinLogin(auth)
+              : SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: _getLoginContent(auth),
+                ),
         ),
       ],
     );
@@ -14138,7 +14254,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
   }
 
   // ============================================================
-  // MPIN LOGIN (Button Always Visible)
+  // MPIN LOGIN – NO SCROLL, BUTTON ALWAYS VISIBLE
   // ============================================================
   Widget _buildMpinLogin(AuthController auth) {
     final TextEditingController localPinCtrl = TextEditingController();
@@ -14146,72 +14262,42 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
 
     return StatefulBuilder(
       builder: (context, setMpinState) {
-        final bool isPinComplete = localPinCtrl.text.length == 6;
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            // ✅ Responsive sizing so the pad + button fit on short screens.
+            final isShort = constraints.maxHeight < 560;
+            final double numberBtnHeight = isShort ? 40 : 50;
+            final double numberBtnWidth = isShort ? 52 : 60;
+            final double padSpacing = isShort ? 8 : 12;
+            final double topSpacing = isShort ? 12 : 20;
 
-        return Column(
-          children: [
-            _buildTextField(mpinEmailCtrl, "Email Address", Icons.email_outlined),
-            const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: _buildGlassContainerDecoration(),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                // ✅ IntrinsicHeight gives the Column a bounded height so
+                //    Spacer() (which uses Expanded internally) works.
+                //    Without it, Spacer collapses to size 0 → the
+                //    "Cannot hit test a render box with no size" error.
+                child: IntrinsicHeight(
+                  child: Column(
                     children: [
+                      _buildTextField(
+                          mpinEmailCtrl, "Email Address", Icons.email_outlined),
+                      SizedBox(height: topSpacing),
                       Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                          ),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.pin, color: Colors.white, size: 18),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        "Enter 6-Digit MPIN",
-                        style: TextStyle(
-                          color: Colors.grey.shade800,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(6, (index) {
-                          final String text = localPinCtrl.text;
-                          final bool isFilled = index < text.length;
-                          final String displayChar =
-                              obscurePin ? '•' : (isFilled ? text[index] : '');
-
-                          return Container(
-                            width: 42,
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            child: Column(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(isShort ? 12 : 16),
+                        decoration: _buildGlassContainerDecoration(),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(
-                                  isFilled ? displayChar : '',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: isFilled
-                                        ? Colors.grey.shade800
-                                        : Colors.transparent,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 6),
                                 Container(
-                                  height: 2,
+                                  padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
                                     gradient: const LinearGradient(
                                       colors: [
@@ -14219,104 +14305,173 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                                         Color(0xFFFF6588),
                                       ],
                                     ),
-                                    borderRadius: BorderRadius.circular(1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.pin,
+                                      color: Colors.white, size: 16),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Enter 6-Digit MPIN",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade800,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
                             ),
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildNumberPad(
-                        onNumberPressed: (number) {
-                          String current = localPinCtrl.text;
-                          if (current.length < 6) {
-                            String newValue = current + number;
-                            setMpinState(() {
-                              localPinCtrl.text = newValue;
-                              pinCtrl.text = newValue;
-                            });
-                          }
-                        },
-                        onDeletePressed: () {
-                          String current = localPinCtrl.text;
-                          if (current.isNotEmpty) {
-                            String newValue = current.substring(0, current.length - 1);
-                            setMpinState(() {
-                              localPinCtrl.text = newValue;
-                              pinCtrl.text = newValue;
-                            });
-                          }
-                        },
-                        onClearPressed: () {
-                          setMpinState(() {
-                            localPinCtrl.clear();
-                            pinCtrl.clear();
-                          });
-                        },
-                        obscurePin: obscurePin,
-                        onToggleObscure: () {
-                          setMpinState(() {
-                            obscurePin = !obscurePin;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF6C63FF).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.security,
-                              size: 14,
-                              color: Color(0xFF6C63FF),
+                            SizedBox(height: isShort ? 12 : 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(6, (index) {
+                                final String text = localPinCtrl.text;
+                                final bool isFilled = index < text.length;
+                                final String displayChar = obscurePin
+                                    ? '•'
+                                    : (isFilled ? text[index] : '');
+
+                                return Container(
+                                  width: isShort ? 34 : 40,
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 3),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        isFilled ? displayChar : '',
+                                        style: TextStyle(
+                                          fontSize: isShort ? 18 : 22,
+                                          fontWeight: FontWeight.bold,
+                                          color: isFilled
+                                              ? Colors.grey.shade800
+                                              : Colors.transparent,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        height: 2,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [
+                                              Color(0xFF6C63FF),
+                                              Color(0xFFFF6588),
+                                            ],
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(1),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              "Secure MPIN Login",
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: const Color(0xFF6C63FF),
+                            SizedBox(height: isShort ? 10 : 14),
+                            _buildNumberPad(
+                              numberBtnWidth: numberBtnWidth,
+                              numberBtnHeight: numberBtnHeight,
+                              padSpacing: padSpacing,
+                              onNumberPressed: (number) {
+                                String current = localPinCtrl.text;
+                                if (current.length < 6) {
+                                  String newValue = current + number;
+                                  setMpinState(() {
+                                    localPinCtrl.text = newValue;
+                                    pinCtrl.text = newValue;
+                                  });
+                                }
+                              },
+                              onDeletePressed: () {
+                                String current = localPinCtrl.text;
+                                if (current.isNotEmpty) {
+                                  String newValue = current.substring(
+                                      0, current.length - 1);
+                                  setMpinState(() {
+                                    localPinCtrl.text = newValue;
+                                    pinCtrl.text = newValue;
+                                  });
+                                }
+                              },
+                              onClearPressed: () {
+                                setMpinState(() {
+                                  localPinCtrl.clear();
+                                  pinCtrl.clear();
+                                });
+                              },
+                              obscurePin: obscurePin,
+                              onToggleObscure: () {
+                                setMpinState(() {
+                                  obscurePin = !obscurePin;
+                                });
+                              },
+                            ),
+                            SizedBox(height: isShort ? 8 : 12),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color:
+                                    const Color(0xFF6C63FF).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.security,
+                                    size: 13,
+                                    color: Color(0xFF6C63FF),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "Secure MPIN Login",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: const Color(0xFF6C63FF),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
+                      // ✅ Spacer works here because IntrinsicHeight gives
+                      //    the Column a finite height (from ConstrainedBox
+                      //    minHeight = viewport). This pushes the button
+                      //    to the bottom without any scrollbar.
+                      const Spacer(),
+                      SizedBox(height: isShort ? 12 : 20),
+                      _ModernButton(
+                        text: "Login with MPIN",
+                        isLoading: auth.isLoading,
+                        onTap: () {
+                          final email = mpinEmailCtrl.text.trim();
+                          final pin = localPinCtrl.text.trim();
+                          if (email.isEmpty || pin.length != 6) {
+                            _safeShowMessage(
+                                "Please enter email and 6-digit MPIN",
+                                isError: true);
+                            return;
+                          }
+                          pinCtrl.text = pin;
+                          auth.loginWithMpin(email, pin, context);
+                        },
+                      ),
+                      SizedBox(height: isShort ? 4 : 8),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            // ✅ MPIN Login Button - Always Visible, enabled when pin complete
-            _ModernButton(
-              text: "Login with MPIN",
-              isLoading: auth.isLoading,
-              onTap: () {
-                final email = mpinEmailCtrl.text.trim();
-                final pin = localPinCtrl.text.trim();
-                if (email.isEmpty || pin.length != 6) {
-                  _safeShowMessage("Please enter email and 6-digit MPIN", isError: true);
-                  return;
-                }
-                pinCtrl.text = pin;
-                auth.loginWithMpin(email, pin, context);
-              },
-            ),
-          ],
+            );
+          },
         );
       },
     );
   }
 
   // ============================================================
-  // NUMBER PAD
+  // NUMBER PAD – RESPONSIVE
   // ============================================================
   Widget _buildNumberPad({
     required Function(String) onNumberPressed,
@@ -14324,36 +14479,48 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     required VoidCallback onClearPressed,
     required bool obscurePin,
     required VoidCallback onToggleObscure,
+    required double numberBtnWidth,
+    required double numberBtnHeight,
+    required double padSpacing,
   }) {
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildNumberButton('1', onNumberPressed),
-            _buildNumberButton('2', onNumberPressed),
-            _buildNumberButton('3', onNumberPressed),
+            _buildNumberButton('1', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
+            _buildNumberButton('2', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
+            _buildNumberButton('3', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: padSpacing),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildNumberButton('4', onNumberPressed),
-            _buildNumberButton('5', onNumberPressed),
-            _buildNumberButton('6', onNumberPressed),
+            _buildNumberButton('4', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
+            _buildNumberButton('5', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
+            _buildNumberButton('6', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: padSpacing),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildNumberButton('7', onNumberPressed),
-            _buildNumberButton('8', onNumberPressed),
-            _buildNumberButton('9', onNumberPressed),
+            _buildNumberButton('7', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
+            _buildNumberButton('8', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
+            _buildNumberButton('9', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: padSpacing),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -14361,35 +14528,45 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
               icon: obscurePin ? Icons.visibility_off : Icons.visibility,
               onPressed: onToggleObscure,
               label: obscurePin ? "Show" : "Hide",
+              width: numberBtnWidth,
+              height: numberBtnHeight,
             ),
-            _buildNumberButton('0', onNumberPressed),
+            _buildNumberButton('0', onNumberPressed,
+                width: numberBtnWidth, height: numberBtnHeight),
             _buildIconButton(
               icon: Icons.backspace,
               onPressed: onDeletePressed,
               label: "Del",
+              width: numberBtnWidth,
+              height: numberBtnHeight,
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: padSpacing * 0.5),
         SizedBox(
           width: double.infinity,
           child: TextButton(
             onPressed: onClearPressed,
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 4),
             ),
-            child: const Text("CLEAR ALL"),
+            child: const Text("CLEAR ALL", style: TextStyle(fontSize: 12)),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildNumberButton(String number, Function(String) onPressed) {
+  Widget _buildNumberButton(
+    String number,
+    Function(String) onPressed, {
+    required double width,
+    required double height,
+  }) {
     return SizedBox(
-      width: 60,
-      height: 50,
+      width: width,
+      height: height,
       child: Material(
         color: Colors.grey.shade200,
         borderRadius: BorderRadius.circular(12),
@@ -14399,8 +14576,8 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           child: Center(
             child: Text(
               number,
-              style: const TextStyle(
-                fontSize: 24,
+              style: TextStyle(
+                fontSize: height < 45 ? 20 : 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
               ),
@@ -14415,10 +14592,12 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     required IconData icon,
     required VoidCallback onPressed,
     String? label,
+    required double width,
+    required double height,
   }) {
     return SizedBox(
-      width: 60,
-      height: 50,
+      width: width,
+      height: height,
       child: Material(
         color: Colors.grey.shade200,
         borderRadius: BorderRadius.circular(12),
@@ -14428,12 +14607,12 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.grey.shade700, size: 24),
+              Icon(icon, color: Colors.grey.shade700, size: height < 45 ? 20 : 24),
               if (label != null)
                 Text(
                   label,
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     color: Colors.grey,
                   ),
                 ),
@@ -14503,17 +14682,18 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
             return FutureBuilder<String?>(
               future: SecureStorage.getEmail(),
               builder: (context, emailSnapshot) {
-                final hasEmail = emailSnapshot.data != null && emailSnapshot.data!.isNotEmpty;
-                
+                final hasEmail = emailSnapshot.data != null &&
+                    emailSnapshot.data!.isNotEmpty;
+
                 if (isEnabled && hasEmail) {
                   return const SizedBox.shrink();
                 }
-                
+
                 String buttonText = "🔐 Enable Fingerprint Login";
                 if (!hasEmail) {
                   buttonText = "📧 Login with Email & Password first";
                 }
-                
+
                 return TextButton(
                   onPressed: () async {
                     if (!hasEmail) {
@@ -14523,7 +14703,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                       );
                       return;
                     }
-                    
+
                     final email = await SecureStorage.getEmail();
                     if (email != null && email.isNotEmpty) {
                       Navigator.push(
@@ -14542,7 +14722,9 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                   child: Text(
                     buttonText,
                     style: TextStyle(
-                      color: !hasEmail ? Colors.grey.shade600 : const Color(0xFF6C63FF),
+                      color: !hasEmail
+                          ? Colors.grey.shade600
+                          : const Color(0xFF6C63FF),
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
@@ -14561,16 +14743,17 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
       future: SecureStorage.isBiometricEnabled(),
       builder: (context, snapshot) {
         final isEnabled = snapshot.data ?? false;
-        
+
         return FutureBuilder<String?>(
           future: SecureStorage.getEmail(),
           builder: (context, emailSnapshot) {
-            final hasEmail = emailSnapshot.data != null && emailSnapshot.data!.isNotEmpty;
-            
+            final hasEmail = emailSnapshot.data != null &&
+                emailSnapshot.data!.isNotEmpty;
+
             String statusText;
             Color statusColor;
             IconData statusIcon;
-            
+
             if (!hasEmail) {
               statusText = "ℹ️ Please login with Email & Password first";
               statusColor = Colors.orange;
@@ -14580,11 +14763,12 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
               statusColor = Colors.green;
               statusIcon = Icons.check_circle;
             } else {
-              statusText = "ℹ️ Enable fingerprint in Settings → Biometric Login first";
+              statusText =
+                  "ℹ️ Enable fingerprint in Settings → Biometric Login first";
               statusColor = Colors.orange;
               statusIcon = Icons.fingerprint;
             }
-            
+
             return Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -14677,7 +14861,8 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                 _safeShowMessage("Please enter a password", isError: true);
                 return;
               }
-              if (mobile.length != 10 || !RegExp(r'^[0-9]{10}$').hasMatch(mobile)) {
+              if (mobile.length != 10 ||
+                  !RegExp(r'^[0-9]{10}$').hasMatch(mobile)) {
                 _safeShowMessage("Mobile number must be 10 digits", isError: true);
                 return;
               }
@@ -14784,7 +14969,8 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
+              borderSide:
+                  const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
             ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -14933,7 +15119,7 @@ class _ModernButton extends StatelessWidget {
 }
 
 ================================================================================
-[  55/ 145] 🎯 rojgarnext/lib/features/auth/presentation/screens/verify_otp_page.dart
+[  55/ 146] 🎯 rojgarnext/lib/features/auth/presentation/screens/verify_otp_page.dart
 📏 SIZE: 21.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -15635,7 +15821,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 }
 
 ================================================================================
-[  56/ 145] 🎯 rojgarnext/lib/features/auth/services/auth_service.dart
+[  56/ 146] 🎯 rojgarnext/lib/features/auth/services/auth_service.dart
 📏 SIZE: 14.3 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -16075,7 +16261,7 @@ class AuthService {
 }
 
 ================================================================================
-[  57/ 145] 🎯 rojgarnext/lib/features/common/widgets/internet_checker.dart
+[  57/ 146] 🎯 rojgarnext/lib/features/common/widgets/internet_checker.dart
 📏 SIZE: 4.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -16226,7 +16412,7 @@ class _InternetCheckerState extends State<InternetChecker> {
 }
 
 ================================================================================
-[  58/ 145] 🎯 rojgarnext/lib/features/common/widgets/location_display.dart
+[  58/ 146] 🎯 rojgarnext/lib/features/common/widgets/location_display.dart
 📏 SIZE: 3.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -16353,7 +16539,7 @@ class _LocationDisplayState extends State<LocationDisplay> {
 
 
 ================================================================================
-[  59/ 145] 🎯 rojgarnext/lib/features/customadmin/data/customadmin_service.dart
+[  59/ 146] 🎯 rojgarnext/lib/features/customadmin/data/customadmin_service.dart
 📏 SIZE: 8.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -16653,7 +16839,7 @@ class CustomAdminService {
 }
 
 ================================================================================
-[  60/ 145] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
+[  60/ 146] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
 📏 SIZE: 27.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -17446,7 +17632,7 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
 }
 
 ================================================================================
-[  61/ 145] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/pending_payments_screen.dart
+[  61/ 146] 🎯 rojgarnext/lib/features/customadmin/presentation/screens/pending_payments_screen.dart
 📏 SIZE: 5.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -17622,7 +17808,7 @@ class _PendingPaymentsScreenState extends State<PendingPaymentsScreen> {
 
 
 ================================================================================
-[  62/ 145] 🎯 rojgarnext/lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
+[  62/ 146] 🎯 rojgarnext/lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
 📏 SIZE: 7.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -17848,7 +18034,7 @@ class CustomAdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[  63/ 145] 🎯 rojgarnext/lib/features/home/home_screen.dart
+[  63/ 146] 🎯 rojgarnext/lib/features/home/home_screen.dart
 📏 SIZE: 55.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -19470,7 +19656,7 @@ class _HomeScreenState extends State<HomeScreen>
 }
 
 ================================================================================
-[  64/ 145] 🎯 rojgarnext/lib/features/jobs/AI/job_ai_service.dart
+[  64/ 146] 🎯 rojgarnext/lib/features/jobs/AI/job_ai_service.dart
 📏 SIZE: 1.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -19533,7 +19719,7 @@ class JobAIService {
 
 
 ================================================================================
-[  65/ 145] 🎯 rojgarnext/lib/features/jobs/AI/job_match_score_widget.dart
+[  65/ 146] 🎯 rojgarnext/lib/features/jobs/AI/job_match_score_widget.dart
 📏 SIZE: 5.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -19719,7 +19905,7 @@ class _JobMatchScoreWidgetState extends State<JobMatchScoreWidget> {
 
 
 ================================================================================
-[  66/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/add_job_screen.dart
+[  66/ 146] 🎯 rojgarnext/lib/features/jobs/presentation/screens/add_job_screen.dart
 📏 SIZE: 196.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -25058,7 +25244,7 @@ Future<void> _pickAdvertisement() async {
 
 
 ================================================================================
-[  67/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/applications_screen.dart
+[  67/ 146] 🎯 rojgarnext/lib/features/jobs/presentation/screens/applications_screen.dart
 📏 SIZE: 156.7 KB
 🕐 MODIFIED: 2026-09-24 18:26:22
 ================================================================================
@@ -29379,7 +29565,7 @@ class _FinalSubmitDialogContentState
 }
 
 ================================================================================
-[  68/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/candidate_profile_screen.dart
+[  68/ 146] 🎯 rojgarnext/lib/features/jobs/presentation/screens/candidate_profile_screen.dart
 📏 SIZE: 79.0 KB
 🕐 MODIFIED: 2026-09-23 21:59:36
 ================================================================================
@@ -31540,7 +31726,7 @@ class _CandidateProfileScreenState extends State<CandidateProfileScreen>
 }
 
 ================================================================================
-[  69/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_detail_screen.dart
+[  69/ 146] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_detail_screen.dart
 📏 SIZE: 173.6 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -36464,7 +36650,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 }
 
 ================================================================================
-[  70/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_list_screen.dart
+[  70/ 146] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_list_screen.dart
 📏 SIZE: 57.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -38046,7 +38232,7 @@ class _JobListScreenState extends State<JobListScreen>
 }
 
 ================================================================================
-[  71/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/saved_jobs_screen.dart
+[  71/ 146] 🎯 rojgarnext/lib/features/jobs/presentation/screens/saved_jobs_screen.dart
 📏 SIZE: 15.4 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -38529,7 +38715,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
 
 
 ================================================================================
-[  72/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/show_jobs_screen.dart
+[  72/ 146] 🎯 rojgarnext/lib/features/jobs/presentation/screens/show_jobs_screen.dart
 📏 SIZE: 33.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -39545,7 +39731,7 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
 }
 
 ================================================================================
-[  73/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/screens/user_applications_screen.dart
+[  73/ 146] 🎯 rojgarnext/lib/features/jobs/presentation/screens/user_applications_screen.dart
 📏 SIZE: 116.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -42889,7 +43075,7 @@ class _UserApplicationScreenState extends State<UserApplicationScreen>
 }
 
 ================================================================================
-[  74/ 145] 🎯 rojgarnext/lib/features/jobs/presentation/widgets/submit_document_dialog.dart
+[  74/ 146] 🎯 rojgarnext/lib/features/jobs/presentation/widgets/submit_document_dialog.dart
 📏 SIZE: 10.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -43207,7 +43393,7 @@ Future<void> _pickFile() async {
 
 
 ================================================================================
-[  75/ 145] 🎯 rojgarnext/lib/features/location/distance_test_screen.dart
+[  75/ 146] 🎯 rojgarnext/lib/features/location/distance_test_screen.dart
 📏 SIZE: 15.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -43637,7 +43823,7 @@ class _DistanceTestScreenState extends State<DistanceTestScreen> {
 
 
 ================================================================================
-[  76/ 145] 🎯 rojgarnext/lib/features/location/location_test_screen.dart
+[  76/ 146] 🎯 rojgarnext/lib/features/location/location_test_screen.dart
 📏 SIZE: 6.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -43830,7 +44016,7 @@ class _LocationTestScreenState extends State<LocationTestScreen> {
 
 
 ================================================================================
-[  77/ 145] 🎯 rojgarnext/lib/features/market/AI/market_ai_service.dart
+[  77/ 146] 🎯 rojgarnext/lib/features/market/AI/market_ai_service.dart
 📏 SIZE: 1.0 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -43876,7 +44062,7 @@ class MarketAIService {
 
 
 ================================================================================
-[  78/ 145] 🎯 rojgarnext/lib/features/notification/screens/notifications_list_screen.dart
+[  78/ 146] 🎯 rojgarnext/lib/features/notification/screens/notifications_list_screen.dart
 📏 SIZE: 14.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -44354,7 +44540,7 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
 
 
 ================================================================================
-[  79/ 145] 🎯 rojgarnext/lib/features/notification/service/notification_service.dart
+[  79/ 146] 🎯 rojgarnext/lib/features/notification/service/notification_service.dart
 📏 SIZE: 5.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -44553,7 +44739,7 @@ class NotificationService {
 
 
 ================================================================================
-[  80/ 145] 🎯 rojgarnext/lib/features/notification/widgets/notification_bell.dart
+[  80/ 146] 🎯 rojgarnext/lib/features/notification/widgets/notification_bell.dart
 📏 SIZE: 5.6 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -44758,7 +44944,7 @@ class _NotificationBellState extends State<NotificationBell>
 }
 
 ================================================================================
-[  81/ 145] 🎯 rojgarnext/lib/features/payment/presentation/payment.dart
+[  81/ 146] 🎯 rojgarnext/lib/features/payment/presentation/payment.dart
 📏 SIZE: 92 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -44770,7 +44956,7 @@ enum PaymentType {
 }
 
 ================================================================================
-[  82/ 145] 🎯 rojgarnext/lib/features/payment/presentation/screens/payment_screen.dart
+[  82/ 146] 🎯 rojgarnext/lib/features/payment/presentation/screens/payment_screen.dart
 📏 SIZE: 30.4 KB
 🕐 MODIFIED: 2026-09-12 20:49:04
 ================================================================================
@@ -45612,7 +45798,7 @@ class _PaymentScreenState extends State<PaymentScreen>
 }
 
 ================================================================================
-[  83/ 145] 🎯 rojgarnext/lib/features/payment/razorpay_mobile_service.dart
+[  83/ 146] 🎯 rojgarnext/lib/features/payment/razorpay_mobile_service.dart
 📏 SIZE: 2.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -45714,7 +45900,7 @@ class RazorpayMobileService {
 }
 
 ================================================================================
-[  84/ 145] 🎯 rojgarnext/lib/features/payment/razorpay_service.dart
+[  84/ 146] 🎯 rojgarnext/lib/features/payment/razorpay_service.dart
 📏 SIZE: 2.0 KB
 🕐 MODIFIED: 2026-09-10 12:54:00
 ================================================================================
@@ -45791,7 +45977,7 @@ class RazorpayService {
 }
 
 ================================================================================
-[  85/ 145] 🎯 rojgarnext/lib/features/payment/razorpay_web_service.dart
+[  85/ 146] 🎯 rojgarnext/lib/features/payment/razorpay_web_service.dart
 📏 SIZE: 6.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -46010,7 +46196,7 @@ class RazorpayWebService {
 }
 
 ================================================================================
-[  86/ 145] 🎯 rojgarnext/lib/features/payment/razorpay_web_stub.dart
+[  86/ 146] 🎯 rojgarnext/lib/features/payment/razorpay_web_stub.dart
 📏 SIZE: 967 B
 🕐 MODIFIED: 2026-09-10 12:53:43
 ================================================================================
@@ -46051,7 +46237,7 @@ class RazorpayWebService {
 }
 
 ================================================================================
-[  87/ 145] 🎯 rojgarnext/lib/features/resume/AI/AI.dart
+[  87/ 146] 🎯 rojgarnext/lib/features/resume/AI/AI.dart
 📏 SIZE: 915 B
 🕐 MODIFIED: 2026-09-25 10:55:48
 ================================================================================
@@ -46081,7 +46267,7 @@ export 'presentation/widgets/ats_score_gauge.dart';
 export 'presentation/widgets/ats_section_breakdown.dart';
 
 ================================================================================
-[  88/ 145] 🎯 rojgarnext/lib/features/resume/AI/data/models/ai_resume_model.dart
+[  88/ 146] 🎯 rojgarnext/lib/features/resume/AI/data/models/ai_resume_model.dart
 📏 SIZE: 3.3 KB
 🕐 MODIFIED: 2026-09-25 10:56:23
 ================================================================================
@@ -46178,7 +46364,7 @@ class AIResume {
 }
 
 ================================================================================
-[  89/ 145] 🎯 rojgarnext/lib/features/resume/AI/data/models/ats_report_model.dart
+[  89/ 146] 🎯 rojgarnext/lib/features/resume/AI/data/models/ats_report_model.dart
 📏 SIZE: 6.5 KB
 🕐 MODIFIED: 2026-09-25 10:56:05
 ================================================================================
@@ -46391,7 +46577,7 @@ class ATSFix {
 }
 
 ================================================================================
-[  90/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart
+[  90/ 146] 🎯 rojgarnext/lib/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart
 📏 SIZE: 24.4 KB
 🕐 MODIFIED: 2026-09-25 12:47:58
 ================================================================================
@@ -47065,7 +47251,7 @@ class _AIResumeGeneratorScreenState extends State<AIResumeGeneratorScreen> {
 }
 
 ================================================================================
-[  91/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/screens/ats_score_screen.dart
+[  91/ 146] 🎯 rojgarnext/lib/features/resume/AI/presentation/screens/ats_score_screen.dart
 📏 SIZE: 13.7 KB
 🕐 MODIFIED: 2026-09-25 10:58:39
 ================================================================================
@@ -47487,7 +47673,7 @@ class _ATSScoreScreenState extends State<ATSScoreScreen> {
 }
 
 ================================================================================
-[  92/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ai_loading_overlay.dart
+[  92/ 146] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ai_loading_overlay.dart
 📏 SIZE: 3.9 KB
 🕐 MODIFIED: 2026-09-25 10:57:16
 ================================================================================
@@ -47623,7 +47809,7 @@ class _AILoadingOverlayState extends State<AILoadingOverlay>
 }
 
 ================================================================================
-[  93/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ats_fixes_card.dart
+[  93/ 146] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ats_fixes_card.dart
 📏 SIZE: 5.4 KB
 🕐 MODIFIED: 2026-09-25 10:58:17
 ================================================================================
@@ -47791,7 +47977,7 @@ class ATSFixesCard extends StatelessWidget {
 }
 
 ================================================================================
-[  94/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ats_keyword_chips.dart
+[  94/ 146] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ats_keyword_chips.dart
 📏 SIZE: 4.4 KB
 🕐 MODIFIED: 2026-09-25 10:58:01
 ================================================================================
@@ -47944,7 +48130,7 @@ class ATSKeywordChips extends StatelessWidget {
 }
 
 ================================================================================
-[  95/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ats_score_gauge.dart
+[  95/ 146] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ats_score_gauge.dart
 📏 SIZE: 5.6 KB
 🕐 MODIFIED: 2026-09-25 10:57:31
 ================================================================================
@@ -48143,7 +48329,7 @@ class _GaugePainter extends CustomPainter {
 }
 
 ================================================================================
-[  96/ 145] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ats_section_breakdown.dart
+[  96/ 146] 🎯 rojgarnext/lib/features/resume/AI/presentation/widgets/ats_section_breakdown.dart
 📏 SIZE: 4.3 KB
 🕐 MODIFIED: 2026-09-25 10:57:47
 ================================================================================
@@ -48299,7 +48485,7 @@ class ATSSectionBreakdown extends StatelessWidget {
 }
 
 ================================================================================
-[  97/ 145] 🎯 rojgarnext/lib/features/resume/AI/resume_ai_service.dart
+[  97/ 146] 🎯 rojgarnext/lib/features/resume/AI/resume_ai_service.dart
 📏 SIZE: 505 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -48325,7 +48511,7 @@ class ResumeAIService {
 
 
 ================================================================================
-[  98/ 145] 🎯 rojgarnext/lib/features/resume/AI/resume_score_widget.dart
+[  98/ 146] 🎯 rojgarnext/lib/features/resume/AI/resume_score_widget.dart
 📏 SIZE: 3.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -48463,7 +48649,7 @@ class _ResumeScoreWidgetState extends State<ResumeScoreWidget> {
 
 
 ================================================================================
-[  99/ 145] 🎯 rojgarnext/lib/features/resume/AI/services/resume_ai_service.dart
+[  99/ 146] 🎯 rojgarnext/lib/features/resume/AI/services/resume_ai_service.dart
 📏 SIZE: 4.1 KB
 🕐 MODIFIED: 2026-09-25 10:56:41
 ================================================================================
@@ -48594,7 +48780,7 @@ class ResumeAIService {
 }
 
 ================================================================================
-[ 100/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/build_resume_screen.dart
+[ 100/ 146] 🎯 rojgarnext/lib/features/resume/presentation/screens/build_resume_screen.dart
 📏 SIZE: 42.5 KB
 🕐 MODIFIED: 2026-09-24 23:34:59
 ================================================================================
@@ -49859,7 +50045,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
 }
 
 ================================================================================
-[ 101/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/classic_format.dart
+[ 101/ 146] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/classic_format.dart
 📏 SIZE: 21.4 KB
 🕐 MODIFIED: 2026-09-24 20:57:17
 ================================================================================
@@ -50375,7 +50561,7 @@ body{font-family:Georgia,serif;background:#f8f8f8;padding:30px 20px;line-height:
 }
 
 ================================================================================
-[ 102/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/executive_format.dart
+[ 102/ 146] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/executive_format.dart
 📏 SIZE: 20.4 KB
 🕐 MODIFIED: 2026-09-24 20:59:40
 ================================================================================
@@ -50856,7 +51042,7 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
 }
 
 ================================================================================
-[ 103/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/fresher_format.dart
+[ 103/ 146] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/fresher_format.dart
 📏 SIZE: 27.9 KB
 🕐 MODIFIED: 2026-09-24 21:00:36
 ================================================================================
@@ -51486,7 +51672,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#E0F2F1;padding:30px 2
 }
 
 ================================================================================
-[ 104/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/government_format.dart
+[ 104/ 146] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/government_format.dart
 📏 SIZE: 27.9 KB
 🕐 MODIFIED: 2026-09-24 21:00:25
 ================================================================================
@@ -52173,7 +52359,7 @@ th{background:#F3F4F6;font-weight:bold;color:#1F2937}
 }
 
 ================================================================================
-[ 105/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/modern_format.dart
+[ 105/ 146] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/modern_format.dart
 📏 SIZE: 26.8 KB
 🕐 MODIFIED: 2026-09-24 20:57:49
 ================================================================================
@@ -52793,7 +52979,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#f3f4f6;padding:30px 2
 }
 
 ================================================================================
-[ 106/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/tech_format.dart
+[ 106/ 146] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/formats/tech_format.dart
 📏 SIZE: 26.6 KB
 🕐 MODIFIED: 2026-09-24 20:58:16
 ================================================================================
@@ -53405,7 +53591,7 @@ body{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;background:#0F1
 }
 
 ================================================================================
-[ 107/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_base.dart
+[ 107/ 146] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_base.dart
 📏 SIZE: 26.4 KB
 🕐 MODIFIED: 2026-09-24 22:11:08
 ================================================================================
@@ -54278,7 +54464,7 @@ abstract class ResumeFormatBase {
 }
 
 ================================================================================
-[ 108/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_manager.dart
+[ 108/ 146] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_manager.dart
 📏 SIZE: 874 B
 🕐 MODIFIED: 2026-09-17 15:56:33
 ================================================================================
@@ -54316,7 +54502,7 @@ class ResumeFormatManager {
 }
 
 ================================================================================
-[ 109/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_popup.dart
+[ 109/ 146] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_popup.dart
 📏 SIZE: 11.9 KB
 🕐 MODIFIED: 2026-09-24 22:01:56
 ================================================================================
@@ -54703,7 +54889,7 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
 }
 
 ================================================================================
-[ 110/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_widget.dart
+[ 110/ 146] 🎯 rojgarnext/lib/features/resume/presentation/screens/format/resume_format_widget.dart
 📏 SIZE: 573 B
 🕐 MODIFIED: 2026-09-17 15:38:50
 ================================================================================
@@ -54732,7 +54918,7 @@ class ResumeFormatWidget extends StatelessWidget {
 }
 
 ================================================================================
-[ 111/ 145] 🎯 rojgarnext/lib/features/resume/presentation/screens/resume_screen.dart
+[ 111/ 146] 🎯 rojgarnext/lib/features/resume/presentation/screens/resume_screen.dart
 📏 SIZE: 59.4 KB
 🕐 MODIFIED: 2026-09-25 09:35:46
 ================================================================================
@@ -56355,7 +56541,7 @@ class _ResumeScreenState extends State<ResumeScreen>
 }
 
 ================================================================================
-[ 112/ 145] 🎯 rojgarnext/lib/features/resume/presentation/widgets/profile_photo_upload_dialog.dart
+[ 112/ 146] 🎯 rojgarnext/lib/features/resume/presentation/widgets/profile_photo_upload_dialog.dart
 📏 SIZE: 10.6 KB
 🕐 MODIFIED: 2026-09-25 09:55:11
 ================================================================================
@@ -56665,7 +56851,7 @@ class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
 }
 
 ================================================================================
-[ 113/ 145] 🎯 rojgarnext/lib/features/resume/services/resume_pdf_service.dart
+[ 113/ 146] 🎯 rojgarnext/lib/features/resume/services/resume_pdf_service.dart
 📏 SIZE: 5.2 KB
 🕐 MODIFIED: 2026-09-24 22:01:29
 ================================================================================
@@ -56841,7 +57027,7 @@ class ResumePdfService {
 }
 
 ================================================================================
-[ 114/ 145] 🎯 rojgarnext/lib/features/resume/services/resume_profile_service.dart
+[ 114/ 146] 🎯 rojgarnext/lib/features/resume/services/resume_profile_service.dart
 📏 SIZE: 1.9 KB
 🕐 MODIFIED: 2026-09-25 09:35:03
 ================================================================================
@@ -56906,7 +57092,7 @@ class ResumeProfileService {
 }
 
 ================================================================================
-[ 115/ 145] 🎯 rojgarnext/lib/features/services/data/service_data_source.dart
+[ 115/ 146] 🎯 rojgarnext/lib/features/services/data/service_data_source.dart
 📏 SIZE: 2.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -57005,7 +57191,7 @@ class ServiceDataSource {
 }
 
 ================================================================================
-[ 116/ 145] 🎯 rojgarnext/lib/features/services/data/service_repository.dart
+[ 116/ 146] 🎯 rojgarnext/lib/features/services/data/service_repository.dart
 📏 SIZE: 8.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -57278,7 +57464,7 @@ class ServiceRepository {
 }
 
 ================================================================================
-[ 117/ 145] 🎯 rojgarnext/lib/features/services/models/service_types.dart
+[ 117/ 146] 🎯 rojgarnext/lib/features/services/models/service_types.dart
 📏 SIZE: 25.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -58060,7 +58246,7 @@ class ServiceMasterData {
 }
 
 ================================================================================
-[ 118/ 145] 🎯 rojgarnext/lib/features/services/presentation/screens/apply_service_screen.dart
+[ 118/ 146] 🎯 rojgarnext/lib/features/services/presentation/screens/apply_service_screen.dart
 📏 SIZE: 64.8 KB
 🕐 MODIFIED: 2026-09-19 18:06:15
 ================================================================================
@@ -60112,7 +60298,7 @@ class _UploadedDoc {
 }
 
 ================================================================================
-[ 119/ 145] 🎯 rojgarnext/lib/features/services/presentation/screens/service_application_screen.dart
+[ 119/ 146] 🎯 rojgarnext/lib/features/services/presentation/screens/service_application_screen.dart
 📏 SIZE: 163.7 KB
 🕐 MODIFIED: 2026-09-24 18:30:13
 ================================================================================
@@ -64618,7 +64804,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
 }
 
 ================================================================================
-[ 120/ 145] 🎯 rojgarnext/lib/features/services/presentation/screens/user_service_applications_screen.dart
+[ 120/ 146] 🎯 rojgarnext/lib/features/services/presentation/screens/user_service_applications_screen.dart
 📏 SIZE: 137.3 KB
 🕐 MODIFIED: 2026-09-24 16:06:36
 ================================================================================
@@ -68536,7 +68722,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 }
 
 ================================================================================
-[ 121/ 145] 🎯 rojgarnext/lib/features/splash/splash_page.dart
+[ 121/ 146] 🎯 rojgarnext/lib/features/splash/splash_page.dart
 📏 SIZE: 10.9 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -68845,7 +69031,7 @@ class _SplashPageState extends State<SplashPage>
 }
 
 ================================================================================
-[ 122/ 145] 🎯 rojgarnext/lib/features/superadmin/AI/superadmin_ai_dashboard.dart
+[ 122/ 146] 🎯 rojgarnext/lib/features/superadmin/AI/superadmin_ai_dashboard.dart
 📏 SIZE: 1.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -68908,7 +69094,7 @@ class JobAIService {
 
 
 ================================================================================
-[ 123/ 145] 🎯 rojgarnext/lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
+[ 123/ 146] 🎯 rojgarnext/lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
 📏 SIZE: 25.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -69734,7 +69920,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
 }
 
 ================================================================================
-[ 124/ 145] 🎯 rojgarnext/lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
+[ 124/ 146] 🎯 rojgarnext/lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
 📏 SIZE: 4.1 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -69869,7 +70055,7 @@ class SuperAdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[ 125/ 145] 🎯 rojgarnext/lib/features/user/AI/user_ai_dashboard.dart
+[ 125/ 146] 🎯 rojgarnext/lib/features/user/AI/user_ai_dashboard.dart
 📏 SIZE: 43.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -71188,7 +71374,7 @@ class _LineChartPainter extends CustomPainter {
 
 
 ================================================================================
-[ 126/ 145] 🎯 rojgarnext/lib/features/user/AI/user_ai_screen.dart
+[ 126/ 146] 🎯 rojgarnext/lib/features/user/AI/user_ai_screen.dart
 📏 SIZE: 17.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -71750,7 +71936,7 @@ class _UserAIScreenState extends State<UserAIScreen> {
 
 
 ================================================================================
-[ 127/ 145] 🎯 rojgarnext/lib/features/user/AI/user_ai_service.dart
+[ 127/ 146] 🎯 rojgarnext/lib/features/user/AI/user_ai_service.dart
 📏 SIZE: 3.7 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -71877,7 +72063,7 @@ class UserAIService {
 
 
 ================================================================================
-[ 128/ 145] 🎯 rojgarnext/lib/features/user/AI/user_career_roadmap_screen.dart
+[ 128/ 146] 🎯 rojgarnext/lib/features/user/AI/user_career_roadmap_screen.dart
 📏 SIZE: 10.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -72224,7 +72410,7 @@ class _UserCareerRoadmapScreenState extends State<UserCareerRoadmapScreen> {
 
 
 ================================================================================
-[ 129/ 145] 🎯 rojgarnext/lib/features/user/data/user_service.dart
+[ 129/ 146] 🎯 rojgarnext/lib/features/user/data/user_service.dart
 📏 SIZE: 31.5 KB
 🕐 MODIFIED: 2026-09-13 20:38:56
 ================================================================================
@@ -73229,7 +73415,7 @@ class UserService {
 }
 
 ================================================================================
-[ 130/ 145] 🎯 rojgarnext/lib/features/user/presentation/controllers/user_profile_controller.dart
+[ 130/ 146] 🎯 rojgarnext/lib/features/user/presentation/controllers/user_profile_controller.dart
 📏 SIZE: 7.5 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -73522,7 +73708,7 @@ class UserProfileController extends ChangeNotifier {
 
 
 ================================================================================
-[ 131/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/advanced_details_screen.dart
+[ 131/ 146] 🎯 rojgarnext/lib/features/user/presentation/screens/advanced_details_screen.dart
 📏 SIZE: 74.2 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -75598,7 +75784,7 @@ class _AdvancedDetailsScreenState extends State<AdvancedDetailsScreen>
 
 
 ================================================================================
-[ 132/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/basic_details_screen.dart
+[ 132/ 146] 🎯 rojgarnext/lib/features/user/presentation/screens/basic_details_screen.dart
 📏 SIZE: 79.2 KB
 🕐 MODIFIED: 2026-09-14 19:46:34
 ================================================================================
@@ -77555,7 +77741,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
 }
 
 ================================================================================
-[ 133/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/education_screen.dart
+[ 133/ 146] 🎯 rojgarnext/lib/features/user/presentation/screens/education_screen.dart
 📏 SIZE: 60.3 KB
 🕐 MODIFIED: 2026-09-15 15:17:51
 ================================================================================
@@ -79356,7 +79542,7 @@ class _EducationScreenState extends State<EducationScreen> {
 }
 
 ================================================================================
-[ 134/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/experience_screen.dart
+[ 134/ 146] 🎯 rojgarnext/lib/features/user/presentation/screens/experience_screen.dart
 📏 SIZE: 76.4 KB
 🕐 MODIFIED: 2026-09-15 16:46:54
 ================================================================================
@@ -81257,7 +81443,7 @@ class _TabData {
 }
 
 ================================================================================
-[ 135/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/user_applications_screen.dart
+[ 135/ 146] 🎯 rojgarnext/lib/features/user/presentation/screens/user_applications_screen.dart
 📏 SIZE: 107.1 KB
 🕐 MODIFIED: 2026-09-24 19:13:15
 ================================================================================
@@ -84324,9 +84510,9 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 }
 
 ================================================================================
-[ 136/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
-📏 SIZE: 37.4 KB
-🕐 MODIFIED: 2026-09-24 23:20:08
+[ 136/ 146] 🎯 rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
+📏 SIZE: 39.6 KB
+🕐 MODIFIED: 2026-09-25 18:58:50
 ================================================================================
 
 // lib/features/user/presentation/screens/user_dashboard.dart
@@ -84334,6 +84520,8 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 // ✅ ZERO DATABASE QUERIES ON INITIAL LOAD
 // ✅ PURE CACHE FIRST - Shows data instantly
 // ✅ BACKGROUND REFRESH - Updates silently
+// ✅ FIXED: MPIN page no longer disposed when keyboard opens
+// ✅ FIXED: Cached email + stable AnimatedSwitcher key
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -84348,6 +84536,7 @@ import 'package:rojgarnext/features/user/AI/user_ai_service.dart';
 import 'package:provider/provider.dart';
 import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 import 'package:rojgarnext/features/resume/presentation/widgets/profile_photo_upload_dialog.dart';
+
 // Screens
 import 'basic_details_screen.dart';
 import 'advanced_details_screen.dart';
@@ -84393,6 +84582,10 @@ class _UserDashboardState extends State<UserDashboard> {
   bool _isLoading = false; // ✅ FALSE BY DEFAULT - Show instantly
   bool _isDataReady = false;
 
+  // ==================== ✅ CACHED EMAIL FOR MPIN (FIX) ====================
+  String? _cachedMpinEmail;
+  bool _mpinEmailLoaded = false;
+
   // ==================== DRAWER ====================
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -84403,6 +84596,31 @@ class _UserDashboardState extends State<UserDashboard> {
     _loadFromCacheSync();
     // ✅ Refresh in background (async)
     _refreshInBackground();
+    // ✅ FIX: Load email ONCE for MPIN page (prevents re-dispose)
+    _loadMpinEmail();
+  }
+
+  // ============================================================
+  // ✅ NEW: Load MPIN email ONCE — prevents MpinSetupPage recreation
+  // ============================================================
+  Future<void> _loadMpinEmail() async {
+    try {
+      final email = await SecureStorage.getEmail();
+      if (mounted) {
+        setState(() {
+          _cachedMpinEmail = email;
+          _mpinEmailLoaded = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('⚠️ _loadMpinEmail error: $e');
+      if (mounted) {
+        setState(() {
+          _cachedMpinEmail = null;
+          _mpinEmailLoaded = true;
+        });
+      }
+    }
   }
 
   // ============================================================
@@ -84429,7 +84647,7 @@ class _UserDashboardState extends State<UserDashboard> {
           debugPrint("✅ Dashboard loaded from CACHE in < 10ms!");
           return;
         }
-        
+
         // No cache, set default values and show loading
         if (mounted) {
           setState(() {
@@ -84480,11 +84698,11 @@ class _UserDashboardState extends State<UserDashboard> {
       // Extract only what's needed
       final profileData = profileWithApps['profile'] ?? {};
       final appliedCount = profileWithApps['total_applications'] ?? 0;
-      
+
       final completion = careerAnalysis['profile_completion_percentage'] ??
           careerAnalysis['overall_score'] ??
           0;
-      
+
       final score = careerAnalysis['overall_score'] ?? 0;
 
       // Get user name from profile
@@ -84497,7 +84715,8 @@ class _UserDashboardState extends State<UserDashboard> {
 
       if (mounted) {
         setState(() {
-          _profileCompletion = completion is int ? completion : (completion?.toInt() ?? 0);
+          _profileCompletion =
+              completion is int ? completion : (completion?.toInt() ?? 0);
           _appliedJobsCount = appliedCount;
           _careerScore = score is int ? score : (score?.toInt() ?? 0);
           _isDataReady = true;
@@ -84532,8 +84751,8 @@ class _UserDashboardState extends State<UserDashboard> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('dashboard_cache', jsonEncode(data));
-      await prefs.setInt('dashboard_cache_time',
-          DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt(
+          'dashboard_cache_time', DateTime.now().millisecondsSinceEpoch);
     } catch (e) {
       // Silently fail
     }
@@ -84695,6 +84914,7 @@ class _UserDashboardState extends State<UserDashboard> {
 
   // ============================================================
   // ✅ GET RIGHT CONTENT
+  // ✅ FIXED: MPIN case now uses cached email (no FutureBuilder)
   // ============================================================
   Widget _getRightContent() {
     if (_showApplicationDetail && _selectedApplication != null) {
@@ -84761,57 +84981,65 @@ class _UserDashboardState extends State<UserDashboard> {
           isForgotFlow: false,
           isEmbedded: true,
         );
+
+      // ============================================================
+      // ✅ FIXED MPIN CASE — uses cached email, no FutureBuilder
+      // This ensures the widget type NEVER changes on parent rebuild,
+      // so AnimatedSwitcher NEVER disposes MpinSetupPage.
+      // ============================================================
       case MenuType.mpin:
-        return FutureBuilder<String?>(
-          future: SecureStorage.getEmail(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final email = snapshot.data;
-            if (email == null || email.isEmpty) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 48, color: Colors.red),
-                    SizedBox(height: 16),
-                    Text("Please login with email & password first"),
-                  ],
-                ),
-              );
-            }
-            return MpinSetupPage(email: email);
-          },
+        if (!_mpinEmailLoaded) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+        if (_cachedMpinEmail == null || _cachedMpinEmail!.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: Colors.red),
+                SizedBox(height: 16),
+                Text("Please login with email & password first"),
+              ],
+            ),
+          );
+        }
+        return MpinSetupPage(
+          key: const ValueKey('mpin_setup_page_stable'),
+          email: _cachedMpinEmail!,
         );
+
+      // ============================================================
+      // ✅ FIXED BIOMETRIC CASE — same pattern, cached email
+      // ============================================================
       case MenuType.biometric:
-        return FutureBuilder<String?>(
-          future: SecureStorage.getEmail(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final email = snapshot.data;
-            if (email == null || email.isEmpty) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 48, color: Colors.red),
-                    SizedBox(height: 16),
-                    Text("Please login with email & password first"),
-                  ],
-                ),
-              );
-            }
-            return FingerprintSetupPage(email: email);
-          },
+        if (!_mpinEmailLoaded) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+        if (_cachedMpinEmail == null || _cachedMpinEmail!.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: Colors.red),
+                SizedBox(height: 16),
+                Text("Please login with email & password first"),
+              ],
+            ),
+          );
+        }
+        return FingerprintSetupPage(
+          key: const ValueKey('fingerprint_setup_page_stable'),
+          email: _cachedMpinEmail!,
         );
 
       case MenuType.support:
         return const SupportScreen();
       case MenuType.locationTest:
-        return LocationTestScreen();
+        return const LocationTestScreen();
     }
   }
 
@@ -85239,6 +85467,7 @@ class _UserDashboardState extends State<UserDashboard> {
 
   // ============================================================
   // ✅ MAIN BUILD
+  // ✅ FIXED: AnimatedSwitcher now uses a STABLE key
   // ============================================================
   @override
   Widget build(BuildContext context) {
@@ -85396,6 +85625,12 @@ class _UserDashboardState extends State<UserDashboard> {
                                   ],
                                 ),
                               ),
+                            // ============================================================
+                            // ✅ FIXED: AnimatedSwitcher now uses a STABLE key
+                            // based on selectedMenu only. When the parent rebuilds
+                            // (e.g. keyboard opens), the key does NOT change, so
+                            // AnimatedSwitcher NEVER disposes MpinSetupPage.
+                            // ============================================================
                             Expanded(
                               child: AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 280),
@@ -85404,7 +85639,12 @@ class _UserDashboardState extends State<UserDashboard> {
                                   return FadeTransition(
                                       opacity: animation, child: child);
                                 },
-                                child: _getRightContent(),
+                                child: KeyedSubtree(
+                                  key: ValueKey(
+                                    'menu_${selectedMenu.name}_${_showJobDetail}_${_showApplicationDetail}',
+                                  ),
+                                  child: _getRightContent(),
+                                ),
                               ),
                             ),
                           ],
@@ -85431,7 +85671,7 @@ class _UserDashboardState extends State<UserDashboard> {
 }
 
 ================================================================================
-[ 137/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/user_documents_screen.dart
+[ 137/ 146] 🎯 rojgarnext/lib/features/user/presentation/screens/user_documents_screen.dart
 📏 SIZE: 66.5 KB
 🕐 MODIFIED: 2026-09-25 13:40:26
 ================================================================================
@@ -86890,7 +87130,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 }
 
 ================================================================================
-[ 138/ 145] 🎯 rojgarnext/lib/features/user/presentation/screens/user_support_screen.dart
+[ 138/ 146] 🎯 rojgarnext/lib/features/user/presentation/screens/user_support_screen.dart
 📏 SIZE: 27.8 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -87776,7 +88016,7 @@ This message was sent from RojgarNext App
 }
 
 ================================================================================
-[ 139/ 145] 🎯 rojgarnext/lib/features/user/presentation/utils/menu_types.dart
+[ 139/ 146] 🎯 rojgarnext/lib/features/user/presentation/utils/menu_types.dart
 📏 SIZE: 462 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -87809,7 +88049,7 @@ enum MenuType {
 
 
 ================================================================================
-[ 140/ 145] 🎯 rojgarnext/lib/features/user/presentation/widgets/user_sidebar.dart
+[ 140/ 146] 🎯 rojgarnext/lib/features/user/presentation/widgets/user_sidebar.dart
 📏 SIZE: 15.3 KB
 🕐 MODIFIED: 2026-09-25 13:37:19
 ================================================================================
@@ -88270,7 +88510,7 @@ class _UserSidebarState extends State<UserSidebar> {
 }
 
 ================================================================================
-[ 141/ 145] 🎯 rojgarnext/lib/features/user/providers/user_profile_provider.dart
+[ 141/ 146] 🎯 rojgarnext/lib/features/user/providers/user_profile_provider.dart
 📏 SIZE: 7.4 KB
 🕐 MODIFIED: 2026-09-25 13:36:45
 ================================================================================
@@ -88493,7 +88733,7 @@ class UserProfileProvider extends ChangeNotifier {
 }
 
 ================================================================================
-[ 142/ 145] 🎯 rojgarnext/lib/main.dart
+[ 142/ 146] 🎯 rojgarnext/lib/main.dart
 📏 SIZE: 4.3 KB
 🕐 MODIFIED: 2026-09-24 23:30:21
 ================================================================================
@@ -88653,7 +88893,54 @@ class _NoGlowScrollBehavior extends ScrollBehavior {
 }
 
 ================================================================================
-[ 143/ 145] ⚙️ rojgarnext/pubspec.yaml
+[ 143/ 146] 🔧 rojgarnext/nginx.conf
+📏 SIZE: 1.1 KB
+🕐 MODIFIED: 2026-09-25 20:04:32
+================================================================================
+
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript
+               application/json application/javascript application/xml+rss
+               application/wasm image/svg+xml;
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|wasm)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        access_log off;
+    }
+
+    location ~* \.(canvaskit\.js|canvaskit\.wasm)$ {
+        expires 30d;
+        add_header Cache-Control "public";
+    }
+
+    location = /flutter_service_worker.js {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+}
+
+================================================================================
+[ 144/ 146] ⚙️ rojgarnext/pubspec.yaml
 📏 SIZE: 2.0 KB
 🕐 MODIFIED: 2026-09-14 19:30:24
 ================================================================================
@@ -88746,7 +89033,7 @@ flutter:
     - assets/icons/
 
 ================================================================================
-[ 144/ 145] 🌐 rojgarnext/web/index.html
+[ 145/ 146] 🌐 rojgarnext/web/index.html
 📏 SIZE: 1.6 KB
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -88802,7 +89089,7 @@ flutter:
 </html>
 
 ================================================================================
-[ 145/ 145] 📋 rojgarnext/web/manifest.json
+[ 146/ 146] 📋 rojgarnext/web/manifest.json
 📏 SIZE: 951 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -88847,6 +89134,6 @@ flutter:
 ================================================================================
 🎉 EXPORT COMPLETED!
 ================================================================================
-Total Files: 145
-Generated: 2026-09-25 18:14:14
+Total Files: 146
+Generated: 2026-09-25 23:31:48
 ================================================================================
