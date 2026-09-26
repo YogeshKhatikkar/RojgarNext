@@ -1,10 +1,7 @@
 // lib/features/jobs/presentation/screens/add_job_screen.dart
-// COMPLETE ULTIMATE VERSION - FULL CRUD OPERATIONS
-// Features: Add/Edit/Delete for all sections, Live totals, Pay scale list per post
-// NEW: Category-wise Application Fees with On/Off toggle
-// NEW: Age Relaxation with Dropdown categories
-// FIXED: Multiple Posts qualification dropdowns save correctly to database
-// NEW: Experience Details field in Multiple Posts section
+// ✅ ULTIMATE AI-BASED TABBED DESIGN - Full CRUD preserved
+// ✅ All original features kept intact + modern tab UI like basic_details_screen
+// ✅ 8 Tabs: Basic | Vacancy | Age & Fees | Timeline | Work | Interview | Notification | Extras
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -30,11 +27,49 @@ class AddJobScreen extends StatefulWidget {
   State<AddJobScreen> createState() => _AddJobScreenState();
 }
 
-class _AddJobScreenState extends State<AddJobScreen> {
+class _AddJobScreenState extends State<AddJobScreen>
+    with SingleTickerProviderStateMixin {
   static const int maxFileSizeMB = 50;
   static const int maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
 
   final _formKey = GlobalKey<FormState>();
+
+  // ==================== TAB CONTROL ====================
+  static const int _tabCount = 8;
+  late TabController _tabController;
+  int _currentTabIndex = 0;
+
+  final List<IconData> _tabIcons = const [
+    Icons.business,
+    Icons.people,
+    Icons.calendar_today,
+    Icons.date_range,
+    Icons.work_outline,
+    Icons.people_alt,
+    Icons.notifications,
+    Icons.info_outline,
+  ];
+
+  final List<String> _tabLabels = const [
+    'Basic',
+    'Vacancy',
+    'Age/Fees',
+    'Timeline',
+    'Work',
+    'Interview',
+    'Notification',
+    'Extras',
+  ];
+
+  String get _safeTabLabel {
+    final idx = _currentTabIndex.clamp(0, _tabLabels.length - 1);
+    return _tabLabels[idx];
+  }
+
+  IconData get _safeTabIcon {
+    final idx = _currentTabIndex.clamp(0, _tabIcons.length - 1);
+    return _tabIcons[idx];
+  }
 
   // ==================== BASIC CONTROLLERS ====================
   final organizationCtrl = TextEditingController();
@@ -410,7 +445,6 @@ class _AddJobScreenState extends State<AddJobScreen> {
   String _geocodingStatus = '';
 
   // ==================== EDUCATION MASTER DATA MAPS ====================
-
   final Map<String, List<String>> _qualificationSubOptionsMap = {
     'ITI': EducationMasterData.getItiTradeNames(),
     'Diploma': EducationMasterData.getDiplomaCourseNames(),
@@ -419,80 +453,20 @@ class _AddJobScreenState extends State<AddJobScreen> {
 
   final Map<String, List<String>> _degreeStreamsMap = {
     'Graduation': const [
-      'B.Tech',
-      'B.E.',
-      'B.Sc',
-      'B.Com',
-      'B.A.',
-      'BBA',
-      'BCA',
-      'B.Pharma',
-      'B.Arch',
-      'B.Des',
-      'B.Plan',
-      'B.H.M.',
-      'B.Ed',
-      'B.P.Ed',
-      'B.Lib',
-      'B.F.A.',
-      'B.J.M.C.',
-      'B.S.W.',
-      'LL.B.',
-      'B.A.LL.B',
-      'B.Com.LL.B',
-      'B.B.A.LL.B',
-      'MBBS',
-      'BDS',
-      'BHMS',
-      'BAMS',
-      'BUMS',
-      'B.V.Sc.',
-      'B.P.T.',
-      'B.O.T.',
-      'B.Sc Nursing',
-      'B.Optom',
-      'B.M.L.T.',
-      'B.Sc Agriculture',
-      'B.Sc Horticulture',
-      'B.Sc Forestry',
-      'B.F.Sc',
+      'B.Tech', 'B.E.', 'B.Sc', 'B.Com', 'B.A.', 'BBA', 'BCA', 'B.Pharma',
+      'B.Arch', 'B.Des', 'B.Plan', 'B.H.M.', 'B.Ed', 'B.P.Ed', 'B.Lib',
+      'B.F.A.', 'B.J.M.C.', 'B.S.W.', 'LL.B.', 'B.A.LL.B', 'B.Com.LL.B',
+      'B.B.A.LL.B', 'MBBS', 'BDS', 'BHMS', 'BAMS', 'BUMS', 'B.V.Sc.',
+      'B.P.T.', 'B.O.T.', 'B.Sc Nursing', 'B.Optom', 'B.M.L.T.',
+      'B.Sc Agriculture', 'B.Sc Horticulture', 'B.Sc Forestry', 'B.F.Sc',
     ],
     'Post Graduation': const [
-      'M.Tech',
-      'M.E.',
-      'M.Sc',
-      'M.Com',
-      'M.A.',
-      'MBA',
-      'MCA',
-      'M.Pharma',
-      'M.Arch',
-      'M.Des',
-      'M.Plan',
-      'M.H.M.',
-      'M.Ed',
-      'M.P.Ed',
-      'M.Lib',
-      'M.F.A.',
-      'M.J.M.C.',
-      'M.S.W.',
-      'LL.M.',
-      'MD',
-      'MS',
-      'MDS',
-      'M.P.T.',
+      'M.Tech', 'M.E.', 'M.Sc', 'M.Com', 'M.A.', 'MBA', 'MCA', 'M.Pharma',
+      'M.Arch', 'M.Des', 'M.Plan', 'M.H.M.', 'M.Ed', 'M.P.Ed', 'M.Lib',
+      'M.F.A.', 'M.J.M.C.', 'M.S.W.', 'LL.M.', 'MD', 'MS', 'MDS', 'M.P.T.',
       'M.Sc Nursing',
     ],
-    'PhD': const [
-      'PhD',
-      'M.Phil',
-      'D.Sc',
-      'D.Litt',
-      'DBA',
-      'D.M.A.',
-      'Ed.D',
-      'D.Eng',
-    ],
+    'PhD': const ['PhD', 'M.Phil', 'D.Sc', 'D.Litt', 'DBA', 'D.M.A.', 'Ed.D', 'D.Eng'],
   };
 
   final Map<String, List<String>> _degreeSubjectsMap = {
@@ -526,6 +500,14 @@ class _AddJobScreenState extends State<AddJobScreen> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: _tabCount, vsync: this);
+    _tabController.addListener(() {
+      if (!mounted) return;
+      if (_currentTabIndex != _tabController.index) {
+        setState(() => _currentTabIndex = _tabController.index);
+      }
+    });
+
     _loadCountries();
     _setupLocationListeners();
 
@@ -544,7 +526,6 @@ class _AddJobScreenState extends State<AddJobScreen> {
   void _updateQualificationSubOptions() {
     setState(() {
       final selected = selectedQualificationFromEducation;
-
       selectedQualificationSubOption = null;
       selectedDegreeStream = null;
       selectedDegreeName = null;
@@ -634,14 +615,13 @@ class _AddJobScreenState extends State<AddJobScreen> {
   }
 
   void _onDistrictChanged(String? district) {
-    setState(() {
-      _selectedDistrict = district;
-    });
+    setState(() => _selectedDistrict = district);
     _updateFullLocation();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     organizationCtrl.dispose();
     postNameCtrl.dispose();
     cityVillageCtrl.dispose();
@@ -736,44 +716,41 @@ class _AddJobScreenState extends State<AddJobScreen> {
     return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
   }
 
-// Only showing the specific method that needs fixing
-
-Future<void> _pickAdvertisement() async {
-  try {
-    // ✅ FIXED: Removed .platform
+  Future<void> _pickAdvertisement() async {
+    try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
       );
-    if (result != null && mounted) {
-      final file = result.files.first;
-      if (file.size > maxFileSizeBytes) {
-        final fileSizeMB = (file.size / (1024 * 1024)).toStringAsFixed(1);
-        if (mounted) {
-          showMessage(
-            context,
-            "❌ File size ($fileSizeMB MB) exceeds $maxFileSizeMB MB limit.",
-            isError: true,
-          );
+      if (result != null && mounted) {
+        final file = result.files.first;
+        if (file.size > maxFileSizeBytes) {
+          final fileSizeMB = (file.size / (1024 * 1024)).toStringAsFixed(1);
+          if (mounted) {
+            showMessage(
+              context,
+              "❌ File size ($fileSizeMB MB) exceeds $maxFileSizeMB MB limit.",
+              isError: true,
+            );
+          }
+          return;
         }
-        return;
+        setState(() {
+          selectedFileName = file.name;
+          selectedFileBytes = file.bytes;
+          selectedFileMimeType = _getMimeType(file.name);
+          hasAdvertisementFile = true;
+        });
+        if (mounted) {
+          showMessage(context, "✅ File selected: ${file.name}", isError: false);
+        }
       }
-      setState(() {
-        selectedFileName = file.name;
-        selectedFileBytes = file.bytes;
-        selectedFileMimeType = _getMimeType(file.name);
-        hasAdvertisementFile = true;
-      });
+    } catch (e) {
       if (mounted) {
-        showMessage(context, "✅ File selected: ${file.name}", isError: false);
+        showMessage(context, "Error picking file: $e", isError: true);
       }
-    }
-  } catch (e) {
-    if (mounted) {
-      showMessage(context, "Error picking file: $e", isError: true);
     }
   }
-}
 
   void _clearAdvertisementFile() {
     setState(() {
@@ -935,9 +912,7 @@ Future<void> _pickAdvertisement() async {
           ),
           ElevatedButton(
             onPressed: () {
-              setState(() {
-                multiplePosts.removeAt(index);
-              });
+              setState(() => multiplePosts.removeAt(index));
               Navigator.pop(context);
               showMessage(context, "Post deleted successfully");
             },
@@ -1020,15 +995,13 @@ Future<void> _pickAdvertisement() async {
       if (multiplePosts[_selectedPostForPayScale!]['pay_scales'] == null) {
         multiplePosts[_selectedPostForPayScale!]['pay_scales'] = [];
       }
-
       if (_isEditingPayScale && _editingPayScaleIndex != null) {
         multiplePosts[_selectedPostForPayScale!]['pay_scales']
             [_editingPayScaleIndex!] = payScaleData;
         showMessage(context, "Pay scale updated successfully");
       } else {
-        multiplePosts[_selectedPostForPayScale!]['pay_scales'].add(
-          payScaleData,
-        );
+        multiplePosts[_selectedPostForPayScale!]['pay_scales']
+            .add(payScaleData);
         showMessage(context, "Pay scale added successfully");
       }
     });
@@ -1172,9 +1145,8 @@ Future<void> _pickAdvertisement() async {
           ElevatedButton(
             onPressed: () {
               setState(() {
-                multiplePosts[postIndex]['category_vacancies'].removeAt(
-                  catIndex,
-                );
+                multiplePosts[postIndex]['category_vacancies']
+                    .removeAt(catIndex);
               });
               Navigator.pop(context);
               showMessage(context, "Category deleted successfully");
@@ -1187,7 +1159,7 @@ Future<void> _pickAdvertisement() async {
     );
   }
 
-  // ==================== AGE RELAXATION METHODS WITH DROPDOWN ====================
+  // ==================== AGE RELAXATION METHODS ====================
   void _saveRelaxation() {
     final category = relaxationCategoryCtrl.text.trim();
     final years = relaxationYearsCtrl.text.trim();
@@ -1374,9 +1346,7 @@ Future<void> _pickAdvertisement() async {
           ),
           ElevatedButton(
             onPressed: () {
-              setState(() {
-                examCities.removeAt(index);
-              });
+              setState(() => examCities.removeAt(index));
               Navigator.pop(context);
               showMessage(context, "Exam city deleted successfully");
             },
@@ -2065,863 +2035,895 @@ Future<void> _pickAdvertisement() async {
     }
   }
 
+  // ==================== TAB NAVIGATION ====================
+  void _goToNextTabSafe() {
+    final current = _tabController.index;
+    if (current < _tabCount - 1) {
+      _tabController.animateTo(current + 1);
+    } else {
+      showMessage(context, "All sections completed! ✅", isError: false);
+    }
+  }
+
+  void _goToPreviousTabSafe() {
+    final current = _tabController.index;
+    if (current > 0) {
+      _tabController.animateTo(current - 1);
+    }
+  }
+
+  // ==================== BUILD ====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text("Add New Job - ${widget.adminRole.toUpperCase()}"),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
+      body: Container(
+        decoration: _buildGradientBackground(),
+        child: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Job Details",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "${widget.adminRole.toUpperCase()} can post all types of jobs",
-                style: const TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 30),
-              _sectionHeader("Organization Information", Icons.business),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: organizationCtrl,
-                decoration: const InputDecoration(
-                  labelText: "Organization / Company Name",
-                  hintText: "e.g., Google, Microsoft, Government of India",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.business),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: postNameCtrl,
-                decoration: const InputDecoration(
-                  labelText: "Job Title / Post Name",
-                  hintText: "e.g., Software Engineer, Clerk, Manager",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.work),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _locationSection(),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: jobType,
-                      decoration: const InputDecoration(
-                        labelText: "Job Type *",
-                        border: OutlineInputBorder(),
-                      ),
-                      items: jobTypes
-                          .map(
-                            (value) => DropdownMenuItem(
-                              value: value,
-                              child: Text(value.toUpperCase()),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (newValue) =>
-                          setState(() => jobType = newValue!),
-                      validator: (value) => value == null ? "Required" : null,
-                    ),
+              _buildHeader(),
+              _buildTabBar(),
+              Expanded(
+                child: Form(
+                  key: _formKey,
+                  child: TabBarView(
+                    controller: _tabController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _buildBasicTab(),
+                      _buildVacancyTab(),
+                      _buildAgeFeesTab(),
+                      _buildTimelineTab(),
+                      _buildWorkTab(),
+                      _buildInterviewTab(),
+                      _buildNotificationTab(),
+                      _buildExtrasTab(),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: jobLevel,
-                      decoration: const InputDecoration(
-                        labelText: "Job Level",
-                        border: OutlineInputBorder(),
-                      ),
-                      items: jobLevels
-                          .map(
-                            (value) => DropdownMenuItem(
-                              value: value,
-                              child: Text(value.toUpperCase()),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (newValue) =>
-                          setState(() => jobLevel = newValue!),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: category,
-                decoration: const InputDecoration(
-                  labelText: "Category *",
-                  border: OutlineInputBorder(),
                 ),
-                items: categories
-                    .map(
-                      (value) =>
-                          DropdownMenuItem(value: value, child: Text(value)),
-                    )
-                    .toList(),
-                onChanged: (newValue) => setState(() => category = newValue!),
-                validator: (value) => value == null ? "Required" : null,
               ),
-              const SizedBox(height: 30),
-              _vacancyDetailsSection(),
-              const SizedBox(height: 30),
-              _applicationTimelineSection(),
-              const SizedBox(height: 30),
-              _ageLimitSection(),
-              const SizedBox(height: 30),
-              _applicationFeesSection(),
-              const SizedBox(height: 30),
-              _examCitiesSection(),
-              const SizedBox(height: 30),
-              _workDetailsSection(),
-              const SizedBox(height: 30),
-              _benefitsSection(),
-              const SizedBox(height: 30),
-              _languageSection(),
-              const SizedBox(height: 30),
-              _interviewSection(),
-              const SizedBox(height: 30),
-              _selectionProcessSection(),
-              const SizedBox(height: 30),
-              _bondSection(),
-              const SizedBox(height: 30),
-              _importantDatesSection(),
-              const SizedBox(height: 30),
-              _applicationOptionsSection(),
-              const SizedBox(height: 30),
-              _contactInformationSection(),
-              const SizedBox(height: 30),
-              _officialNotificationSection(),
-              const SizedBox(height: 30),
-              _additionalInformationSection(),
-              const SizedBox(height: 30),
-              _jobDescriptionSection(),
-              const SizedBox(height: 40),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
+              _buildBottomBar(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  BoxDecoration _buildGradientBackground() {
+    return const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(18),
+          bottomRight: Radius.circular(18),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withOpacity(0.25),
+            blurRadius: 16,
+            spreadRadius: 3,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.25),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(_safeTabIcon, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Add New Job - ${widget.adminRole.toUpperCase()}",
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 0.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  "Step ${_currentTabIndex + 1} of $_tabCount • $_safeTabLabel",
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.28),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              "${_currentTabIndex + 1}/$_tabCount",
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            blurRadius: 12,
+            spreadRadius: 3,
+          ),
+        ],
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(_tabCount, (index) {
+            final isSelected = _currentTabIndex == index;
+            return GestureDetector(
+              onTap: () => _tabController.animateTo(index),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeInOut,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  gradient: isSelected
+                      ? const LinearGradient(
+                          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                        )
+                      : null,
+                  color: isSelected ? null : const Color(0xFFF2F4F8),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isSelected
+                        ? Colors.transparent
+                        : Colors.grey.shade300,
+                    width: 1,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color:
+                                const Color(0xFF6C63FF).withOpacity(0.35),
+                            blurRadius: 8,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _tabIcons[index],
+                      size: 16,
+                      color: isSelected
+                          ? Colors.white
+                          : const Color(0xFF3A3A3A),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _tabLabels[index],
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.visible,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.w600,
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFF1A1A1A),
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.98),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.15),
+            blurRadius: 12,
+            spreadRadius: 4,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Progress bar
+          Row(
+            children: List.generate(_tabCount, (index) {
+              return Expanded(
+                child: Container(
+                  height: 5,
+                  margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                  decoration: BoxDecoration(
+                    color: _currentTabIndex >= index
+                        ? const Color(0xFF6C63FF)
+                        : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  "Step ${_currentTabIndex + 1} of $_tabCount • $_safeTabLabel",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade800,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Prev button
+              if (_currentTabIndex > 0)
+                IconButton(
+                  onPressed: _goToPreviousTabSafe,
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new,
+                    size: 18,
+                    color: Color(0xFF6C63FF),
+                  ),
+                  tooltip: "Previous",
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.grey.shade100,
+                    padding: const EdgeInsets.all(10),
+                  ),
+                ),
+              if (_currentTabIndex > 0) const SizedBox(width: 8),
+              // Publish button
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF6C63FF).withOpacity(0.35),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
                 child: ElevatedButton(
                   onPressed: (isLoading || isUploading) ? null : _addJob,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: (isLoading || isUploading)
                       ? const SizedBox(
-                          width: 24,
-                          height: 24,
+                          width: 20,
+                          height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          "Publish Job & Notify Users",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      : const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.publish, size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              "Publish Job",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
                         ),
                 ),
               ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
+              const SizedBox(width: 8),
+              // Next button
+              if (_currentTabIndex < _tabCount - 1)
+                IconButton(
+                  onPressed: _goToNextTabSafe,
+                  icon: const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                  tooltip: "Next",
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFF6C63FF),
+                    padding: const EdgeInsets.all(12),
+                  ),
                 ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        "📍 LOCATION: Enter City/Village, select State/District, click 'Find Coordinates Online'\n📋 NOTIFICATION: Provide PDF Link OR upload file\n📊 MULTIPLE POSTS: Add/Edit/Delete posts with individual pay scales\n💰 PAY SCALE: Select a post from dropdown to add pay scale\n👥 AGE RELAXATION: Add/Edit/Delete category-wise relaxation years with dropdown\n💰 APPLICATION FEES: Enable and set category-wise application fees\n🏙️ EXAM CITIES: Add/Delete exam cities\n💪 PHYSICAL: Height, Chest, Weight for Police/Defense jobs\n📅 DATES: Application Start/End, Admit Card, Exam, Result dates\n🎓 EDUCATION: Comprehensive qualification selection\n⚠️ All fields are optional - job will save even if fields are blank (except notification)",
-                        style: TextStyle(fontSize: 11, color: Colors.blue),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
 
-  // ==================== APPLICATION FEES SECTION WIDGET ====================
-  Widget _applicationFeesSection() {
-    return Column(
-      children: [
-        _sectionHeader("Application Fees", Icons.currency_rupee),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color:
-                _hasApplicationFees ? Colors.teal.shade50 : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: _hasApplicationFees ? Colors.teal : Colors.grey.shade300,
+  // ==================== TAB CONTENTS ====================
+
+  // ---------- TAB 1: BASIC ----------
+  Widget _buildBasicTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Organization Information",
+                  Icons.business,
+                  subtitle: "Basic details about the job",
+                ),
+                _buildAITextField(
+                  organizationCtrl,
+                  "Organization / Company Name",
+                  prefixIcon: Icons.business,
+                  hintText: "e.g., Google, Microsoft, Government of India",
+                ),
+                _buildAITextField(
+                  postNameCtrl,
+                  "Job Title / Post Name",
+                  prefixIcon: Icons.work,
+                  hintText: "e.g., Software Engineer, Clerk, Manager",
+                ),
+              ],
             ),
           ),
-          child: Column(
-            children: [
-              SwitchListTile(
-                title: const Text(
-                  "Enable Category-wise Application Fees",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Job Classification",
+                  Icons.category,
+                  subtitle: "Type, level and category",
                 ),
-                subtitle: Text(
-                  _hasApplicationFees
-                      ? "ON: Set different fees for different categories"
-                      : "OFF: No application fees",
+                _buildAIDropdown(
+                  jobType,
+                  jobTypes,
+                  "Job Type *",
+                  onChanged: (v) => setState(() => jobType = v!),
                 ),
-                value: _hasApplicationFees,
-                onChanged: (value) {
-                  setState(() {
-                    _hasApplicationFees = value;
-                    if (!value) {
-                      feesValues.clear();
-                      for (var c in feesControllers.values) {
-                        c.clear();
-                      }
-                    }
-                  });
-                },
-                activeThumbColor: Colors.teal,
-                activeTrackColor: Colors.teal.shade100,
-              ),
-              if (_hasApplicationFees) ...[
-                const SizedBox(height: 16),
-                const Divider(),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.teal.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            _isEditingFee ? Icons.edit : Icons.add,
-                            size: 20,
-                            color: Colors.teal,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _isEditingFee ? "Edit Fee" : "Add New Fee",
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: Colors.teal,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (_isEditingFee)
-                            TextButton(
-                              onPressed: _cancelFeeForm,
-                              child: const Text(
-                                "Cancel",
-                                style: TextStyle(color: Colors.red),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: DropdownButtonFormField<String>(
-                              initialValue: _isEditingFee
-                                  ? _editingFeeCategory
-                                  : (feeCategoryCtrl.text.isEmpty
-                                      ? null
-                                      : feeCategoryCtrl.text),
-                              hint: const Text("Select Category"),
-                              decoration: const InputDecoration(
-                                labelText: "Category",
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.category),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                              items: predefinedFeeCategories
-                                  .map(
-                                    (cat) => DropdownMenuItem(
-                                      value: cat,
-                                      child: Text(cat),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  feeCategoryCtrl.text = value ?? '';
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 1,
-                            child: TextFormField(
-                              controller: feeAmountCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: "Fee (₹)",
-                                hintText: "e.g., 500",
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.currency_rupee),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: _saveApplicationFee,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  _isEditingFee ? Colors.orange : Colors.teal,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                            ),
-                            child: Text(_isEditingFee ? "Update" : "Add"),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                _buildAIDropdown(
+                  jobLevel,
+                  jobLevels,
+                  "Job Level",
+                  onChanged: (v) => setState(() => jobLevel = v!),
                 ),
-                const SizedBox(height: 16),
-                if (feesValues.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.teal.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.payment,
-                              size: 18,
-                              color: Colors.teal,
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              "Category-wise Application Fees:",
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.teal.shade200,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                "${feesValues.length} Categories",
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        ...feesValues.entries.map(
-                          (entry) => Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            elevation: 1,
-                            child: ListTile(
-                              leading: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: Colors.teal.shade100,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.category,
-                                  size: 18,
-                                  color: Colors.teal,
-                                ),
-                              ),
-                              title: Text(
-                                entry.key,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.teal.shade100,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      "₹${entry.value}",
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.teal,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit,
-                                      size: 18,
-                                      color: Colors.blue,
-                                    ),
-                                    onPressed: () =>
-                                        _startEditFee(entry.key, entry.value),
-                                    tooltip: "Edit Fee",
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      size: 18,
-                                      color: Colors.red,
-                                    ),
-                                    onPressed: () => _deleteFee(entry.key),
-                                    tooltip: "Delete Fee",
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (feesValues.isEmpty && _hasApplicationFees)
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Column(
-                      children: [
-                        Icon(Icons.payment, size: 40, color: Colors.grey),
-                        SizedBox(height: 8),
-                        Text(
-                          "No application fees added",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                        Text(
-                          "Use the form above to add fees for different categories",
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.teal.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info_outline, size: 14, color: Colors.teal),
-                      SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          "💡 Set application fees for different categories. Users will see these fees when applying.",
-                          style: TextStyle(fontSize: 11, color: Colors.teal),
-                        ),
-                      ),
-                    ],
-                  ),
+                _buildAIDropdown(
+                  category,
+                  categories,
+                  "Category *",
+                  onChanged: (v) => setState(() => category = v!),
                 ),
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Location",
+                  Icons.location_on,
+                  subtitle: "Where is this job located?",
+                ),
+                _buildLocationContent(),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  // ==================== AGE LIMIT SECTION WITH DROPDOWN ====================
-  Widget _ageLimitSection() {
-    return Column(
-      children: [
-        _sectionHeader("Age Limit & Relaxation", Icons.calendar_today),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: ageCalcDateCtrl,
-          readOnly: true,
-          onTap: () => _selectDate(ageCalcDateCtrl),
-          decoration: InputDecoration(
-            labelText: "Age Calculation Date",
-            hintText: "Select date for age calculation",
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            prefixIcon: const Icon(Icons.event),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.orange.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.orange.shade200),
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Age Relaxation by Category",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Switch(
-                    value: _hasAgeRelaxation,
-                    onChanged: (value) =>
-                        setState(() => _hasAgeRelaxation = value),
-                    activeThumbColor: Colors.orange,
-                    activeTrackColor: Colors.orange.shade100,
-                  ),
-                ],
-              ),
-              if (_hasAgeRelaxation) ...[
-                const SizedBox(height: 12),
-                const Text(
-                  "Enter relaxation in years for each category:",
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+  // ---------- TAB 2: VACANCY ----------
+  Widget _buildVacancyTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Vacancy Details",
+                  Icons.people,
+                  subtitle: "Add multiple posts with individual details",
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.orange.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            _isEditingRelaxation ? Icons.edit : Icons.add,
-                            size: 20,
-                            color: Colors.orange,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _isEditingRelaxation
-                                ? "Edit Relaxation"
-                                : "Add New Relaxation",
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: Colors.orange,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (_isEditingRelaxation)
-                            TextButton(
-                              onPressed: _cancelRelaxationForm,
-                              child: const Text(
-                                "Cancel",
-                                style: TextStyle(color: Colors.red),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: DropdownButtonFormField<String>(
-                              initialValue: _isEditingRelaxation
-                                  ? _editingRelaxationCategory
-                                  : null,
-                              hint: const Text("Select Category"),
-                              decoration: const InputDecoration(
-                                labelText: "Category",
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.category),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                              items: relaxationCategories
-                                  .map(
-                                    (cat) => DropdownMenuItem(
-                                      value: cat,
-                                      child: Text(cat),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  relaxationCategoryCtrl.text = value ?? '';
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 1,
-                            child: TextFormField(
-                              controller: relaxationYearsCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: "Years",
-                                hintText: "e.g., 3",
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.timer),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: _saveRelaxation,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _isEditingRelaxation
-                                  ? Colors.orange
-                                  : Colors.teal,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                            ),
-                            child: Text(
-                              _isEditingRelaxation ? "Update" : "Add",
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (relaxationValues.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.category,
-                              size: 18,
-                              color: Colors.orange,
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              "Category-wise Age Relaxation:",
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.shade200,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                "${relaxationValues.length} Categories",
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        ...relaxationValues.entries.map(
-                          (entry) => Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            elevation: 1,
-                            child: ListTile(
-                              leading: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.shade100,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.category,
-                                  size: 18,
-                                  color: Colors.orange,
-                                ),
-                              ),
-                              title: Text(
-                                entry.key,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.shade100,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      "${entry.value} years",
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.orange,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit,
-                                      size: 18,
-                                      color: Colors.blue,
-                                    ),
-                                    onPressed: () => _startEditRelaxation(
-                                      entry.key,
-                                      entry.value,
-                                    ),
-                                    tooltip: "Edit Relaxation",
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      size: 18,
-                                      color: Colors.red,
-                                    ),
-                                    onPressed: () =>
-                                        _deleteRelaxation(entry.key),
-                                    tooltip: "Delete Relaxation",
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (relaxationValues.isEmpty && _hasAgeRelaxation)
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Column(
-                      children: [
-                        Icon(Icons.category, size: 40, color: Colors.grey),
-                        SizedBox(height: 8),
-                        Text(
-                          "No age relaxations added",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                        Text(
-                          "Use the form above to add relaxations for different categories",
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info_outline, size: 14, color: Colors.orange),
-                      SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          "💡 Age relaxation applies to reserved categories as per government rules.",
-                          style: TextStyle(fontSize: 11, color: Colors.orange),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildVacancyToggle(),
+                if (_showMultiplePosts) _multiplePostsForm(),
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // ==================== LOCATION SECTION ====================
-  Widget _locationSection() {
+  // ---------- TAB 3: AGE & FEES ----------
+  Widget _buildAgeFeesTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Age Limit & Relaxation",
+                  Icons.calendar_today,
+                  subtitle: "Set age criteria and category-wise relaxations",
+                ),
+                _buildAgeLimitContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Application Fees",
+                  Icons.currency_rupee,
+                  subtitle: "Category-wise application fees",
+                ),
+                _buildApplicationFeesContent(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------- TAB 4: TIMELINE ----------
+  Widget _buildTimelineTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Application Timeline",
+                  Icons.date_range,
+                  subtitle: "Important dates for application",
+                ),
+                _buildApplicationTimelineContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Important Dates",
+                  Icons.event,
+                  subtitle: "Admit card, exam and result dates",
+                ),
+                _buildImportantDatesContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Exam Cities",
+                  Icons.location_city,
+                  subtitle: "Cities where exam will be conducted",
+                ),
+                _buildExamCitiesContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Official Details",
+                  Icons.assignment,
+                  subtitle: "Notification number and mode",
+                ),
+                _buildOfficialDetailsContent(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------- TAB 5: WORK ----------
+  Widget _buildWorkTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Work Details",
+                  Icons.work_outline,
+                  subtitle: "Schedule, shift and working days",
+                ),
+                _buildWorkDetailsContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Education & Experience",
+                  Icons.school,
+                  subtitle: "Qualification and experience required",
+                ),
+                _buildEducationContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Benefits & Perks",
+                  Icons.card_giftcard,
+                  subtitle: "Select benefits offered",
+                ),
+                _buildBenefitsContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Language Requirements",
+                  Icons.language,
+                  subtitle: "Languages required for this job",
+                ),
+                _buildLanguageContent(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------- TAB 6: INTERVIEW ----------
+  Widget _buildInterviewTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Interview Details",
+                  Icons.people_alt,
+                  subtitle: "Venue, date and documents required",
+                ),
+                _buildInterviewContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Selection Process",
+                  Icons.timeline,
+                  subtitle: "Stages in selection process",
+                ),
+                _buildSelectionProcessContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Bond / Agreement",
+                  Icons.description,
+                  subtitle: "Service bond details if any",
+                ),
+                _buildBondContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Contact Information",
+                  Icons.contact_phone,
+                  subtitle: "Contact person and helpline details",
+                ),
+                _buildContactInformationContent(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------- TAB 7: NOTIFICATION ----------
+  Widget _buildNotificationTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Official Notification",
+                  Icons.notifications,
+                  subtitle: "Provide PDF link or upload file (required)",
+                ),
+                _buildOfficialNotificationContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Application Options",
+                  Icons.link,
+                  subtitle: "Apply with Us and website links",
+                ),
+                _buildApplicationOptionsContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Physical & Medical",
+                  Icons.fitness_center,
+                  subtitle: "Physical eligibility and medical standards",
+                ),
+                _buildPhysicalMedicalContent(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------- TAB 8: EXTRAS ----------
+  Widget _buildExtrasTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Training Details",
+                  Icons.school,
+                  subtitle: "Training duration, stipend and location",
+                ),
+                _buildTrainingContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Additional Information",
+                  Icons.info_outline,
+                  subtitle: "Urgency, gender preference and notes",
+                ),
+                _buildAdditionalInformationContent(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Job Description",
+                  Icons.description,
+                  subtitle: "Detailed job description",
+                ),
+                _buildAITextField(
+                  descriptionCtrl,
+                  "Job Description (Optional)",
+                  maxLines: 6,
+                  hintText: "Enter job description",
+                  prefixIcon: Icons.description,
+                ),
+                _buildAITextField(
+                  importantNotesCtrl,
+                  "Important Notes",
+                  maxLines: 3,
+                  hintText: "Any special instructions for applicants",
+                  prefixIcon: Icons.note,
+                ),
+                _buildAITextField(
+                  termsAndConditionsCtrl,
+                  "Terms & Conditions",
+                  maxLines: 3,
+                  hintText: "Any terms and conditions for the job",
+                  prefixIcon: Icons.gavel,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Social & Communication",
+                  Icons.share,
+                  subtitle: "WhatsApp and Telegram links",
+                ),
+                _buildAITextField(
+                  whatsappNumberCtrl,
+                  "WhatsApp Number",
+                  keyboardType: TextInputType.phone,
+                  prefixIcon: Icons.chat,
+                ),
+                _buildAITextField(
+                  telegramChannelCtrl,
+                  "Telegram Channel",
+                  hintText: "https://t.me/...",
+                  prefixIcon: Icons.telegram,
+                ),
+                _buildAITextField(
+                  officialWebsiteCtrl,
+                  "Official Website",
+                  hintText: "https://example.com",
+                  prefixIcon: Icons.public,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==================== CONTENT BUILDERS (Tab internals) ====================
+
+  Widget _buildLocationContent() {
     return Column(
       children: [
         Container(
-          margin: const EdgeInsets.only(bottom: 16),
+          margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
             color: _useCurrentLocation
                 ? Colors.green.shade50
@@ -2931,222 +2933,186 @@ Future<void> _pickAdvertisement() async {
               color: _useCurrentLocation ? Colors.green : Colors.grey.shade300,
             ),
           ),
-          child: Column(
-            children: [
-              SwitchListTile(
-                title: const Text(
-                  "Use my current location",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(
-                  _useCurrentLocation
-                      ? "Job will be posted with your saved account location"
-                      : "Enter location manually",
-                ),
-                value: _useCurrentLocation,
-                onChanged: _toggleCurrentLocation,
-                activeThumbColor: Colors.green,
-                activeTrackColor: Colors.green.shade100,
-              ),
-              if (_isGettingLocation)
-                const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      SizedBox(width: 8),
-                      Text("Checking saved location..."),
-                    ],
-                  ),
-                ),
-              if (_locationStatus.isNotEmpty && !_isGettingLocation && mounted)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _locationStatus.contains("✅")
-                            ? Icons.check_circle
-                            : Icons.warning,
-                        size: 16,
-                        color: _locationStatus.contains("✅")
-                            ? Colors.green
-                            : Colors.orange,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _locationStatus,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _locationStatus.contains("✅")
-                                ? Colors.green
-                                : Colors.orange,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
+          child: SwitchListTile(
+            title: const Text(
+              "Use my current location",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            subtitle: Text(
+              _useCurrentLocation
+                  ? "Job will be posted with your saved account location"
+                  : "Enter location manually",
+              style: const TextStyle(fontSize: 11),
+            ),
+            value: _useCurrentLocation,
+            onChanged: _toggleCurrentLocation,
+            activeThumbColor: Colors.green,
+            activeTrackColor: Colors.green.shade100,
           ),
         ),
-        if (!_useCurrentLocation)
-          Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
+        if (_isGettingLocation)
+          const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Row(
               children: [
-                const Row(
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 8),
+                Text("Checking saved location..."),
+              ],
+            ),
+          ),
+        if (_locationStatus.isNotEmpty && !_isGettingLocation && mounted)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Icon(
+                  _locationStatus.contains("✅")
+                      ? Icons.check_circle
+                      : Icons.warning,
+                  size: 16,
+                  color: _locationStatus.contains("✅")
+                      ? Colors.green
+                      : Colors.orange,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _locationStatus,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _locationStatus.contains("✅")
+                          ? Colors.green
+                          : Colors.orange,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (!_useCurrentLocation) ...[
+          _buildAITextField(
+            cityVillageCtrl,
+            "City / Village Name",
+            hintText: "e.g., Indore, Kukshi, Bhopal",
+            prefixIcon: Icons.location_city,
+          ),
+          _buildAIDropdown(
+            _selectedCountry,
+            _countries,
+            "Country",
+            onChanged: _onCountryChanged,
+          ),
+          _buildAIDropdown(
+            _selectedState,
+            _states,
+            "State",
+            onChanged: _onStateChanged,
+          ),
+          _buildAIDropdown(
+            _selectedDistrict,
+            _districts,
+            "District",
+            onChanged: _onDistrictChanged,
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isGeocoding ? null : _findCoordinates,
+              icon: _isGeocoding
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.gps_fixed),
+              label: Text(
+                _isGeocoding ? "Searching..." : "Find Coordinates Online",
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          if (_geocodingStatus.isNotEmpty && mounted)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _geocodingStatus.contains('✅')
+                      ? Colors.green.shade50
+                      : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
                   children: [
-                    Icon(Icons.location_on, size: 20, color: Colors.blue),
-                    SizedBox(width: 8),
-                    Text(
-                      "Select Location",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    Icon(
+                      _geocodingStatus.contains('✅')
+                          ? Icons.check_circle
+                          : Icons.info,
+                      size: 16,
+                      color: _geocodingStatus.contains('✅')
+                          ? Colors.green
+                          : Colors.blue,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _geocodingStatus,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _geocodingStatus.contains('✅')
+                              ? Colors.green
+                              : Colors.blue,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: cityVillageCtrl,
-                  decoration: const InputDecoration(
-                    labelText: "City / Village Name",
-                    hintText: "e.g., Indore, Kukshi, Bhopal",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.location_city),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildDropdown(
-                  "Country",
-                  _countries,
-                  _selectedCountry,
-                  _onCountryChanged,
-                ),
-                const SizedBox(height: 12),
-                _buildDropdown(
-                  "State",
-                  _states,
-                  _selectedState,
-                  _onStateChanged,
-                ),
-                const SizedBox(height: 12),
-                _buildDropdown(
-                  "District",
-                  _districts,
-                  _selectedDistrict,
-                  _onDistrictChanged,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: _isGeocoding ? null : _findCoordinates,
-                  icon: _isGeocoding
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.gps_fixed),
-                  label: Text(
-                    _isGeocoding ? "Searching..." : "Find Coordinates Online",
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-                if (_geocodingStatus.isNotEmpty && mounted)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _geocodingStatus.contains('✅')
-                            ? Colors.green.shade50
-                            : Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _geocodingStatus.contains('✅')
-                                ? Icons.check_circle
-                                : Icons.info,
-                            size: 16,
-                            color: _geocodingStatus.contains('✅')
-                                ? Colors.green
-                                : Colors.blue,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _geocodingStatus,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: _geocodingStatus.contains('✅')
-                                    ? Colors.green
-                                    : Colors.blue,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(top: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
+              ),
+            ),
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(top: 12),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.preview, size: 18, color: Colors.blue.shade700),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.preview,
-                        size: 18,
-                        color: Colors.blue.shade700,
+                      const Text(
+                        "Location Format Preview:",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Location Format Preview:",
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              locationCtrl.text.isEmpty
-                                  ? "Select location to see preview"
-                                  : locationCtrl.text,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.blue,
-                              ),
-                            ),
-                          ],
+                      const SizedBox(height: 4),
+                      Text(
+                        locationCtrl.text.isEmpty
+                            ? "Select location to see preview"
+                            : locationCtrl.text,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue,
                         ),
                       ),
                     ],
@@ -3155,66 +3121,51 @@ Future<void> _pickAdvertisement() async {
               ],
             ),
           ),
-        if (!_useCurrentLocation)
-          TextFormField(
-            controller: locationCtrl,
-            obscureText: true,
-            enabled: false,
-            decoration: const InputDecoration(border: InputBorder.none),
-          ),
+        ],
       ],
     );
   }
 
-  // ==================== VACANCY DETAILS SECTION ====================
-  Widget _vacancyDetailsSection() {
-    return Column(
-      children: [
-        _sectionHeader("Vacancy Details", Icons.people),
-        const SizedBox(height: 16),
-        Container(
-          decoration: BoxDecoration(
-            color: _showMultiplePosts
-                ? Colors.green.shade50
-                : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: _showMultiplePosts ? Colors.green : Colors.grey.shade300,
-            ),
-          ),
-          child: SwitchListTile(
-            title: const Text(
-              "Add Multiple Posts (Post-wise Details)",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              _showMultiplePosts
-                  ? "ON: Add different posts with separate details"
-                  : "OFF: No posts added",
-            ),
-            value: _showMultiplePosts,
-            onChanged: (value) {
-              setState(() {
-                _showMultiplePosts = value;
-                if (!value) {
-                  multiplePosts.clear();
-                }
-              });
-            },
-            activeThumbColor: Colors.green,
-            activeTrackColor: Colors.green.shade100,
-          ),
+  Widget _buildVacancyToggle() {
+    return Container(
+      decoration: BoxDecoration(
+        color:
+            _showMultiplePosts ? Colors.green.shade50 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _showMultiplePosts ? Colors.green : Colors.grey.shade300,
         ),
-        if (_showMultiplePosts) _multiplePostsForm(),
-      ],
+      ),
+      child: SwitchListTile(
+        title: const Text(
+          "Add Multiple Posts (Post-wise Details)",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        subtitle: Text(
+          _showMultiplePosts
+              ? "ON: Add different posts with separate details"
+              : "OFF: No posts added",
+          style: const TextStyle(fontSize: 11),
+        ),
+        value: _showMultiplePosts,
+        onChanged: (value) {
+          setState(() {
+            _showMultiplePosts = value;
+            if (!value) {
+              multiplePosts.clear();
+            }
+          });
+        },
+        activeThumbColor: Colors.green,
+        activeTrackColor: Colors.green.shade100,
+      ),
     );
   }
 
-  // ==================== MULTIPLE POSTS FORM ====================
   Widget _multiplePostsForm() {
     return Column(
       children: [
-        SizedBox(height: 16),
+        const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -3241,25 +3192,19 @@ Future<void> _pickAdvertisement() async {
               Row(
                 children: [
                   Expanded(
-                    child: TextFormField(
-                      controller: postNameCtrl2,
-                      decoration: const InputDecoration(
-                        labelText: "Post Name *",
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.work),
-                      ),
+                    child: _buildAITextField(
+                      postNameCtrl2,
+                      "Post Name *",
+                      prefixIcon: Icons.work,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextFormField(
-                      controller: vacancyCtrl,
+                    child: _buildAITextField(
+                      vacancyCtrl,
+                      "Number of Vacancies *",
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: "Number of Vacancies *",
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.people),
-                      ),
+                      prefixIcon: Icons.people,
                     ),
                   ),
                 ],
@@ -3280,22 +3225,10 @@ Future<void> _pickAdvertisement() async {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedQualificationFromEducation,
-                      hint: const Text("Select Education Level"),
-                      decoration: const InputDecoration(
-                        labelText: "Education Level",
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.school),
-                      ),
-                      items: educationLevels
-                          .map(
-                            (level) => DropdownMenuItem(
-                              value: level,
-                              child: Text(level),
-                            ),
-                          )
-                          .toList(),
+                    _buildAIDropdown(
+                      selectedQualificationFromEducation,
+                      educationLevels,
+                      "Education Level",
                       onChanged: (value) {
                         setState(() {
                           selectedQualificationFromEducation = value;
@@ -3309,29 +3242,15 @@ Future<void> _pickAdvertisement() async {
                         });
                       },
                     ),
-                    const SizedBox(height: 12),
                     if (_qualificationSubOptions.isNotEmpty &&
                         selectedQualificationFromEducation != '10th Pass' &&
                         selectedQualificationFromEducation != '12th Pass' &&
                         selectedQualificationFromEducation != 'Any Graduate' &&
-                        selectedQualificationFromEducation !=
-                            'Any Post Graduate')
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedQualificationSubOption,
-                        hint: const Text("Select Specific Qualification"),
-                        decoration: const InputDecoration(
-                          labelText: "Specific Qualification",
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.school),
-                        ),
-                        items: _qualificationSubOptions
-                            .map(
-                              (opt) => DropdownMenuItem(
-                                value: opt,
-                                child: Text(opt),
-                              ),
-                            )
-                            .toList(),
+                        selectedQualificationFromEducation != 'Any Post Graduate')
+                      _buildAIDropdown(
+                        selectedQualificationSubOption,
+                        _qualificationSubOptions,
+                        "Specific Qualification",
                         onChanged: (value) => setState(
                           () => selectedQualificationSubOption = value,
                         ),
@@ -3339,22 +3258,10 @@ Future<void> _pickAdvertisement() async {
                     if (_degreeStreams.isNotEmpty)
                       Column(
                         children: [
-                          DropdownButtonFormField<String>(
-                            initialValue: selectedDegreeStream,
-                            hint: const Text("Select Degree"),
-                            decoration: const InputDecoration(
-                              labelText: "Select Degree",
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.school),
-                            ),
-                            items: _degreeStreams
-                                .map(
-                                  (stream) => DropdownMenuItem<String>(
-                                    value: stream,
-                                    child: Text(stream),
-                                  ),
-                                )
-                                .toList(),
+                          _buildAIDropdown(
+                            selectedDegreeStream,
+                            _degreeStreams,
+                            "Select Degree",
                             onChanged: (value) {
                               setState(() {
                                 selectedDegreeStream = value;
@@ -3364,50 +3271,30 @@ Future<void> _pickAdvertisement() async {
                               });
                             },
                           ),
-                          const SizedBox(height: 12),
                           if (_degreeNames.isNotEmpty)
-                            DropdownButtonFormField<String>(
-                              initialValue: selectedDegreeName,
-                              hint: const Text("Select Branch/Subject"),
-                              decoration: const InputDecoration(
-                                labelText: "Branch / Subject",
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.subject),
-                              ),
-                              items: _degreeNames
-                                  .map(
-                                    (name) => DropdownMenuItem<String>(
-                                      value: name,
-                                      child: Text(name),
-                                    ),
-                                  )
-                                  .toList(),
+                            _buildAIDropdown(
+                              selectedDegreeName,
+                              _degreeNames,
+                              "Branch / Subject",
                               onChanged: (value) =>
                                   setState(() => selectedDegreeName = value),
                             ),
                         ],
                       ),
                     const SizedBox(height: 12),
-                    TextFormField(
-                      controller: otherQualificationCtrl,
+                    _buildAITextField(
+                      otherQualificationCtrl,
+                      "Other Qualification Details (Optional)",
                       maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: "Other Qualification Details (Optional)",
-                        hintText:
-                            "e.g., Any additional certification or training",
-                        border: OutlineInputBorder(),
-                      ),
+                      hintText: "e.g., Any additional certification or training",
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
-                      controller: experienceDetailsCtrl,
+                    _buildAITextField(
+                      experienceDetailsCtrl,
+                      "Experience Details (if any)",
                       maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: "Experience Details (if any)",
-                        hintText: "e.g., Minimum 2 years experience required",
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.work_history),
-                      ),
+                      hintText: "e.g., Minimum 2 years experience required",
+                      prefixIcon: Icons.work_history,
                     ),
                   ],
                 ),
@@ -3416,24 +3303,18 @@ Future<void> _pickAdvertisement() async {
               Row(
                 children: [
                   Expanded(
-                    child: TextFormField(
-                      controller: postAgeMinCtrl,
+                    child: _buildAITextField(
+                      postAgeMinCtrl,
+                      "Min Age (Optional)",
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: "Min Age (Optional)",
-                        border: OutlineInputBorder(),
-                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextFormField(
-                      controller: postAgeMaxCtrl,
+                    child: _buildAITextField(
+                      postAgeMaxCtrl,
+                      "Max Age (Optional)",
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: "Max Age (Optional)",
-                        border: OutlineInputBorder(),
-                      ),
                     ),
                   ),
                 ],
@@ -3449,6 +3330,7 @@ Future<void> _pickAdvertisement() async {
                         label: const Text("Add Post"),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
                         ),
                       ),
                     ),
@@ -3460,6 +3342,7 @@ Future<void> _pickAdvertisement() async {
                         label: const Text("Update Post"),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
                         ),
                       ),
                     ),
@@ -3557,11 +3440,9 @@ Future<void> _pickAdvertisement() async {
     );
   }
 
-  // ==================== POST CARD ====================
   Widget _buildPostCard(int index, Map<String, dynamic> post) {
     final hasPayScales =
         post['pay_scales'] != null && (post['pay_scales'] as List).isNotEmpty;
-
     final qualificationDisplay = post['qualification'] ?? 'Not specified';
     final otherQualification = post['other_qualification_details'] ?? '';
     final experienceDetails = post['experience_details'] ?? '';
@@ -3760,7 +3641,6 @@ Future<void> _pickAdvertisement() async {
     );
   }
 
-  // ==================== PAY SCALE CARD ====================
   Widget _buildPayScaleCard(
     int postIndex,
     int psIndex,
@@ -3843,7 +3723,6 @@ Future<void> _pickAdvertisement() async {
     );
   }
 
-  // ==================== CATEGORY CARD ====================
   Widget _buildCategoryCard(
     int postIndex,
     int catIndex,
@@ -3888,7 +3767,6 @@ Future<void> _pickAdvertisement() async {
     );
   }
 
-  // ==================== PAY SCALE FORM POPUP ====================
   Widget _payScaleFormPopup() {
     return Column(
       children: [
@@ -3986,67 +3864,50 @@ Future<void> _pickAdvertisement() async {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: payScaleCtrl,
-                  decoration: const InputDecoration(
-                    labelText: "Pay Scale (Optional)",
-                    hintText: "e.g., ₹44,900 - ₹1,42,400",
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.currency_rupee),
-                  ),
+                _buildAITextField(
+                  payScaleCtrl,
+                  "Pay Scale (Optional)",
+                  hintText: "e.g., ₹44,900 - ₹1,42,400",
+                  prefixIcon: Icons.currency_rupee,
                 ),
-                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
-                      child: TextFormField(
-                        controller: gradePayCtrl,
-                        decoration: const InputDecoration(
-                          labelText: "Grade Pay (Optional)",
-                          hintText: "e.g., ₹4,800",
-                          border: OutlineInputBorder(),
-                        ),
+                      child: _buildAITextField(
+                        gradePayCtrl,
+                        "Grade Pay (Optional)",
+                        hintText: "e.g., ₹4,800",
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: TextFormField(
-                        controller: payBandCtrl,
-                        decoration: const InputDecoration(
-                          labelText: "Pay Band (Optional)",
-                          hintText: "e.g., Level 7",
-                          border: OutlineInputBorder(),
-                        ),
+                      child: _buildAITextField(
+                        payBandCtrl,
+                        "Pay Band (Optional)",
+                        hintText: "e.g., Level 7",
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
-                      child: TextFormField(
-                        controller: minSalaryCtrl,
+                      child: _buildAITextField(
+                        minSalaryCtrl,
+                        "Min Salary (₹) Optional",
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: "Min Salary (₹) Optional",
-                          hintText: "e.g., 500000",
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.currency_rupee),
-                        ),
+                        hintText: "e.g., 500000",
+                        prefixIcon: Icons.currency_rupee,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: TextFormField(
-                        controller: maxSalaryCtrl,
+                      child: _buildAITextField(
+                        maxSalaryCtrl,
+                        "Max Salary (₹) Optional",
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: "Max Salary (₹) Optional",
-                          hintText: "e.g., 1200000",
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.currency_rupee),
-                        ),
+                        hintText: "e.g., 1200000",
+                        prefixIcon: Icons.currency_rupee,
                       ),
                     ),
                   ],
@@ -4067,6 +3928,7 @@ Future<void> _pickAdvertisement() async {
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
                               _isEditingPayScale ? Colors.orange : Colors.green,
+                          foregroundColor: Colors.white,
                         ),
                         child: Text(
                           _isEditingPayScale
@@ -4190,7 +4052,6 @@ Future<void> _pickAdvertisement() async {
     );
   }
 
-  // ==================== CATEGORY FORM POPUP ====================
   Widget _categoryFormPopup() {
     if (_editingCategoryPostIndex != null) {
       return Column(
@@ -4287,67 +4148,314 @@ Future<void> _pickAdvertisement() async {
     return const SizedBox.shrink();
   }
 
-  // ==================== EXAM CITIES SECTION ====================
-  Widget _examCitiesSection() {
+  Widget _buildAgeLimitContent() {
     return Column(
       children: [
-        _sectionHeader("Exam Cities", Icons.location_city),
-        const SizedBox(height: 16),
+        _buildAIDateField(ageCalcDateCtrl, "Age Calculation Date"),
+        const SizedBox(height: 12),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.blue.shade50,
+            color: Colors.orange.shade50,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.shade200),
+            border: Border.all(color: Colors.orange.shade200),
           ),
           child: Column(
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: examCityCtrl,
-                      decoration: const InputDecoration(
-                        labelText: "Exam City Name",
-                        hintText: "e.g., Indore, Bhopal, Mumbai",
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.location_on),
-                      ),
-                    ),
+                  const Text(
+                    "Age Relaxation by Category",
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: _addExamCity,
-                    icon: const Icon(Icons.add),
-                    label: const Text("Add"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                    ),
+                  Switch(
+                    value: _hasAgeRelaxation,
+                    onChanged: (value) =>
+                        setState(() => _hasAgeRelaxation = value),
+                    activeThumbColor: Colors.orange,
+                    activeTrackColor: Colors.orange.shade100,
                   ),
                 ],
               ),
-              if (examCities.isNotEmpty) ...[
+              if (_hasAgeRelaxation) ...[
                 const SizedBox(height: 12),
                 const Text(
-                  "Added Exam Cities:",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  "Enter relaxation in years for each category:",
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: examCities
-                      .asMap()
-                      .entries
-                      .map(
-                        (entry) => Chip(
-                          label: Text(entry.value),
-                          avatar: const Icon(Icons.location_on, size: 16),
-                          deleteIcon: const Icon(Icons.close, size: 16),
-                          onDeleted: () => _deleteExamCity(entry.key),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            _isEditingRelaxation ? Icons.edit : Icons.add,
+                            size: 20,
+                            color: Colors.orange,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _isEditingRelaxation
+                                ? "Edit Relaxation"
+                                : "Add New Relaxation",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (_isEditingRelaxation)
+                            TextButton(
+                              onPressed: _cancelRelaxationForm,
+                              child: const Text(
+                                "Cancel",
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _isEditingRelaxation
+                                  ? _editingRelaxationCategory
+                                  : null,
+                              hint: const Text("Select Category"),
+                              decoration: const InputDecoration(
+                                labelText: "Category",
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.category),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                              items: relaxationCategories
+                                  .map(
+                                    (cat) => DropdownMenuItem(
+                                      value: cat,
+                                      child: Text(cat),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  relaxationCategoryCtrl.text = value ?? '';
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 1,
+                            child: TextFormField(
+                              controller: relaxationYearsCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: "Years",
+                                hintText: "e.g., 3",
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.timer),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: _saveRelaxation,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _isEditingRelaxation
+                                  ? Colors.orange
+                                  : Colors.teal,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                            child: Text(
+                              _isEditingRelaxation ? "Update" : "Add",
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (relaxationValues.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.category,
+                              size: 18,
+                              color: Colors.orange,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              "Category-wise Age Relaxation:",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade200,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                "${relaxationValues.length} Categories",
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      )
-                      .toList(),
+                        const SizedBox(height: 12),
+                        ...relaxationValues.entries.map(
+                          (entry) => Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            elevation: 1,
+                            child: ListTile(
+                              leading: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.category,
+                                  size: 18,
+                                  color: Colors.orange,
+                                ),
+                              ),
+                              title: Text(
+                                entry.key,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade100,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      "${entry.value} years",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      size: 18,
+                                      color: Colors.blue,
+                                    ),
+                                    onPressed: () => _startEditRelaxation(
+                                      entry.key,
+                                      entry.value,
+                                    ),
+                                    tooltip: "Edit Relaxation",
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      size: 18,
+                                      color: Colors.red,
+                                    ),
+                                    onPressed: () =>
+                                        _deleteRelaxation(entry.key),
+                                    tooltip: "Delete Relaxation",
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (relaxationValues.isEmpty && _hasAgeRelaxation)
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Column(
+                      children: [
+                        Icon(Icons.category, size: 40, color: Colors.grey),
+                        SizedBox(height: 8),
+                        Text(
+                          "No age relaxations added",
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        Text(
+                          "Use the form above to add relaxations for different categories",
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 14, color: Colors.orange),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          "💡 Age relaxation applies to reserved categories as per government rules.",
+                          style: TextStyle(fontSize: 11, color: Colors.orange),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],
@@ -4357,89 +4465,496 @@ Future<void> _pickAdvertisement() async {
     );
   }
 
-  // ==================== WORK DETAILS SECTION ====================
-  Widget _workDetailsSection() {
+  Widget _buildApplicationFeesContent() {
     return Column(
       children: [
-        _sectionHeader("Work Details", Icons.work_outline),
-        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color:
+                _hasApplicationFees ? Colors.teal.shade50 : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _hasApplicationFees ? Colors.teal : Colors.grey.shade300,
+            ),
+          ),
+          child: Column(
+            children: [
+              SwitchListTile(
+                title: const Text(
+                  "Enable Category-wise Application Fees",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                subtitle: Text(
+                  _hasApplicationFees
+                      ? "ON: Set different fees for different categories"
+                      : "OFF: No application fees",
+                  style: const TextStyle(fontSize: 11),
+                ),
+                value: _hasApplicationFees,
+                onChanged: (value) {
+                  setState(() {
+                    _hasApplicationFees = value;
+                    if (!value) {
+                      feesValues.clear();
+                      for (var c in feesControllers.values) {
+                        c.clear();
+                      }
+                    }
+                  });
+                },
+                activeThumbColor: Colors.teal,
+                activeTrackColor: Colors.teal.shade100,
+              ),
+              if (_hasApplicationFees) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.teal.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            _isEditingFee ? Icons.edit : Icons.add,
+                            size: 20,
+                            color: Colors.teal,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _isEditingFee ? "Edit Fee" : "Add New Fee",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.teal,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (_isEditingFee)
+                            TextButton(
+                              onPressed: _cancelFeeForm,
+                              child: const Text(
+                                "Cancel",
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _isEditingFee
+                                  ? _editingFeeCategory
+                                  : (feeCategoryCtrl.text.isEmpty
+                                      ? null
+                                      : feeCategoryCtrl.text),
+                              hint: const Text("Select Category"),
+                              decoration: const InputDecoration(
+                                labelText: "Category",
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.category),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                              items: predefinedFeeCategories
+                                  .map(
+                                    (cat) => DropdownMenuItem(
+                                      value: cat,
+                                      child: Text(cat),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  feeCategoryCtrl.text = value ?? '';
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 1,
+                            child: TextFormField(
+                              controller: feeAmountCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: "Fee (₹)",
+                                hintText: "e.g., 500",
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.currency_rupee),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: _saveApplicationFee,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  _isEditingFee ? Colors.orange : Colors.teal,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                            child: Text(_isEditingFee ? "Update" : "Add"),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (feesValues.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.payment,
+                              size: 18,
+                              color: Colors.teal,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              "Category-wise Application Fees:",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.teal.shade200,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                "${feesValues.length} Categories",
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ...feesValues.entries.map(
+                          (entry) => Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            elevation: 1,
+                            child: ListTile(
+                              leading: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.teal.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.category,
+                                  size: 18,
+                                  color: Colors.teal,
+                                ),
+                              ),
+                              title: Text(
+                                entry.key,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.teal.shade100,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      "₹${entry.value}",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.teal,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      size: 18,
+                                      color: Colors.blue,
+                                    ),
+                                    onPressed: () =>
+                                        _startEditFee(entry.key, entry.value),
+                                    tooltip: "Edit Fee",
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      size: 18,
+                                      color: Colors.red,
+                                    ),
+                                    onPressed: () => _deleteFee(entry.key),
+                                    tooltip: "Delete Fee",
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (feesValues.isEmpty && _hasApplicationFees)
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Column(
+                      children: [
+                        Icon(Icons.payment, size: 40, color: Colors.grey),
+                        SizedBox(height: 8),
+                        Text(
+                          "No application fees added",
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        Text(
+                          "Use the form above to add fees for different categories",
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 14, color: Colors.teal),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          "💡 Set application fees for different categories. Users will see these fees when applying.",
+                          style: TextStyle(fontSize: 11, color: Colors.teal),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildApplicationTimelineContent() {
+    return Column(
+      children: [
         Row(
           children: [
             Expanded(
-              child: DropdownButtonFormField<String>(
-                initialValue: selectedWorkSchedule,
-                decoration: const InputDecoration(
-                  labelText: "Work Schedule",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.schedule),
-                ),
-                items: workSchedules
-                    .map(
-                      (schedule) => DropdownMenuItem(
-                        value: schedule,
-                        child: Text(schedule),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (newValue) =>
-                    setState(() => selectedWorkSchedule = newValue!),
+              child: _buildAIDateField(
+                applicationStartDateCtrl,
+                "Application Start Date",
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: DropdownButtonFormField<String>(
-                initialValue: selectedShift,
-                decoration: const InputDecoration(
-                  labelText: "Shift",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.nightlight_round),
-                ),
-                items: shifts
-                    .map(
-                      (shift) =>
-                          DropdownMenuItem(value: shift, child: Text(shift)),
-                    )
-                    .toList(),
-                onChanged: (newValue) =>
-                    setState(() => selectedShift = newValue!),
+              child: _buildAIDateField(
+                applicationEndDateCtrl,
+                "Application End Date",
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          initialValue: selectedWorkingDays,
-          decoration: const InputDecoration(
-            labelText: "Working Days",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.calendar_today),
-          ),
-          items: workingDays
-              .map((days) => DropdownMenuItem(value: days, child: Text(days)))
-              .toList(),
-          onChanged: (newValue) =>
-              setState(() => selectedWorkingDays = newValue!),
+        _buildAIDropdown(
+          selectedApplicationMode,
+          applicationModes,
+          "Application Mode",
+          onChanged: (v) => setState(() => selectedApplicationMode = v!),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImportantDatesContent() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildAIDateField(admitCardDateCtrl, "Admit Card Date"),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildAIDateField(examDateCtrl, "Exam Date"),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
-              child: CheckboxListTile(
-                title: const Text("Fully Remote"),
+              child: _buildAIDateField(resultDateCtrl, "Result Date"),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: SizedBox()),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExamCitiesContent() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildAITextField(
+                examCityCtrl,
+                "Exam City Name",
+                hintText: "e.g., Indore, Bhopal, Mumbai",
+                prefixIcon: Icons.location_on,
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: _addExamCity,
+              icon: const Icon(Icons.add),
+              label: const Text("Add"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        if (examCities.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          const Text(
+            "Added Exam Cities:",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: examCities
+                .asMap()
+                .entries
+                .map(
+                  (entry) => Chip(
+                    label: Text(entry.value),
+                    avatar: const Icon(Icons.location_on, size: 16),
+                    deleteIcon: const Icon(Icons.close, size: 16),
+                    onDeleted: () => _deleteExamCity(entry.key),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildOfficialDetailsContent() {
+    return Column(
+      children: [
+        _buildAITextField(
+          notificationNumberCtrl,
+          "Notification Number",
+          prefixIcon: Icons.confirmation_number,
+        ),
+        _buildAIDateField(notificationDateCtrl, "Notification Date"),
+      ],
+    );
+  }
+
+  Widget _buildWorkDetailsContent() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildAIDropdown(
+                selectedWorkSchedule,
+                workSchedules,
+                "Work Schedule",
+                onChanged: (v) => setState(() => selectedWorkSchedule = v!),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildAIDropdown(
+                selectedShift,
+                shifts,
+                "Shift",
+                onChanged: (v) => setState(() => selectedShift = v!),
+              ),
+            ),
+          ],
+        ),
+        _buildAIDropdown(
+          selectedWorkingDays,
+          workingDays,
+          "Working Days",
+          onChanged: (v) => setState(() => selectedWorkingDays = v!),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildToggleTile(
+                title: "Fully Remote",
                 value: isFullyRemote,
-                onChanged: (newValue) =>
-                    setState(() => isFullyRemote = newValue!),
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
+                onChanged: (v) => setState(() => isFullyRemote = v),
               ),
             ),
+            const SizedBox(width: 8),
             Expanded(
-              child: CheckboxListTile(
-                title: const Text("Hybrid"),
+              child: _buildToggleTile(
+                title: "Hybrid",
                 value: isHybrid,
-                onChanged: (newValue) => setState(() => isHybrid = newValue!),
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
+                onChanged: (v) => setState(() => isHybrid = v),
               ),
             ),
           ],
@@ -4448,182 +4963,179 @@ Future<void> _pickAdvertisement() async {
     );
   }
 
-  // ==================== BENEFITS SECTION ====================
-  Widget _benefitsSection() {
+  Widget _buildEducationContent() {
     return Column(
       children: [
-        _sectionHeader("Benefits & Perks", Icons.card_giftcard),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.green.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.green.shade200),
-          ),
-          child: Column(
-            children: [
-              const Text(
-                "Select Benefits:",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: availableBenefits.map((benefit) {
-                  final isSelected = selectedBenefits.contains(benefit);
-                  return FilterChip(
-                    label: Text(benefit),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        if (selected) {
-                          selectedBenefits.add(benefit);
-                        } else {
-                          selectedBenefits.remove(benefit);
-                        }
-                      });
-                    },
-                    backgroundColor: Colors.grey.shade200,
-                    selectedColor: Colors.green.shade200,
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
+        _buildAIDropdown(
+          selectedEducation,
+          educationLevels,
+          "Education Level",
+          onChanged: (v) => setState(() => selectedEducation = v!),
         ),
-      ],
-    );
-  }
-
-  // ==================== LANGUAGE SECTION ====================
-  Widget _languageSection() {
-    return Column(
-      children: [
-        _sectionHeader("Language Requirements", Icons.language),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.shade200),
-          ),
-          child: Column(
-            children: [
-              const Text(
-                "Required Languages:",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: availableLanguages.map((lang) {
-                  final isSelected = selectedLanguages.contains(lang);
-                  return FilterChip(
-                    label: Text(lang),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        if (selected) {
-                          selectedLanguages.add(lang);
-                        } else {
-                          selectedLanguages.remove(lang);
-                        }
-                      });
-                    },
-                    backgroundColor: Colors.grey.shade200,
-                    selectedColor: Colors.blue.shade200,
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: otherLanguagesCtrl,
-                decoration: const InputDecoration(
-                  labelText: "Other Languages (comma separated)",
-                  hintText: "e.g., French, German",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.add),
-                ),
-              ),
-            ],
-          ),
+        _buildAITextField(
+          educationDetailsCtrl,
+          "Education Details",
+          maxLines: 3,
+          hintText: "Details about required education",
+          prefixIcon: Icons.school,
         ),
-      ],
-    );
-  }
-
-  // ==================== INTERVIEW SECTION ====================
-  Widget _interviewSection() {
-    return Column(
-      children: [
-        _sectionHeader("Interview Details", Icons.people),
-        const SizedBox(height: 16),
+        _buildAITextField(
+          experienceDetailsCtrl,
+          "Experience Details",
+          maxLines: 3,
+          hintText: "e.g., Minimum 2 years experience required",
+          prefixIcon: Icons.work_history,
+        ),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
-              child: CheckboxListTile(
-                title: const Text("Online Interview"),
-                value: isInterviewOnline,
-                onChanged: (newValue) =>
-                    setState(() => isInterviewOnline = newValue!),
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
+              child: _buildToggleTile(
+                title: "Fresher Eligible",
+                value: isFresherEligible,
+                onChanged: (v) => setState(() => isFresherEligible = v),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildToggleTile(
+                title: "Experienced Eligible",
+                value: isExperiencedEligible,
+                onChanged: (v) => setState(() => isExperiencedEligible = v),
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBenefitsContent() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            "Select Benefits:",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: availableBenefits.map((benefit) {
+              final isSelected = selectedBenefits.contains(benefit);
+              return FilterChip(
+                label: Text(benefit),
+                selected: isSelected,
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      selectedBenefits.add(benefit);
+                    } else {
+                      selectedBenefits.remove(benefit);
+                    }
+                  });
+                },
+                backgroundColor: Colors.grey.shade200,
+                selectedColor: Colors.green.shade200,
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageContent() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            "Required Languages:",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: availableLanguages.map((lang) {
+              final isSelected = selectedLanguages.contains(lang);
+              return FilterChip(
+                label: Text(lang),
+                selected: isSelected,
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      selectedLanguages.add(lang);
+                    } else {
+                      selectedLanguages.remove(lang);
+                    }
+                  });
+                },
+                backgroundColor: Colors.grey.shade200,
+                selectedColor: Colors.blue.shade200,
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+          _buildAITextField(
+            otherLanguagesCtrl,
+            "Other Languages (comma separated)",
+            hintText: "e.g., French, German",
+            prefixIcon: Icons.add,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInterviewContent() {
+    return Column(
+      children: [
+        _buildToggleTile(
+          title: "Online Interview",
+          value: isInterviewOnline,
+          onChanged: (v) => setState(() => isInterviewOnline = v),
         ),
         const SizedBox(height: 12),
         if (isInterviewOnline)
-          TextFormField(
-            controller: interviewLinkCtrl,
-            decoration: const InputDecoration(
-              labelText: "Interview Link",
-              hintText: "https://meet.google.com/...",
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.link),
-            ),
+          _buildAITextField(
+            interviewLinkCtrl,
+            "Interview Link",
+            hintText: "https://meet.google.com/...",
+            prefixIcon: Icons.link,
           )
         else
-          TextFormField(
-            controller: interviewVenueCtrl,
-            decoration: const InputDecoration(
-              labelText: "Interview Venue",
-              hintText: "Full address with landmark",
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.location_on),
-            ),
+          _buildAITextField(
+            interviewVenueCtrl,
+            "Interview Venue",
+            hintText: "Full address with landmark",
+            prefixIcon: Icons.location_on,
           ),
-        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
-              child: TextFormField(
-                controller: interviewDateCtrl,
-                readOnly: true,
-                onTap: () => _selectDate(interviewDateCtrl),
-                decoration: InputDecoration(
-                  labelText: "Interview Date",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.event),
-                ),
-              ),
+              child: _buildAIDateField(interviewDateCtrl, "Interview Date"),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: TextFormField(
-                controller: interviewTimeCtrl,
-                decoration: const InputDecoration(
-                  labelText: "Interview Time",
-                  hintText: "e.g., 10:00 AM - 5:00 PM",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.access_time),
-                ),
+              child: _buildAITextField(
+                interviewTimeCtrl,
+                "Interview Time",
+                hintText: "e.g., 10:00 AM - 5:00 PM",
+                prefixIcon: Icons.access_time,
               ),
             ),
           ],
@@ -4660,12 +5172,9 @@ Future<void> _pickAdvertisement() async {
     );
   }
 
-  // ==================== SELECTION PROCESS SECTION ====================
-  Widget _selectionProcessSection() {
+  Widget _buildSelectionProcessContent() {
     return Column(
       children: [
-        _sectionHeader("Selection Process", Icons.timeline),
-        const SizedBox(height: 16),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -4689,354 +5198,110 @@ Future<void> _pickAdvertisement() async {
           }).toList(),
         ),
         const SizedBox(height: 12),
-        TextFormField(
-          controller: selectionProcessDetailsCtrl,
+        _buildAITextField(
+          selectionProcessDetailsCtrl,
+          "Selection Process Details (Optional)",
           maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: "Selection Process Details (Optional)",
-            hintText: "Describe the complete selection process...",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.description),
-          ),
+          hintText: "Describe the complete selection process...",
+          prefixIcon: Icons.description,
         ),
       ],
     );
   }
 
-  // ==================== BOND SECTION ====================
-  Widget _bondSection() {
-    return Column(
-      children: [
-        _sectionHeader("Bond/Agreement (If Any)", Icons.description),
-        const SizedBox(height: 16),
-        Card(
-          color: hasBond ? Colors.red.shade50 : Colors.grey.shade50,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text(
-                    "Service Bond Required",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: const Text(
-                    "Is there any service bond or agreement?",
-                  ),
-                  value: hasBond,
-                  onChanged: (newValue) => setState(() => hasBond = newValue),
-                  activeThumbColor: Colors.red,
-                  activeTrackColor: Colors.red.shade100,
-                ),
-                if (hasBond) ...[
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: bondDurationCtrl,
-                    decoration: const InputDecoration(
-                      labelText: "Bond Duration",
-                      hintText: "e.g., 2 years",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.timer),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: bondAmountCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: "Bond Amount (if any)",
-                      hintText: "e.g., 500000",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.currency_rupee),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: bondTermsCtrl,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: "Bond Terms & Conditions",
-                      hintText: "Describe the bond terms...",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.description),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ==================== IMPORTANT DATES SECTION ====================
-  Widget _importantDatesSection() {
-    return Column(
-      children: [
-        _sectionHeader("Important Dates", Icons.date_range),
-        const SizedBox(height: 16),
-        Row(
+  Widget _buildBondContent() {
+    return Card(
+      color: hasBond ? Colors.red.shade50 : Colors.grey.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           children: [
-            Expanded(
-              child: TextFormField(
-                controller: admitCardDateCtrl,
-                readOnly: true,
-                onTap: () => _selectDate(admitCardDateCtrl),
-                decoration: InputDecoration(
-                  labelText: "Admit Card Date",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.download),
-                ),
+            SwitchListTile(
+              title: const Text(
+                "Service Bond Required",
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextFormField(
-                controller: examDateCtrl,
-                readOnly: true,
-                onTap: () => _selectDate(examDateCtrl),
-                decoration: InputDecoration(
-                  labelText: "Exam Date",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.edit_calendar),
-                ),
+              subtitle: const Text(
+                "Is there any service bond or agreement?",
               ),
+              value: hasBond,
+              onChanged: (newValue) => setState(() => hasBond = newValue),
+              activeThumbColor: Colors.red,
+              activeTrackColor: Colors.red.shade100,
             ),
+            if (hasBond) ...[
+              const SizedBox(height: 12),
+              _buildAITextField(
+                bondDurationCtrl,
+                "Bond Duration",
+                hintText: "e.g., 2 years",
+                prefixIcon: Icons.timer,
+              ),
+              _buildAITextField(
+                bondAmountCtrl,
+                "Bond Amount (if any)",
+                keyboardType: TextInputType.number,
+                hintText: "e.g., 500000",
+                prefixIcon: Icons.currency_rupee,
+              ),
+              _buildAITextField(
+                bondTermsCtrl,
+                "Bond Terms & Conditions",
+                maxLines: 2,
+                hintText: "Describe the bond terms...",
+                prefixIcon: Icons.description,
+              ),
+            ],
           ],
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: resultDateCtrl,
-                readOnly: true,
-                onTap: () => _selectDate(resultDateCtrl),
-                decoration: InputDecoration(
-                  labelText: "Result Date",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.assignment_turned_in),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(child: SizedBox()),
-          ],
-        ),
-      ],
+      ),
     );
   }
 
-  // ==================== APPLICATION TIMELINE SECTION ====================
-  Widget _applicationTimelineSection() {
+  Widget _buildContactInformationContent() {
     return Column(
       children: [
-        _sectionHeader("Application Timeline", Icons.date_range),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: applicationStartDateCtrl,
-                readOnly: true,
-                onTap: () => _selectDate(applicationStartDateCtrl),
-                decoration: InputDecoration(
-                  labelText: "Application Start Date",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.play_circle),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextFormField(
-                controller: applicationEndDateCtrl,
-                readOnly: true,
-                onTap: () => _selectDate(applicationEndDateCtrl),
-                decoration: InputDecoration(
-                  labelText: "Application End Date",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.stop_circle),
-                ),
-              ),
-            ),
-          ],
+        _buildAITextField(
+          contactPersonCtrl,
+          "Contact Person Name",
+          prefixIcon: Icons.person,
         ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          initialValue: selectedApplicationMode,
-          decoration: const InputDecoration(
-            labelText: "Application Mode",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.devices),
-          ),
-          items: applicationModes
-              .map((mode) => DropdownMenuItem(value: mode, child: Text(mode)))
-              .toList(),
-          onChanged: (newValue) =>
-              setState(() => selectedApplicationMode = newValue!),
+        _buildAITextField(
+          contactDesignationCtrl,
+          "Designation",
+          prefixIcon: Icons.badge,
         ),
-      ],
-    );
-  }
-
-  // ==================== APPLICATION OPTIONS SECTION ====================
-  Widget _applicationOptionsSection() {
-    return Column(
-      children: [
-        _sectionHeader("Application Options", Icons.link),
-        const SizedBox(height: 16),
-        Card(
-          color: hasApplyWithUs ? Colors.green.shade50 : Colors.grey.shade50,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text(
-                    "Enable 'Apply with Us' Button",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: const Text(
-                    "Redirect users to an external application form",
-                  ),
-                  value: hasApplyWithUs,
-                  onChanged: (value) {
-                    setState(() {
-                      hasApplyWithUs = value;
-                      if (!value) {
-                        applyWithUsUrlCtrl.clear();
-                      }
-                    });
-                  },
-                ),
-                if (hasApplyWithUs && mounted) ...[
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: applyWithUsUrlCtrl,
-                    decoration: InputDecoration(
-                      labelText: "Apply With Us URL",
-                      hintText: "https://example.com/apply",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      prefixIcon: const Icon(Icons.open_in_browser),
-                    ),
-                    keyboardType: TextInputType.url,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ==================== CONTACT INFORMATION SECTION ====================
-  Widget _contactInformationSection() {
-    return Column(
-      children: [
-        _sectionHeader("Contact Information", Icons.contact_phone),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: contactPersonCtrl,
-          decoration: const InputDecoration(
-            labelText: "Contact Person Name",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.person),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: contactDesignationCtrl,
-          decoration: const InputDecoration(
-            labelText: "Designation",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.badge),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: contactEmailCtrl,
+        _buildAITextField(
+          contactEmailCtrl,
+          "Contact Email",
           keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: "Contact Email",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.email),
-          ),
+          prefixIcon: Icons.email,
         ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: contactPhoneCtrl,
+        _buildAITextField(
+          contactPhoneCtrl,
+          "Contact Phone Number",
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: "Contact Phone Number",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.phone),
-          ),
+          prefixIcon: Icons.phone,
         ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: helplineNumberCtrl,
+        _buildAITextField(
+          helplineNumberCtrl,
+          "Helpline Number",
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: "Helpline Number",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.support_agent),
-          ),
+          prefixIcon: Icons.support_agent,
         ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: helplineEmailCtrl,
+        _buildAITextField(
+          helplineEmailCtrl,
+          "Helpline Email",
           keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: "Helpline Email",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.email),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: whatsappNumberCtrl,
-          keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: "WhatsApp Number",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.chat),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: telegramChannelCtrl,
-          decoration: const InputDecoration(
-            labelText: "Telegram Channel",
-            hintText: "https://t.me/...",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.telegram),
-          ),
+          prefixIcon: Icons.email,
         ),
       ],
     );
   }
 
-  // ==================== OFFICIAL NOTIFICATION SECTION ====================
-  Widget _officialNotificationSection() {
+  Widget _buildOfficialNotificationContent() {
     return Column(
       children: [
-        _sectionHeader("Official Notification", Icons.notifications),
-        const SizedBox(height: 16),
         Card(
           color: hasOfficialNotificationLink
               ? Colors.blue.shade50
@@ -5068,17 +5333,11 @@ Future<void> _pickAdvertisement() async {
                 ),
                 if (hasOfficialNotificationLink && mounted) ...[
                   const SizedBox(height: 12),
-                  TextFormField(
-                    controller: officialNotificationUrlCtrl,
-                    decoration: InputDecoration(
-                      labelText: "Official Notification PDF URL",
-                      hintText: "https://example.com/notification.pdf",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      prefixIcon: const Icon(Icons.picture_as_pdf),
-                    ),
-                    keyboardType: TextInputType.url,
+                  _buildAITextField(
+                    officialNotificationUrlCtrl,
+                    "Official Notification PDF URL",
+                    hintText: "https://example.com/notification.pdf",
+                    prefixIcon: Icons.picture_as_pdf,
                   ),
                 ],
               ],
@@ -5186,146 +5445,501 @@ Future<void> _pickAdvertisement() async {
     );
   }
 
-  // ==================== ADDITIONAL INFORMATION SECTION ====================
-  Widget _additionalInformationSection() {
-    return Column(
-      children: [
-        _sectionHeader("Additional Information", Icons.info_outline),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<String>(
-          initialValue: selectedUrgency,
-          decoration: const InputDecoration(
-            labelText: "Urgency Level",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.priority_high),
-          ),
-          items: urgencyLevels
-              .map(
-                (level) => DropdownMenuItem(value: level, child: Text(level)),
-              )
-              .toList(),
-          onChanged: (newValue) => setState(() => selectedUrgency = newValue!),
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          initialValue: selectedGenderPreference,
-          decoration: const InputDecoration(
-            labelText: "Gender Preference",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.people),
-          ),
-          items: genderPreferences
-              .map(
-                (gender) =>
-                    DropdownMenuItem(value: gender, child: Text(gender)),
-              )
-              .toList(),
-          onChanged: (newValue) =>
-              setState(() => selectedGenderPreference = newValue!),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: officialWebsiteCtrl,
-          keyboardType: TextInputType.url,
-          decoration: const InputDecoration(
-            labelText: "Official Website",
-            hintText: "https://example.com",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.public),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: importantNotesCtrl,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: "Important Notes",
-            hintText: "Any special instructions for applicants",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.note),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: termsAndConditionsCtrl,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: "Terms & Conditions",
-            hintText: "Any terms and conditions for the job",
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.gavel),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ==================== JOB DESCRIPTION SECTION ====================
-  Widget _jobDescriptionSection() {
-    return Column(
-      children: [
-        _sectionHeader("Job Description", Icons.description),
-        const SizedBox(height: 16),
-        TextFormField(
-          controller: descriptionCtrl,
-          maxLines: 8,
-          decoration: const InputDecoration(
-            labelText: "Job Description (Optional)",
-            hintText: "Enter job description (not required)",
-            border: OutlineInputBorder(),
-            alignLabelWithHint: true,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ==================== HELPER METHODS ====================
-  Widget _buildDropdown(
-    String label,
-    List<String> items,
-    String? selectedValue,
-    Function(String?) onChanged,
-  ) {
-    return DropdownButtonFormField<String>(
-      initialValue: selectedValue,
-      decoration: InputDecoration(
-        labelText: "$label *",
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
+  Widget _buildApplicationOptionsContent() {
+    return Card(
+      color: hasApplyWithUs ? Colors.green.shade50 : Colors.grey.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            SwitchListTile(
+              title: const Text(
+                "Enable 'Apply with Us' Button",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: const Text(
+                "Redirect users to an external application form",
+              ),
+              value: hasApplyWithUs,
+              onChanged: (value) {
+                setState(() {
+                  hasApplyWithUs = value;
+                  if (!value) {
+                    applyWithUsUrlCtrl.clear();
+                  }
+                });
+              },
+            ),
+            if (hasApplyWithUs && mounted) ...[
+              const SizedBox(height: 12),
+              _buildAITextField(
+                applyWithUsUrlCtrl,
+                "Apply With Us URL",
+                hintText: "https://example.com/apply",
+                prefixIcon: Icons.open_in_browser,
+              ),
+            ],
+            const SizedBox(height: 12),
+            _buildAITextField(
+              websiteUrlCtrl,
+              "Website URL",
+              hintText: "https://example.com",
+              prefixIcon: Icons.public,
+            ),
+            _buildAIDateField(lastDateCtrl, "Last Date to Apply"),
+          ],
         ),
       ),
-      items: items.isEmpty
-          ? null
-          : items
-              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-              .toList(),
-      onChanged: items.isEmpty ? null : onChanged,
-      validator: (value) => value == null ? "$label is required" : null,
     );
   }
 
-  Widget _sectionHeader(String title, IconData icon) {
-    return Row(
+  Widget _buildPhysicalMedicalContent() {
+    return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.blue.shade100,
-            borderRadius: BorderRadius.circular(8),
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue.shade200),
           ),
-          child: Icon(icon, size: 20, color: Colors.blue.shade700),
+          child: Column(
+            children: [
+              SwitchListTile(
+                title: const Text(
+                  "Physical Requirements",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: const Text(
+                  "Height, chest, weight requirements (Police/Defense jobs)",
+                ),
+                value: _hasPhysicalRequirement,
+                onChanged: (value) =>
+                    setState(() => _hasPhysicalRequirement = value),
+                activeThumbColor: Colors.blue,
+                activeTrackColor: Colors.blue.shade100,
+              ),
+              if (_hasPhysicalRequirement) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildAITextField(
+                        minHeightCtrl,
+                        "Min Height (cm) Male",
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildAITextField(
+                        minHeightFemaleCtrl,
+                        "Min Height (cm) Female",
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildAITextField(
+                        minChestCtrl,
+                        "Min Chest (cm)",
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildAITextField(
+                        maxWeightCtrl,
+                        "Max Weight (kg)",
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                  ],
+                ),
+                _buildAITextField(
+                  physicalRelaxationCtrl,
+                  "Physical Relaxation Details",
+                  maxLines: 2,
+                  hintText: "Relaxation for reserved categories",
+                ),
+              ],
+            ],
+          ),
         ),
-        const SizedBox(width: 12),
-        Text(
-          title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.purple.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.purple.shade200),
+          ),
+          child: Column(
+            children: [
+              SwitchListTile(
+                title: const Text(
+                  "Medical Standards",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: const Text(
+                  "Medical fitness requirements for the job",
+                ),
+                value: _hasMedicalRequirement,
+                onChanged: (value) =>
+                    setState(() => _hasMedicalRequirement = value),
+                activeThumbColor: Colors.purple,
+                activeTrackColor: Colors.purple.shade100,
+              ),
+              if (_hasMedicalRequirement) ...[
+                const SizedBox(height: 12),
+                _buildAITextField(
+                  medicalStandardsCtrl,
+                  "Medical Standards Details",
+                  maxLines: 3,
+                  hintText: "Describe medical fitness requirements",
+                  prefixIcon: Icons.medical_services,
+                ),
+              ],
+            ],
+          ),
         ),
-        const Spacer(),
-        Container(height: 2, width: 40, color: Colors.grey.shade300),
       ],
+    );
+  }
+
+  Widget _buildTrainingContent() {
+    return Card(
+      color: _hasTraining ? Colors.green.shade50 : Colors.grey.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            SwitchListTile(
+              title: const Text(
+                "Training Details",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: const Text(
+                "Is there any training period for selected candidates?",
+              ),
+              value: _hasTraining,
+              onChanged: (value) => setState(() => _hasTraining = value),
+              activeThumbColor: Colors.green,
+              activeTrackColor: Colors.green.shade100,
+            ),
+            if (_hasTraining) ...[
+              const SizedBox(height: 12),
+              _buildAITextField(
+                trainingDurationCtrl,
+                "Training Duration",
+                hintText: "e.g., 6 months",
+                prefixIcon: Icons.timer,
+              ),
+              _buildAITextField(
+                trainingStipendCtrl,
+                "Training Stipend (₹)",
+                keyboardType: TextInputType.number,
+                hintText: "e.g., 15000",
+                prefixIcon: Icons.currency_rupee,
+              ),
+              _buildAITextField(
+                trainingLocationCtrl,
+                "Training Location",
+                hintText: "e.g., Training Academy, Delhi",
+                prefixIcon: Icons.location_on,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdditionalInformationContent() {
+    return Column(
+      children: [
+        _buildAIDropdown(
+          selectedUrgency,
+          urgencyLevels,
+          "Urgency Level",
+          onChanged: (v) => setState(() => selectedUrgency = v!),
+        ),
+        _buildAIDropdown(
+          selectedGenderPreference,
+          genderPreferences,
+          "Gender Preference",
+          onChanged: (v) => setState(() => selectedGenderPreference = v!),
+        ),
+      ],
+    );
+  }
+
+  // ==================== REUSABLE WIDGETS ====================
+  Widget _buildGlassContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 15,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _sectionHeader(String title, IconData icon, {String? subtitle}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                width: 30,
+                height: 2,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  ),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
+          ),
+          if (subtitle != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 44, top: 4),
+              child: Text(
+                subtitle,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAITextField(
+    TextEditingController ctrl,
+    String label, {
+    TextInputType keyboardType = TextInputType.text,
+    bool required = false,
+    int maxLines = 1,
+    String? hintText,
+    IconData? prefixIcon,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.05),
+              blurRadius: 5,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: TextFormField(
+          controller: ctrl,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          style: const TextStyle(color: Colors.black87),
+          decoration: InputDecoration(
+            labelText: required ? "$label *" : label,
+            labelStyle: TextStyle(
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+            hintText: hintText ?? (required ? null : "Optional"),
+            hintStyle: TextStyle(color: Colors.grey.shade400),
+            prefixIcon: prefixIcon != null
+                ? Icon(prefixIcon, color: Colors.grey.shade600, size: 20)
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            filled: true,
+            fillColor: Colors.transparent,
+          ),
+          validator: (value) =>
+              required && (value == null || value.isEmpty) ? "Required" : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAIDropdown<T>(
+    T? value,
+    List<T> items,
+    String label, {
+    void Function(T?)? onChanged,
+    bool required = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.05),
+              blurRadius: 5,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: DropdownButtonFormField<T>(
+          initialValue: value,
+          decoration: InputDecoration(
+            labelText: required ? "$label *" : label,
+            labelStyle: TextStyle(
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            suffixIcon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
+          ),
+          dropdownColor: Colors.white,
+          style: const TextStyle(color: Colors.black87, fontSize: 14),
+          items: items.map((item) {
+            return DropdownMenuItem<T>(
+              value: item,
+              child: Text(
+                item.toString(),
+                style: const TextStyle(color: Colors.black87),
+              ),
+            );
+          }).toList(),
+          onChanged: onChanged,
+          isExpanded: true,
+          validator: (value) => required && value == null ? "Required" : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAIDateField(
+    TextEditingController ctrl,
+    String label, {
+    bool required = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.05),
+              blurRadius: 5,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: TextFormField(
+          controller: ctrl,
+          readOnly: true,
+          style: const TextStyle(color: Colors.black87),
+          decoration: InputDecoration(
+            labelText: required ? "$label *" : label,
+            labelStyle: TextStyle(
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+            prefixIcon: Icon(
+              Icons.calendar_today,
+              color: Colors.grey.shade600,
+              size: 18,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            suffixIcon: Icon(
+              Icons.event,
+              color: Colors.grey.shade400,
+              size: 18,
+            ),
+          ),
+          onTap: () => _selectDate(ctrl),
+          validator: (value) =>
+              required && (value == null || value.isEmpty) ? "Required" : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToggleTile({
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: CheckboxListTile(
+          title: Text(title, style: const TextStyle(fontSize: 12)),
+          value: value,
+          onChanged: (v) => onChanged(v ?? false),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+          activeColor: const Color(0xFF6C63FF),
+          controlAffinity: ListTileControlAffinity.leading,
+          dense: true,
+        ),
+      ),
     );
   }
 }

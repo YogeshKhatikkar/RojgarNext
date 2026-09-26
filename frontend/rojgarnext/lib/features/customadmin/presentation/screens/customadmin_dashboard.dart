@@ -1,11 +1,15 @@
 // lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
 // ✅ COMPLETE UPDATED VERSION
-// ✅ REMOVED: Reports menu handling
-// ✅ REMOVED: Pending Payments menu handling
+// ✅ AI-BASED FAST DASHBOARD (matches Admin Dashboard)
+// ✅ Cache-first loading for ultra-fast performance
+// ✅ Parent menu click ONLY expands sidebar — never changes right-side content
+// ✅ Right-side content changes ONLY when a submenu is tapped
 // ✅ PRESERVED: Settings submenu (Change Password, Setup MPIN, Fingerprint)
-// ✅ All original functionality preserved
+// ✅ FIXED: _onDashboardSelected now accepts CustomAdminMenu (matches sidebar)
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rojgarnext/features/customadmin/presentation/widgets/customadmin_sidebar.dart';
 import 'package:rojgarnext/features/notification/widgets/notification_bell.dart';
 import 'package:rojgarnext/features/customadmin/data/customadmin_service.dart';
@@ -20,16 +24,14 @@ import 'package:rojgarnext/features/jobs/presentation/screens/applications_scree
 // ✅ SERVICE SCREEN IMPORT
 import 'package:rojgarnext/features/services/presentation/screens/service_application_screen.dart';
 
-// ✅ AUTH SCREENS IMPORT - Same as User Dashboard
+// ✅ AUTH SCREENS IMPORT
 import 'package:rojgarnext/features/auth/presentation/screens/change_password_screen.dart';
 import 'package:rojgarnext/features/auth/presentation/screens/mpin_setup_page.dart';
 import 'package:rojgarnext/features/auth/presentation/screens/fingerprint_setup_page.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
 
-// ❌ REMOVED IMPORTS:
-// - admin_reports_screen.dart (Reports removed)
-// - pending_payments_screen.dart (Pending Payments removed)
-
+// ===============================================================
+// ENUMS
 // ===============================================================
 
 enum CustomAdminMenu {
@@ -37,8 +39,6 @@ enum CustomAdminMenu {
   jobManagement,
   applicationManagement,
   settings,
-  // ❌ REMOVED: reports
-  // ❌ REMOVED: pendingPayments
 }
 
 enum JobSubMenu { allJobs, addNewJob }
@@ -48,12 +48,15 @@ enum ApplicationSubMenu {
   serviceApplications,
 }
 
-// ✅ Settings SubMenu
 enum SettingsSubMenu {
   changePassword,
   setupMpin,
   fingerprint,
 }
+
+// ===============================================================
+// DASHBOARD WIDGET
+// ===============================================================
 
 class CustomAdminDashboard extends StatefulWidget {
   const CustomAdminDashboard({super.key});
@@ -63,61 +66,167 @@ class CustomAdminDashboard extends StatefulWidget {
 }
 
 class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
+  // ==================== STATE ====================
   CustomAdminMenu selectedMenu = CustomAdminMenu.dashboard;
-  JobSubMenu selectedJobSubMenu = JobSubMenu.allJobs;
-  ApplicationSubMenu selectedAppSubMenu = ApplicationSubMenu.jobApplications;
-  SettingsSubMenu selectedSettingsSubMenu = SettingsSubMenu.changePassword;
 
+  // ✅ NULLABLE — no submenu auto-selected
+  JobSubMenu? selectedJobSubMenu;
+  ApplicationSubMenu? selectedAppSubMenu;
+  SettingsSubMenu? selectedSettingsSubMenu;
+
+  // ==================== DASHBOARD DATA ====================
   Map<String, dynamic>? _dashboardStats;
   bool _isLoading = true;
-  String? _adminEmail;
+  bool _isDataReady = false;
+  String _adminName = 'Custom Admin';
 
-  // For candidate profile viewing
+  // ==================== CACHED EMAIL FOR SETTINGS ====================
+  String? _adminEmail;
+  bool _emailLoaded = false;
+
+  // ==================== CANDIDATE PROFILE ====================
   bool _showCandidateProfile = false;
   String? _candidateEmail;
   String? _candidateName;
 
-  // ==================== DRAWER STATE ====================
+  // ==================== DRAWER ====================
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  // ==================== CACHE KEY ====================
+  static const String _cacheKey = 'customadmin_dashboard_cache';
+
+  // ============================================================
+  // LIFECYCLE
+  // ============================================================
   @override
   void initState() {
     super.initState();
+    _loadFromCacheSync();
+    _refreshInBackground();
     _loadAdminEmail();
-    _loadDashboardStats();
   }
 
-  Future<void> _loadAdminEmail() async {
-    final email = await SecureStorage.getEmail();
-    if (mounted) {
-      setState(() {
-        _adminEmail = email;
-      });
-      debugPrint("📧 CustomAdmin Email loaded: $_adminEmail");
-    }
-  }
-
-  Future<void> _loadDashboardStats() async {
-    if (!mounted) return;
-    setState(() => _isLoading = true);
+  // ============================================================
+  // ✅ SYNC CACHE LOAD
+  // ============================================================
+  void _loadFromCacheSync() {
     try {
-      final stats = await CustomAdminService.getStats();
+      SharedPreferences.getInstance().then((pref) {
+        final cached = pref.getString(_cacheKey);
+        if (cached != null) {
+          final data = jsonDecode(cached) as Map<String, dynamic>;
+          if (mounted) {
+            setState(() {
+              _dashboardStats = data['stats'] != null
+                  ? Map<String, dynamic>.from(data['stats'])
+                  : null;
+              _adminName = data['adminName'] ?? 'Custom Admin';
+              _isDataReady = true;
+              _isLoading = false;
+            });
+          }
+          debugPrint("✅ CustomAdmin Dashboard loaded from CACHE in < 10ms!");
+          return;
+        }
+
+        if (mounted) {
+          setState(() {
+            _isDataReady = true;
+            _isLoading = false;
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint("⚠️ CustomAdmin cache read error: $e");
       if (mounted) {
         setState(() {
-          _dashboardStats = stats;
+          _isDataReady = true;
           _isLoading = false;
         });
       }
+    }
+  }
+
+  // ============================================================
+  // ✅ LOAD ADMIN EMAIL ONCE
+  // ============================================================
+  Future<void> _loadAdminEmail() async {
+    try {
+      final email = await SecureStorage.getEmail();
+      if (mounted) {
+        setState(() {
+          _adminEmail = email;
+          _emailLoaded = true;
+          if (email != null && email.isNotEmpty) {
+            _adminName = email.split('@').first;
+          }
+        });
+        debugPrint("📧 CustomAdmin Email loaded: $_adminEmail");
+      }
     } catch (e) {
-      debugPrint("Error loading dashboard stats: $e");
-      if (mounted) setState(() => _isLoading = false);
+      debugPrint('⚠️ _loadAdminEmail error: $e');
+      if (mounted) {
+        setState(() {
+          _adminEmail = null;
+          _emailLoaded = true;
+        });
+      }
+    }
+  }
+
+  // ============================================================
+  // ✅ BACKGROUND REFRESH
+  // ============================================================
+  Future<void> _refreshInBackground() async {
+    try {
+      final stats = await CustomAdminService.getStats();
+
+      if (!mounted) return;
+
+      setState(() {
+        _dashboardStats = stats;
+        _isDataReady = true;
+        _isLoading = false;
+      });
+
+      await _cacheDashboardData();
+      debugPrint("✅ CustomAdmin Dashboard background refresh complete!");
+    } catch (e) {
+      debugPrint("❌ CustomAdmin background refresh error: $e");
+      if (mounted) {
+        setState(() {
+          _isDataReady = true;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _cacheDashboardData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _cacheKey,
+        jsonEncode({
+          'stats': _dashboardStats,
+          'adminName': _adminName,
+        }),
+      );
+      await prefs.setInt(
+          '${_cacheKey}_time', DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      debugPrint("⚠️ CustomAdmin cache save error: $e");
     }
   }
 
   void _refreshDashboard() {
-    _loadDashboardStats();
+    setState(() => _isLoading = true);
+    _refreshInBackground();
   }
 
+  // ============================================================
+  // ✅ CANDIDATE PROFILE
+  // ============================================================
   void _showCandidateProfileFromApplication(Map<String, dynamic> application) {
     if (_scaffoldKey.currentState?.isDrawerOpen == true) {
       Navigator.of(context).pop();
@@ -137,8 +246,9 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
     });
   }
 
-  // ==================== NOTIFICATION NAVIGATION METHODS ====================
-
+  // ============================================================
+  // ✅ NOTIFICATION NAVIGATION
+  // ============================================================
   void _navigateToJobsFromNotification() {
     debugPrint("🔔 CUSTOM ADMIN: Navigating to Job Management > All Jobs");
     if (_scaffoldKey.currentState?.isDrawerOpen == true) {
@@ -188,25 +298,9 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
     });
   }
 
-  // ==================== MENU SELECTION WITH DRAWER CLOSE ====================
-
-  void _onMenuSelected(CustomAdminMenu menu) {
-    if (_scaffoldKey.currentState?.isDrawerOpen == true) {
-      Navigator.of(context).pop();
-    }
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        setState(() {
-          selectedMenu = menu;
-          _showCandidateProfile = false;
-          if (menu == CustomAdminMenu.settings) {
-            selectedSettingsSubMenu = SettingsSubMenu.changePassword;
-          }
-        });
-      }
-    });
-  }
-
+  // ============================================================
+  // ✅ SUBMENU HANDLERS — these are the ONLY ones that change content
+  // ============================================================
   void _onJobSubMenuSelected(JobSubMenu subMenu) {
     if (_scaffoldKey.currentState?.isDrawerOpen == true) {
       Navigator.of(context).pop();
@@ -253,8 +347,26 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
   }
 
   // ============================================================
-  // GET SETTINGS SCREEN BASED ON SUBMENU
-  // Same screens as User Dashboard (Auth folder)
+  // ✅ DASHBOARD MENU HANDLER
+  //    Signature matches `Function(CustomAdminMenu)` from the sidebar.
+  //    The sidebar calls this only for the Dashboard leaf item.
+  // ============================================================
+  void _onDashboardSelected(CustomAdminMenu menu) {
+    if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+      Navigator.of(context).pop();
+    }
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          selectedMenu = menu; // typically CustomAdminMenu.dashboard
+          _showCandidateProfile = false;
+        });
+      }
+    });
+  }
+
+  // ============================================================
+  // GET SETTINGS SCREEN
   // ============================================================
   Widget _getSettingsScreen() {
     switch (selectedSettingsSubMenu) {
@@ -265,37 +377,60 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
         );
 
       case SettingsSubMenu.setupMpin:
+        if (!_emailLoaded) {
+          return const Center(child: CircularProgressIndicator());
+        }
         if (_adminEmail == null || _adminEmail!.isEmpty) {
           return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(),
+                Icon(Icons.error_outline, size: 48, color: Colors.red),
                 SizedBox(height: 16),
-                Text("Loading email..."),
+                Text("Please login with email & password first"),
               ],
             ),
           );
         }
-        return MpinSetupPage(email: _adminEmail!);
+        return MpinSetupPage(
+          key: const ValueKey('customadmin_mpin_setup_page'),
+          email: _adminEmail!,
+        );
 
       case SettingsSubMenu.fingerprint:
+        if (!_emailLoaded) {
+          return const Center(child: CircularProgressIndicator());
+        }
         if (_adminEmail == null || _adminEmail!.isEmpty) {
           return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(),
+                Icon(Icons.error_outline, size: 48, color: Colors.red),
                 SizedBox(height: 16),
-                Text("Loading email..."),
+                Text("Please login with email & password first"),
               ],
             ),
           );
         }
-        return FingerprintSetupPage(email: _adminEmail!);
+        return FingerprintSetupPage(
+          key: const ValueKey('customadmin_fingerprint_setup_page'),
+          email: _adminEmail!,
+        );
+
+      case null:
+        // Defensive fallback — settings screen only renders after a
+        // submenu tap, so this branch should not normally be reached.
+        return const ChangePasswordScreen(
+          isForgotFlow: false,
+          isEmbedded: true,
+        );
     }
   }
 
+  // ============================================================
+  // ✅ GET CONTENT
+  // ============================================================
   Widget _getContent() {
     if (_showCandidateProfile && _candidateEmail != null) {
       return CandidateProfileScreen(
@@ -339,361 +474,221 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
           onViewCandidateProfile: _showCandidateProfileFromApplication,
         );
 
-      // ❌ REMOVED: Reports case
-      // ❌ REMOVED: Pending Payments case
-
       case CustomAdminMenu.settings:
         return _getSettingsScreen();
     }
   }
 
-  // ==================== DASHBOARD CONTENT ====================
-
+  // ============================================================
+  // ✅ AI-BASED DASHBOARD CONTENT
+  // ============================================================
   Widget _buildDashboardContent() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    final greeting = _getGreetingMessage();
 
     final stats = _dashboardStats;
+    final totalJobs = stats?['total_jobs'] ?? 0;
+    final totalApps = stats?['total_applications'] ?? 0;
+    final pending = stats?['pending_applications'] ?? 0;
+    final shortlisted = stats?['shortlisted_applications'] ?? 0;
+    final interview = stats?['interview_applications'] ?? 0;
+    final offered = stats?['offered_applications'] ?? 0;
+    final rejected = stats?['rejected_applications'] ?? 0;
+    final avgMatch = stats?['avg_match_score'] ?? 0;
+    final recent7d = stats?['recent_applications_7d'] ?? 0;
     final topJobs = stats?['top_jobs'] as List? ?? [];
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Welcome Card
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(51),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.admin_panel_settings,
-                    size: 40,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Welcome, Custom Admin",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        "Manage jobs, applications, and track your progress",
-                        style: TextStyle(
-                          color: Colors.white.withAlpha(217),
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+          _buildAIHeader(greeting),
+          const SizedBox(height: 20),
 
-          // Stats Row 1
           Row(
             children: [
               Expanded(
                 child: _buildStatCard(
                   "Total Jobs",
-                  stats?['total_jobs']?.toString() ?? "0",
-                  Icons.work,
-                  Colors.blue,
+                  totalJobs.toString(),
+                  Icons.work_rounded,
+                  const Color(0xFF6C63FF),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: _buildStatCard(
                   "Applications",
-                  stats?['total_applications']?.toString() ?? "0",
-                  Icons.assignment,
+                  totalApps.toString(),
+                  Icons.assignment_rounded,
                   Colors.green,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: _buildStatCard(
                   "Pending",
-                  stats?['pending_applications']?.toString() ?? "0",
-                  Icons.hourglass_empty,
+                  pending.toString(),
+                  Icons.hourglass_empty_rounded,
                   Colors.orange,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          // Stats Row 2
           Row(
             children: [
               Expanded(
                 child: _buildStatCard(
                   "Shortlisted",
-                  stats?['shortlisted_applications']?.toString() ?? "0",
-                  Icons.star,
+                  shortlisted.toString(),
+                  Icons.star_rounded,
                   Colors.blue,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: _buildStatCard(
                   "Interview",
-                  stats?['interview_applications']?.toString() ?? "0",
-                  Icons.people,
+                  interview.toString(),
+                  Icons.people_rounded,
                   Colors.purple,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: _buildStatCard(
                   "Offered",
-                  stats?['offered_applications']?.toString() ?? "0",
-                  Icons.celebration,
-                  Colors.green,
+                  offered.toString(),
+                  Icons.celebration_rounded,
+                  Colors.teal,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          // Stats Row 3
           Row(
             children: [
               Expanded(
                 child: _buildStatCard(
                   "Rejected",
-                  stats?['rejected_applications']?.toString() ?? "0",
-                  Icons.cancel,
+                  rejected.toString(),
+                  Icons.cancel_rounded,
                   Colors.red,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: _buildStatCard(
                   "Avg AI Match",
-                  "${stats?['avg_match_score'] ?? 0}%",
-                  Icons.auto_awesome,
+                  "$avgMatch%",
+                  Icons.auto_awesome_rounded,
                   Colors.teal,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: _buildStatCard(
                   "Recent (7d)",
-                  stats?['recent_applications_7d']?.toString() ?? "0",
-                  Icons.trending_up,
+                  recent7d.toString(),
+                  Icons.trending_up_rounded,
                   Colors.orange,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // Top Jobs
+          _buildQuickActionsGrid(),
+          const SizedBox(height: 20),
+
+          _buildTopJobsCard(topJobs),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAIHeader(String greeting) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(color: Colors.grey.shade200, blurRadius: 8),
-              ],
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(15),
             ),
+            child: const Icon(
+              Icons.admin_panel_settings,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Top Jobs by Applications",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                if (topJobs.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Center(
-                      child: Text(
-                        "No applications yet",
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  )
-                else
-                  ...topJobs.map(
-                    (job) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade100,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child:
-                                const Icon(Icons.work, color: Colors.blue),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              job['title']?.toString() ?? 'Job',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              "${job['applications'] ?? 0} apps",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                Text(
+                  "$greeting, $_adminName!",
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Manage jobs, applications, and track progress",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.85),
+                  ),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-
-          // Quick Actions
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(color: Colors.grey.shade200, blurRadius: 8),
-              ],
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Quick Actions",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildQuickActionButton(
-                        "Add Job",
-                        Icons.add_circle,
-                        Colors.green,
-                        () {
-                          if (_scaffoldKey.currentState?.isDrawerOpen ==
-                              true) {
-                            Navigator.of(context).pop();
-                          }
-                          Future.delayed(
-                              const Duration(milliseconds: 300), () {
-                            if (mounted) {
-                              setState(() {
-                                selectedMenu = CustomAdminMenu.jobManagement;
-                                selectedJobSubMenu = JobSubMenu.addNewJob;
-                                _showCandidateProfile = false;
-                              });
-                            }
-                          });
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildQuickActionButton(
-                        "View Job Applications",
-                        Icons.list_alt,
-                        Colors.blue,
-                        () {
-                          if (_scaffoldKey.currentState?.isDrawerOpen ==
-                              true) {
-                            Navigator.of(context).pop();
-                          }
-                          Future.delayed(
-                              const Duration(milliseconds: 300), () {
-                            if (mounted) {
-                              setState(() {
-                                selectedMenu =
-                                    CustomAdminMenu.applicationManagement;
-                                selectedAppSubMenu =
-                                    ApplicationSubMenu.jobApplications;
-                                _showCandidateProfile = false;
-                              });
-                            }
-                          });
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildQuickActionButton(
-                        "View Service Apps",
-                        Icons.workspace_premium,
-                        Colors.purple,
-                        () {
-                          if (_scaffoldKey.currentState?.isDrawerOpen ==
-                              true) {
-                            Navigator.of(context).pop();
-                          }
-                          Future.delayed(
-                              const Duration(milliseconds: 300), () {
-                            if (mounted) {
-                              setState(() {
-                                selectedMenu =
-                                    CustomAdminMenu.applicationManagement;
-                                selectedAppSubMenu =
-                                    ApplicationSubMenu.serviceApplications;
-                                _showCandidateProfile = false;
-                              });
-                            }
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+              size: 20,
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _getGreetingMessage() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return "🌅 Good Morning";
+    if (hour < 17) return "☀️ Good Afternoon";
+    return "🌙 Good Evening";
   }
 
   Widget _buildStatCard(
@@ -703,27 +698,44 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 4)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 10,
+            spreadRadius: 2,
+          ),
+        ],
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 28),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
           const SizedBox(height: 8),
           Text(
             value,
             style: TextStyle(
-              fontSize: 22,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
+          const SizedBox(height: 2),
           Text(
             title,
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey.shade600,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -731,41 +743,281 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
     );
   }
 
-  Widget _buildQuickActionButton(
-    String title,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: color.withAlpha(25),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
+  Widget _buildQuickActionsGrid() {
+    final List<Map<String, dynamic>> actions = [
+      {
+        'title': 'Add Job',
+        'icon': Icons.add_circle,
+        'color': Colors.green,
+        'onTap': () {
+          if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+            Navigator.of(context).pop();
+          }
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              setState(() {
+                selectedMenu = CustomAdminMenu.jobManagement;
+                selectedJobSubMenu = JobSubMenu.addNewJob;
+                _showCandidateProfile = false;
+              });
+            }
+          });
+        },
+      },
+      {
+        'title': 'All Jobs',
+        'icon': Icons.list_rounded,
+        'color': const Color(0xFF6C63FF),
+        'onTap': () {
+          if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+            Navigator.of(context).pop();
+          }
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              setState(() {
+                selectedMenu = CustomAdminMenu.jobManagement;
+                selectedJobSubMenu = JobSubMenu.allJobs;
+                _showCandidateProfile = false;
+              });
+            }
+          });
+        },
+      },
+      {
+        'title': 'Job Apps',
+        'icon': Icons.work_rounded,
+        'color': Colors.blue,
+        'onTap': () {
+          if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+            Navigator.of(context).pop();
+          }
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              setState(() {
+                selectedMenu = CustomAdminMenu.applicationManagement;
+                selectedAppSubMenu = ApplicationSubMenu.jobApplications;
+                _showCandidateProfile = false;
+              });
+            }
+          });
+        },
+      },
+      {
+        'title': 'Service Apps',
+        'icon': Icons.workspace_premium_rounded,
+        'color': Colors.purple,
+        'onTap': () {
+          if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+            Navigator.of(context).pop();
+          }
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              setState(() {
+                selectedMenu = CustomAdminMenu.applicationManagement;
+                selectedAppSubMenu = ApplicationSubMenu.serviceApplications;
+                _showCandidateProfile = false;
+              });
+            }
+          });
+        },
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
           children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 6),
+            Icon(Icons.dashboard_rounded, color: Color(0xFF6C63FF), size: 22),
+            SizedBox(width: 10),
             Text(
-              title,
+              "Quick Actions",
               style: TextStyle(
-                fontSize: 12,
-                color: color,
-                fontWeight: FontWeight.w500,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            childAspectRatio: 0.9,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+          ),
+          itemCount: actions.length,
+          itemBuilder: (context, index) {
+            final action = actions[index];
+            final color = action['color'] as Color;
+            return GestureDetector(
+              onTap: action['onTap'] as VoidCallback,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      color.withOpacity(0.08),
+                      color.withOpacity(0.02)
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: color.withOpacity(0.15),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        action['icon'] as IconData,
+                        color: color,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      action['title'] as String,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade800,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTopJobsCard(List<dynamic> topJobs) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 10,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.trending_up_rounded,
+                  color: Color(0xFF6C63FF), size: 22),
+              SizedBox(width: 10),
+              Text(
+                "Top Jobs by Applications",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (topJobs.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(
+                child: Text(
+                  "No applications yet",
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            ...topJobs.take(5).map(
+                  (job) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFF6C63FF).withOpacity(0.15),
+                                const Color(0xFF6C63FF).withOpacity(0.05),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.work_rounded,
+                            color: Color(0xFF6C63FF),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            job['title']?.toString() ??
+                                job['category']?.toString() ??
+                                'Job',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFF6C63FF).withOpacity(0.15),
+                                const Color(0xFF6C63FF).withOpacity(0.05),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            "${job['applications'] ?? job['count'] ?? 0} apps",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF6C63FF),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+        ],
       ),
     );
   }
 
-  // ==================== MAIN BUILD ====================
-
+  // ============================================================
+  // ✅ MAIN BUILD
+  // ============================================================
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 900;
@@ -775,9 +1027,11 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
       key: _scaffoldKey,
       appBar: isMobile
           ? AppBar(
-              title: Text(isShowingProfile
-                  ? "Candidate Profile"
-                  : _getAppBarTitle()),
+              title: Text(
+                isShowingProfile
+                    ? "Candidate Profile"
+                    : _getAppBarTitle(),
+              ),
               backgroundColor: Colors.blueAccent,
               foregroundColor: Colors.white,
               leading: isShowingProfile
@@ -788,8 +1042,7 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
                   : Builder(
                       builder: (context) => IconButton(
                         icon: const Icon(Icons.menu),
-                        onPressed: () =>
-                            Scaffold.of(context).openDrawer(),
+                        onPressed: () => Scaffold.of(context).openDrawer(),
                       ),
                     ),
               actions: [
@@ -810,10 +1063,9 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
                 selectedJobSubMenu: selectedJobSubMenu,
                 selectedAppSubMenu: selectedAppSubMenu,
                 selectedSettingsSubMenu: selectedSettingsSubMenu,
-                onMenuSelected: _onMenuSelected,
+                onMenuSelected: _onDashboardSelected,
                 onJobSubMenuSelected: _onJobSubMenuSelected,
-                onApplicationSubMenuSelected:
-                    _onApplicationSubMenuSelected,
+                onApplicationSubMenuSelected: _onApplicationSubMenuSelected,
                 onSettingsSubMenuSelected: _onSettingsSubMenuSelected,
               ),
             )
@@ -826,10 +1078,9 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
               selectedJobSubMenu: selectedJobSubMenu,
               selectedAppSubMenu: selectedAppSubMenu,
               selectedSettingsSubMenu: selectedSettingsSubMenu,
-              onMenuSelected: _onMenuSelected,
+              onMenuSelected: _onDashboardSelected,
               onJobSubMenuSelected: _onJobSubMenuSelected,
-              onApplicationSubMenuSelected:
-                  _onApplicationSubMenuSelected,
+              onApplicationSubMenuSelected: _onApplicationSubMenuSelected,
               onSettingsSubMenuSelected: _onSettingsSubMenuSelected,
             ),
           Expanded(
@@ -854,8 +1105,7 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
                         ],
                       ),
                       child: Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             isShowingProfile
@@ -884,7 +1134,16 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
                   Expanded(
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
-                      child: _getContent(),
+                      child: KeyedSubtree(
+                        key: ValueKey(
+                          'menu_${selectedMenu.name}_'
+                          '${selectedJobSubMenu?.name ?? "none"}_'
+                          '${selectedAppSubMenu?.name ?? "none"}_'
+                          '${selectedSettingsSubMenu?.name ?? "none"}_'
+                          '$isShowingProfile',
+                        ),
+                        child: _getContent(),
+                      ),
                     ),
                   ),
                 ],
@@ -897,16 +1156,32 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
   }
 
   String _getAppBarTitle() {
-    if (selectedMenu == CustomAdminMenu.settings) {
-      switch (selectedSettingsSubMenu) {
-        case SettingsSubMenu.changePassword:
-          return "Change Password";
-        case SettingsSubMenu.setupMpin:
-          return "Setup MPIN";
-        case SettingsSubMenu.fingerprint:
-          return "Fingerprint Setup";
-      }
+    switch (selectedMenu) {
+      case CustomAdminMenu.dashboard:
+        return "Custom Admin Dashboard";
+      case CustomAdminMenu.jobManagement:
+        if (selectedJobSubMenu == JobSubMenu.allJobs) return "All Jobs";
+        if (selectedJobSubMenu == JobSubMenu.addNewJob) return "Add New Job";
+        return "Job Management";
+      case CustomAdminMenu.applicationManagement:
+        if (selectedAppSubMenu == ApplicationSubMenu.jobApplications) {
+          return "Job Applications";
+        }
+        if (selectedAppSubMenu == ApplicationSubMenu.serviceApplications) {
+          return "Service Applications";
+        }
+        return "Application Management";
+      case CustomAdminMenu.settings:
+        switch (selectedSettingsSubMenu) {
+          case SettingsSubMenu.changePassword:
+            return "Change Password";
+          case SettingsSubMenu.setupMpin:
+            return "Setup MPIN";
+          case SettingsSubMenu.fingerprint:
+            return "Fingerprint Setup";
+          case null:
+            return "Settings";
+        }
     }
-    return "Custom Admin Dashboard";
   }
 }

@@ -1,10 +1,9 @@
 // lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
 // ✅ COMPLETE UPDATED VERSION
-// ✅ REMOVED: Reports menu
-// ✅ REMOVED: Pending Payments menu
-// ✅ PRESERVED: Settings submenu (Change Password, Setup MPIN, Fingerprint)
-// ✅ FIXED ListTile Warning
-// ✅ All original functionality preserved
+// ✅ AI-BASED MODERN DESIGN
+// ✅ Parent menu tap ONLY expands — never navigates.
+//    Right side changes ONLY when a submenu is tapped.
+// ✅ ListTile warnings avoided (Material + InkWell everywhere)
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -12,11 +11,13 @@ import 'package:rojgarnext/core/routes/app_routes.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
 import '../screens/customadmin_dashboard.dart';
 
-class CustomAdminSidebar extends StatelessWidget {
+class CustomAdminSidebar extends StatefulWidget {
   final CustomAdminMenu selectedMenu;
-  final JobSubMenu selectedJobSubMenu;
-  final ApplicationSubMenu selectedAppSubMenu;
-  final SettingsSubMenu selectedSettingsSubMenu;
+  final JobSubMenu? selectedJobSubMenu;
+  final ApplicationSubMenu? selectedAppSubMenu;
+  final SettingsSubMenu? selectedSettingsSubMenu;
+
+  // ✅ Only Dashboard leaf calls this
   final Function(CustomAdminMenu) onMenuSelected;
   final Function(JobSubMenu) onJobSubMenuSelected;
   final Function(ApplicationSubMenu) onApplicationSubMenuSelected;
@@ -35,78 +36,289 @@ class CustomAdminSidebar extends StatelessWidget {
   });
 
   @override
+  State<CustomAdminSidebar> createState() => _CustomAdminSidebarState();
+}
+
+class _CustomAdminSidebarState extends State<CustomAdminSidebar> {
+  static const Color _primaryGradientStart = Color(0xFF6C63FF);
+  static const Color _primaryGradientEnd = Color(0xFFFF6588);
+  static const Color _selectedAccent = Color(0xFF6C63FF);
+
+  bool _jobExpanded = false;
+  bool _appExpanded = false;
+  bool _settingsExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncExpansionFromSelection();
+  }
+
+  @override
+  void didUpdateWidget(covariant CustomAdminSidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedMenu != oldWidget.selectedMenu) {
+      if (widget.selectedMenu == CustomAdminMenu.jobManagement) {
+        _jobExpanded = true;
+      }
+      if (widget.selectedMenu == CustomAdminMenu.applicationManagement) {
+        _appExpanded = true;
+      }
+      if (widget.selectedMenu == CustomAdminMenu.settings) {
+        _settingsExpanded = true;
+      }
+    }
+  }
+
+  void _syncExpansionFromSelection() {
+    _jobExpanded = widget.selectedMenu == CustomAdminMenu.jobManagement;
+    _appExpanded = widget.selectedMenu == CustomAdminMenu.applicationManagement;
+    _settingsExpanded = widget.selectedMenu == CustomAdminMenu.settings;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       width: 280,
-      color: const Color(0xFF1E293B),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
       child: Material(
         color: Colors.transparent,
         child: Column(
           children: [
             const SizedBox(height: 30),
+
+            // HEADER ICON
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.blueAccent.withAlpha(51),
+                gradient: const LinearGradient(
+                  colors: [_primaryGradientStart, _primaryGradientEnd],
+                ),
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: _primaryGradientStart.withOpacity(0.4),
+                    blurRadius: 20,
+                    spreadRadius: 4,
+                  ),
+                ],
               ),
               child: const Icon(
                 Icons.admin_panel_settings,
-                size: 45,
+                size: 42,
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
+
             const Text(
-              "Custom Admin Panel",
+              "Custom Admin",
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
               ),
             ),
-            const Text(
-              "Full Access Admin",
-              style: TextStyle(color: Colors.blueAccent, fontSize: 12),
+            const SizedBox(height: 4),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    _primaryGradientStart.withOpacity(0.25),
+                    _primaryGradientEnd.withOpacity(0.25),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _primaryGradientStart.withOpacity(0.4),
+                  width: 1,
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.verified,
+                    size: 12,
+                    color: Color(0xFF6C63FF),
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    "Full Access Admin",
+                    style: TextStyle(
+                      color: Color(0xFF6C63FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 24),
+
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
                 physics: const BouncingScrollPhysics(),
                 children: [
-                  // ✅ Dashboard
-                  _buildMenuItem("Dashboard", Icons.dashboard,
-                      CustomAdminMenu.dashboard),
+                  // Dashboard — the only leaf that calls onMenuSelected
+                  _buildMenuItem(
+                    "Dashboard",
+                    Icons.dashboard_rounded,
+                    CustomAdminMenu.dashboard,
+                  ),
 
-                  // ✅ Job Management (with submenu)
-                  _buildJobManagementMenu(),
+                  // Job Management
+                  _buildExpandableMenu(
+                    title: "Job Management",
+                    icon: Icons.work_rounded,
+                    isSelected:
+                        widget.selectedMenu == CustomAdminMenu.jobManagement,
+                    isExpanded: _jobExpanded,
+                    onToggle: () {
+                      setState(() => _jobExpanded = !_jobExpanded);
+                    },
+                    children: [
+                      _buildSubMenuItem(
+                        "All Jobs",
+                        Icons.list_rounded,
+                        () =>
+                            widget.onJobSubMenuSelected(JobSubMenu.allJobs),
+                        isActive: widget.selectedMenu ==
+                                CustomAdminMenu.jobManagement &&
+                            widget.selectedJobSubMenu == JobSubMenu.allJobs,
+                      ),
+                      _buildSubMenuItem(
+                        "Add New Job",
+                        Icons.add_circle_outline_rounded,
+                        () => widget
+                            .onJobSubMenuSelected(JobSubMenu.addNewJob),
+                        isActive: widget.selectedMenu ==
+                                CustomAdminMenu.jobManagement &&
+                            widget.selectedJobSubMenu ==
+                                JobSubMenu.addNewJob,
+                      ),
+                    ],
+                  ),
 
-                  // ✅ Application Management (with submenu)
-                  _buildApplicationManagementMenu(),
+                  // Applications
+                  _buildExpandableMenu(
+                    title: "Applications",
+                    icon: Icons.assignment_rounded,
+                    isSelected: widget.selectedMenu ==
+                        CustomAdminMenu.applicationManagement,
+                    isExpanded: _appExpanded,
+                    onToggle: () {
+                      setState(() => _appExpanded = !_appExpanded);
+                    },
+                    children: [
+                      _buildSubMenuItem(
+                        "Job Applications",
+                        Icons.work_rounded,
+                        () => widget.onApplicationSubMenuSelected(
+                            ApplicationSubMenu.jobApplications),
+                        isActive: widget.selectedMenu ==
+                                CustomAdminMenu.applicationManagement &&
+                            widget.selectedAppSubMenu ==
+                                ApplicationSubMenu.jobApplications,
+                      ),
+                      _buildSubMenuItem(
+                        "Service Applications",
+                        Icons.workspace_premium_rounded,
+                        () => widget.onApplicationSubMenuSelected(
+                            ApplicationSubMenu.serviceApplications),
+                        isActive: widget.selectedMenu ==
+                                CustomAdminMenu.applicationManagement &&
+                            widget.selectedAppSubMenu ==
+                                ApplicationSubMenu.serviceApplications,
+                      ),
+                    ],
+                  ),
 
-                  // ❌ REMOVED: Reports menu
-                  // ❌ REMOVED: Pending Payments menu
-
-                  // ✅ Settings (with submenu)
-                  _buildSettingsMenu(),
+                  // Settings
+                  _buildExpandableMenu(
+                    title: "Settings",
+                    icon: Icons.settings_rounded,
+                    isSelected:
+                        widget.selectedMenu == CustomAdminMenu.settings,
+                    isExpanded: _settingsExpanded,
+                    onToggle: () {
+                      setState(() => _settingsExpanded = !_settingsExpanded);
+                    },
+                    children: [
+                      _buildSettingsSubMenuItem(
+                        "Change Password",
+                        Icons.lock_rounded,
+                        SettingsSubMenu.changePassword,
+                      ),
+                      _buildSettingsSubMenuItem(
+                        "Setup MPIN",
+                        Icons.pin_rounded,
+                        SettingsSubMenu.setupMpin,
+                      ),
+                      _buildSettingsSubMenuItem(
+                        "Fingerprint",
+                        Icons.fingerprint_rounded,
+                        SettingsSubMenu.fingerprint,
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-            const Divider(color: Colors.grey, height: 1),
+
+            const Divider(color: Colors.white12, height: 1),
+
+            // Logout
             Material(
               color: Colors.transparent,
-              child: ListTile(
-                leading: const Icon(Icons.logout, color: Colors.redAccent),
-                title:
-                    const Text("Logout", style: TextStyle(color: Colors.white)),
+              child: InkWell(
                 onTap: () async {
                   await SecureStorage.logout();
                   if (context.mounted) {
                     context.go(AppRoutes.home);
                   }
                 },
-                tileColor: Colors.transparent,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.logout,
+                          color: Colors.redAccent,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      const Text(
+                        "Logout",
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -116,204 +328,286 @@ class CustomAdminSidebar extends StatelessWidget {
     );
   }
 
+  // ============================================================
+  // SIMPLE MENU ITEM (Dashboard)
+  // ============================================================
   Widget _buildMenuItem(String title, IconData icon, CustomAdminMenu menu) {
-    final isSelected = selectedMenu == menu;
-    return Material(
-      color: Colors.transparent,
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: isSelected ? Colors.blueAccent : Colors.white70,
-          size: 22,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? Colors.blueAccent : Colors.white,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+    final isSelected = widget.selectedMenu == menu;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => widget.onMenuSelected(menu),
+          splashColor: Colors.white.withOpacity(0.08),
+          highlightColor: Colors.white.withOpacity(0.04),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: isSelected
+                  ? const LinearGradient(
+                      colors: [_primaryGradientStart, _primaryGradientEnd],
+                    )
+                  : null,
+              color: isSelected ? null : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: _primaryGradientStart.withOpacity(0.3),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected ? Colors.white : Colors.white70,
+                  size: 22,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.white70,
+                      fontSize: 15,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
-        selected: isSelected,
-        selectedTileColor: Colors.blueAccent.withAlpha(51),
-        onTap: () => onMenuSelected(menu),
-        tileColor: Colors.transparent,
-      ),
-    );
-  }
-
-  Widget _buildJobManagementMenu() {
-    final isSelected = selectedMenu == CustomAdminMenu.jobManagement;
-    return Theme(
-      data: ThemeData(
-        dividerColor: Colors.transparent,
-        listTileTheme: const ListTileThemeData(
-          tileColor: Colors.transparent,
-        ),
-      ),
-      child: ExpansionTile(
-        leading: Icon(
-          Icons.work,
-          color: isSelected ? Colors.blueAccent : Colors.white70,
-        ),
-        title: Text(
-          "Job Management",
-          style:
-              TextStyle(color: isSelected ? Colors.blueAccent : Colors.white),
-        ),
-        collapsedIconColor: Colors.white70,
-        iconColor: Colors.blueAccent,
-        initiallyExpanded: isSelected,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-        childrenPadding: const EdgeInsets.only(left: 16),
-        backgroundColor: Colors.transparent,
-        collapsedBackgroundColor: Colors.transparent,
-        children: [
-          _buildSubMenuItem("All Jobs", Icons.list,
-              () => onJobSubMenuSelected(JobSubMenu.allJobs)),
-          _buildSubMenuItem("Add New Job", Icons.add,
-              () => onJobSubMenuSelected(JobSubMenu.addNewJob)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildApplicationManagementMenu() {
-    final isSelected = selectedMenu == CustomAdminMenu.applicationManagement;
-    return Theme(
-      data: ThemeData(
-        dividerColor: Colors.transparent,
-        listTileTheme: const ListTileThemeData(
-          tileColor: Colors.transparent,
-        ),
-      ),
-      child: ExpansionTile(
-        leading: Icon(
-          Icons.assignment,
-          color: isSelected ? Colors.blueAccent : Colors.white70,
-        ),
-        title: Text(
-          "Application Management",
-          style:
-              TextStyle(color: isSelected ? Colors.blueAccent : Colors.white),
-        ),
-        collapsedIconColor: Colors.white70,
-        iconColor: Colors.blueAccent,
-        initiallyExpanded: isSelected,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-        childrenPadding: const EdgeInsets.only(left: 16),
-        backgroundColor: Colors.transparent,
-        collapsedBackgroundColor: Colors.transparent,
-        children: [
-          _buildSubMenuItem(
-            "Job Applications",
-            Icons.work,
-            () =>
-                onApplicationSubMenuSelected(ApplicationSubMenu.jobApplications),
-          ),
-          _buildSubMenuItem(
-            "Service Applications",
-            Icons.workspace_premium,
-            () => onApplicationSubMenuSelected(
-                ApplicationSubMenu.serviceApplications),
-          ),
-        ],
       ),
     );
   }
 
   // ============================================================
-  // SETTINGS MENU WITH SUBMENU
+  // EXPANDABLE MENU — parent tap ONLY toggles expansion
   // ============================================================
-  Widget _buildSettingsMenu() {
-    final isSelected = selectedMenu == CustomAdminMenu.settings;
-    return Theme(
-      data: ThemeData(
-        dividerColor: Colors.transparent,
-        listTileTheme: const ListTileThemeData(
-          tileColor: Colors.transparent,
+  Widget _buildExpandableMenu({
+    required String title,
+    required IconData icon,
+    required bool isSelected,
+    required bool isExpanded,
+    required VoidCallback onToggle,
+    required List<Widget> children,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected
+              ? _primaryGradientStart.withOpacity(0.08)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
         ),
-      ),
-      child: ExpansionTile(
-        leading: Icon(
-          Icons.settings,
-          color: isSelected ? Colors.blueAccent : Colors.white70,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onToggle, // ✅ no navigation, just expand/collapse
+                splashColor: Colors.white.withOpacity(0.08),
+                highlightColor: Colors.white.withOpacity(0.04),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        icon,
+                        color:
+                            isSelected ? _selectedAccent : Colors.white70,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            color: isSelected
+                                ? _selectedAccent
+                                : Colors.white70,
+                            fontSize: 15,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.5 : 0.0,
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeInOut,
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: isSelected
+                              ? _selectedAccent
+                              : Colors.white70,
+                          size: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            AnimatedCrossFade(
+              firstChild: const SizedBox(width: double.infinity),
+              secondChild: Padding(
+                padding: const EdgeInsets.only(left: 16, bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: children,
+                ),
+              ),
+              crossFadeState: isExpanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 200),
+            ),
+          ],
         ),
-        title: Text(
-          "Settings",
-          style:
-              TextStyle(color: isSelected ? Colors.blueAccent : Colors.white),
-        ),
-        collapsedIconColor: Colors.white70,
-        iconColor: Colors.blueAccent,
-        initiallyExpanded: isSelected,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-        childrenPadding: const EdgeInsets.only(left: 16),
-        backgroundColor: Colors.transparent,
-        collapsedBackgroundColor: Colors.transparent,
-        children: [
-          _buildSettingsSubMenuItem(
-            "Change Password",
-            Icons.lock,
-            SettingsSubMenu.changePassword,
-          ),
-          _buildSettingsSubMenuItem(
-            "Setup MPIN",
-            Icons.pin,
-            SettingsSubMenu.setupMpin,
-          ),
-          _buildSettingsSubMenuItem(
-            "Fingerprint",
-            Icons.fingerprint,
-            SettingsSubMenu.fingerprint,
-          ),
-        ],
       ),
     );
   }
 
-  Widget _buildSubMenuItem(String title, IconData icon, VoidCallback onTap) {
+  // ============================================================
+  // SUB MENU ITEM — the ONLY thing that navigates
+  // ============================================================
+  Widget _buildSubMenuItem(
+    String title,
+    IconData icon,
+    VoidCallback onTap, {
+    bool isActive = false,
+  }) {
     return Material(
       color: Colors.transparent,
-      child: ListTile(
-        leading: Icon(icon, color: Colors.white70, size: 20),
-        title: Text(
-          title,
-          style: const TextStyle(color: Colors.white70, fontSize: 14),
-        ),
+      borderRadius: BorderRadius.circular(10),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
         onTap: onTap,
-        tileColor: Colors.transparent,
+        splashColor: Colors.white.withOpacity(0.08),
+        highlightColor: Colors.white.withOpacity(0.04),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isActive
+                ? _primaryGradientStart.withOpacity(0.15)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: isActive
+                ? Border.all(
+                    color: _primaryGradientStart.withOpacity(0.3),
+                    width: 1,
+                  )
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: isActive ? _selectedAccent : Colors.white54,
+                size: 18,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: isActive ? _selectedAccent : Colors.white54,
+                    fontSize: 13,
+                    fontWeight:
+                        isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
+  // ============================================================
+  // SETTINGS SUB MENU ITEM
+  // ============================================================
   Widget _buildSettingsSubMenuItem(
     String title,
     IconData icon,
     SettingsSubMenu subMenu,
   ) {
-    final isSelected =
-        selectedMenu == CustomAdminMenu.settings &&
-            selectedSettingsSubMenu == subMenu;
+    final isActive = widget.selectedMenu == CustomAdminMenu.settings &&
+        widget.selectedSettingsSubMenu == subMenu;
     return Material(
       color: Colors.transparent,
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: isSelected ? Colors.blueAccent : Colors.white70,
-          size: 20,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? Colors.blueAccent : Colors.white70,
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      borderRadius: BorderRadius.circular(10),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => widget.onSettingsSubMenuSelected(subMenu),
+        splashColor: Colors.white.withOpacity(0.08),
+        highlightColor: Colors.white.withOpacity(0.04),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isActive
+                ? _primaryGradientStart.withOpacity(0.15)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: isActive
+                ? Border.all(
+                    color: _primaryGradientStart.withOpacity(0.3),
+                    width: 1,
+                  )
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: isActive ? _selectedAccent : Colors.white54,
+                size: 18,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: isActive ? _selectedAccent : Colors.white54,
+                    fontSize: 13,
+                    fontWeight:
+                        isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        selected: isSelected,
-        selectedTileColor: Colors.blueAccent.withAlpha(25),
-        onTap: () => onSettingsSubMenuSelected(subMenu),
-        tileColor: Colors.transparent,
       ),
     );
   }
