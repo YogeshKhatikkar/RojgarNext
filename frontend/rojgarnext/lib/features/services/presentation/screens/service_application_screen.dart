@@ -12,8 +12,11 @@
 //    Documents shown ONLY in their respective sections.
 //    Profile docs (Aadhaar/PAN/Resume) ya doosri application ke docs NEVER show here.
 // ✅ Submitted Information section shows ONLY plain text/object fields.
+// ✅ MOBILE FIX: File picker now works on Android/iOS using path fallback
+//    (file.bytes is NULL on mobile — must read from file.path)
 
 import 'dart:convert';
+import 'dart:io' show File;                    // ✅ ADDED for mobile file reading
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -841,19 +844,53 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     }
   }
 
+  // ====================================================================
+  // ✅ SAFE FILE PICKER RESULT HANDLER (for mobile compatibility)
+  // ------------------------------------------------------------
+  // On MOBILE  → file.bytes is NULL, we must read from file.path
+  // On WEB     → file.bytes is populated
+  // ====================================================================
+  Future<Uint8List?> _readPickedFileBytes(PlatformFile file) async {
+    // Web / Desktop: bytes already in memory
+    if (file.bytes != null && file.bytes!.isNotEmpty) {
+      return file.bytes;
+    }
+
+    // Mobile (Android/iOS): read from path
+    if (file.path != null && file.path!.isNotEmpty) {
+      try {
+        final f = File(file.path!);
+        if (await f.exists()) {
+          final data = await f.readAsBytes();
+          debugPrint(
+              "📱 Read ${data.length} bytes from mobile path: ${file.path}");
+          return data;
+        } else {
+          debugPrint("❌ File does not exist at path: ${file.path}");
+        }
+      } catch (e) {
+        debugPrint("❌ Failed to read file from path: $e");
+      }
+    }
+
+    return null;
+  }
+
   Future<void> _showReviewDialog(String applicationId) async {
     final TextEditingController notesController = TextEditingController();
     String? selectedFileName;
     Uint8List? selectedFileBytes;
+    String? selectedFilePath;
 
     final result = await showDialog<Map<String, dynamic>?>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => _ReviewDialogContent(
         notesController: notesController,
-        onFileSelected: (name, bytes) {
+        onFileSelected: (name, bytes, path) {
           selectedFileName = name;
           selectedFileBytes = bytes;
+          selectedFilePath = path;
         },
       ),
     );
@@ -863,10 +900,28 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
 
     try {
       final notes = notesController.text.trim();
-      if (selectedFileBytes != null && selectedFileName != null) {
+
+      // ✅ Ensure we have bytes even if picked on mobile
+      Uint8List? uploadBytes = selectedFileBytes;
+      if ((uploadBytes == null || uploadBytes.isEmpty) &&
+          selectedFilePath != null &&
+          selectedFilePath!.isNotEmpty) {
+        try {
+          final f = File(selectedFilePath!);
+          if (await f.exists()) {
+            uploadBytes = await f.readAsBytes();
+          }
+        } catch (e) {
+          debugPrint("❌ Re-read failed for review: $e");
+        }
+      }
+
+      if (uploadBytes != null &&
+          uploadBytes.isNotEmpty &&
+          selectedFileName != null) {
         final formData = FormData.fromMap({
           'file': MultipartFile.fromBytes(
-            selectedFileBytes!,
+            uploadBytes,
             filename: selectedFileName!,
           ),
           'notes': notes,
@@ -898,15 +953,17 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     final TextEditingController notesController = TextEditingController();
     String? selectedFileName;
     Uint8List? selectedFileBytes;
+    String? selectedFilePath;
 
     final result = await showDialog<Map<String, dynamic>?>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => _FinalSubmitDialogContent(
         notesController: notesController,
-        onFileSelected: (name, bytes) {
+        onFileSelected: (name, bytes, path) {
           selectedFileName = name;
           selectedFileBytes = bytes;
+          selectedFilePath = path;
         },
       ),
     );
@@ -916,10 +973,28 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
 
     try {
       final notes = notesController.text.trim();
-      if (selectedFileBytes != null && selectedFileName != null) {
+
+      // ✅ Ensure we have bytes even if picked on mobile
+      Uint8List? uploadBytes = selectedFileBytes;
+      if ((uploadBytes == null || uploadBytes.isEmpty) &&
+          selectedFilePath != null &&
+          selectedFilePath!.isNotEmpty) {
+        try {
+          final f = File(selectedFilePath!);
+          if (await f.exists()) {
+            uploadBytes = await f.readAsBytes();
+          }
+        } catch (e) {
+          debugPrint("❌ Re-read failed for final submit: $e");
+        }
+      }
+
+      if (uploadBytes != null &&
+          uploadBytes.isNotEmpty &&
+          selectedFileName != null) {
         final formData = FormData.fromMap({
           'file': MultipartFile.fromBytes(
-            selectedFileBytes!,
+            uploadBytes,
             filename: selectedFileName!,
           ),
           'notes': notes,
@@ -3953,7 +4028,7 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
 // ==================== REVIEW DIALOG ====================
 class _ReviewDialogContent extends StatefulWidget {
   final TextEditingController notesController;
-  final Function(String, Uint8List) onFileSelected;
+  final Function(String name, Uint8List? bytes, String? path) onFileSelected;
 
   const _ReviewDialogContent({
     required this.notesController,
@@ -3967,25 +4042,61 @@ class _ReviewDialogContent extends StatefulWidget {
 class _ReviewDialogContentState extends State<_ReviewDialogContent> {
   String? _selectedFileName;
   Uint8List? _selectedFileBytes;
+  String? _selectedFilePath;
+  bool _isPicking = false;
 
+  // ✅ SAFE file picker — works on MOBILE + WEB
   Future<void> _pickFile() async {
+    if (_isPicking) return;
+    setState(() => _isPicking = true);
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+        withData: true, // ✅ Forces bytes when possible (web always, mobile sometimes)
       );
-      if (result != null && mounted) {
+
+      if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
-        setState(() {
-          _selectedFileName = file.name;
-          _selectedFileBytes = file.bytes;
-        });
-        if (file.bytes != null) {
-          widget.onFileSelected(file.name, file.bytes!);
+
+        Uint8List? bytes = file.bytes;
+        // ✅ MOBILE FALLBACK: read from path when bytes is null
+        if ((bytes == null || bytes.isEmpty) &&
+            file.path != null &&
+            file.path!.isNotEmpty) {
+          try {
+            final f = File(file.path!);
+            if (await f.exists()) {
+              bytes = await f.readAsBytes();
+            }
+          } catch (e) {
+            debugPrint("❌ Review mobile read error: $e");
+          }
+        }
+
+        if (bytes == null || bytes.isEmpty) {
+          if (mounted) {
+            showMessage(context, "Could not read file. Please try again.",
+                isError: true);
+          }
+          return;
+        }
+
+        if (mounted) {
+          setState(() {
+            _selectedFileName = file.name;
+            _selectedFileBytes = bytes;
+            _selectedFilePath = file.path;
+          });
+          widget.onFileSelected(file.name, bytes, file.path);
         }
       }
     } catch (e) {
-      if (mounted) showMessage(context, "Error picking file: $e", isError: true);
+      if (mounted) {
+        showMessage(context, "Error picking file: $e", isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isPicking = false);
     }
   }
 
@@ -4080,7 +4191,7 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                     ),
                     const SizedBox(height: 12),
                     GestureDetector(
-                      onTap: _pickFile,
+                      onTap: _isPicking ? null : _pickFile,
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
@@ -4099,18 +4210,24 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                         ),
                         child: Column(
                           children: [
-                            Icon(
-                              _selectedFileName != null
-                                  ? Icons.check_circle
-                                  : Icons.cloud_upload,
-                              size: 44,
-                              color: _selectedFileName != null
-                                  ? Colors.green
-                                  : Colors.blue,
-                            ),
+                            if (_isPicking)
+                              const CircularProgressIndicator()
+                            else
+                              Icon(
+                                _selectedFileName != null
+                                    ? Icons.check_circle
+                                    : Icons.cloud_upload,
+                                size: 44,
+                                color: _selectedFileName != null
+                                    ? Colors.green
+                                    : Colors.blue,
+                              ),
                             const SizedBox(height: 12),
                             Text(
-                              _selectedFileName ?? "Tap to select document",
+                              _isPicking
+                                  ? "Loading file..."
+                                  : (_selectedFileName ??
+                                      "Tap to select document"),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: _selectedFileName != null
@@ -4226,7 +4343,7 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
 // ==================== FINAL SUBMIT DIALOG ====================
 class _FinalSubmitDialogContent extends StatefulWidget {
   final TextEditingController notesController;
-  final Function(String, Uint8List) onFileSelected;
+  final Function(String name, Uint8List? bytes, String? path) onFileSelected;
 
   const _FinalSubmitDialogContent({
     required this.notesController,
@@ -4241,25 +4358,61 @@ class _FinalSubmitDialogContent extends StatefulWidget {
 class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
   String? _selectedFileName;
   Uint8List? _selectedFileBytes;
+  String? _selectedFilePath;
+  bool _isPicking = false;
 
+  // ✅ SAFE file picker — works on MOBILE + WEB
   Future<void> _pickFile() async {
+    if (_isPicking) return;
+    setState(() => _isPicking = true);
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+        withData: true, // ✅ Forces bytes when possible
       );
-      if (result != null && mounted) {
+
+      if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
-        setState(() {
-          _selectedFileName = file.name;
-          _selectedFileBytes = file.bytes;
-        });
-        if (file.bytes != null) {
-          widget.onFileSelected(file.name, file.bytes!);
+
+        Uint8List? bytes = file.bytes;
+        // ✅ MOBILE FALLBACK
+        if ((bytes == null || bytes.isEmpty) &&
+            file.path != null &&
+            file.path!.isNotEmpty) {
+          try {
+            final f = File(file.path!);
+            if (await f.exists()) {
+              bytes = await f.readAsBytes();
+            }
+          } catch (e) {
+            debugPrint("❌ Final mobile read error: $e");
+          }
+        }
+
+        if (bytes == null || bytes.isEmpty) {
+          if (mounted) {
+            showMessage(context, "Could not read file. Please try again.",
+                isError: true);
+          }
+          return;
+        }
+
+        if (mounted) {
+          setState(() {
+            _selectedFileName = file.name;
+            _selectedFileBytes = bytes;
+            _selectedFilePath = file.path;
+          });
+          widget.onFileSelected(file.name, bytes, file.path);
         }
       }
     } catch (e) {
-      if (mounted) showMessage(context, "Error picking file: $e", isError: true);
+      if (mounted) {
+        showMessage(context, "Error picking file: $e", isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isPicking = false);
     }
   }
 
@@ -4354,7 +4507,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
                     ),
                     const SizedBox(height: 12),
                     GestureDetector(
-                      onTap: _pickFile,
+                      onTap: _isPicking ? null : _pickFile,
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
@@ -4373,19 +4526,24 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
                         ),
                         child: Column(
                           children: [
-                            Icon(
-                              _selectedFileName != null
-                                  ? Icons.check_circle
-                                  : Icons.cloud_upload,
-                              size: 44,
-                              color: _selectedFileName != null
-                                  ? Colors.deepPurple
-                                  : Colors.blue,
-                            ),
+                            if (_isPicking)
+                              const CircularProgressIndicator()
+                            else
+                              Icon(
+                                _selectedFileName != null
+                                    ? Icons.check_circle
+                                    : Icons.cloud_upload,
+                                size: 44,
+                                color: _selectedFileName != null
+                                    ? Colors.deepPurple
+                                    : Colors.blue,
+                              ),
                             const SizedBox(height: 12),
                             Text(
-                              _selectedFileName ??
-                                  "Tap to select final document",
+                              _isPicking
+                                  ? "Loading file..."
+                                  : (_selectedFileName ??
+                                      "Tap to select final document"),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: _selectedFileName != null
