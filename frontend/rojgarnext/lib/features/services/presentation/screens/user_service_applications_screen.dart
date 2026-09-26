@@ -5,10 +5,10 @@
 // ✅ FIXED: Documents from user_documents_screen → NEVER show here
 // ✅ FIXED: Documents in job applications → NEVER show here
 // ✅ FIXED: Payment status now driven by MAIN `status` field first
-//           → 'completed', 'payment_verified', 'approved', 'verification_successful'
-//              all correctly shown as VERIFIED (green) instead of stale PENDING
 // ✅ FIXED: _buildPaymentInformationCard now reads directly from DB app map
 // ✅ UPDATED: Admin review/final docs shown SEPARATELY near Confirm/Update buttons
+// ✅ NEW: "Take Action" card moved to TOP (right below Status card)
+//         so user can directly see and act without scrolling.
 
 import 'dart:convert';
 import 'dart:typed_data';
@@ -38,7 +38,6 @@ class AppStatusHelper {
     // ============================================================
     final mainStatus = _norm(app['status']);
 
-    // ✅ Any of these main statuses means payment is ALREADY approved
     const mainApproved = {
       'payment_verified',
       'verification_successful',
@@ -59,7 +58,6 @@ class AppStatusHelper {
     };
     if (mainApproved.contains(mainStatus)) return 'approved';
 
-    // ✅ Any of these main statuses means payment REJECTED
     const mainRejected = {
       'verification_rejected',
       'payment_rejected',
@@ -68,7 +66,6 @@ class AppStatusHelper {
     };
     if (mainRejected.contains(mainStatus)) return 'rejected';
 
-    // ✅ Pending states
     const mainPending = {
       'payment_pending',
       'pending_verification',
@@ -114,8 +111,7 @@ class AppStatusHelper {
     }
 
     // ============================================================
-    // ✅ STEP 4: Razorpay fallback — if payment_id or razorpay_payment_id
-    // exists AND no explicit "failed" flag, treat as paid
+    // ✅ STEP 4: Razorpay fallback
     // ============================================================
     final razorpayId = _norm(app['razorpay_payment_id']);
     final paymentId = _norm(app['payment_id']);
@@ -155,7 +151,6 @@ class AppStatusHelper {
     }
   }
 
-  /// ✅ Human readable main status — includes all DB statuses
   static String displayMainStatus(Map<String, dynamic> app) {
     final s = _norm(app['status']);
     switch (s) {
@@ -591,7 +586,6 @@ class _UserServiceApplicationScreenState
 
   // ============================================================
   // ✅ FETCH SERVICE APPLICATION DOCUMENTS (STRICT)
-  // ✅ Now properly tags admin docs with is_admin_doc: true + badge
   // ============================================================
   Future<void> _fetchServiceApplicationDocuments(String applicationId) async {
     if (!mounted || applicationId.isEmpty) return;
@@ -651,7 +645,7 @@ class _UserServiceApplicationScreenState
         }
 
         // ============================================================
-        // B. ADMIN REVIEW / FINAL DOCUMENTS — properly tagged
+        // B. ADMIN REVIEW / FINAL DOCUMENTS
         // ============================================================
         final List<dynamic> adminDocsRaw =
             (res.data['admin_documents'] as List?) ?? [];
@@ -682,7 +676,6 @@ class _UserServiceApplicationScreenState
       debugPrint("⚠️ Failed to fetch service application docs: $e");
     }
 
-    // Merge both into single list, keeping is_admin_doc flag
     final combined = <Map<String, dynamic>>[...userDocs, ...adminDocs];
 
     _serviceDocsCache[applicationId] = combined;
@@ -1142,24 +1135,19 @@ class _UserServiceApplicationScreenState
   }
 
   // ============================================================
-  // ✅ UPDATED "Uploaded Documents" section
-  // Shows ONLY user-uploaded service docs + payment proof.
-  // Admin review/final docs are shown separately below the
-  // Confirm/Update buttons (via _buildAdminDocumentsSection).
+  // ✅ "Uploaded Documents" section (user + payment only)
   // ============================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> allDocs = [];
 
-    // 1) User-uploaded service documents (NOT admin docs)
     for (final d in _serviceDocuments) {
-      if (d['is_admin_doc'] == true) continue; // ⛔ skip admin docs here
+      if (d['is_admin_doc'] == true) continue;
       final url = d['url']?.toString() ?? '';
       if (!_isValidDocUrl(url)) continue;
       if (allDocs.any((x) => x['url'] == url)) continue;
       allDocs.add(d);
     }
 
-    // 2) Payment receipt
     final receiptUrl = app['payment_receipt_url'];
     if (_isValidDocUrl(receiptUrl)) {
       final urlStr = receiptUrl.toString().trim();
@@ -1175,7 +1163,6 @@ class _UserServiceApplicationScreenState
       }
     }
 
-    // 3) Payment screenshot
     final screenshotUrl = app['screenshot_url'];
     if (_isValidDocUrl(screenshotUrl)) {
       final urlStr = screenshotUrl.toString().trim();
@@ -1286,7 +1273,6 @@ class _UserServiceApplicationScreenState
     final color = _colorForUrl(url);
     final fileType = _fileTypeForUrl(url);
 
-    // Badge logic
     String badgeLabel = "";
     Color badgeColor = Colors.blue;
     if (source == 'service_application') {
@@ -1387,14 +1373,11 @@ class _UserServiceApplicationScreenState
   }
 
   // ============================================================
-  // ✅ NEW: Admin Documents Section (Service side)
-  // Shows ONLY documents uploaded by Admin/CustomAdmin during
-  // REVIEW and FINAL SUBMIT. Shown near Confirm/Update buttons.
+  // ✅ Admin Documents Section
   // ============================================================
   Widget _buildAdminDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> adminDocs = [];
 
-    // 1) From service docs cache (fetched via /documents API)
     for (final d in _serviceDocuments) {
       if (d['is_admin_doc'] != true) continue;
       final url = d['url']?.toString() ?? '';
@@ -1403,7 +1386,6 @@ class _UserServiceApplicationScreenState
       adminDocs.add(d);
     }
 
-    // 2) Direct fields on app record (fallback - same info)
     final submittedUrl = app['submitted_document_url'];
     if (_isValidDocUrl(submittedUrl)) {
       final urlStr = submittedUrl.toString().trim();
@@ -1519,9 +1501,6 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ============================================================
-  // ✅ NEW: Admin Document Row (Service side)
-  // ============================================================
   Widget _buildAdminDocumentRow(Map<String, dynamic> doc) {
     final String label = doc['label']?.toString() ?? 'Admin Document';
     final String url = doc['url']?.toString() ?? '';
@@ -1620,7 +1599,7 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ==================== STATUS HELPERS (STILL USED ELSEWHERE) ====================
+  // ==================== STATUS HELPERS ====================
   static const Map<String, Color> _statusColors = {
     'draft': Colors.grey,
     'payment_pending': Colors.purple,
@@ -2183,7 +2162,7 @@ class _UserServiceApplicationScreenState
   }
 
   // ============================================================
-  // ✅ UPDATED: Application card now shows MAIN status + PAYMENT chip
+  // ✅ Application card (list view)
   // ============================================================
   Widget _buildApplicationCard(Map<String, dynamic> app, int index) {
     final serviceName =
@@ -2194,12 +2173,10 @@ class _UserServiceApplicationScreenState
     final userName = app['user_name'] ?? 'Unknown';
     final userEmail = app['user_email'] ?? 'N/A';
 
-    // ✅ Main status (from DB `status` field)
     final status = app['status'] ?? 'payment_pending';
     final statusColor = _getStatusColor(status);
     final appliedDate = _formatDate(app['applied_at'] ?? app['created_at']);
 
-    // ✅ Payment status (derived from helper)
     final paymentStatusText = AppStatusHelper.displayPaymentStatus(app);
     final paymentStatusColor = AppStatusHelper.paymentStatusColor(app);
 
@@ -2376,7 +2353,6 @@ class _UserServiceApplicationScreenState
                   if (amount != null)
                     _buildInfoChip(Icons.currency_rupee, "Fee", "₹$amount",
                         Colors.green),
-                  // ✅ Payment status chip — now FIXED logic
                   _buildInfoChip(
                     Icons.payment,
                     "Payment",
@@ -2459,7 +2435,10 @@ class _UserServiceApplicationScreenState
     );
   }
 
-  // ==================== APPLICATION DETAIL VIEW ====================
+  // ============================================================
+  // ✅ APPLICATION DETAIL VIEW
+  // ✅ "Take Action" card ab STATUS CARD ke turant baad (TOP) hai.
+  // ============================================================
   Widget _buildApplicationDetailView(Map<String, dynamic> app) {
     final serviceName =
         app['display_service_name'] ?? app['service_name'] ?? 'Service';
@@ -2473,6 +2452,10 @@ class _UserServiceApplicationScreenState
     final userEmail = app['user_email'] ?? 'N/A';
     final appliedDate = _formatDate(app['applied_at'] ?? app['created_at']);
     final fields = app['fields'] as Map<String, dynamic>? ?? {};
+
+    // ✅ Action buttons only for review states
+    final showActions =
+        status == 'review_application' || status == 'under_review';
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -2488,25 +2471,41 @@ class _UserServiceApplicationScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // ============================================================
+                      // ✅ 1) STATUS CARD — always at top
+                      // ============================================================
                       _buildStatusCard(app['_id'], status, statusColor),
                       const SizedBox(height: 16),
-                      _buildUserCard(userName, userEmail, appliedDate),
-                      const SizedBox(height: 16),
-                      _buildServiceCard(
-                          serviceName, subServiceName, serviceIcon, app),
-                      const SizedBox(height: 16),
-                      _buildFieldsCard(fields),
-                      if (fields.isNotEmpty) const SizedBox(height: 16),
-                      // ✅ Just pass the whole app map
-                      _buildPaymentInformationCard(app: app),
-                      const SizedBox(height: 16),
-                      _buildDocumentsSection(app),
-                      const SizedBox(height: 16),
-                      if (status == 'review_application' ||
-                          status == 'under_review') ...[
+
+                      // ============================================================
+                      // ✅ 2) TAKE ACTION CARD — RIGHT BELOW STATUS
+                      //     User ko direct dikh jaye, scroll na karna pade.
+                      // ============================================================
+                      if (showActions) ...[
                         _buildUserActionButtons(app['_id'], status),
                         const SizedBox(height: 16),
                       ],
+
+                      // 3) Applicant
+                      _buildUserCard(userName, userEmail, appliedDate),
+                      const SizedBox(height: 16),
+
+                      // 4) Service details
+                      _buildServiceCard(
+                          serviceName, subServiceName, serviceIcon, app),
+                      const SizedBox(height: 16),
+
+                      // 5) Submitted fields
+                      _buildFieldsCard(fields),
+                      if (fields.isNotEmpty) const SizedBox(height: 16),
+
+                      // 6) Payment information
+                      _buildPaymentInformationCard(app: app),
+                      const SizedBox(height: 16),
+
+                      // 7) User-uploaded documents
+                      _buildDocumentsSection(app),
+
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -2819,7 +2818,7 @@ class _UserServiceApplicationScreenState
   }
 
   // ====================================================================
-  // ✅ FIELDS CARD — ONLY plain text/object fields.
+  // ✅ FIELDS CARD — ONLY plain text/object fields
   // ====================================================================
   Widget _buildFieldsCard(Map<String, dynamic> fields) {
     if (fields.isEmpty) return const SizedBox();
@@ -3120,7 +3119,7 @@ class _UserServiceApplicationScreenState
   }
 
   // ============================================================
-  // ✅ UPDATED: PAYMENT INFORMATION CARD (DB-Driven)
+  // ✅ PAYMENT INFORMATION CARD (DB-Driven)
   // ============================================================
   Widget _buildPaymentInformationCard({
     required Map<String, dynamic> app,
@@ -3334,8 +3333,7 @@ class _UserServiceApplicationScreenState
   }
 
   // ============================================================
-  // ✅ UPDATED: User Action Buttons for Service Application
-  // Now shows admin-uploaded documents ABOVE the action buttons.
+  // ✅ User Action Buttons — now shown at TOP of detail view
   // ============================================================
   Widget _buildUserActionButtons(String appId, String currentStatus) {
     final app = _selectedApplication ?? {};
@@ -3343,10 +3341,34 @@ class _UserServiceApplicationScreenState
         .where((d) => d['is_admin_doc'] == true)
         .length;
 
-    return _buildGlassContainer(
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF10B981).withOpacity(0.08),
+            const Color(0xFF6C63FF).withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF10B981).withOpacity(0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10B981).withOpacity(0.1),
+            blurRadius: 12,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header
           Row(
             children: [
               Container(
@@ -3360,32 +3382,51 @@ class _UserServiceApplicationScreenState
                     color: Colors.white, size: 18),
               ),
               const SizedBox(width: 12),
-              const Text(
-                "Take Action",
-                style: TextStyle(
-                    fontSize: 16,
+              const Expanded(
+                child: Text(
+                  "Take Action",
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  "ACTION REQUIRED",
+                  style: TextStyle(
+                    fontSize: 9,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87),
+                    color: Colors.orange,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
-            "Your application is currently under review. You can confirm it or submit updates:",
+            "Your application is under review. Confirm it or submit updates:",
             style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
           ),
 
-          // ============================================================
-          // ✅ NEW: ADMIN-UPLOADED DOCUMENTS SHOWN HERE
-          // ============================================================
+          // Admin documents (agar hain)
           if (adminDocsCount > 0) ...[
             const SizedBox(height: 16),
             _buildAdminDocumentsSection(app),
           ],
 
           const SizedBox(height: 20),
+
+          // Buttons
           Row(
             children: [
+              // CONFIRM
               Expanded(
                 child: SizedBox(
                   height: 48,
@@ -3432,6 +3473,7 @@ class _UserServiceApplicationScreenState
                 ),
               ),
               const SizedBox(width: 12),
+              // UPDATE
               Expanded(
                 child: SizedBox(
                   height: 48,
@@ -3449,8 +3491,9 @@ class _UserServiceApplicationScreenState
                       ],
                     ),
                     child: ElevatedButton.icon(
-                      onPressed:
-                          _isUpdatingStatus ? null : _showUpdateApplicationDialog,
+                      onPressed: _isUpdatingStatus
+                          ? null
+                          : _showUpdateApplicationDialog,
                       icon: _isUpdatingStatus
                           ? const SizedBox(
                               width: 18,

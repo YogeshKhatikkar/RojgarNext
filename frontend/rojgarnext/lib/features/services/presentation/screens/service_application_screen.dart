@@ -1,25 +1,19 @@
 // lib/features/services/presentation/screens/service_application_screen.dart
-// ⚡ ULTRA-FAST VERSION - Loads in < 200ms
+// ⚡ ULTRA-FAST VERSION
 // ✅ Cache-First Strategy + Background Refresh
 // ✅ AI-Based Modern Design
-// ✅ FIXED: Now shows SAME documents as user_service_applications_screen
-//    - Fetches from /services/application/{id}/documents endpoint
-//    - TWO SEPARATE SECTIONS:
-//        1) ADMIN UPLOADED DOCUMENTS  → from Review / Final Submit buttons
-//        2) USER UPLOADED DOCUMENTS   → uploaded by user for this application
-//    - Plus payment_receipt_url and screenshot_url from app record (user section)
-// ✅ STRICT DOCUMENT SCOPING:
-//    Documents shown ONLY in their respective sections.
-//    Profile docs (Aadhaar/PAN/Resume) ya doosri application ke docs NEVER show here.
-// ✅ Submitted Information section shows ONLY plain text/object fields.
-// ✅ MOBILE FIX: File picker now works on Android/iOS using path fallback
-//    (file.bytes is NULL on mobile — must read from file.path)
+// ✅ FIXED: Document upload on Review & Final Submit works on WEB + MOBILE
+//    - Uses `withData: true` for web (required)
+//    - Falls back to reading from `file.path` on mobile
+//    - Never accesses `file.path` on web (was crashing)
+//    - File is now MANDATORY (button disabled until picked)
+//    - Clear debug logs for every step
 
 import 'dart:convert';
-import 'dart:io' show File;                    // ✅ ADDED for mobile file reading
+import 'dart:io' show File;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,7 +22,6 @@ import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/core/widgets/file_viewer_screen.dart';
 import 'package:rojgarnext/features/services/models/service_types.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class ServiceApplicationScreen extends StatefulWidget {
   const ServiceApplicationScreen({super.key});
@@ -58,9 +51,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
 
   // ============================================================
   // ✅ TWO SEPARATE DOCUMENT LISTS
-  // ------------------------------------------------------------
-  // _adminDocuments → uploaded by ADMIN via Review / Final Submit
-  // _userDocuments  → uploaded by USER for this application
   // ============================================================
   List<Map<String, dynamic>> _adminDocuments = [];
   List<Map<String, dynamic>> _userDocuments = [];
@@ -351,7 +341,7 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   }
 
   // ============================================================
-  // ✅ UPDATED: Fetch service application documents — SPLIT IN TWO
+  // ✅ Application details + document fetch
   // ============================================================
   void _showApplicationDetails(Map<String, dynamic> app) {
     final appId = (app['_id'] ?? '').toString();
@@ -374,15 +364,9 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     _refreshInBackground();
   }
 
-  // ============================================================
-  // ✅ FETCH SERVICE APPLICATION DOCUMENTS — SPLIT INTO TWO LISTS
-  // ✅ ONLY fetches from /services/application/{id}/documents
-  // ✅ Same behavior as user_service_applications_screen
-  // ============================================================
   Future<void> _fetchServiceApplicationDocuments(String applicationId) async {
     if (!mounted || applicationId.isEmpty) return;
 
-    // Return cached if already loaded
     if (_serviceDocsCache.containsKey(applicationId)) {
       final cached = _serviceDocsCache[applicationId]!;
       setState(() {
@@ -416,7 +400,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       );
 
       if (res.data is Map && res.data['success'] == true) {
-        // ✅ A. USER-UPLOADED SERVICE DOCUMENTS (from service_documents[])
         final List<dynamic> serviceDocs =
             (res.data['service_documents'] as List?) ?? [];
         for (final raw in serviceDocs) {
@@ -426,7 +409,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
           final url = (d['url'] ?? '').toString().trim();
           if (!_isValidDocUrl(url)) continue;
 
-          // ✅ STRICT source tag check — skip anything not from service app
           final source = (d['source'] ?? '').toString();
           if (source.isNotEmpty && source != 'service_application') {
             debugPrint("⏭️ Skipping non-service doc: $source");
@@ -446,7 +428,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
           });
         }
 
-        // ✅ B. ADMIN REVIEW / FINAL DOCUMENTS (already filtered by backend)
         final List<dynamic> adminRaw =
             (res.data['admin_documents'] as List?) ?? [];
         for (final raw in adminRaw) {
@@ -476,7 +457,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       debugPrint("⚠️ Failed to fetch service application docs: $e");
     }
 
-    // ✅ Cache combined (both admin + user)
     final combined = <Map<String, dynamic>>[];
     combined.addAll(userDocs);
     combined.addAll(adminDocs);
@@ -537,12 +517,10 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
           _selectedApplication = enrichedApp;
         }
         _filterCache.clear();
-        // ✅ Clear both doc lists before refetching
         _adminDocuments = [];
         _userDocuments = [];
       });
 
-      // ✅ Refresh the docs cache for this app
       _serviceDocsCache.remove(applicationId);
       await _fetchServiceApplicationDocuments(applicationId);
 
@@ -845,19 +823,14 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   }
 
   // ====================================================================
-  // ✅ SAFE FILE PICKER RESULT HANDLER (for mobile compatibility)
-  // ------------------------------------------------------------
-  // On MOBILE  → file.bytes is NULL, we must read from file.path
-  // On WEB     → file.bytes is populated
+  // ✅ SAFE FILE PICKER HELPER
   // ====================================================================
   Future<Uint8List?> _readPickedFileBytes(PlatformFile file) async {
-    // Web / Desktop: bytes already in memory
     if (file.bytes != null && file.bytes!.isNotEmpty) {
       return file.bytes;
     }
 
-    // Mobile (Android/iOS): read from path
-    if (file.path != null && file.path!.isNotEmpty) {
+    if (!kIsWeb && file.path != null && file.path!.isNotEmpty) {
       try {
         final f = File(file.path!);
         if (await f.exists()) {
@@ -876,148 +849,191 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     return null;
   }
 
+  // ====================================================================
+  // ✅ REVIEW DIALOG - FIXED
+  // ====================================================================
   Future<void> _showReviewDialog(String applicationId) async {
+    debugPrint("=" * 70);
+    debugPrint("📝 OPENING SERVICE REVIEW DIALOG");
+    debugPrint("   Application ID: $applicationId");
+    debugPrint("   Platform: ${kIsWeb ? 'WEB' : 'MOBILE'}");
+    debugPrint("=" * 70);
+
     final TextEditingController notesController = TextEditingController();
-    String? selectedFileName;
-    Uint8List? selectedFileBytes;
-    String? selectedFilePath;
 
     final result = await showDialog<Map<String, dynamic>?>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => _ReviewDialogContent(
         notesController: notesController,
-        onFileSelected: (name, bytes, path) {
-          selectedFileName = name;
-          selectedFileBytes = bytes;
-          selectedFilePath = path;
-        },
       ),
     );
 
-    if (result == null) return;
+    if (result == null) {
+      debugPrint("❌ Review dialog cancelled");
+      return;
+    }
+
+    debugPrint("=" * 70);
+    debugPrint("✅ REVIEW DIALOG RETURNED");
+    debugPrint("   Has File: ${result['hasFile']}");
+    debugPrint("   File Name: ${result['fileName']}");
+    debugPrint("   Notes: ${result['notes']}");
+    debugPrint("=" * 70);
+
+    final bool hasFile = result['hasFile'] == true;
+    final Uint8List? fileBytes = result['fileBytes'] as Uint8List?;
+    final String? fileName = result['fileName'] as String?;
+    final String notes = (result['notes'] ?? '').toString().trim();
+
     setState(() => _isUpdatingStatus = true);
 
     try {
-      final notes = notesController.text.trim();
-
-      // ✅ Ensure we have bytes even if picked on mobile
-      Uint8List? uploadBytes = selectedFileBytes;
-      if ((uploadBytes == null || uploadBytes.isEmpty) &&
-          selectedFilePath != null &&
-          selectedFilePath!.isNotEmpty) {
-        try {
-          final f = File(selectedFilePath!);
-          if (await f.exists()) {
-            uploadBytes = await f.readAsBytes();
-          }
-        } catch (e) {
-          debugPrint("❌ Re-read failed for review: $e");
+      // ✅ VALIDATE: File is MANDATORY for review
+      if (!hasFile || fileBytes == null || fileBytes.isEmpty || fileName == null) {
+        if (mounted) {
+          showMessage(context,
+              "⚠️ Please select a document to submit review",
+              isError: true);
         }
+        return;
       }
 
-      if (uploadBytes != null &&
-          uploadBytes.isNotEmpty &&
-          selectedFileName != null) {
-        final formData = FormData.fromMap({
-          'file': MultipartFile.fromBytes(
-            uploadBytes,
-            filename: selectedFileName!,
-          ),
-          'notes': notes,
-        });
-        final uploadResponse = await DioClient.dio.post(
-          '/services/application/$applicationId/review-with-document',
-          data: formData,
-          options: Options(headers: {"Content-Type": "multipart/form-data"}),
+      debugPrint("📤 Uploading review document...");
+      debugPrint("   File: $fileName");
+      debugPrint("   Size: ${fileBytes.length} bytes");
+      debugPrint("   Endpoint: /services/application/$applicationId/review-with-document");
+
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(
+          fileBytes,
+          filename: fileName,
+        ),
+        'notes': notes,
+      });
+
+      final uploadResponse = await DioClient.dio.post(
+        '/services/application/$applicationId/review-with-document',
+        data: formData,
+        options: Options(headers: {"Content-Type": "multipart/form-data"}),
+      );
+
+      debugPrint("📥 Upload response status: ${uploadResponse.statusCode}");
+      debugPrint("📥 Upload response data: ${uploadResponse.data}");
+
+      if (!mounted) return;
+
+      if (uploadResponse.data['success'] != true) {
+        showMessage(
+          context,
+          uploadResponse.data['message'] ?? "Failed to upload document",
+          isError: true,
         );
-        if (!mounted) return;
-        if (uploadResponse.data['success'] != true) {
-          showMessage(context, "Failed to upload document", isError: true);
-          return;
-        }
-        showMessage(context, "✅ Document uploaded & moved to REVIEW!");
-        await _refreshCurrentApplication(applicationId);
-      } else {
-        await _updateStatus(applicationId, 'review_application', notes);
-        await _refreshCurrentApplication(applicationId);
+        return;
       }
+
+      showMessage(context, "✅ Document uploaded & moved to REVIEW!");
+      await _refreshCurrentApplication(applicationId);
     } catch (e) {
-      if (mounted) showMessage(context, "Failed: ${e.toString()}", isError: true);
+      debugPrint("❌ Error in review submit: $e");
+      if (mounted) {
+        showMessage(context, "Failed: ${e.toString()}", isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
     }
   }
 
+  // ====================================================================
+  // ✅ FINAL SUBMIT DIALOG - FIXED
+  // ====================================================================
   Future<void> _showFinalSubmitDialog(String applicationId) async {
+    debugPrint("=" * 70);
+    debugPrint("📝 OPENING SERVICE FINAL SUBMIT DIALOG");
+    debugPrint("   Application ID: $applicationId");
+    debugPrint("   Platform: ${kIsWeb ? 'WEB' : 'MOBILE'}");
+    debugPrint("=" * 70);
+
     final TextEditingController notesController = TextEditingController();
-    String? selectedFileName;
-    Uint8List? selectedFileBytes;
-    String? selectedFilePath;
 
     final result = await showDialog<Map<String, dynamic>?>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => _FinalSubmitDialogContent(
         notesController: notesController,
-        onFileSelected: (name, bytes, path) {
-          selectedFileName = name;
-          selectedFileBytes = bytes;
-          selectedFilePath = path;
-        },
       ),
     );
 
-    if (result == null) return;
+    if (result == null) {
+      debugPrint("❌ Final submit dialog cancelled");
+      return;
+    }
+
+    debugPrint("=" * 70);
+    debugPrint("✅ FINAL SUBMIT DIALOG RETURNED");
+    debugPrint("   Has File: ${result['hasFile']}");
+    debugPrint("   File Name: ${result['fileName']}");
+    debugPrint("   Notes: ${result['notes']}");
+    debugPrint("=" * 70);
+
+    final bool hasFile = result['hasFile'] == true;
+    final Uint8List? fileBytes = result['fileBytes'] as Uint8List?;
+    final String? fileName = result['fileName'] as String?;
+    final String notes = (result['notes'] ?? '').toString().trim();
+
     setState(() => _isUpdatingStatus = true);
 
     try {
-      final notes = notesController.text.trim();
-
-      // ✅ Ensure we have bytes even if picked on mobile
-      Uint8List? uploadBytes = selectedFileBytes;
-      if ((uploadBytes == null || uploadBytes.isEmpty) &&
-          selectedFilePath != null &&
-          selectedFilePath!.isNotEmpty) {
-        try {
-          final f = File(selectedFilePath!);
-          if (await f.exists()) {
-            uploadBytes = await f.readAsBytes();
-          }
-        } catch (e) {
-          debugPrint("❌ Re-read failed for final submit: $e");
-        }
-      }
-
-      if (uploadBytes != null &&
-          uploadBytes.isNotEmpty &&
-          selectedFileName != null) {
-        final formData = FormData.fromMap({
-          'file': MultipartFile.fromBytes(
-            uploadBytes,
-            filename: selectedFileName!,
-          ),
-          'notes': notes,
-        });
-        final uploadResponse = await DioClient.dio.post(
-          '/services/application/$applicationId/final-submit-with-document',
-          data: formData,
-          options: Options(headers: {"Content-Type": "multipart/form-data"}),
-        );
-        if (!mounted) return;
-        if (uploadResponse.data['success'] != true) {
-          showMessage(context, "Failed to upload final document",
+      // ✅ VALIDATE: File is MANDATORY for final submit
+      if (!hasFile || fileBytes == null || fileBytes.isEmpty || fileName == null) {
+        if (mounted) {
+          showMessage(context,
+              "⚠️ Please select a document for final submission",
               isError: true);
-          return;
         }
-        showMessage(context, "✅ FINAL SUBMISSION completed!");
-        await _refreshCurrentApplication(applicationId);
-      } else {
-        await _updateStatus(applicationId, 'completed', notes);
-        await _refreshCurrentApplication(applicationId);
+        return;
       }
+
+      debugPrint("📤 Uploading final document...");
+      debugPrint("   File: $fileName");
+      debugPrint("   Size: ${fileBytes.length} bytes");
+      debugPrint("   Endpoint: /services/application/$applicationId/final-submit-with-document");
+
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(
+          fileBytes,
+          filename: fileName,
+        ),
+        'notes': notes,
+      });
+
+      final uploadResponse = await DioClient.dio.post(
+        '/services/application/$applicationId/final-submit-with-document',
+        data: formData,
+        options: Options(headers: {"Content-Type": "multipart/form-data"}),
+      );
+
+      debugPrint("📥 Upload response status: ${uploadResponse.statusCode}");
+      debugPrint("📥 Upload response data: ${uploadResponse.data}");
+
+      if (!mounted) return;
+
+      if (uploadResponse.data['success'] != true) {
+        showMessage(
+          context,
+          uploadResponse.data['message'] ?? "Failed to upload final document",
+          isError: true,
+        );
+        return;
+      }
+
+      showMessage(context, "✅ FINAL SUBMISSION completed!");
+      await _refreshCurrentApplication(applicationId);
     } catch (e) {
-      if (mounted) showMessage(context, "Failed: ${e.toString()}", isError: true);
+      debugPrint("❌ Error in final submit: $e");
+      if (mounted) {
+        showMessage(context, "Failed: ${e.toString()}", isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
     }
@@ -1109,19 +1125,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     );
   }
 
-  String _labelForKey(String key) {
-    for (final entry in _documentKeyMap) {
-      if (entry['key'] == key) return entry['label']!;
-    }
-    return key
-        .replaceAll('_url', '')
-        .replaceAll('_', ' ')
-        .split(' ')
-        .map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1))
-        .join(' ')
-        .trim();
-  }
-
   Future<void> _openDocumentViewer(
     String url, {
     String title = 'Document',
@@ -1163,13 +1166,9 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   }
 
   // ====================================================================
-  // ✅ TWO SEPARATE DOCUMENT SECTIONS
-  // ------------------------------------------------------------
-  // SECTION 1 → ADMIN UPLOADED DOCUMENTS (from Review / Final Submit)
-  // SECTION 2 → USER UPLOADED DOCUMENTS  (uploaded by user for this app)
+  // ✅ Documents sections
   // ====================================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
-    // ---- Build ADMIN documents ----
     final List<Map<String, dynamic>> adminDocs = <Map<String, dynamic>>[];
     for (final d in _adminDocuments) {
       final url = d['url']?.toString() ?? '';
@@ -1178,9 +1177,7 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       adminDocs.add(d);
     }
 
-    // ---- Build USER documents ----
     final List<Map<String, dynamic>> userDocs = <Map<String, dynamic>>[];
-    // From service API
     for (final d in _userDocuments) {
       final url = d['url']?.toString() ?? '';
       if (!_isValidDocUrl(url)) continue;
@@ -1188,7 +1185,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       userDocs.add(d);
     }
 
-    // From app record: payment receipt
     final receiptUrl = app['payment_receipt_url'];
     if (_isValidDocUrl(receiptUrl)) {
       final urlStr = receiptUrl.toString().trim();
@@ -1205,7 +1201,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       }
     }
 
-    // From app record: payment screenshot
     final screenshotUrl = app['screenshot_url'];
     if (_isValidDocUrl(screenshotUrl)) {
       final urlStr = screenshotUrl.toString().trim();
@@ -1221,7 +1216,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       }
     }
 
-    // From app record: generic document_url
     final docUrl = app['document_url'];
     if (_isValidDocUrl(docUrl)) {
       final urlStr = docUrl.toString().trim();
@@ -1237,7 +1231,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
       }
     }
 
-    // Nothing at all?
     if (adminDocs.isEmpty && userDocs.isEmpty && !_isLoadingServiceDocs) {
       return const SizedBox();
     }
@@ -1245,24 +1238,13 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ------------------------------------------------------------
-        // SECTION 1 — ADMIN UPLOADED DOCUMENTS
-        // ------------------------------------------------------------
         _buildAdminDocumentsCard(adminDocs),
-
         const SizedBox(height: 16),
-
-        // ------------------------------------------------------------
-        // SECTION 2 — USER UPLOADED DOCUMENTS
-        // ------------------------------------------------------------
         _buildUserDocumentsCard(userDocs),
       ],
     );
   }
 
-  // ====================================================================
-  // ✅ ADMIN DOCUMENTS CARD (Review + Final Submit uploads)
-  // ====================================================================
   Widget _buildAdminDocumentsCard(List<Map<String, dynamic>> adminDocs) {
     final int count = adminDocs.length;
 
@@ -1366,9 +1348,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     );
   }
 
-  // ====================================================================
-  // ✅ USER DOCUMENTS CARD (uploaded by user for this application)
-  // ====================================================================
   Widget _buildUserDocumentsCard(List<Map<String, dynamic>> userDocs) {
     final int count = userDocs.length;
 
@@ -1472,9 +1451,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     );
   }
 
-  // ====================================================================
-  // ✅ ADMIN document row
-  // ====================================================================
   Widget _buildAdminDocumentRow(int index, Map<String, dynamic> doc) {
     final String label =
         doc['label']?.toString() ?? 'Admin Document ${index + 1}';
@@ -1588,9 +1564,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     );
   }
 
-  // ====================================================================
-  // ✅ USER document row
-  // ====================================================================
   Widget _buildUserDocumentRow(int index, Map<String, dynamic> doc) {
     final String label = doc['label']?.toString() ?? 'Document ${index + 1}';
     final String url = doc['url']?.toString() ?? '';
@@ -3135,17 +3108,12 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
     );
   }
 
-  // ====================================================================
-  // ✅ FIELDS CARD — ONLY plain text/object fields.
-  // ✅ STRICT: documents are NEVER shown here.
-  // ====================================================================
   Widget _buildFieldsCard(Map<String, dynamic> fields) {
     if (fields.isEmpty) return const SizedBox();
 
     final List<Map<String, dynamic>> flatFields = [];
 
     fields.forEach((key, value) {
-      // ✅ Skip ALL document fields — they belong to the dedicated Documents section
       if (_isDocumentField(key, value)) {
         return;
       }
@@ -3422,9 +3390,6 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
         .join(' ');
   }
 
-  // ====================================================================
-  // ✅ Detects if a `fields` entry is a document blob.
-  // ====================================================================
   bool _isDocumentField(String key, dynamic value) {
     if (value == null) return false;
 
@@ -4025,14 +3990,14 @@ class _ServiceApplicationScreenState extends State<ServiceApplicationScreen>
   }
 }
 
-// ==================== REVIEW DIALOG ====================
+// ============================================================================
+// ✅ REVIEW DIALOG CONTENT — FIXED for WEB + MOBILE
+// ============================================================================
 class _ReviewDialogContent extends StatefulWidget {
   final TextEditingController notesController;
-  final Function(String name, Uint8List? bytes, String? path) onFileSelected;
 
   const _ReviewDialogContent({
     required this.notesController,
-    required this.onFileSelected,
   });
 
   @override
@@ -4042,68 +4007,128 @@ class _ReviewDialogContent extends StatefulWidget {
 class _ReviewDialogContentState extends State<_ReviewDialogContent> {
   String? _selectedFileName;
   Uint8List? _selectedFileBytes;
-  String? _selectedFilePath;
   bool _isPicking = false;
 
-  // ✅ SAFE file picker — works on MOBILE + WEB
+  // ====================================================================
+  // ✅ SAFE FILE PICKER — WORKS ON WEB + MOBILE
+  // ====================================================================
   Future<void> _pickFile() async {
+    debugPrint("=" * 70);
+    debugPrint("📁 REVIEW _pickFile called");
+    debugPrint("   Platform: ${kIsWeb ? 'WEB' : 'MOBILE'}");
+    debugPrint("   _isPicking: $_isPicking");
+    debugPrint("=" * 70);
+
     if (_isPicking) return;
+
     setState(() => _isPicking = true);
+
     try {
+      debugPrint("📁 Calling FilePicker.platform.pickFiles...");
+
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-        withData: true, // ✅ Forces bytes when possible (web always, mobile sometimes)
+        withData: true, // ✅ REQUIRED for web
       );
 
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
+      debugPrint("📁 FilePicker returned: ${result?.files.length ?? 0} files");
 
-        Uint8List? bytes = file.bytes;
-        // ✅ MOBILE FALLBACK: read from path when bytes is null
-        if ((bytes == null || bytes.isEmpty) &&
-            file.path != null &&
-            file.path!.isNotEmpty) {
+      if (result == null || result.files.isEmpty) {
+        debugPrint("⚠️ No file selected");
+        if (mounted) setState(() => _isPicking = false);
+        return;
+      }
+
+      final file = result.files.first;
+
+      debugPrint("=" * 60);
+      debugPrint("📁 REVIEW FILE PICKED");
+      debugPrint("   Name: ${file.name}");
+      debugPrint("   Size: ${file.size} bytes");
+      debugPrint("   Bytes available: ${file.bytes != null}");
+      debugPrint("   Path: ${kIsWeb ? '(web - not available)' : file.path}");
+      debugPrint("   Extension: ${file.extension}");
+      debugPrint("=" * 60);
+
+      Uint8List? bytes = file.bytes;
+
+      // ✅ MOBILE FALLBACK: read from path if bytes null
+      // NEVER access .path on web (throws UnimplementedError)
+      if ((bytes == null || bytes.isEmpty) && !kIsWeb) {
+        if (file.path != null && file.path!.isNotEmpty) {
           try {
             final f = File(file.path!);
             if (await f.exists()) {
               bytes = await f.readAsBytes();
+              debugPrint("📱 MOBILE: Read ${bytes.length} bytes from path");
             }
           } catch (e) {
-            debugPrint("❌ Review mobile read error: $e");
+            debugPrint("❌ MOBILE: Failed to read from path: $e");
           }
         }
+      }
 
-        if (bytes == null || bytes.isEmpty) {
-          if (mounted) {
-            showMessage(context, "Could not read file. Please try again.",
-                isError: true);
-          }
-          return;
-        }
-
+      // ✅ WEB FALLBACK: if bytes still null
+      if (bytes == null || bytes.isEmpty) {
+        debugPrint("❌ No file bytes available");
         if (mounted) {
-          setState(() {
-            _selectedFileName = file.name;
-            _selectedFileBytes = bytes;
-            _selectedFilePath = file.path;
-          });
-          widget.onFileSelected(file.name, bytes, file.path);
+          showMessage(
+            context,
+            kIsWeb
+                ? "Could not read file. Please try a different browser or file."
+                : "Could not read file. Please try again.",
+            isError: true,
+          );
+          setState(() => _isPicking = false);
         }
+        return;
+      }
+
+      // ✅ File size check (10 MB max)
+      const maxSize = 10 * 1024 * 1024;
+      if (bytes.length > maxSize) {
+        if (mounted) {
+          showMessage(
+            context,
+            "File too large. Max: 10MB, Your file: ${(bytes.length / (1024 * 1024)).toStringAsFixed(1)}MB",
+            isError: true,
+          );
+          setState(() => _isPicking = false);
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _selectedFileName = file.name;
+          _selectedFileBytes = bytes;
+          _isPicking = false;
+        });
+        debugPrint("✅ REVIEW file ready: ${file.name} (${bytes.length} bytes)");
       }
     } catch (e) {
+      debugPrint("❌ REVIEW _pickFile error: $e");
       if (mounted) {
         showMessage(context, "Error picking file: $e", isError: true);
+        setState(() => _isPicking = false);
       }
-    } finally {
-      if (mounted) setState(() => _isPicking = false);
     }
+  }
+
+  void _clearFile() {
+    setState(() {
+      _selectedFileName = null;
+      _selectedFileBytes = null;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final dialogWidth = screenWidth * 0.9 > 500 ? 500.0 : screenWidth * 0.9;
+    final bool canSubmit =
+        _selectedFileName != null && _selectedFileBytes != null;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -4118,6 +4143,7 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ==================== HEADER ====================
             Row(
               children: [
                 Container(
@@ -4143,11 +4169,13 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, size: 24),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(context, null),
                 ),
               ],
             ),
             const Divider(height: 24),
+
+            // ==================== INFO BANNER ====================
             Container(
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 16),
@@ -4164,7 +4192,7 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      "This will change status to UNDER REVIEW. Document will be saved.",
+                      "This will change status to REVIEW. Document is required.",
                       style: TextStyle(
                           fontSize: 12,
                           color: const Color(0xFF6C63FF).withOpacity(0.9)),
@@ -4173,23 +4201,27 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                 ],
               ),
             ),
-            Expanded(
+
+            // ==================== SCROLLABLE CONTENT ====================
+            Flexible(
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "📄 Upload Document (PDF or Image)",
+                      "📄 Upload Document (PDF or Image) *",
                       style:
                           TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Upload relevant document for review.",
+                      "Upload relevant document for review. (Required)",
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade600),
                     ),
                     const SizedBox(height: 12),
+
+                    // ==================== FILE PICKER UI ====================
                     GestureDetector(
                       onTap: _isPicking ? null : _pickFile,
                       child: Container(
@@ -4248,12 +4280,41 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                                     fontSize: 11,
                                     color: Colors.grey.shade600),
                               ),
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: _clearFile,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                        color: Colors.red.shade200),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.close,
+                                          size: 12, color: Colors.red),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        "Remove",
+                                        style: TextStyle(
+                                            fontSize: 11, color: Colors.red),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ],
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                    // ==================== NOTES ====================
                     const Text(
                       "Review Notes (Optional)",
                       style:
@@ -4275,11 +4336,13 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
               ),
             ),
             const SizedBox(height: 20),
+
+            // ==================== ACTION BUTTONS ====================
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(context, null),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.grey.shade700,
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -4295,25 +4358,47 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                          colors: [Color(0xFF6C63FF), Color(0xFF8B7FFF)]),
+                      gradient: LinearGradient(
+                        colors: canSubmit
+                            ? [const Color(0xFF6C63FF), const Color(0xFF8B7FFF)]
+                            : [Colors.grey.shade300, Colors.grey.shade400],
+                      ),
                       borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF6C63FF).withOpacity(0.3),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                        ),
-                      ],
+                      boxShadow: canSubmit
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFF6C63FF)
+                                    .withOpacity(0.3),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
                     ),
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context, {
-                        'notes': widget.notesController.text,
-                        'fileSelected': _selectedFileName != null,
-                      }),
+                      onPressed: canSubmit
+                          ? () {
+                              debugPrint("=" * 60);
+                              debugPrint("📤 REVIEW SUBMITTING");
+                              debugPrint("   File: $_selectedFileName");
+                              debugPrint(
+                                  "   Bytes: ${_selectedFileBytes!.length}");
+                              debugPrint(
+                                  "   Notes: ${widget.notesController.text}");
+                              debugPrint("=" * 60);
+
+                              Navigator.pop(context, {
+                                'hasFile': true,
+                                'fileBytes': _selectedFileBytes,
+                                'fileName': _selectedFileName,
+                                'notes': widget.notesController.text,
+                              });
+                            }
+                          : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
@@ -4340,14 +4425,14 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
   }
 }
 
-// ==================== FINAL SUBMIT DIALOG ====================
+// ============================================================================
+// ✅ FINAL SUBMIT DIALOG CONTENT — FIXED for WEB + MOBILE
+// ============================================================================
 class _FinalSubmitDialogContent extends StatefulWidget {
   final TextEditingController notesController;
-  final Function(String name, Uint8List? bytes, String? path) onFileSelected;
 
   const _FinalSubmitDialogContent({
     required this.notesController,
-    required this.onFileSelected,
   });
 
   @override
@@ -4358,68 +4443,128 @@ class _FinalSubmitDialogContent extends StatefulWidget {
 class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
   String? _selectedFileName;
   Uint8List? _selectedFileBytes;
-  String? _selectedFilePath;
   bool _isPicking = false;
 
-  // ✅ SAFE file picker — works on MOBILE + WEB
+  // ====================================================================
+  // ✅ SAFE FILE PICKER — WORKS ON WEB + MOBILE
+  // ====================================================================
   Future<void> _pickFile() async {
+    debugPrint("=" * 70);
+    debugPrint("📁 FINAL SUBMIT _pickFile called");
+    debugPrint("   Platform: ${kIsWeb ? 'WEB' : 'MOBILE'}");
+    debugPrint("   _isPicking: $_isPicking");
+    debugPrint("=" * 70);
+
     if (_isPicking) return;
+
     setState(() => _isPicking = true);
+
     try {
+      debugPrint("📁 Calling FilePicker.platform.pickFiles...");
+
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-        withData: true, // ✅ Forces bytes when possible
+        withData: true, // ✅ REQUIRED for web
       );
 
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
+      debugPrint("📁 FilePicker returned: ${result?.files.length ?? 0} files");
 
-        Uint8List? bytes = file.bytes;
-        // ✅ MOBILE FALLBACK
-        if ((bytes == null || bytes.isEmpty) &&
-            file.path != null &&
-            file.path!.isNotEmpty) {
+      if (result == null || result.files.isEmpty) {
+        debugPrint("⚠️ No file selected");
+        if (mounted) setState(() => _isPicking = false);
+        return;
+      }
+
+      final file = result.files.first;
+
+      debugPrint("=" * 60);
+      debugPrint("📁 FINAL SUBMIT FILE PICKED");
+      debugPrint("   Name: ${file.name}");
+      debugPrint("   Size: ${file.size} bytes");
+      debugPrint("   Bytes available: ${file.bytes != null}");
+      debugPrint("   Path: ${kIsWeb ? '(web - not available)' : file.path}");
+      debugPrint("   Extension: ${file.extension}");
+      debugPrint("=" * 60);
+
+      Uint8List? bytes = file.bytes;
+
+      // ✅ MOBILE FALLBACK: read from path if bytes null
+      if ((bytes == null || bytes.isEmpty) && !kIsWeb) {
+        if (file.path != null && file.path!.isNotEmpty) {
           try {
             final f = File(file.path!);
             if (await f.exists()) {
               bytes = await f.readAsBytes();
+              debugPrint("📱 MOBILE: Read ${bytes.length} bytes from path");
             }
           } catch (e) {
-            debugPrint("❌ Final mobile read error: $e");
+            debugPrint("❌ MOBILE: Failed to read from path: $e");
           }
         }
+      }
 
-        if (bytes == null || bytes.isEmpty) {
-          if (mounted) {
-            showMessage(context, "Could not read file. Please try again.",
-                isError: true);
-          }
-          return;
-        }
-
+      // ✅ WEB FALLBACK: if bytes still null
+      if (bytes == null || bytes.isEmpty) {
+        debugPrint("❌ No file bytes available");
         if (mounted) {
-          setState(() {
-            _selectedFileName = file.name;
-            _selectedFileBytes = bytes;
-            _selectedFilePath = file.path;
-          });
-          widget.onFileSelected(file.name, bytes, file.path);
+          showMessage(
+            context,
+            kIsWeb
+                ? "Could not read file. Please try a different browser or file."
+                : "Could not read file. Please try again.",
+            isError: true,
+          );
+          setState(() => _isPicking = false);
         }
+        return;
+      }
+
+      // ✅ File size check (10 MB max)
+      const maxSize = 10 * 1024 * 1024;
+      if (bytes.length > maxSize) {
+        if (mounted) {
+          showMessage(
+            context,
+            "File too large. Max: 10MB, Your file: ${(bytes.length / (1024 * 1024)).toStringAsFixed(1)}MB",
+            isError: true,
+          );
+          setState(() => _isPicking = false);
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _selectedFileName = file.name;
+          _selectedFileBytes = bytes;
+          _isPicking = false;
+        });
+        debugPrint(
+            "✅ FINAL SUBMIT file ready: ${file.name} (${bytes.length} bytes)");
       }
     } catch (e) {
+      debugPrint("❌ FINAL SUBMIT _pickFile error: $e");
       if (mounted) {
         showMessage(context, "Error picking file: $e", isError: true);
+        setState(() => _isPicking = false);
       }
-    } finally {
-      if (mounted) setState(() => _isPicking = false);
     }
+  }
+
+  void _clearFile() {
+    setState(() {
+      _selectedFileName = null;
+      _selectedFileBytes = null;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final dialogWidth = screenWidth * 0.9 > 500 ? 500.0 : screenWidth * 0.9;
+    final bool canSubmit =
+        _selectedFileName != null && _selectedFileBytes != null;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -4434,6 +4579,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ==================== HEADER ====================
             Row(
               children: [
                 Container(
@@ -4458,11 +4604,13 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, size: 24),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(context, null),
                 ),
               ],
             ),
             const Divider(height: 24),
+
+            // ==================== WARNING BANNER ====================
             Container(
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 16),
@@ -4478,7 +4626,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      "⚠️ Final step. The status will change to COMPLETED.",
+                      "⚠️ Final step. Status will change to COMPLETED. Document is required.",
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.orange.shade900,
@@ -4489,23 +4637,27 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
                 ],
               ),
             ),
-            Expanded(
+
+            // ==================== SCROLLABLE CONTENT ====================
+            Flexible(
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "📄 Upload Final Document (PDF or Image)",
+                      "📄 Upload Final Document (PDF or Image) *",
                       style:
                           TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "This document will be stored securely and submitted with the application.",
+                      "This document will be stored securely. (Required)",
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade600),
                     ),
                     const SizedBox(height: 12),
+
+                    // ==================== FILE PICKER UI ====================
                     GestureDetector(
                       onTap: _isPicking ? null : _pickFile,
                       child: Container(
@@ -4564,12 +4716,41 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
                                     fontSize: 11,
                                     color: Colors.grey.shade600),
                               ),
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: _clearFile,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                        color: Colors.red.shade200),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.close,
+                                          size: 12, color: Colors.red),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        "Remove",
+                                        style: TextStyle(
+                                            fontSize: 11, color: Colors.red),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ],
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 20),
+
+                    // ==================== NOTES ====================
                     const Text(
                       "Additional Notes (Optional)",
                       style:
@@ -4591,11 +4772,13 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
               ),
             ),
             const SizedBox(height: 20),
+
+            // ==================== ACTION BUTTONS ====================
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(context, null),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.grey.shade700,
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -4611,25 +4794,46 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                          colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)]),
+                      gradient: LinearGradient(
+                        colors: canSubmit
+                            ? [const Color(0xFF8B5CF6), const Color(0xFF7C3AED)]
+                            : [Colors.grey.shade300, Colors.grey.shade400],
+                      ),
                       borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.deepPurple.withOpacity(0.3),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                        ),
-                      ],
+                      boxShadow: canSubmit
+                          ? [
+                              BoxShadow(
+                                color: Colors.deepPurple.withOpacity(0.3),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
                     ),
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context, {
-                        'notes': widget.notesController.text,
-                        'fileSelected': _selectedFileName != null,
-                      }),
+                      onPressed: canSubmit
+                          ? () {
+                              debugPrint("=" * 60);
+                              debugPrint("📤 FINAL SUBMIT SUBMITTING");
+                              debugPrint("   File: $_selectedFileName");
+                              debugPrint(
+                                  "   Bytes: ${_selectedFileBytes!.length}");
+                              debugPrint(
+                                  "   Notes: ${widget.notesController.text}");
+                              debugPrint("=" * 60);
+
+                              Navigator.pop(context, {
+                                'hasFile': true,
+                                'fileBytes': _selectedFileBytes,
+                                'fileName': _selectedFileName,
+                                'notes': widget.notesController.text,
+                              });
+                            }
+                          : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(

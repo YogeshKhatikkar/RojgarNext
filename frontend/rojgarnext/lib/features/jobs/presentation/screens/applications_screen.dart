@@ -1,16 +1,7 @@
 // lib/features/jobs/presentation/screens/applications_screen.dart
-// ✅ AI-BASED MODERN REDESIGN – Glassmorphism, Gradients, Animated Loading
-// ✅ Preserves all original functionality (status updates, file uploads, payments, profile navigation)
-// ✅ NEW: Two SEPARATE document sections:
-//      1) ADMIN UPLOADED DOCUMENTS  → from Review / Final Submit buttons
-//      2) USER UPLOADED DOCUMENTS   → uploaded by user for this application
-// ✅ FIXED: Whitelist-only keys → deleted / null / stale docs NEVER show
-// ✅ FIXED: /user/full-profile with email param is PRIMARY source (matches user side)
-// ✅ FIXED: Admin viewing candidate docs now correctly fetches CANDIDATE documents (not admin's)
-// ✅ FIXED: Payment Approve/Reject now uses application_id (not payment_id) - matches backend
-// ✅ ENHANCED: Payment Verification section identical to Service Application Screen
-// ✅ FIXED: Mobile file picker now properly reads bytes from file path
-// ✅ FIXED: Null check operator error on mobile
+// ✅ FIXED: Document upload works on BOTH Web and Mobile
+// ✅ FIXED: Review and Final Submit dialogs return file bytes correctly
+// ✅ FIXED: Web platform doesn't crash on file.path access
 
 import 'dart:io';
 import 'dart:typed_data';
@@ -23,6 +14,21 @@ import 'package:rojgarnext/core/widgets/file_viewer_screen.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'candidate_profile_screen.dart';
+
+// ============================================================
+// ✅ RESULT MODEL — Returned from dialogs
+// ============================================================
+class _DialogResult {
+  final Uint8List fileBytes;
+  final String fileName;
+  final String notes;
+
+  _DialogResult({
+    required this.fileBytes,
+    required this.fileName,
+    required this.notes,
+  });
+}
 
 class ApplicationsScreen extends StatefulWidget {
   final String adminRole;
@@ -43,7 +49,9 @@ class ApplicationsScreen extends StatefulWidget {
 class _ApplicationsScreenState extends State<ApplicationsScreen>
     with SingleTickerProviderStateMixin {
   List<dynamic> applications = [];
+  List<dynamic> _filteredApplications = [];
   bool isLoading = true;
+  bool _isRefreshing = false;
   String? _selectedFilter;
   Map<String, dynamic>? _selectedApplication;
   Map<String, dynamic>? _userProfile;
@@ -52,24 +60,11 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
-  // ============================================================
-  // ✅ TWO SEPARATE DOCUMENT LISTS
-  // ============================================================
-  /// Documents uploaded by USER for this application
-  /// (profile documents: Aadhaar, PAN, Resume, etc.)
   List<Map<String, dynamic>> _userDocuments = [];
-
-  /// Documents uploaded by ADMIN via Review / Final Submit buttons
-  /// (submitted_document_url + final_document_url)
   List<Map<String, dynamic>> _adminDocuments = [];
-
   bool _isLoadingDocuments = false;
 
-  // ============================================================
-  // ✅ COMPLETE Document Key Map — SAME as user_applications_screen
-  // ============================================================
   static const List<Map<String, String>> _documentKeyMap = [
-    // ==================== IDENTITY ====================
     {'key': 'profile_photo_url', 'label': 'Profile Photo'},
     {'key': 'aadhaar_front', 'label': 'Aadhaar Card (Front)'},
     {'key': 'aadhaar_back', 'label': 'Aadhaar Card (Back)'},
@@ -79,9 +74,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     {'key': 'voter_id_url', 'label': 'Voter ID'},
     {'key': 'driving_license_url', 'label': 'Driving License'},
     {'key': 'ration_card', 'label': 'Ration Card'},
-    {'key': 'npr_card', 'label': 'NPR Card'},
-
-    // ==================== EDUCATION ====================
     {'key': 'tenth_marksheet', 'label': '10th Marksheet'},
     {'key': 'tenth_certificate', 'label': '10th Certificate'},
     {'key': 'twelfth_marksheet', 'label': '12th Marksheet'},
@@ -97,8 +89,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     {'key': 'iti_certificate', 'label': 'ITI Certificate'},
     {'key': 'vocational_certificate', 'label': 'Vocational Training Certificate'},
     {'key': 'skill_development_certificate', 'label': 'Skill Development Certificate'},
-
-    // ==================== PROFESSIONAL ====================
     {'key': 'resume_url', 'label': 'Resume / CV'},
     {'key': 'experience_certificate', 'label': 'Experience Certificate'},
     {'key': 'experience_letter_url', 'label': 'Experience Letter'},
@@ -114,8 +104,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     {'key': 'training_certificate', 'label': 'Training Certificate'},
     {'key': 'internship_certificate', 'label': 'Internship Certificate'},
     {'key': 'apprenticeship_certificate', 'label': 'Apprenticeship Certificate'},
-
-    // ==================== CASTE ====================
     {'key': 'caste_certificate_general', 'label': 'Caste Certificate (General/UR)'},
     {'key': 'caste_certificate_obc', 'label': 'Caste Certificate (OBC)'},
     {'key': 'caste_certificate_sc', 'label': 'Caste Certificate (SC)'},
@@ -124,8 +112,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     {'key': 'ews_certificate', 'label': 'EWS Certificate'},
     {'key': 'non_creamy_layer', 'label': 'Non-Creamy Layer Certificate'},
     {'key': 'caste_validity', 'label': 'Caste Validity Certificate'},
-
-    // ==================== DISABILITY ====================
     {'key': 'disability_certificate_url', 'label': 'Disability Certificate'},
     {'key': 'medical_certificate_physical', 'label': 'Medical Certificate (Physical)'},
     {'key': 'hearing_disability', 'label': 'Hearing Disability Certificate'},
@@ -134,16 +120,12 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     {'key': 'mental_disability', 'label': 'Mental Disability Certificate'},
     {'key': 'multiple_disability', 'label': 'Multiple Disability Certificate'},
     {'key': 'disability_id_card', 'label': 'Disability ID Card'},
-
-    // ==================== INCOME ====================
     {'key': 'income_certificate_url', 'label': 'Income Certificate'},
     {'key': 'income_tax_return', 'label': 'Income Tax Return (ITR)'},
     {'key': 'form_16', 'label': 'Form 16'},
     {'key': 'bank_statement', 'label': 'Bank Passbook/Statement'},
     {'key': 'pension_certificate', 'label': 'Pension Certificate'},
     {'key': 'fd_certificate', 'label': 'Fixed Deposit Certificate'},
-
-    // ==================== RESIDENCE ====================
     {'key': 'domicile_certificate', 'label': 'Domicile Certificate'},
     {'key': 'residence_certificate', 'label': 'Residence Certificate'},
     {'key': 'electricity_bill', 'label': 'Electricity Bill'},
@@ -151,16 +133,12 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     {'key': 'gas_bill', 'label': 'Gas Bill'},
     {'key': 'rent_agreement', 'label': 'Rent Agreement'},
     {'key': 'property_document', 'label': 'Property Document'},
-
-    // ==================== FAMILY ====================
     {'key': 'birth_certificate', 'label': 'Birth Certificate'},
     {'key': 'marriage_certificate', 'label': 'Marriage Certificate'},
     {'key': 'family_member_id', 'label': 'Family Member ID'},
     {'key': 'dependent_certificate', 'label': 'Dependent Certificate'},
     {'key': 'family_pension', 'label': 'Family Pension Certificate'},
     {'key': 'survivor_certificate', 'label': 'Survivor Certificate'},
-
-    // ==================== GOVERNMENT ====================
     {'key': 'job_seeker_registration', 'label': 'Job Seeker Registration'},
     {'key': 'employment_exchange_card', 'label': 'Employment Exchange Card'},
     {'key': 'ncs_id', 'label': 'National Career Service ID'},
@@ -169,8 +147,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     {'key': 'pmjjby_certificate', 'label': 'PMJJBY Certificate'},
     {'key': 'pmsby_certificate', 'label': 'PMSBY Certificate'},
     {'key': 'apy_enrollment', 'label': 'APY Enrollment'},
-
-    // ==================== CERTIFICATIONS ====================
     {'key': 'professional_certification', 'label': 'Professional Certification'},
     {'key': 'skill_certificate', 'label': 'Skill Development Certificate'},
     {'key': 'computer_certificate', 'label': 'Computer Course Certificate'},
@@ -182,8 +158,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     {'key': 'data_science_certificate', 'label': 'Data Science Certificate'},
     {'key': 'cloud_computing_certificate', 'label': 'Cloud Computing Certificate'},
     {'key': 'cybersecurity_certificate', 'label': 'Cybersecurity Certificate'},
-
-    // ==================== MISCELLANEOUS ====================
     {'key': 'gap_certificate', 'label': 'Gap Certificate'},
     {'key': 'skip_certificate', 'label': 'Skip Certificate'},
     {'key': 'skip_year_certificate', 'label': 'Skip Year Certificate'},
@@ -199,7 +173,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     {'key': 'other_document_url', 'label': 'Other Document'},
   ];
 
-  // Filter buttons
   final List<Map<String, dynamic>> _filterButtons = [
     {'value': 'all', 'label': 'All', 'icon': Icons.list, 'color': Colors.grey},
     {'value': 'pending', 'label': 'Pending', 'icon': Icons.hourglass_empty, 'color': Colors.orange},
@@ -213,7 +186,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     {'value': 'update_application', 'label': 'Update Pending', 'icon': Icons.edit_note, 'color': Colors.blue},
   ];
 
-  // Status buttons for updating
   final List<Map<String, dynamic>> _statusButtons = [
     {'value': 'pending', 'label': 'Pending', 'color': Colors.orange, 'icon': Icons.hourglass_empty},
     {'value': 'shortlisted', 'label': 'Shortlist', 'color': Colors.blue, 'icon': Icons.star},
@@ -223,9 +195,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     {'value': 'final_submit', 'label': 'Final Submit', 'color': Colors.deepPurple, 'icon': Icons.send_and_archive},
   ];
 
-  // ============================================================
-  // ✅ ULTRA-STRICT document URL validator
-  // ============================================================
   bool _isValidDocUrl(dynamic value) {
     if (value == null) return false;
     if (value is Map && value.isEmpty) return false;
@@ -351,6 +320,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
 
     setState(() {
       isLoading = true;
+      _isRefreshing = true;
     });
 
     try {
@@ -382,7 +352,9 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         if (mounted) {
           setState(() {
             applications = [];
+            _filteredApplications = [];
             isLoading = false;
+            _isRefreshing = false;
           });
         }
         return;
@@ -412,24 +384,42 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
 
       debugPrint("📊 Filtered applications for admin: ${applications.length}");
 
-      if (_selectedFilter != 'all') {
-        applications = applications.where((app) {
-          final status = app['status']?.toString().toLowerCase() ?? '';
-          return status == _selectedFilter!.toLowerCase();
-        }).toList();
-      }
+      _applyFilter();
     } catch (e) {
       if (!mounted) return;
       debugPrint("❌ Error fetching applications: $e");
       showMessage(context, "Failed to load applications: $e", isError: true);
       applications = [];
+      _filteredApplications = [];
     } finally {
       if (mounted) {
         setState(() {
           isLoading = false;
+          _isRefreshing = false;
         });
       }
     }
+  }
+
+  void _applyFilter() {
+    List<dynamic> result;
+    if (_selectedFilter == 'all' || _selectedFilter == null) {
+      result = applications;
+    } else {
+      result = applications.where((app) {
+        final status = app['status']?.toString().toLowerCase() ?? '';
+        return status == _selectedFilter!.toLowerCase();
+      }).toList();
+    }
+    if (mounted) {
+      setState(() => _filteredApplications = result);
+    }
+  }
+
+  void _onFilterSelected(String filterValue) {
+    if (_selectedFilter == filterValue) return;
+    setState(() => _selectedFilter = filterValue);
+    _applyFilter();
   }
 
   Future<void> _fetchUserProfile(String email) async {
@@ -454,9 +444,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     }
   }
 
-  // ============================================================
-  // ✅ FETCH USER (CANDIDATE) PROFILE DOCUMENTS — separated
-  // ============================================================
   Future<void> _fetchUserDocuments(String email) async {
     if (!mounted) return;
     if (email.isEmpty) {
@@ -558,17 +545,9 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     }
   }
 
-  // ============================================================
-  // ✅ NEW: EXTRACT ADMIN-UPLOADED DOCUMENTS for a given application
-  // Admin documents come ONLY from:
-  //   1) submitted_document_url (Review button upload)
-  //   2) final_document_url     (Final Submit button upload)
-  // ============================================================
-  List<Map<String, dynamic>> _getAdminDocumentsForApp(
-      Map<String, dynamic> app) {
+  List<Map<String, dynamic>> _getAdminDocumentsForApp(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> list = [];
 
-    // 1) Review document (Admin uploaded via Review)
     final submittedUrl = app['submitted_document_url'];
     if (_isValidDocUrl(submittedUrl)) {
       final urlStr = submittedUrl.toString().trim();
@@ -588,7 +567,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       }
     }
 
-    // 2) Final Submit document (Admin uploaded via Final Submit)
     final finalUrl = app['final_document_url'];
     if (_isValidDocUrl(finalUrl)) {
       final urlStr = finalUrl.toString().trim();
@@ -611,15 +589,9 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     return list;
   }
 
-  // ============================================================
-  // ✅ EXTRACT USER-UPLOADED DOCUMENTS for a given application
-  // (payment receipt + resume the user attached to this application)
-  // ============================================================
-  List<Map<String, dynamic>> _getUserApplicationDocsForApp(
-      Map<String, dynamic> app) {
+  List<Map<String, dynamic>> _getUserApplicationDocsForApp(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> list = [];
 
-    // 1) Payment receipt (User uploaded)
     final receiptUrl = app['payment_receipt_url'];
     if (_isValidDocUrl(receiptUrl)) {
       final urlStr = receiptUrl.toString().trim();
@@ -636,7 +608,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       }
     }
 
-    // 2) Resume attached to this application (User)
     final appResume = app['resume_url'];
     if (_isValidDocUrl(appResume)) {
       final urlStr = appResume.toString().trim();
@@ -711,15 +682,10 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     );
   }
 
-  // ====================================================================
-  // ✅ SPLIT DOCUMENTS UI — Two distinct cards
-  // ====================================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
-    // Build separate lists
     final adminDocs = _getAdminDocumentsForApp(app);
     final userAppDocs = _getUserApplicationDocsForApp(app);
 
-    // User docs = profile docs + user-attached application docs
     final allUserDocs = <Map<String, dynamic>>[];
     allUserDocs.addAll(userAppDocs);
     for (final d in _userDocuments) {
@@ -732,208 +698,175 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ------------------------------------------------------------
-        // SECTION 1: ADMIN UPLOADED DOCUMENTS (Review / Final Submit)
-        // ------------------------------------------------------------
         _buildAdminDocumentsCard(adminDocs),
-
         const SizedBox(height: 16),
-
-        // ------------------------------------------------------------
-        // SECTION 2: USER UPLOADED DOCUMENTS (for this application)
-        // ------------------------------------------------------------
         _buildUserDocumentsCard(allUserDocs),
       ],
     );
   }
 
-  // ====================================================================
-  // ✅ ADMIN UPLOADED DOCUMENTS CARD
-  // ====================================================================
   Widget _buildAdminDocumentsCard(List<Map<String, dynamic>> adminDocs) {
     final int count = adminDocs.length;
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.purple.shade100,
-                    borderRadius: BorderRadius.circular(10),
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF7C3AED), Color(0xFFA855F7)],
                   ),
-                  child: const Icon(
-                    Icons.admin_panel_settings,
-                    color: Colors.purple,
-                    size: 22,
-                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Admin Uploaded Documents",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        "Uploaded via Review / Final Submit",
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.purple.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    "$count ${count == 1 ? 'File' : 'Files'}",
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.purple,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Body
-            if (count == 0)
-              _buildEmptyDocMessage(
-                icon: Icons.folder_off,
-                color: Colors.purple,
-                message: "No admin documents uploaded yet",
-                subMessage:
-                    "Documents uploaded via Review or Final Submit will appear here",
-              )
-            else
-              Column(
-                children: adminDocs.asMap().entries.map((entry) {
-                  return _buildAdminDocumentRow(entry.key, entry.value);
-                }).toList(),
+                child: const Icon(Icons.admin_panel_settings,
+                    color: Colors.white, size: 22),
               ),
-          ],
-        ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Admin Uploaded Documents",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      "Uploaded via Review / Final Submit",
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "$count ${count == 1 ? 'File' : 'Files'}",
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (count == 0)
+            _buildEmptyDocMessage(
+              icon: Icons.folder_off,
+              color: Colors.purple,
+              message: "No admin documents uploaded yet",
+              subMessage: "Documents uploaded via Review or Final Submit will appear here",
+            )
+          else
+            Column(
+              children: adminDocs
+                  .asMap()
+                  .entries
+                  .map((e) => _buildAdminDocumentRow(e.key, e.value))
+                  .toList(),
+            ),
+        ],
       ),
     );
   }
 
-  // ====================================================================
-  // ✅ USER UPLOADED DOCUMENTS CARD
-  // ====================================================================
   Widget _buildUserDocumentsCard(List<Map<String, dynamic>> userDocs) {
     final int count = userDocs.length;
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
-                    borderRadius: BorderRadius.circular(10),
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2563EB), Color(0xFF60A5FA)],
                   ),
-                  child: const Icon(
-                    Icons.person,
-                    color: Colors.blue,
-                    size: 22,
-                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "User Uploaded Documents",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        "Uploaded by candidate for this application",
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    "$count ${count == 1 ? 'File' : 'Files'}",
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Body
-            if (_isLoadingDocuments)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (count == 0)
-              _buildEmptyDocMessage(
-                icon: Icons.folder_off,
-                color: Colors.blue,
-                message: "No user documents uploaded yet",
-                subMessage: "Candidate has not uploaded any documents",
-              )
-            else
-              Column(
-                children: userDocs.asMap().entries.map((entry) {
-                  return _buildUserDocumentRow(entry.key, entry.value);
-                }).toList(),
+                child: const Icon(Icons.person, color: Colors.white, size: 22),
               ),
-          ],
-        ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "User Uploaded Documents",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      "Uploaded by candidate for this application",
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "$count ${count == 1 ? 'File' : 'Files'}",
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (_isLoadingDocuments)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (count == 0)
+            _buildEmptyDocMessage(
+              icon: Icons.folder_off,
+              color: Colors.blue,
+              message: "No user documents uploaded yet",
+              subMessage: "Candidate has not uploaded any documents",
+            )
+          else
+            Column(
+              children: userDocs
+                  .asMap()
+                  .entries
+                  .map((e) => _buildUserDocumentRow(e.key, e.value))
+                  .toList(),
+            ),
+        ],
       ),
     );
   }
 
-  // ====================================================================
-  // ✅ Empty state for documents
-  // ====================================================================
   Widget _buildEmptyDocMessage({
     required IconData icon,
     required Color color,
@@ -967,9 +900,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     );
   }
 
-  // ====================================================================
-  // ✅ ADMIN document row
-  // ====================================================================
   Widget _buildAdminDocumentRow(int index, Map<String, dynamic> doc) {
     final String label = doc['label']?.toString() ?? 'Admin Document ${index + 1}';
     final String url = doc['url']?.toString() ?? '';
@@ -1007,19 +937,18 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                 Text(
                   label,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
                   ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.purple,
                         borderRadius: BorderRadius.circular(6),
@@ -1045,13 +974,10 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   ],
                 ),
                 if (uploadedBy != null && uploadedBy.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     "By: $uploadedBy",
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey.shade700,
-                    ),
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1059,10 +985,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                 if (uploadedAt != null) ...[
                   Text(
                     "At: ${_formatDateTimeShort(uploadedAt.toString())}",
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                   ),
                 ],
               ],
@@ -1070,7 +993,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
           ),
           IconButton(
             icon: const Icon(Icons.visibility, color: Colors.purple),
-            tooltip: "View Admin Document",
+            tooltip: "View",
             onPressed: () => _openDocumentViewer(
               url,
               title: label,
@@ -1083,9 +1006,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     );
   }
 
-  // ====================================================================
-  // ✅ USER document row
-  // ====================================================================
   Widget _buildUserDocumentRow(int index, Map<String, dynamic> doc) {
     final String label = doc['label']?.toString() ?? 'Document ${index + 1}';
     final String url = doc['url']?.toString() ?? '';
@@ -1124,20 +1044,19 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                 Text(
                   label,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
                   ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Row(
                   children: [
                     if (isAppDoc)
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.blue.shade200,
                           borderRadius: BorderRadius.circular(6),
@@ -1180,7 +1099,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     );
   }
 
-  // ---- Helpers for icons/colors ----
   IconData _iconForUrl(String url) {
     final u = url.toLowerCase();
     if (u.contains('.pdf') || u.contains('/raw/')) {
@@ -1231,7 +1149,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     return 'file';
   }
 
-  // ==================== VIEW APPLICATION UPDATES DIALOG ====================
   void _showApplicationUpdatesDialog(Map<String, dynamic> application) {
     final updates = application['application_updates'];
     final updateNotes = application['update_notes'];
@@ -1240,8 +1157,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     final currentStatus = application['status'];
 
     if (updates == null || updates.isEmpty) {
-      showMessage(context, "No updates found for this application",
-          isError: true);
+      showMessage(context, "No updates found for this application", isError: true);
       return;
     }
 
@@ -1276,11 +1192,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                         color: Colors.blue.shade200,
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(
-                        Icons.edit_note,
-                        color: Colors.blue,
-                        size: 28,
-                      ),
+                      child: const Icon(Icons.edit_note, color: Colors.blue, size: 28),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -1289,17 +1201,11 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                         children: [
                           const Text(
                             "Application Updates",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                           ),
                           Text(
                             "Submitted by: $updateSubmittedBy",
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
                           ),
                         ],
                       ),
@@ -1319,14 +1225,9 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: _getStatusColor(
-                                  currentStatus ?? 'update_application')
-                              .withAlpha(25),
+                          color: _getStatusColor(currentStatus ?? 'update_application').withAlpha(25),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -1335,8 +1236,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                             Icon(
                               Icons.edit_note,
                               size: 16,
-                              color: _getStatusColor(
-                                  currentStatus ?? 'update_application'),
+                              color: _getStatusColor(currentStatus ?? 'update_application'),
                             ),
                             const SizedBox(width: 6),
                             Text(
@@ -1344,8 +1244,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: _getStatusColor(
-                                    currentStatus ?? 'update_application'),
+                                color: _getStatusColor(currentStatus ?? 'update_application'),
                               ),
                             ),
                           ],
@@ -1361,18 +1260,11 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                           ),
                           child: Row(
                             children: [
-                              const Icon(
-                                Icons.access_time,
-                                size: 18,
-                                color: Colors.grey,
-                              ),
+                              const Icon(Icons.access_time, size: 18, color: Colors.grey),
                               const SizedBox(width: 8),
                               Text(
                                 "Submitted: ${_formatDateTime(updateSubmittedAt)}",
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey,
-                                ),
+                                style: const TextStyle(fontSize: 13, color: Colors.grey),
                               ),
                             ],
                           ),
@@ -1391,14 +1283,10 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                children: [
-                                  const Icon(
-                                    Icons.note,
-                                    size: 18,
-                                    color: Colors.orange,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text(
+                                children: const [
+                                  Icon(Icons.note, size: 18, color: Colors.orange),
+                                  SizedBox(width: 8),
+                                  Text(
                                     "Additional Notes:",
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
@@ -1409,19 +1297,13 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                                 ],
                               ),
                               const SizedBox(height: 8),
-                              Text(
-                                updateNotes,
-                                style: const TextStyle(fontSize: 13),
-                              ),
+                              Text(updateNotes, style: const TextStyle(fontSize: 13)),
                             ],
                           ),
                         ),
                       const Text(
                         "Updated Fields:",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 12),
                       ...updates.map((update) => _buildUpdateCard(update)),
@@ -1493,11 +1375,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   color: Colors.blue.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
-                  Icons.edit,
-                  size: 16,
-                  color: Colors.blue,
-                ),
+                child: const Icon(Icons.edit, size: 16, color: Colors.blue),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1513,10 +1391,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
               if (submittedAt != null)
                 Text(
                   _formatDateTimeShort(submittedAt),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
                 ),
             ],
           ),
@@ -1530,19 +1405,12 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.text_snippet,
-                  size: 16,
-                  color: Colors.green,
-                ),
+                const Icon(Icons.text_snippet, size: 16, color: Colors.green),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     fieldValue,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
+                    style: const TextStyle(fontSize: 13, height: 1.4),
                   ),
                 ),
               ],
@@ -1573,59 +1441,80 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     }
   }
 
-  // ==================== REVIEW DIALOG ====================
+  // ============================================================================
+  // ✅ CRITICAL FIX: REVIEW DIALOG — Returns _DialogResult
+  // ============================================================================
   Future<void> _showReviewDialog(String applicationId) async {
-    final TextEditingController notesController = TextEditingController();
-    String? selectedFileName;
-    Uint8List? selectedFileBytes;
+    debugPrint("=" * 70);
+    debugPrint("📝 OPENING REVIEW DIALOG");
+    debugPrint("   Application ID: $applicationId");
+    debugPrint("=" * 70);
 
-    final result = await showDialog<Map<String, dynamic>?>(
+    // ✅ Show dialog and get typed result
+    final result = await showDialog<_DialogResult>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => _ReviewDialogContent(
-        notesController: notesController,
-        onFileSelected: (name, bytes) {
-          selectedFileName = name;
-          selectedFileBytes = bytes;
-        },
-      ),
+      builder: (dialogContext) => _ReviewDialogContent(),
     );
 
-    if (result == null) return;
+    // ✅ User cancelled
+    if (result == null) {
+      debugPrint("❌ Review dialog cancelled by user");
+      return;
+    }
+
+    debugPrint("=" * 70);
+    debugPrint("✅ REVIEW DIALOG RETURNED DATA");
+    debugPrint("   File Name: ${result.fileName}");
+    debugPrint("   File Bytes: ${result.fileBytes.length}");
+    debugPrint("   Notes: ${result.notes}");
+    debugPrint("=" * 70);
 
     setState(() => _isUpdatingStatus = true);
 
     try {
       final basePath = _getApiBasePath();
-      final notes = notesController.text.trim();
+      final notes = result.notes.trim();
 
-      if (selectedFileBytes != null && selectedFileName != null) {
-        final formData = FormData.fromMap({
-          'file': MultipartFile.fromBytes(
-            selectedFileBytes!,
-            filename: selectedFileName!,
-          ),
-          'notes': notes,
-        });
+      // ✅ STEP 1: Upload document
+      debugPrint("📤 STEP 1: Uploading document...");
+      debugPrint("   Endpoint: $basePath/applications/$applicationId/submit-document");
 
-        final uploadResponse = await DioClient.dio.post(
-          '$basePath/applications/$applicationId/submit-document',
-          data: formData,
-          options: Options(
-            headers: {"Content-Type": "multipart/form-data"},
-          ),
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(
+          result.fileBytes,
+          filename: result.fileName,
+        ),
+        'notes': notes,
+      });
+
+      final uploadResponse = await DioClient.dio.post(
+        '$basePath/applications/$applicationId/submit-document',
+        data: formData,
+        options: Options(headers: {"Content-Type": "multipart/form-data"}),
+      );
+
+      debugPrint("📥 Upload response status: ${uploadResponse.statusCode}");
+      debugPrint("📥 Upload response data: ${uploadResponse.data}");
+
+      if (!mounted) return;
+
+      if (uploadResponse.data['success'] != true) {
+        showMessage(
+          context,
+          uploadResponse.data['message'] ?? "Failed to upload document",
+          isError: true,
         );
-
-        if (!mounted) return;
-
-        if (uploadResponse.data['success'] != true) {
-          showMessage(context, "Failed to upload document", isError: true);
-          setState(() => _isUpdatingStatus = false);
-          return;
-        }
+        setState(() => _isUpdatingStatus = false);
+        return;
       }
 
-      final response = await DioClient.dio.put(
+      debugPrint("✅ Document uploaded successfully!");
+
+      // ✅ STEP 2: Update status to review_application
+      debugPrint("📤 STEP 2: Updating status to review_application...");
+
+      final statusResponse = await DioClient.dio.put(
         '$basePath/applications/$applicationId/status',
         queryParameters: {
           'status': 'review_application',
@@ -1633,38 +1522,41 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         },
       );
 
+      debugPrint("📥 Status response: ${statusResponse.data}");
+
       if (!mounted) return;
 
-      if (response.data['success'] == true) {
+      if (statusResponse.data['success'] == true) {
         showMessage(context, "✅ Application marked as REVIEW with document!");
+
+        // ✅ Refresh applications list
         await _fetchApplications();
 
+        // ✅ Update selected application view
         if (_selectedApplication != null &&
             _selectedApplication!['_id'] == applicationId) {
           final updated = applications.firstWhere(
             (app) => app['_id'] == applicationId,
-            orElse: () => null,
+            orElse: () => <String, dynamic>{},
           );
-          if (updated != null) {
+          if (updated.isNotEmpty) {
             setState(() {
               _selectedApplication = updated;
             });
-            // Re-fetch admin documents for the updated app
             _adminDocuments = _getAdminDocumentsForApp(updated);
           }
         }
       } else {
         showMessage(
           context,
-          response.data['message'] ?? "Failed to update status",
+          statusResponse.data['message'] ?? "Failed to update status",
           isError: true,
         );
       }
     } catch (e) {
       if (!mounted) return;
-      debugPrint("❌ Error updating status: $e");
-      showMessage(context, "Failed to update status: ${e.toString()}",
-          isError: true);
+      debugPrint("❌ Error in review submit: $e");
+      showMessage(context, "Failed: ${e.toString()}", isError: true);
     } finally {
       if (mounted) {
         setState(() => _isUpdatingStatus = false);
@@ -1672,59 +1564,80 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     }
   }
 
-  // ==================== FINAL SUBMIT DIALOG ====================
+  // ============================================================================
+  // ✅ CRITICAL FIX: FINAL SUBMIT DIALOG — Returns _DialogResult
+  // ============================================================================
   Future<void> _showFinalSubmitDialog(String applicationId) async {
-    final TextEditingController notesController = TextEditingController();
-    String? selectedFileName;
-    Uint8List? selectedFileBytes;
+    debugPrint("=" * 70);
+    debugPrint("📝 OPENING FINAL SUBMIT DIALOG");
+    debugPrint("   Application ID: $applicationId");
+    debugPrint("=" * 70);
 
-    final result = await showDialog<Map<String, dynamic>?>(
+    // ✅ Show dialog and get typed result
+    final result = await showDialog<_DialogResult>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => _FinalSubmitDialogContent(
-        notesController: notesController,
-        onFileSelected: (name, bytes) {
-          selectedFileName = name;
-          selectedFileBytes = bytes;
-        },
-      ),
+      builder: (dialogContext) => _FinalSubmitDialogContent(),
     );
 
-    if (result == null) return;
+    // ✅ User cancelled
+    if (result == null) {
+      debugPrint("❌ Final submit dialog cancelled by user");
+      return;
+    }
+
+    debugPrint("=" * 70);
+    debugPrint("✅ FINAL SUBMIT DIALOG RETURNED DATA");
+    debugPrint("   File Name: ${result.fileName}");
+    debugPrint("   File Bytes: ${result.fileBytes.length}");
+    debugPrint("   Notes: ${result.notes}");
+    debugPrint("=" * 70);
 
     setState(() => _isUpdatingStatus = true);
 
     try {
       final basePath = _getApiBasePath();
-      final notes = notesController.text.trim();
+      final notes = result.notes.trim();
 
-      if (selectedFileBytes != null && selectedFileName != null) {
-        final formData = FormData.fromMap({
-          'file': MultipartFile.fromBytes(
-            selectedFileBytes!,
-            filename: selectedFileName!,
-          ),
-          'notes': notes,
-        });
+      // ✅ STEP 1: Upload final document
+      debugPrint("📤 STEP 1: Uploading final document...");
+      debugPrint("   Endpoint: $basePath/applications/$applicationId/submit-document");
 
-        final uploadResponse = await DioClient.dio.post(
-          '$basePath/applications/$applicationId/submit-document',
-          data: formData,
-          options: Options(
-            headers: {"Content-Type": "multipart/form-data"},
-          ),
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(
+          result.fileBytes,
+          filename: result.fileName,
+        ),
+        'notes': notes,
+      });
+
+      final uploadResponse = await DioClient.dio.post(
+        '$basePath/applications/$applicationId/submit-document',
+        data: formData,
+        options: Options(headers: {"Content-Type": "multipart/form-data"}),
+      );
+
+      debugPrint("📥 Upload response status: ${uploadResponse.statusCode}");
+      debugPrint("📥 Upload response data: ${uploadResponse.data}");
+
+      if (!mounted) return;
+
+      if (uploadResponse.data['success'] != true) {
+        showMessage(
+          context,
+          uploadResponse.data['message'] ?? "Failed to upload document",
+          isError: true,
         );
-
-        if (!mounted) return;
-
-        if (uploadResponse.data['success'] != true) {
-          showMessage(context, "Failed to upload document", isError: true);
-          setState(() => _isUpdatingStatus = false);
-          return;
-        }
+        setState(() => _isUpdatingStatus = false);
+        return;
       }
 
-      final response = await DioClient.dio.put(
+      debugPrint("✅ Final document uploaded successfully!");
+
+      // ✅ STEP 2: Update status to final_submit
+      debugPrint("📤 STEP 2: Updating status to final_submit...");
+
+      final statusResponse = await DioClient.dio.put(
         '$basePath/applications/$applicationId/status',
         queryParameters: {
           'status': 'final_submit',
@@ -1732,19 +1645,24 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         },
       );
 
+      debugPrint("📥 Status response: ${statusResponse.data}");
+
       if (!mounted) return;
 
-      if (response.data['success'] == true) {
+      if (statusResponse.data['success'] == true) {
         showMessage(context, "✅ Application FINAL SUBMITTED!");
+
+        // ✅ Refresh applications list
         await _fetchApplications();
 
+        // ✅ Update selected application view
         if (_selectedApplication != null &&
             _selectedApplication!['_id'] == applicationId) {
           final updated = applications.firstWhere(
             (app) => app['_id'] == applicationId,
-            orElse: () => null,
+            orElse: () => <String, dynamic>{},
           );
-          if (updated != null) {
+          if (updated.isNotEmpty) {
             setState(() {
               _selectedApplication = updated;
             });
@@ -1754,15 +1672,14 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       } else {
         showMessage(
           context,
-          response.data['message'] ?? "Failed to update status",
+          statusResponse.data['message'] ?? "Failed to update status",
           isError: true,
         );
       }
     } catch (e) {
       if (!mounted) return;
-      debugPrint("❌ Error updating status: $e");
-      showMessage(context, "Failed to update status: ${e.toString()}",
-          isError: true);
+      debugPrint("❌ Error in final submit: $e");
+      showMessage(context, "Failed: ${e.toString()}", isError: true);
     } finally {
       if (mounted) {
         setState(() => _isUpdatingStatus = false);
@@ -1770,7 +1687,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     }
   }
 
-  // ==================== REGULAR STATUS UPDATE ====================
   Future<void> _updateStatus(String applicationId, String newStatus) async {
     if (!mounted) return;
 
@@ -1781,8 +1697,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     try {
       final basePath = _getApiBasePath();
 
-      debugPrint(
-          "📤 Updating application $applicationId to status: $newStatus via $basePath");
+      debugPrint("📤 Updating application $applicationId to status: $newStatus via $basePath");
 
       final response = await DioClient.dio.put(
         '$basePath/applications/$applicationId/status',
@@ -1797,28 +1712,24 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         showMessage(context, "Status updated to $newStatus successfully!");
         await _fetchApplications();
 
-        if (_selectedApplication != null &&
-            _selectedApplication!['_id'] == applicationId) {
+        if (_selectedApplication != null && _selectedApplication!['_id'] == applicationId) {
           final updated = applications.firstWhere(
             (app) => app['_id'] == applicationId,
-            orElse: () => null,
+            orElse: () => <String, dynamic>{},
           );
-          if (updated != null) {
+          if (updated.isNotEmpty) {
             setState(() {
               _selectedApplication = updated;
             });
           }
         }
       } else {
-        showMessage(
-            context, response.data['message'] ?? "Failed to update status",
-            isError: true);
+        showMessage(context, response.data['message'] ?? "Failed to update status", isError: true);
       }
     } catch (e) {
       if (!mounted) return;
       debugPrint("❌ Error updating status: $e");
-      showMessage(context, "Failed to update status: ${e.toString()}",
-          isError: true);
+      showMessage(context, "Failed to update status: ${e.toString()}", isError: true);
     } finally {
       if (mounted) {
         setState(() {
@@ -1828,7 +1739,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     }
   }
 
-  // ==================== PAYMENT VERIFICATION ====================
   Future<void> _approvePayment(String applicationId, String appId) async {
     if (!mounted) return;
     setState(() => _isUpdatingStatus = true);
@@ -1848,17 +1758,16 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       if (response.data['success'] == true) {
         showMessage(
           context,
-          "✅ Payment approved successfully! Application status updated to VERIFICATION SUCCESSFUL.",
+          "✅ Payment approved successfully!",
         );
         await _fetchApplications();
 
-        if (_selectedApplication != null &&
-            _selectedApplication!['_id'] == applicationId) {
+        if (_selectedApplication != null && _selectedApplication!['_id'] == applicationId) {
           final updated = applications.firstWhere(
             (a) => a['_id'] == applicationId,
-            orElse: () => null,
+            orElse: () => <String, dynamic>{},
           );
-          if (updated != null) {
+          if (updated.isNotEmpty) {
             setState(() {
               _selectedApplication = updated;
             });
@@ -1867,15 +1776,12 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
           }
         }
       } else {
-        showMessage(
-            context, response.data['message'] ?? "Failed to approve payment",
-            isError: true);
+        showMessage(context, response.data['message'] ?? "Failed to approve payment", isError: true);
       }
     } catch (e) {
       if (!mounted) return;
       debugPrint("❌ Approve payment error: $e");
-      showMessage(context, "Failed to approve payment: ${e.toString()}",
-          isError: true);
+      showMessage(context, "Failed to approve payment: ${e.toString()}", isError: true);
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
     }
@@ -1896,18 +1802,18 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.red.shade100,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.cancel, color: Colors.red, size: 24),
+              child: const Icon(Icons.cancel, color: Colors.white, size: 22),
             ),
             const SizedBox(width: 12),
-            const Text(
-              "Reject Payment",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
+            const Expanded(
+              child: Text(
+                "Reject Payment",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
               ),
             ),
           ],
@@ -1916,44 +1822,19 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Please provide a reason for rejecting this payment:",
-              style: TextStyle(fontSize: 14),
-            ),
+            const Text("Please provide a reason for rejecting this payment:", style: TextStyle(fontSize: 14)),
             const SizedBox(height: 16),
             TextField(
               controller: reasonController,
               maxLines: 3,
               decoration: InputDecoration(
                 hintText: "Enter rejection reason...",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
                 fillColor: Colors.grey.shade50,
                 prefixIcon: const Icon(Icons.edit_note, color: Colors.red),
               ),
               style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline, size: 14, color: Colors.orange),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "This reason will be sent to the applicant.\nApplication status will be updated to VERIFICATION REJECTED.",
-                      style: TextStyle(fontSize: 11, color: Colors.orange),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -1966,9 +1847,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             onPressed: () {
               final reason = reasonController.text.trim();
               if (reason.isEmpty) {
-                showMessage(
-                    dialogContext, "Please enter a reason for rejection",
-                    isError: true);
+                showMessage(dialogContext, "Please enter a reason", isError: true);
                 return;
               }
               Navigator.pop(dialogContext, true);
@@ -1976,9 +1855,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: const Text("Reject Payment"),
           ),
@@ -1987,8 +1864,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     );
   }
 
-  Future<void> _executeRejectPayment(
-      String applicationId, String appId, String reason) async {
+  Future<void> _executeRejectPayment(String applicationId, String appId, String reason) async {
     if (!mounted) return;
     setState(() => _isUpdatingStatus = true);
 
@@ -2005,19 +1881,15 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       if (!mounted) return;
 
       if (response.data['success'] == true) {
-        showMessage(
-          context,
-          "❌ Payment rejected. Application status updated to VERIFICATION REJECTED.",
-        );
+        showMessage(context, "❌ Payment rejected.");
         await _fetchApplications();
 
-        if (_selectedApplication != null &&
-            _selectedApplication!['_id'] == applicationId) {
+        if (_selectedApplication != null && _selectedApplication!['_id'] == applicationId) {
           final updated = applications.firstWhere(
             (a) => a['_id'] == applicationId,
-            orElse: () => null,
+            orElse: () => <String, dynamic>{},
           );
-          if (updated != null) {
+          if (updated.isNotEmpty) {
             setState(() {
               _selectedApplication = updated;
             });
@@ -2026,15 +1898,12 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
           }
         }
       } else {
-        showMessage(
-            context, response.data['message'] ?? "Failed to reject payment",
-            isError: true);
+        showMessage(context, response.data['message'] ?? "Failed to reject payment", isError: true);
       }
     } catch (e) {
       if (!mounted) return;
       debugPrint("❌ Reject payment error: $e");
-      showMessage(context, "Failed to reject payment: ${e.toString()}",
-          isError: true);
+      showMessage(context, "Failed to reject payment: ${e.toString()}", isError: true);
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
     }
@@ -2061,9 +1930,11 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             children: [
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: const BorderRadius.only(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  ),
+                  borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(20),
                     topRight: Radius.circular(20),
                   ),
@@ -2073,14 +1944,10 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.orange,
+                        color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.receipt,
-                        color: Colors.white,
-                        size: 24,
-                      ),
+                      child: const Icon(Icons.receipt, color: Colors.white, size: 24),
                     ),
                     const SizedBox(width: 12),
                     const Expanded(
@@ -2089,12 +1956,12 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.orange,
+                          color: Colors.white,
                         ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.orange),
+                      icon: const Icon(Icons.close, color: Colors.white),
                       onPressed: () => Navigator.pop(dialogContext),
                     ),
                   ],
@@ -2221,28 +2088,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     }
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: Colors.grey.shade600),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 80,
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 13, color: Colors.grey),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildPaymentInfoRow(IconData icon, String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2270,270 +2115,163 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     );
   }
 
-  // ============================================================
-  // ✅ PAYMENT VERIFICATION SECTION
-  // ============================================================
   Widget _buildPaymentVerificationSection(Map<String, dynamic> app) {
     final applicationId = app['_id']?.toString() ?? '';
-    final verificationStatus =
-        (app['payment_verification_status'] ?? 'not_submitted').toString();
+    final verificationStatus = (app['payment_verification_status'] ?? 'not_submitted').toString();
     final transactionId = app['transaction_id'];
     final transactionDate = app['transaction_date'];
     final paymentReceiptUrl = app['payment_receipt_url'];
     final paymentAmount = app['payment_amount'];
     final paymentCategory = app['payment_category_used'];
-    final rejectionReason =
-        app['payment_rejection_reason'] ?? app['verification_notes'];
-    final currentAppStatus =
-        (app['status'] ?? 'pending_verification').toString();
+    final rejectionReason = app['payment_rejection_reason'] ?? app['verification_notes'];
+    final currentAppStatus = (app['status'] ?? 'pending_verification').toString();
     final paymentMethod = (app['payment_method'] ?? 'razorpay').toString();
     final razorpayPaymentId = app['razorpay_payment_id'];
     final razorpayOrderId = app['razorpay_order_id'];
 
     if (verificationStatus.toLowerCase() == 'pending') {
-      return Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.orange.shade50, Colors.white],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      return _buildGlassContainer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.verified_user, color: Colors.white, size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Pending Payment Verification",
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                      ),
+                      Text(
+                        "Review and verify the payment details",
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    "PENDING",
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ),
+              ],
             ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.orange.shade200, width: 1.5),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.orange.shade400,
-                          Colors.orange.shade700
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.verified_user,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Pending Payment Verification",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange,
-                          ),
-                        ),
-                        Text(
-                          "Review and verify the payment details",
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      "PENDING",
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 12),
+            _buildPaymentInfoRow(Icons.receipt_long, "Transaction ID", transactionId?.toString() ?? "N/A"),
+            const SizedBox(height: 10),
+            _buildPaymentInfoRow(Icons.calendar_today, "Transaction Date",
+                transactionDate != null ? _formatDate(transactionDate.toString()) : "N/A"),
+            const SizedBox(height: 10),
+            _buildPaymentInfoRow(Icons.currency_rupee, "Amount Paid",
+                paymentAmount != null ? "₹$paymentAmount" : "N/A"),
+            const SizedBox(height: 10),
+            _buildPaymentInfoRow(Icons.category, "Category",
+                paymentCategory?.toString().toUpperCase() ?? "N/A"),
+            if (razorpayPaymentId != null && razorpayPaymentId.toString().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _buildPaymentInfoRow(Icons.payment, "Razorpay Payment ID", razorpayPaymentId.toString()),
+            ],
+            if (razorpayOrderId != null && razorpayOrderId.toString().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _buildPaymentInfoRow(Icons.shopping_cart, "Razorpay Order ID", razorpayOrderId.toString()),
+            ],
+            if (paymentMethod.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _buildPaymentInfoRow(Icons.account_balance_wallet, "Payment Method", paymentMethod.toUpperCase()),
+            ],
+            if (paymentReceiptUrl != null && paymentReceiptUrl.toString().isNotEmpty) ...[
               const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 12),
-              _buildPaymentInfoRow(
-                Icons.receipt_long,
-                "Transaction ID",
-                transactionId?.toString() ?? "N/A",
-              ),
-              const SizedBox(height: 10),
-              _buildPaymentInfoRow(
-                Icons.calendar_today,
-                "Transaction Date",
-                transactionDate != null
-                    ? _formatDate(transactionDate.toString())
-                    : "N/A",
-              ),
-              const SizedBox(height: 10),
-              _buildPaymentInfoRow(
-                Icons.currency_rupee,
-                "Amount Paid",
-                paymentAmount != null ? "₹$paymentAmount" : "N/A",
-              ),
-              const SizedBox(height: 10),
-              _buildPaymentInfoRow(
-                Icons.category,
-                "Category",
-                paymentCategory?.toString().toUpperCase() ?? "N/A",
-              ),
-              if (razorpayPaymentId != null &&
-                  razorpayPaymentId.toString().isNotEmpty) ...[
-                const SizedBox(height: 10),
-                _buildPaymentInfoRow(
-                  Icons.payment,
-                  "Razorpay Payment ID",
-                  razorpayPaymentId.toString(),
-                ),
-              ],
-              if (razorpayOrderId != null &&
-                  razorpayOrderId.toString().isNotEmpty) ...[
-                const SizedBox(height: 10),
-                _buildPaymentInfoRow(
-                  Icons.shopping_cart,
-                  "Razorpay Order ID",
-                  razorpayOrderId.toString(),
-                ),
-              ],
-              if (paymentMethod.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                _buildPaymentInfoRow(
-                  Icons.account_balance_wallet,
-                  "Payment Method",
-                  paymentMethod.toUpperCase(),
-                ),
-              ],
-              if (paymentReceiptUrl != null &&
-                  paymentReceiptUrl.toString().isNotEmpty) ...[
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () =>
-                        _showPaymentReceiptDialog(paymentReceiptUrl.toString()),
-                    icon: const Icon(Icons.receipt, size: 18),
-                    label: const Text("View Payment Receipt"),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue,
-                      side: const BorderSide(color: Colors.blue, width: 1.5),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showPaymentReceiptDialog(paymentReceiptUrl.toString()),
+                  icon: const Icon(Icons.receipt, size: 18),
+                  label: const Text("View Payment Receipt"),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.blue,
+                    side: const BorderSide(color: Colors.blue, width: 1.5),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                ),
-              ],
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: _isUpdatingStatus
-                            ? null
-                            : () =>
-                                _approvePayment(applicationId, applicationId),
-                        icon: _isUpdatingStatus
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.check_circle, size: 20),
-                        label: Text(
-                          _isUpdatingStatus ? "Processing..." : "Approve",
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: _isUpdatingStatus
-                            ? null
-                            : () =>
-                                _rejectPayment(applicationId, applicationId),
-                        icon: const Icon(Icons.cancel, size: 20),
-                        label: const Text(
-                          "Reject",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.amber.shade200),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 16, color: Colors.amber),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        "✅ Approve → Application → VERIFICATION SUCCESSFUL\n"
-                        "❌ Reject → Application → VERIFICATION REJECTED\n"
-                        "User + Admin will receive notifications.",
-                        style: TextStyle(fontSize: 11, color: Colors.black87),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],
-          ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: _isUpdatingStatus
+                          ? null
+                          : () => _approvePayment(applicationId, applicationId),
+                      icon: _isUpdatingStatus
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.check_circle, size: 20),
+                      label: Text(
+                        _isUpdatingStatus ? "Processing..." : "Approve",
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: _isUpdatingStatus
+                          ? null
+                          : () => _rejectPayment(applicationId, applicationId),
+                      icon: const Icon(Icons.cancel, size: 20),
+                      label: const Text(
+                        "Reject",
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       );
     }
@@ -2546,218 +2284,206 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             ? Colors.red
             : Colors.grey;
 
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: statusColor, width: 1.5),
-                  ),
-                  child: Icon(
-                    isApproved
-                        ? Icons.verified
-                        : isRejected
-                            ? Icons.cancel
-                            : Icons.hourglass_empty,
-                    color: statusColor,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isApproved
-                            ? "Payment Approved"
-                            : isRejected
-                                ? "Payment Rejected"
-                                : "Payment Not Submitted",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: statusColor,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        isApproved
-                            ? "Verification completed successfully"
-                            : isRejected
-                                ? "Payment was rejected by admin"
-                                : "User has not submitted payment proof",
-                        style:
-                            const TextStyle(fontSize: 11, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    verificationStatus.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (transactionId != null || paymentAmount != null) ...[
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 8),
-              if (transactionId != null)
-                _buildPaymentInfoRow(
-                  Icons.receipt_long,
-                  "Transaction ID",
-                  transactionId.toString(),
-                ),
-              if (paymentAmount != null) ...[
-                const SizedBox(height: 8),
-                _buildPaymentInfoRow(
-                  Icons.currency_rupee,
-                  "Amount",
-                  "₹$paymentAmount",
-                ),
-              ],
-              if (transactionDate != null) ...[
-                const SizedBox(height: 8),
-                _buildPaymentInfoRow(
-                  Icons.calendar_today,
-                  "Date",
-                  _formatDate(transactionDate.toString()),
-                ),
-              ],
-            ],
-            if (isRejected &&
-                rejectionReason != null &&
-                rejectionReason.toString().isNotEmpty) ...[
-              const SizedBox(height: 16),
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
+                  color: statusColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red.shade200),
+                  border: Border.all(color: statusColor, width: 1.5),
                 ),
+                child: Icon(
+                  isApproved
+                      ? Icons.verified
+                      : isRejected
+                          ? Icons.cancel
+                          : Icons.hourglass_empty,
+                  color: statusColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.red, size: 16),
-                        SizedBox(width: 8),
-                        Text(
-                          "Rejection Reason:",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
                     Text(
-                      rejectionReason.toString(),
-                      style: const TextStyle(fontSize: 12, color: Colors.red),
+                      isApproved
+                          ? "Payment Approved"
+                          : isRejected
+                              ? "Payment Rejected"
+                              : "Payment Not Submitted",
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: statusColor),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isApproved
+                          ? "Verification completed successfully"
+                          : isRejected
+                              ? "Payment was rejected by admin"
+                              : "User has not submitted payment proof",
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ],
                 ),
               ),
-            ],
-            if (paymentReceiptUrl != null &&
-                paymentReceiptUrl.toString().isNotEmpty) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () =>
-                      _showPaymentReceiptDialog(paymentReceiptUrl.toString()),
-                  icon: const Icon(Icons.receipt, size: 18),
-                  label: const Text("View Payment Receipt"),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.blue,
-                    side: const BorderSide(color: Colors.blue),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  verificationStatus.toUpperCase(),
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ),
             ],
-            const SizedBox(height: 12),
+          ),
+          if (transactionId != null || paymentAmount != null) ...[
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            if (transactionId != null)
+              _buildPaymentInfoRow(Icons.receipt_long, "Transaction ID", transactionId.toString()),
+            if (paymentAmount != null) ...[
+              const SizedBox(height: 8),
+              _buildPaymentInfoRow(Icons.currency_rupee, "Amount", "₹$paymentAmount"),
+            ],
+            if (transactionDate != null) ...[
+              const SizedBox(height: 8),
+              _buildPaymentInfoRow(Icons.calendar_today, "Date", _formatDate(transactionDate.toString())),
+            ],
+          ],
+          if (isRejected && rejectionReason != null && rejectionReason.toString().isNotEmpty) ...[
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(10),
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.shade200),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    isApproved ? Icons.check_circle : Icons.info,
-                    size: 14,
-                    color: statusColor,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      isApproved
-                          ? "Application status: ${_getStatusDisplay(currentAppStatus)}"
-                          : isRejected
-                              ? "Application status: ${_getStatusDisplay(currentAppStatus)}"
-                              : "Awaiting user payment submission",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: statusColor,
-                        fontWeight: FontWeight.w500,
+                  const Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.red, size: 16),
+                      SizedBox(width: 8),
+                      Text(
+                        "Rejection Reason:",
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13),
                       ),
-                    ),
+                    ],
                   ),
+                  const SizedBox(height: 8),
+                  Text(rejectionReason.toString(), style: const TextStyle(fontSize: 12, color: Colors.red)),
                 ],
               ),
             ),
           ],
-        ),
+          if (paymentReceiptUrl != null && paymentReceiptUrl.toString().isNotEmpty) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showPaymentReceiptDialog(paymentReceiptUrl.toString()),
+                icon: const Icon(Icons.receipt, size: 18),
+                label: const Text("View Payment Receipt"),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue,
+                  side: const BorderSide(color: Colors.blue),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  String _getStatusDisplay(String status) {
-    switch (status.toLowerCase()) {
-      case 'verification_successful':
-        return 'VERIFICATION SUCCESSFUL';
-      case 'verification_rejected':
-        return 'VERIFICATION REJECTED';
-      default:
-        return status.toUpperCase();
-    }
+  BoxDecoration _buildGradientBackground() {
+    return const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
+      ),
+    );
   }
 
-  // ==================== BUILD ====================
+  Widget _buildGlassContainer({required Widget child, EdgeInsets? padding}) {
+    return Container(
+      padding: padding ?? const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 15,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
 
-  Widget _buildLoadingScreen() {
+  Widget _sectionHeader(String title, IconData icon, {String? subtitle}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (subtitle != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 44, top: 4),
+              child: Text(
+                subtitle,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAILoadingScreen() {
     return Scaffold(
       body: Container(
         decoration: _buildGradientBackground(),
@@ -2784,11 +2510,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                     ],
                   ),
                   child: const Center(
-                    child: Icon(
-                      Icons.auto_awesome,
-                      color: Colors.white,
-                      size: 40,
-                    ),
+                    child: Icon(Icons.auto_awesome, color: Colors.white, size: 40),
                   ),
                 ),
               ),
@@ -2800,29 +2522,19 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                 child: const Text(
                   "AI is loading applications...",
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
               const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C63FF)),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  BoxDecoration _buildGradientBackground() {
-    return const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
       ),
     );
   }
@@ -2833,54 +2545,142 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       return _buildApplicationDetailView();
     }
 
-    if (isLoading) {
-      return _buildLoadingScreen();
+    if (isLoading && applications.isEmpty) {
+      return _buildAILoadingScreen();
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text("Applications - ${widget.adminRole.toUpperCase()}"),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: _buildFilterButtons(),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchApplications,
-          ),
-        ],
-      ),
-      body: applications.isEmpty
-          ? _buildEmptyState()
-          : Container(
-              decoration: _buildGradientBackground(),
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: applications.length,
-                itemBuilder: (context, index) =>
-                    _buildApplicationCard(applications[index]),
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: _buildGradientBackground(),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildFilterChips(),
+              Expanded(
+                child: _filteredApplications.isEmpty
+                    ? _buildEmptyState()
+                    : RefreshIndicator(
+                        onRefresh: _fetchApplications,
+                        color: const Color(0xFF6C63FF),
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _filteredApplications.length,
+                          addAutomaticKeepAlives: false,
+                          addRepaintBoundaries: true,
+                          cacheExtent: 300,
+                          itemBuilder: (context, index) {
+                            final app = _filteredApplications[index];
+                            return RepaintBoundary(
+                              key: ValueKey(app['_id'] ?? index),
+                              child: _buildApplicationCard(app, index),
+                            );
+                          },
+                        ),
+                      ),
               ),
-            ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildFilterButtons() {
+  Widget _buildHeader() {
     return Container(
-      height: 50,
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6C63FF).withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(Icons.admin_panel_settings, color: Colors.white, size: 28),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Job Applications",
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "${widget.adminRole.toUpperCase()} • ${_filteredApplications.length} applications",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.85),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_isRefreshing)
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          else
+            GestureDetector(
+              onTap: _fetchApplications,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.refresh, color: Colors.white, size: 20),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return Container(
+      height: 56,
+      margin: const EdgeInsets.only(top: 12, bottom: 4),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: _filterButtons.length,
+        addAutomaticKeepAlives: false,
+        cacheExtent: 300,
         itemBuilder: (context, index) {
           final filter = _filterButtons[index];
           final isSelected = _selectedFilter == filter['value'];
           final Color color = filter['color'] as Color;
+
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: FilterChip(
@@ -2890,7 +2690,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                 children: [
                   Icon(
                     filter['icon'],
-                    size: 16,
+                    size: 14,
                     color: isSelected ? Colors.white : color,
                   ),
                   const SizedBox(width: 6),
@@ -2898,16 +2698,14 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                 ],
               ),
               onSelected: (selected) {
-                setState(() {
-                  _selectedFilter = selected ? filter['value'] : 'all';
-                });
-                _fetchApplications();
+                _onFilterSelected(selected ? filter['value'] as String : 'all');
               },
-              backgroundColor: Colors.grey.shade200,
+              backgroundColor: Colors.white.withOpacity(0.9),
               selectedColor: color,
               labelStyle: TextStyle(
-                color: isSelected ? Colors.white : color,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.white : Colors.grey.shade700,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 12,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
@@ -2916,6 +2714,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   width: 1,
                 ),
               ),
+              elevation: isSelected ? 4 : 0,
             ),
           );
         },
@@ -2923,7 +2722,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     );
   }
 
-  Widget _buildApplicationCard(Map<String, dynamic> app) {
+  Widget _buildApplicationCard(Map<String, dynamic> app, int index) {
     final jobTitle = app['job_title'] ?? 'Job Opportunity';
     final organization = app['organization'] ?? app['company'] ?? 'Company';
     final applicantName = app['applicant_name'] ?? 'Unknown';
@@ -2931,36 +2730,125 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
     final status = app['status'] ?? 'pending';
     final matchScore = app['match_score'];
     final appliedDate = _formatDate(app['applied_at']);
+    final statusColor = _getStatusColor(status);
+    final hasResume = _isValidDocUrl(app['resume_url']);
+    final hasPayment = _isValidDocUrl(app['payment_receipt_url']);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Material(
-        color: Colors.white.withOpacity(0.92),
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: () => _showApplicationDetails(app),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundColor:
-                          _getStatusColor(status).withOpacity(0.15),
-                      child: Text(
-                        applicantName.isNotEmpty
-                            ? applicantName[0].toUpperCase()
-                            : 'U',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: _getStatusColor(status)),
+    return GestureDetector(
+      onTap: () => _showApplicationDetails(app),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.92),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: statusColor.withOpacity(0.15), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.08),
+              blurRadius: 12,
+              spreadRadius: 2,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: statusColor.withOpacity(0.15),
+                    child: Text(
+                      applicantName.isNotEmpty ? applicantName[0].toUpperCase() : 'U',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                        fontSize: 18,
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          applicantName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Colors.black87,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          applicantEmail,
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          statusColor.withOpacity(0.2),
+                          statusColor.withOpacity(0.08),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: statusColor.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      status.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF6C63FF).withOpacity(0.06),
+                      const Color(0xFFFF6588).withOpacity(0.03),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF6C63FF).withOpacity(0.1)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6C63FF).withOpacity(0.1),
+                            blurRadius: 6,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.work, color: Color(0xFF6C63FF), size: 22),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -2968,141 +2856,98 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            applicantName,
+                            jobTitle,
                             style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87),
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            applicantEmail,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
+                            organization,
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(status).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: _getStatusColor(status).withOpacity(0.3),
-                            width: 1),
-                      ),
-                      child: Text(
-                        status.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: _getStatusColor(status),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildInfoChip(Icons.calendar_today, "Applied", appliedDate, Colors.blue),
+                  if (matchScore != null)
+                    _buildInfoChip(Icons.auto_awesome, "AI Match", "$matchScore%", _getScoreColor(matchScore)),
+                  if (hasResume)
+                    _buildInfoChip(Icons.picture_as_pdf, "Resume", "Ready", Colors.red),
+                  if (hasPayment)
+                    _buildInfoChip(Icons.receipt_long, "Payment", "Uploaded", Colors.orange),
+                ],
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                    ),
                     borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        jobTitle,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        organization,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade700,
-                        ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6C63FF).withOpacity(0.25),
+                        blurRadius: 8,
+                        spreadRadius: 1,
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _buildStatChip(
-                      Icons.calendar_today,
-                      "Applied",
-                      appliedDate,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showApplicationDetails(app),
+                    icon: const Icon(Icons.visibility, size: 18),
+                    label: const Text(
+                      "View Application",
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
-                    if (matchScore != null)
-                      _buildStatChip(
-                        Icons.auto_awesome,
-                        "AI Match",
-                        "$matchScore%",
-                        color: _getScoreColor(matchScore),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _showApplicationDetails(app),
-                        icon: const Icon(Icons.visibility, size: 18),
-                        label: const Text("View Application"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6C63FF),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                  ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildStatChip(
-    IconData icon,
-    String label,
-    String value, {
-    Color? color,
-  }) {
+  Widget _buildInfoChip(IconData icon, String label, String value, Color color) {
     return Container(
-      margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: (color ?? Colors.grey).withOpacity(0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color ?? Colors.grey.shade600),
+          Icon(icon, size: 12, color: color),
           const SizedBox(width: 4),
           Text(
             "$label: $value",
-            style: TextStyle(
-                fontSize: 12,
-                color: color ?? Colors.grey.shade600,
-                fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: 10.5, color: color, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -3111,29 +2956,40 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.assignment_turned_in,
-            size: 80,
-            color: Colors.grey.shade400,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            "No applications yet",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            "Applications will appear here when users apply to your jobs",
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF6C63FF).withOpacity(0.1),
+                    const Color(0xFFFF6588).withOpacity(0.05),
+                  ],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.assignment_turned_in, size: 60, color: Color(0xFF6C63FF)),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "No applications yet",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Applications will appear here when users apply to your jobs",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            ),
+          ],
+        ),
       ),
     );
   }
-
-  // ==================== APPLICATION DETAIL VIEW ====================
 
   Widget _buildApplicationDetailView() {
     final app = _selectedApplication!;
@@ -3150,118 +3006,148 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         (app['application_updates'] as List).isNotEmpty;
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: const Text("Application Details"),
-        backgroundColor: const Color(0xFF6C63FF),
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _closeDetails,
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: _buildGradientBackground(),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildDetailHeader(jobTitle),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildStatusCard(app['_id'], status),
+                      const SizedBox(height: 16),
+                      _buildCandidateCard(applicantName, applicantEmail, appliedDate),
+                      const SizedBox(height: 16),
+                      _buildJobCard(jobTitle, organization, matchScore, aiReason),
+                      const SizedBox(height: 16),
+                      _buildCoverLetterCard(coverLetter),
+                      const SizedBox(height: 16),
+                      _buildCompleteProfileButton(),
+                      const SizedBox(height: 16),
+                      _buildResumeCard(app['resume_url']),
+                      const SizedBox(height: 16),
+                      _buildPaymentVerificationSection(app),
+                      const SizedBox(height: 16),
+                      _buildDocumentsSection(app),
+                      const SizedBox(height: 16),
+                      if (hasUpdates && status.toLowerCase() == 'update_application')
+                        _buildViewUpdatesButton(app),
+                      const SizedBox(height: 16),
+                      _buildQuickActionButtons(app['_id'], status),
+                      const SizedBox(height: 30),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        actions: [
+      ),
+    );
+  }
+
+  Widget _buildDetailHeader(String jobTitle) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+      ),
+      child: Row(
+        children: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: _closeDetails,
+            tooltip: "Back",
+          ),
+          const SizedBox(width: 4),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.work, color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Application Details",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                Text(
+                  jobTitle,
+                  style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.85)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: () {
               _fetchApplications();
               if (_selectedApplication != null) {
                 _showApplicationDetails(_selectedApplication!);
               }
             },
+            tooltip: "Refresh",
           ),
         ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStatusCard(app['_id'], status),
-            const SizedBox(height: 16),
-            _buildCandidateCard(applicantName, applicantEmail, appliedDate),
-            const SizedBox(height: 16),
-            _buildJobCard(jobTitle, organization, matchScore, aiReason),
-            const SizedBox(height: 16),
-            _buildCoverLetterCard(coverLetter),
-            const SizedBox(height: 16),
-            _buildCompleteProfileButton(),
-            const SizedBox(height: 16),
-            _buildResumeCard(app['resume_url']),
-            const SizedBox(height: 16),
-            _buildPaymentVerificationSection(app),
-            const SizedBox(height: 16),
-            // ✅ TWO SEPARATE DOCUMENT SECTIONS
-            _buildDocumentsSection(app),
-            const SizedBox(height: 16),
-            if (hasUpdates && status.toLowerCase() == 'update_application')
-              _buildViewUpdatesButton(app),
-            const SizedBox(height: 16),
-            _buildQuickActionButtons(app['_id'], status),
-            const SizedBox(height: 30),
-          ],
-        ),
       ),
     );
   }
 
   Widget _buildViewUpdatesButton(Map<String, dynamic> app) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("Application Updates", Icons.edit_note),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.edit_note,
-                    color: Colors.blue,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
+                Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                SizedBox(width: 12),
+                Expanded(
                   child: Text(
-                    "Application Updates",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    "This application has updates submitted by the user.",
+                    style: TextStyle(fontSize: 12, color: Colors.blue),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: Container(
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFF8B7FFF)]),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline, size: 16, color: Colors.blue),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      "This application has updates submitted by the user. Click below to view all updates.",
-                      style: TextStyle(fontSize: 12, color: Colors.blue),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () => _showApplicationUpdatesDialog(app),
                 icon: const Icon(Icons.visibility, size: 20),
@@ -3270,17 +3156,15 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
+                  backgroundColor: Colors.transparent,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -3292,7 +3176,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [statusColor, statusColor.withOpacity(0.6)],
+          colors: [statusColor, statusColor.withOpacity(0.75)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -3300,28 +3184,40 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         boxShadow: [
           BoxShadow(
             color: statusColor.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 15,
+            spreadRadius: 5,
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Update Application Status",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.touch_app, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  "Update Application Status",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          const Text(
-            "Current Status:",
-            style: TextStyle(color: Colors.white70),
-          ),
-          const SizedBox(height: 4),
+          const Text("Current Status:", style: TextStyle(color: Colors.white70, fontSize: 12)),
+          const SizedBox(height: 6),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -3330,17 +3226,11 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             ),
             child: Text(
               currentStatus.toUpperCase(),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            "Change to:",
-            style: TextStyle(color: Colors.white70),
-          ),
+          const Text("Change to:", style: TextStyle(color: Colors.white70, fontSize: 12)),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -3352,8 +3242,6 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
               final Color buttonColor = s['color'] as Color;
               final String buttonLabel = s['label'] as String;
               final IconData buttonIcon = s['icon'] as IconData;
-              final double horizontalPadding =
-                  buttonLabel.length > 8 ? 12.0 : 16.0;
 
               return SizedBox(
                 height: 42,
@@ -3372,19 +3260,13 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   icon: Icon(buttonIcon, size: 18),
                   label: Text(
                     buttonLabel,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w500),
-                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        isSelected ? buttonColor : buttonColor.withAlpha(25),
+                    backgroundColor: isSelected ? buttonColor : Colors.white,
                     foregroundColor: isSelected ? Colors.white : buttonColor,
-                    padding: EdgeInsets.symmetric(
-                        horizontal: horizontalPadding, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                     elevation: isSelected ? 2 : 0,
                   ),
                 ),
@@ -3394,7 +3276,9 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
           if (_isUpdatingStatus)
             const Padding(
               padding: EdgeInsets.only(top: 12),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(
+                child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+              ),
             ),
         ],
       ),
@@ -3402,371 +3286,343 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   }
 
   Widget _buildQuickActionButtons(String appId, String currentStatus) {
-    final filteredButtons =
-        _statusButtons.where((s) => s['value'] != currentStatus).toList();
+    final filteredButtons = _statusButtons.where((s) => s['value'] != currentStatus).toList();
 
     if (filteredButtons.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Quick Actions",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 10,
-              children: filteredButtons.map((s) {
-                final isReview = s['value'] == 'review_application';
-                final isFinalSubmit = s['value'] == 'final_submit';
-                final Color buttonColor = s['color'] as Color;
-                final String buttonLabel = s['label'] as String;
-                final IconData buttonIcon = s['icon'] as IconData;
-                final double horizontalPadding =
-                    buttonLabel.length > 8 ? 12.0 : 16.0;
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("Quick Actions", Icons.touch_app),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: filteredButtons.map((s) {
+              final isReview = s['value'] == 'review_application';
+              final isFinalSubmit = s['value'] == 'final_submit';
+              final Color buttonColor = s['color'] as Color;
+              final String buttonLabel = s['label'] as String;
+              final IconData buttonIcon = s['icon'] as IconData;
 
-                return SizedBox(
-                  height: 42,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      if (isReview) {
-                        _showReviewDialog(appId);
-                      } else if (isFinalSubmit) {
-                        _showFinalSubmitDialog(appId);
-                      } else {
-                        _updateStatus(appId, s['value'] as String);
-                      }
-                    },
-                    icon: Icon(buttonIcon, size: 18),
-                    label: Text(
-                      buttonLabel,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w500),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: buttonColor,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
-                          horizontal: horizontalPadding, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      elevation: 2,
-                    ),
+              return SizedBox(
+                height: 42,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    if (isReview) {
+                      _showReviewDialog(appId);
+                    } else if (isFinalSubmit) {
+                      _showFinalSubmitDialog(appId);
+                    } else {
+                      _updateStatus(appId, s['value'] as String);
+                    }
+                  },
+                  icon: Icon(buttonIcon, size: 18),
+                  label: Text(
+                    buttonLabel,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: buttonColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                    elevation: 2,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildCandidateCard(String name, String email, String appliedDate) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.blue.shade100,
-                  child: Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("Applicant", Icons.person_outline),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: const Color(0xFF6C63FF).withOpacity(0.15),
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF6C63FF),
                   ),
                 ),
-                const SizedBox(width: 16),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(email, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.calendar_today, size: 11, color: Colors.blue.shade700),
+                          const SizedBox(width: 4),
+                          Text(
+                            "Applied: $appliedDate",
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJobCard(String title, String company, dynamic matchScore, String aiReason) {
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("Job Details", Icons.workspace_premium),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF6C63FF).withOpacity(0.08),
+                  const Color(0xFFFF6588).withOpacity(0.04),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF6C63FF).withOpacity(0.12)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.work, color: Color(0xFF6C63FF), size: 26),
+                ),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
+                        title,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
                       ),
-                      const SizedBox(height: 4),
-                      Text(email, style: const TextStyle(color: Colors.grey)),
+                      Text(company, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
                     ],
                   ),
                 ),
               ],
             ),
-            const Divider(height: 24),
+          ),
+          const SizedBox(height: 12),
+          if (matchScore != null) ...[
             Row(
               children: [
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: _getScoreColor(matchScore),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: _buildInfoRow(
-                    Icons.calendar_today,
-                    "Applied On",
-                    appliedDate,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "AI Match Score: $matchScore%",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _getScoreColor(matchScore),
+                        ),
+                      ),
+                      if (aiReason.isNotEmpty)
+                        Text(
+                          aiReason,
+                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                    ],
                   ),
                 ),
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildJobCard(
-    String title,
-    String company,
-    dynamic matchScore,
-    String aiReason,
-  ) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Job Details",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            _buildInfoRow(Icons.work, "Position", title),
-            const SizedBox(height: 8),
-            _buildInfoRow(Icons.business, "Company", company),
-            if (matchScore != null) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Container(
-                    width: 4,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: _getScoreColor(matchScore),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "AI Match Score: $matchScore%",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: _getScoreColor(matchScore),
-                          ),
-                        ),
-                        if (aiReason.isNotEmpty)
-                          Text(
-                            aiReason,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildCoverLetterCard(String coverLetter) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Cover Letter",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("Cover Letter", Icons.description_outlined),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(coverLetter, style: const TextStyle(height: 1.5)),
-            ),
-          ],
-        ),
+            child: Text(coverLetter, style: const TextStyle(height: 1.5, fontSize: 13)),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildCompleteProfileButton() {
     final applicantEmail = _selectedApplication?['applicant_email'] ?? '';
-    final applicantName =
-        _selectedApplication?['applicant_name'] ?? 'Candidate';
+    final applicantName = _selectedApplication?['applicant_name'] ?? 'Candidate';
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.person_outline, color: Colors.purple),
-                SizedBox(width: 8),
-                Text(
-                  "Candidate Information",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("Candidate Information", Icons.person_outline),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF7C3AED), Color(0xFFA855F7)],
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      if (widget.onViewCandidateProfile != null) {
-                        widget.onViewCandidateProfile!(_selectedApplication!);
-                      } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CandidateProfileScreen(
-                              email: applicantEmail,
-                              candidateName: applicantName,
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.visibility, color: Colors.white),
-                    label: const Text("View Complete Profile"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  if (widget.onViewCandidateProfile != null) {
+                    widget.onViewCandidateProfile!(_selectedApplication!);
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CandidateProfileScreen(
+                          email: applicantEmail,
+                          candidateName: applicantName,
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.visibility, color: Colors.white),
+                label: const Text(
+                  "View Complete Profile",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
-              ],
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildResumeCard(String? resumeUrl) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Resume / CV",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            InkWell(
-              onTap: () => _launchResume(resumeUrl),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.picture_as_pdf,
-                      size: 40,
-                      color: resumeUrl != null ? Colors.red : Colors.grey,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            resumeUrl != null
-                                ? "Resume Available"
-                                : "No Resume Uploaded",
-                            style: TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: resumeUrl != null
-                                  ? Colors.green
-                                  : Colors.grey,
-                            ),
+    return _buildGlassContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("Resume / CV", Icons.picture_as_pdf),
+          InkWell(
+            onTap: () => _launchResume(resumeUrl),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.picture_as_pdf,
+                    size: 40,
+                    color: resumeUrl != null ? Colors.red : Colors.grey,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          resumeUrl != null ? "Resume Available" : "No Resume Uploaded",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: resumeUrl != null ? Colors.green : Colors.grey,
                           ),
-                          if (resumeUrl != null)
-                            const Text(
-                              "Tap to view/download",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.blue,
-                              ),
-                            ),
-                        ],
-                      ),
+                        ),
+                        if (resumeUrl != null)
+                          const Text(
+                            "Tap to view/download",
+                            style: TextStyle(fontSize: 12, color: Colors.blue),
+                          ),
+                      ],
                     ),
-                    if (resumeUrl != null)
-                      const Icon(Icons.open_in_new, color: Colors.blue),
-                  ],
-                ),
+                  ),
+                  if (resumeUrl != null) const Icon(Icons.open_in_new, color: Colors.blue),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ==================== REVIEW DIALOG CONTENT (WITH FILE UPLOAD) ====================
+// ============================================================================
+// ✅ REVIEW DIALOG CONTENT
+// Returns `_DialogResult` on success, `null` on cancel
+// ✅ WORKS ON WEB (uses bytes) AND MOBILE (reads from path)
+// ============================================================================
 class _ReviewDialogContent extends StatefulWidget {
-  final TextEditingController notesController;
-  final Function(String, Uint8List) onFileSelected;
-
-  const _ReviewDialogContent({
-    required this.notesController,
-    required this.onFileSelected,
-  });
+  const _ReviewDialogContent();
 
   @override
   State<_ReviewDialogContent> createState() => _ReviewDialogContentState();
@@ -3776,73 +3632,87 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
   String? _selectedFileName;
   Uint8List? _selectedFileBytes;
   bool _isPickingFile = false;
+  final TextEditingController _notesController = TextEditingController();
 
-  // ✅ FIXED: Properly handle file picking on mobile
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickFile() async {
     if (_isPickingFile) return;
-    
+
     setState(() => _isPickingFile = true);
 
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      // ✅ CRITICAL: withData: true is REQUIRED for web
+      final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-        withData: true, // ✅ CRITICAL: This ensures bytes are loaded on mobile
+        withData: true, // ✅ MUST BE TRUE for web
       );
 
       if (result == null || result.files.isEmpty) {
-        debugPrint("📁 File picker cancelled or no file selected");
-        setState(() => _isPickingFile = false);
+        debugPrint("📁 File picker cancelled");
+        if (mounted) setState(() => _isPickingFile = false);
         return;
       }
 
       final file = result.files.first;
-      
-      debugPrint("📁 File selected: ${file.name}");
-      debugPrint("   Size: ${file.size} bytes");
-      debugPrint("   Has bytes: ${file.bytes != null}");
-      debugPrint("   Has path: ${file.path != null}");
 
-      // ✅ FIXED: Handle null bytes on mobile - read from path
+      debugPrint("=" * 60);
+      debugPrint("📁 FILE PICKED");
+      debugPrint("   Name: ${file.name}");
+      debugPrint("   Size: ${file.size} bytes");
+      debugPrint("   Bytes available: ${file.bytes != null}");
+      debugPrint("   Path: ${kIsWeb ? '(web - not available)' : file.path}");
+      debugPrint("   Extension: ${file.extension}");
+      debugPrint("=" * 60);
+
       Uint8List? fileBytes = file.bytes;
 
-      // If bytes is null (common on mobile for large files), read from path
-      if (fileBytes == null && file.path != null) {
-        try {
-          final fileObj = File(file.path!);
-          fileBytes = await fileObj.readAsBytes();
-          debugPrint("📁 Read ${fileBytes.length} bytes from path");
-        } catch (e) {
-          debugPrint("❌ Failed to read file from path: $e");
-          if (mounted) {
-            showMessage(context, "Failed to read file: $e", isError: true);
+      // ✅ MOBILE FALLBACK: If bytes is null, read from path
+      // NEVER access .path on web (throws exception)
+      if ((fileBytes == null || fileBytes.isEmpty) && !kIsWeb) {
+        if (file.path != null && file.path!.isNotEmpty) {
+          try {
+            final fileObj = File(file.path!);
+            fileBytes = await fileObj.readAsBytes();
+            debugPrint("📁 Mobile: Read ${fileBytes.length} bytes from path");
+          } catch (e) {
+            debugPrint("❌ Mobile: Failed to read from path: $e");
           }
-          setState(() => _isPickingFile = false);
-          return;
         }
       }
 
-      // ✅ FIXED: Check if we have bytes
+      // ✅ WEB FALLBACK: If bytes still null on web, error
       if (fileBytes == null || fileBytes.isEmpty) {
         debugPrint("❌ No file bytes available");
         if (mounted) {
-          showMessage(context, "Could not read file. Please try again.", isError: true);
+          showMessage(
+            context,
+            kIsWeb
+                ? "Could not read file. Please try a different browser or file."
+                : "Could not read file. Please try again.",
+            isError: true,
+          );
+          setState(() => _isPickingFile = false);
         }
-        setState(() => _isPickingFile = false);
         return;
       }
 
-      // ✅ Check file size (max 10MB)
+      // ✅ File size check (10 MB max)
       const maxSize = 10 * 1024 * 1024;
       if (fileBytes.length > maxSize) {
         if (mounted) {
           showMessage(
             context,
-            "File too large. Max size: 10MB, Your file: ${(fileBytes.length / (1024 * 1024)).toStringAsFixed(1)}MB",
+            "File too large. Max: 10MB, Your file: ${(fileBytes.length / (1024 * 1024)).toStringAsFixed(1)}MB",
             isError: true,
           );
+          setState(() => _isPickingFile = false);
         }
-        setState(() => _isPickingFile = false);
         return;
       }
 
@@ -3852,10 +3722,7 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
           _selectedFileBytes = fileBytes;
           _isPickingFile = false;
         });
-        
-        widget.onFileSelected(file.name, fileBytes);
-        
-        debugPrint("✅ File ready for upload: ${file.name} (${fileBytes.length} bytes)");
+        debugPrint("✅ File ready: ${file.name} (${fileBytes.length} bytes)");
       }
     } catch (e) {
       debugPrint("❌ File picker error: $e");
@@ -3870,11 +3737,13 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final dialogWidth = screenWidth * 0.9 > 500 ? 500.0 : screenWidth * 0.9;
+    final bool canSubmit = _selectedFileName != null && _selectedFileBytes != null;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: Colors.white,
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         width: dialogWidth,
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.85,
@@ -3883,88 +3752,85 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade100,
-                    borderRadius: BorderRadius.circular(12),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(
-                    Icons.rate_review,
-                    color: Colors.orange,
-                    size: 28,
-                  ),
+                  child: const Icon(Icons.rate_review, color: Colors.white, size: 26),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 const Expanded(
                   child: Text(
-                    "REVIEW APPLICATION",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
+                    "Review Application",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 24),
+                  onPressed: () => Navigator.pop(context, null),
                 ),
               ],
             ),
             const Divider(height: 24),
 
+            // Info banner
             Container(
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: Colors.orange.shade50,
+                color: const Color(0xFF6C63FF).withOpacity(0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.shade200),
+                border: Border.all(color: const Color(0xFF6C63FF).withOpacity(0.2)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.orange),
-                  SizedBox(width: 12),
+                  const Icon(Icons.info_outline, color: Color(0xFF6C63FF), size: 18),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      "⚠️ REVIEW APPLICATION\nThis will change status to REVIEW. Document will be saved.",
-                      style: TextStyle(fontSize: 12, color: Colors.orange),
+                      "This will change status to REVIEW. Document will be saved.",
+                      style: TextStyle(fontSize: 12, color: const Color(0xFF6C63FF).withOpacity(0.9)),
                     ),
                   ),
                 ],
               ),
             ),
 
-            Expanded(
+            // Scrollable content
+            Flexible(
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       "📄 Upload Document (PDF or Image)",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       "Upload relevant document for review.",
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
                     const SizedBox(height: 12),
 
+                    // File picker UI
                     GestureDetector(
                       onTap: _isPickingFile ? null : _pickFile,
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 20, horizontal: 16),
+                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                         decoration: BoxDecoration(
-                          color: _selectedFileName != null
-                              ? Colors.orange.shade50
-                              : Colors.blue.shade50,
+                          color: _selectedFileName != null ? Colors.green.shade50 : Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: _selectedFileName != null
-                                ? Colors.orange
-                                : Colors.blue,
+                            color: _selectedFileName != null ? Colors.green : Colors.blue,
                             width: 2,
                           ),
                         ),
@@ -3974,29 +3840,19 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                               const CircularProgressIndicator()
                             else
                               Icon(
-                                _selectedFileName != null
-                                    ? Icons.check_circle
-                                    : Icons.cloud_upload,
-                                size: 48,
-                                color: _selectedFileName != null
-                                    ? Colors.orange
-                                    : Colors.blue,
+                                _selectedFileName != null ? Icons.check_circle : Icons.cloud_upload,
+                                size: 44,
+                                color: _selectedFileName != null ? Colors.green : Colors.blue,
                               ),
                             const SizedBox(height: 12),
                             Text(
                               _isPickingFile
                                   ? "Loading file..."
-                                  : _selectedFileName != null
-                                      ? _selectedFileName!
-                                      : "Tap to select document (PDF or Image)",
+                                  : (_selectedFileName ?? "Tap to select document"),
                               style: TextStyle(
                                 fontSize: 14,
-                                fontWeight: _selectedFileName != null
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: _selectedFileName != null
-                                    ? Colors.orange
-                                    : Colors.blue,
+                                fontWeight: _selectedFileName != null ? FontWeight.bold : FontWeight.normal,
+                                color: _selectedFileName != null ? Colors.green.shade700 : Colors.blue.shade700,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -4004,10 +3860,7 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                               const SizedBox(height: 4),
                               Text(
                                 "${(_selectedFileBytes!.length / 1024).toStringAsFixed(1)} KB",
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey,
-                                ),
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                               ),
                             ],
                           ],
@@ -4016,91 +3869,99 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
                     ),
                     const SizedBox(height: 20),
 
+                    // Notes
                     const Text(
                       "Review Notes (Optional)",
-                      style:
-                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
                     TextField(
-                      controller: widget.notesController,
+                      controller: _notesController,
                       maxLines: 3,
                       decoration: InputDecoration(
                         hintText: "Add review comments or notes...",
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         contentPadding: const EdgeInsets.all(12),
                       ),
                     ),
-                    const SizedBox(height: 16),
-
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.info_outline,
-                              size: 18, color: Colors.orange),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              "ℹ️ After review, the application status will change to REVIEW_APPLICATION. Both user and admin will receive notifications.",
-                              style: TextStyle(
-                                  fontSize: 11, color: Colors.orange),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
                   ],
                 ),
               ),
             ),
+            const SizedBox(height: 20),
 
+            // Action buttons
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(context, null),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      foregroundColor: Colors.grey.shade700,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: BorderSide(color: Colors.grey.shade400),
                     ),
-                    child: const Text("Cancel"),
+                    child: const Text("Cancel", style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: (_selectedFileName == null || _selectedFileBytes == null)
-                        ? null
-                        : () => Navigator.pop(context, {
-                              'notes': widget.notesController.text,
-                              'fileSelected': true,
-                              'fileName': _selectedFileName,
-                              'fileSize': _selectedFileBytes!.length,
-                            }),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: canSubmit
+                            ? [const Color(0xFF6C63FF), const Color(0xFF8B7FFF)]
+                            : [Colors.grey.shade300, Colors.grey.shade400],
                       ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: canSubmit
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFF6C63FF).withOpacity(0.3),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.rate_review, size: 18),
-                        SizedBox(width: 8),
-                        Text("Submit Review"),
-                      ],
+                    child: ElevatedButton(
+                      // ✅ CRITICAL: Return _DialogResult with file data
+                      onPressed: canSubmit
+                          ? () {
+                              debugPrint("=" * 60);
+                              debugPrint("📤 SUBMITTING REVIEW");
+                              debugPrint("   File: ${_selectedFileName}");
+                              debugPrint("   Bytes: ${_selectedFileBytes!.length}");
+                              debugPrint("   Notes: ${_notesController.text}");
+                              debugPrint("=" * 60);
+
+                              Navigator.pop(
+                                context,
+                                _DialogResult(
+                                  fileBytes: _selectedFileBytes!,
+                                  fileName: _selectedFileName!,
+                                  notes: _notesController.text,
+                                ),
+                              );
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.rate_review, size: 18),
+                          SizedBox(width: 8),
+                          Text("Submit Review", style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -4113,93 +3974,102 @@ class _ReviewDialogContentState extends State<_ReviewDialogContent> {
   }
 }
 
-// ==================== FINAL SUBMIT DIALOG CONTENT ====================
+// ============================================================================
+// ✅ FINAL SUBMIT DIALOG CONTENT
+// Returns `_DialogResult` on success, `null` on cancel
+// ✅ WORKS ON WEB (uses bytes) AND MOBILE (reads from path)
+// ============================================================================
 class _FinalSubmitDialogContent extends StatefulWidget {
-  final TextEditingController notesController;
-  final Function(String, Uint8List) onFileSelected;
-
-  const _FinalSubmitDialogContent({
-    required this.notesController,
-    required this.onFileSelected,
-  });
+  const _FinalSubmitDialogContent();
 
   @override
-  State<_FinalSubmitDialogContent> createState() =>
-      _FinalSubmitDialogContentState();
+  State<_FinalSubmitDialogContent> createState() => _FinalSubmitDialogContentState();
 }
 
-class _FinalSubmitDialogContentState
-    extends State<_FinalSubmitDialogContent> {
+class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
   String? _selectedFileName;
   Uint8List? _selectedFileBytes;
   bool _isPickingFile = false;
+  final TextEditingController _notesController = TextEditingController();
 
-  // ✅ FIXED: Properly handle file picking on mobile
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickFile() async {
     if (_isPickingFile) return;
-    
+
     setState(() => _isPickingFile = true);
 
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      // ✅ CRITICAL: withData: true is REQUIRED for web
+      final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-        withData: true, // ✅ CRITICAL: This ensures bytes are loaded on mobile
+        withData: true, // ✅ MUST BE TRUE for web
       );
 
       if (result == null || result.files.isEmpty) {
-        debugPrint("📁 File picker cancelled or no file selected");
-        setState(() => _isPickingFile = false);
+        debugPrint("📁 File picker cancelled");
+        if (mounted) setState(() => _isPickingFile = false);
         return;
       }
 
       final file = result.files.first;
-      
-      debugPrint("📁 File selected: ${file.name}");
-      debugPrint("   Size: ${file.size} bytes");
-      debugPrint("   Has bytes: ${file.bytes != null}");
-      debugPrint("   Has path: ${file.path != null}");
 
-      // ✅ FIXED: Handle null bytes on mobile - read from path
+      debugPrint("=" * 60);
+      debugPrint("📁 FILE PICKED (Final Submit)");
+      debugPrint("   Name: ${file.name}");
+      debugPrint("   Size: ${file.size} bytes");
+      debugPrint("   Bytes available: ${file.bytes != null}");
+      debugPrint("   Path: ${kIsWeb ? '(web - not available)' : file.path}");
+      debugPrint("=" * 60);
+
       Uint8List? fileBytes = file.bytes;
 
-      // If bytes is null (common on mobile for large files), read from path
-      if (fileBytes == null && file.path != null) {
-        try {
-          final fileObj = File(file.path!);
-          fileBytes = await fileObj.readAsBytes();
-          debugPrint("📁 Read ${fileBytes.length} bytes from path");
-        } catch (e) {
-          debugPrint("❌ Failed to read file from path: $e");
-          if (mounted) {
-            showMessage(context, "Failed to read file: $e", isError: true);
+      // ✅ MOBILE FALLBACK: Read from path if bytes is null
+      // NEVER access .path on web
+      if ((fileBytes == null || fileBytes.isEmpty) && !kIsWeb) {
+        if (file.path != null && file.path!.isNotEmpty) {
+          try {
+            final fileObj = File(file.path!);
+            fileBytes = await fileObj.readAsBytes();
+            debugPrint("📁 Mobile: Read ${fileBytes.length} bytes from path");
+          } catch (e) {
+            debugPrint("❌ Mobile: Failed to read from path: $e");
           }
-          setState(() => _isPickingFile = false);
-          return;
         }
       }
 
-      // ✅ FIXED: Check if we have bytes
+      // ✅ WEB FALLBACK: If bytes still null
       if (fileBytes == null || fileBytes.isEmpty) {
         debugPrint("❌ No file bytes available");
         if (mounted) {
-          showMessage(context, "Could not read file. Please try again.", isError: true);
+          showMessage(
+            context,
+            kIsWeb
+                ? "Could not read file. Please try a different browser or file."
+                : "Could not read file. Please try again.",
+            isError: true,
+          );
+          setState(() => _isPickingFile = false);
         }
-        setState(() => _isPickingFile = false);
         return;
       }
 
-      // ✅ Check file size (max 10MB)
+      // ✅ File size check
       const maxSize = 10 * 1024 * 1024;
       if (fileBytes.length > maxSize) {
         if (mounted) {
           showMessage(
             context,
-            "File too large. Max size: 10MB, Your file: ${(fileBytes.length / (1024 * 1024)).toStringAsFixed(1)}MB",
+            "File too large. Max: 10MB, Your file: ${(fileBytes.length / (1024 * 1024)).toStringAsFixed(1)}MB",
             isError: true,
           );
+          setState(() => _isPickingFile = false);
         }
-        setState(() => _isPickingFile = false);
         return;
       }
 
@@ -4209,10 +4079,7 @@ class _FinalSubmitDialogContentState
           _selectedFileBytes = fileBytes;
           _isPickingFile = false;
         });
-        
-        widget.onFileSelected(file.name, fileBytes);
-        
-        debugPrint("✅ File ready for upload: ${file.name} (${fileBytes.length} bytes)");
+        debugPrint("✅ File ready: ${file.name} (${fileBytes.length} bytes)");
       }
     } catch (e) {
       debugPrint("❌ File picker error: $e");
@@ -4227,11 +4094,13 @@ class _FinalSubmitDialogContentState
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final dialogWidth = screenWidth * 0.9 > 500 ? 500.0 : screenWidth * 0.9;
+    final bool canSubmit = _selectedFileName != null && _selectedFileBytes != null;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: Colors.white,
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         width: dialogWidth,
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.85,
@@ -4240,35 +4109,35 @@ class _FinalSubmitDialogContentState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.deepPurple.shade100,
-                    borderRadius: BorderRadius.circular(12),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(
-                    Icons.send_and_archive,
-                    color: Colors.deepPurple,
-                    size: 28,
-                  ),
+                  child: const Icon(Icons.send_and_archive, color: Colors.white, size: 26),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 const Expanded(
                   child: Text(
-                    "FINAL SUBMISSION",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
-                    ),
+                    "Final Submission",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 24),
+                  onPressed: () => Navigator.pop(context, null),
                 ),
               ],
             ),
             const Divider(height: 24),
 
+            // Warning banner
             Container(
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 16),
@@ -4277,52 +4146,52 @@ class _FinalSubmitDialogContentState
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.orange.shade200),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.warning_amber, color: Colors.orange),
-                  SizedBox(width: 12),
+                  const Icon(Icons.warning_amber, color: Colors.orange, size: 18),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      "⚠️ FINAL SUBMISSION\nThis is the final step. The status will change to FINAL SUBMIT.",
-                      style: TextStyle(fontSize: 12, color: Colors.orange),
+                      "⚠️ Final step. The status will change to FINAL SUBMIT.",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade900,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
 
-            Expanded(
+            // Scrollable content
+            Flexible(
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       "📄 Upload Final Document (PDF or Image)",
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       "This document will be stored securely and submitted with the application.",
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
                     const SizedBox(height: 12),
 
+                    // File picker
                     GestureDetector(
                       onTap: _isPickingFile ? null : _pickFile,
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 20, horizontal: 16),
+                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                         decoration: BoxDecoration(
-                          color: _selectedFileName != null
-                              ? Colors.deepPurple.shade50
-                              : Colors.blue.shade50,
+                          color: _selectedFileName != null ? Colors.deepPurple.shade50 : Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: _selectedFileName != null
-                                ? Colors.deepPurple
-                                : Colors.blue,
+                            color: _selectedFileName != null ? Colors.deepPurple : Colors.blue,
                             width: 2,
                           ),
                         ),
@@ -4332,29 +4201,19 @@ class _FinalSubmitDialogContentState
                               const CircularProgressIndicator()
                             else
                               Icon(
-                                _selectedFileName != null
-                                    ? Icons.check_circle
-                                    : Icons.cloud_upload,
-                                size: 48,
-                                color: _selectedFileName != null
-                                    ? Colors.deepPurple
-                                    : Colors.blue,
+                                _selectedFileName != null ? Icons.check_circle : Icons.cloud_upload,
+                                size: 44,
+                                color: _selectedFileName != null ? Colors.deepPurple : Colors.blue,
                               ),
                             const SizedBox(height: 12),
                             Text(
                               _isPickingFile
                                   ? "Loading file..."
-                                  : _selectedFileName != null
-                                      ? _selectedFileName!
-                                      : "Tap to select final document (PDF or Image)",
+                                  : (_selectedFileName ?? "Tap to select final document"),
                               style: TextStyle(
                                 fontSize: 14,
-                                fontWeight: _selectedFileName != null
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: _selectedFileName != null
-                                    ? Colors.deepPurple
-                                    : Colors.blue,
+                                fontWeight: _selectedFileName != null ? FontWeight.bold : FontWeight.normal,
+                                color: _selectedFileName != null ? Colors.deepPurple : Colors.blue.shade700,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -4362,10 +4221,7 @@ class _FinalSubmitDialogContentState
                               const SizedBox(height: 4),
                               Text(
                                 "${(_selectedFileBytes!.length / 1024).toStringAsFixed(1)} KB",
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey,
-                                ),
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                               ),
                             ],
                           ],
@@ -4374,91 +4230,99 @@ class _FinalSubmitDialogContentState
                     ),
                     const SizedBox(height: 20),
 
+                    // Notes
                     const Text(
                       "Additional Notes (Optional)",
-                      style:
-                          TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
                     TextField(
-                      controller: widget.notesController,
+                      controller: _notesController,
                       maxLines: 3,
                       decoration: InputDecoration(
                         hintText: "Add any final remarks or notes...",
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         contentPadding: const EdgeInsets.all(12),
                       ),
                     ),
-                    const SizedBox(height: 16),
-
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.deepPurple.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.info_outline,
-                              size: 18, color: Colors.deepPurple),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              "⚠️ This is FINAL submission. After this, no further changes are allowed.",
-                              style: TextStyle(
-                                  fontSize: 11, color: Colors.deepPurple),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
                   ],
                 ),
               ),
             ),
+            const SizedBox(height: 20),
 
+            // Action buttons
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(context, null),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      foregroundColor: Colors.grey.shade700,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: BorderSide(color: Colors.grey.shade400),
                     ),
-                    child: const Text("Cancel"),
+                    child: const Text("Cancel", style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: (_selectedFileName == null || _selectedFileBytes == null)
-                        ? null
-                        : () => Navigator.pop(context, {
-                              'notes': widget.notesController.text,
-                              'fileSelected': true,
-                              'fileName': _selectedFileName,
-                              'fileSize': _selectedFileBytes!.length,
-                            }),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: canSubmit
+                            ? [const Color(0xFF8B5CF6), const Color(0xFF7C3AED)]
+                            : [Colors.grey.shade300, Colors.grey.shade400],
                       ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: canSubmit
+                          ? [
+                              BoxShadow(
+                                color: Colors.deepPurple.withOpacity(0.3),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.send_and_archive, size: 18),
-                        SizedBox(width: 8),
-                        Text("Confirm Final Submit"),
-                      ],
+                    child: ElevatedButton(
+                      // ✅ CRITICAL: Return _DialogResult with file data
+                      onPressed: canSubmit
+                          ? () {
+                              debugPrint("=" * 60);
+                              debugPrint("📤 SUBMITTING FINAL");
+                              debugPrint("   File: ${_selectedFileName}");
+                              debugPrint("   Bytes: ${_selectedFileBytes!.length}");
+                              debugPrint("   Notes: ${_notesController.text}");
+                              debugPrint("=" * 60);
+
+                              Navigator.pop(
+                                context,
+                                _DialogResult(
+                                  fileBytes: _selectedFileBytes!,
+                                  fileName: _selectedFileName!,
+                                  notes: _notesController.text,
+                                ),
+                              );
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.send_and_archive, size: 18),
+                          SizedBox(width: 8),
+                          Text("Confirm Final Submit", style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
                     ),
                   ),
                 ),
