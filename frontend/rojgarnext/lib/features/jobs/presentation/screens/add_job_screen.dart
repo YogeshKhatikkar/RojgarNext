@@ -592,9 +592,42 @@ class _AddJobScreenState extends State<AddJobScreen>
         }).toList();
       }
 
-      if (job['required_qualification'] != null) {
-        selectedEducation = job['required_qualification'].toString();
-      }
+      // ============================================================
+// ✅ FIX: Safe education pre-fill
+// The saved job might contain a degree like "BBA" which is NOT
+// in `educationLevels`. If so:
+//   1. Keep the real value in `educationDetailsCtrl` (so user sees it)
+//   2. Default the dropdown to "Any Graduate" (a safe valid level)
+// This prevents the DropdownButton assertion crash.
+// ============================================================
+if (job['required_qualification'] != null) {
+  final rawQual = job['required_qualification'].toString().trim();
+  if (rawQual.isNotEmpty) {
+    if (educationLevels.contains(rawQual)) {
+      selectedEducation = rawQual;
+    } else {
+      // Not a valid education level → use safe default
+      selectedEducation = 'Any Graduate';
+      debugPrint(
+        "⚠️ required_qualification '$rawQual' is not a valid "
+        "education level. Defaulting dropdown to 'Any Graduate'.",
+      );
+    }
+  }
+}
+
+educationDetailsCtrl.text = job['education_details']?.toString() ?? '';
+
+// If the original qualification wasn't a valid level AND
+// education_details is empty, preserve the original value there.
+if (job['required_qualification'] != null) {
+  final rawQual = job['required_qualification'].toString().trim();
+  if (rawQual.isNotEmpty &&
+      !educationLevels.contains(rawQual) &&
+      educationDetailsCtrl.text.trim().isEmpty) {
+    educationDetailsCtrl.text = rawQual;
+  }
+}
       educationDetailsCtrl.text = job['education_details']?.toString() ?? '';
       isFresherEligible = job['is_fresher_eligible'] != false;
       isExperiencedEligible = job['is_experienced_eligible'] != false;
@@ -3472,12 +3505,18 @@ class _AddJobScreenState extends State<AddJobScreen>
                   Icons.school,
                   subtitle: "Qualification and eligibility",
                 ),
-                _buildAIDropdown(
-                  selectedEducation,
-                  educationLevels,
-                  "Education Level",
-                  onChanged: (v) => setState(() => selectedEducation = v!),
-                ),
+                _buildAIDropdown<String>(
+                    educationLevels.contains(selectedEducation)
+                        ? selectedEducation
+                        : null,
+                    educationLevels,
+                    "Education Level",
+                    onChanged: (v) {
+                      if (v != null) {
+                        setState(() => selectedEducation = v);
+                      }
+                    },
+                  ),
                 _buildAITextField(
                   educationDetailsCtrl,
                   "Education Details",
@@ -7016,74 +7055,121 @@ class _AddJobScreenState extends State<AddJobScreen>
     );
   }
 
-  Widget _buildAIDropdown<T>(
-    T? value,
-    List<T> items,
-    String label, {
-    void Function(T?)? onChanged,
-    bool required = false,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300, width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
-              blurRadius: 5,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-        child: DropdownButtonFormField<T>(
-          initialValue: value,
-          decoration: InputDecoration(
-            labelText: required ? "$label *" : label,
-            labelStyle: const TextStyle(
-              color: Color(0xFF2C2C2C),
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
-            suffixIcon: const Icon(
-              Icons.arrow_drop_down,
-              color: Color(0xFF4A4A4A),
-            ),
-            filled: true,
-            fillColor: Colors.white,
-          ),
-          dropdownColor: Colors.white,
-          style: const TextStyle(
-            color: Color(0xFF1A1A1A),
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-          items: items.map((item) {
-            return DropdownMenuItem<T>(
-              value: item,
-              child: Text(
-                item.toString(),
-                style: const TextStyle(
-                  color: Color(0xFF1A1A1A),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            );
-          }).toList(),
-          onChanged: onChanged,
-          isExpanded: true,
-          validator: (value) => required && value == null ? "Required" : null,
-        ),
-      ),
-    );
+Widget _buildAIDropdown<T>(
+  T? value,
+  List<T> items,
+  String label, {
+  void Function(T?)? onChanged,
+  bool required = false,
+}) {
+  // ============================================================
+  // ✅ FIX: Prevent DropdownButton assertion crash
+  // Root cause: When editing a job whose saved value (e.g. "BBA")
+  // is NOT in `items`, Flutter's DropdownButtonFormField asserts:
+  //   "There should be exactly one item with value: BBA"
+  //
+  // Solution:
+  //   1. If value not in items → prepend value to items
+  //   2. If value has duplicates → deduplicate
+  //   3. If items is empty → pass null
+  // ============================================================
+  List<T> safeItems = List<T>.from(items);
+  T? safeValue = value;
+
+  if (safeValue != null) {
+    final int matchCount =
+        safeItems.where((e) => e == safeValue).length;
+
+    if (matchCount == 0) {
+      // Value missing → prepend so exactly ONE match exists
+      debugPrint(
+        "⚠️ Dropdown '$label': value '$safeValue' not in items "
+        "(${safeItems.length}). Prepending to prevent crash.",
+      );
+      safeItems.insert(0, safeValue);
+    } else if (matchCount > 1) {
+      // Duplicates → keep only the first occurrence
+      debugPrint(
+        "⚠️ Dropdown '$label': value '$safeValue' has $matchCount "
+        "duplicates. Deduplicating.",
+      );
+      bool kept = false;
+      safeItems = safeItems.where((e) {
+        if (e == safeValue) {
+          if (kept) return false;
+          kept = true;
+        }
+        return true;
+      }).toList();
+    }
   }
+
+  if (safeItems.isEmpty) {
+    safeValue = null;
+  }
+
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 5,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: DropdownButtonFormField<T>(
+        initialValue: safeValue,
+        decoration: InputDecoration(
+          labelText: required ? "$label *" : label,
+          labelStyle: const TextStyle(
+            color: Color(0xFF2C2C2C),
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+          suffixIcon: const Icon(
+            Icons.arrow_drop_down,
+            color: Color(0xFF4A4A4A),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+        ),
+        dropdownColor: Colors.white,
+        style: const TextStyle(
+          color: Color(0xFF1A1A1A),
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        items: safeItems.map((item) {
+          return DropdownMenuItem<T>(
+            value: item,
+            child: Text(
+              item.toString(),
+              style: const TextStyle(
+                color: Color(0xFF1A1A1A),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          );
+        }).toList(),
+        onChanged: onChanged,
+        isExpanded: true,
+        validator: (value) =>
+            required && value == null ? "Required" : null,
+      ),
+    ),
+  );
+}
 
   Widget _buildAIDateField(
     TextEditingController ctrl,

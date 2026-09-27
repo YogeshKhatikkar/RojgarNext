@@ -6,6 +6,7 @@
 # ✅ NEW: color_type filter support
 # ✅ FIXED: real_time_market_ai import added
 # ✅ FIXED: get_ai_enhanced_jobs() moved INSIDE the class
+# ✅ NEW: Optimized list_jobs with faster queries
 
 from fastapi import HTTPException, BackgroundTasks, UploadFile
 from typing import Optional, List, Dict, Any, Union
@@ -13,6 +14,7 @@ from datetime import datetime
 from bson import ObjectId
 import json
 import logging
+import asyncio
 
 from app.db.connection import get_db
 from app.models.job_model import (
@@ -296,7 +298,7 @@ class JobService:
             traceback.print_exc()
             raise HTTPException(status_code=400, detail=f"Failed to add job: {str(e)}")
 
-    # ====================== LIST JOBS (WITH color_type) ======================
+    # ====================== LIST JOBS (OPTIMIZED - FAST LOADING) ======================
 
     async def list_jobs(
         self,
@@ -308,7 +310,15 @@ class JobService:
         user_location: Optional[dict] = None,
         color_type: Optional[str] = None,
     ) -> dict:
-        """List jobs with filters and distance calculation"""
+        """
+        ✅ OPTIMIZED: List jobs with filters - FAST LOADING
+        
+        Key optimizations:
+        1. Uses projection to fetch only needed fields initially
+        2. Parallel count + fetch
+        3. Minimal distance calculation
+        4. No blocking operations
+        """
         query = {"status": "open"}
 
         if job_type and job_type != 'all' and job_type != 'null' and job_type != '':
@@ -331,30 +341,71 @@ class JobService:
                 {"description": {"$regex": search_term, "$options": "i"}}
             ]
 
-        jobs_list = await self.jobs.find(query).skip(skip).limit(limit).sort("created_at", -1).to_list(limit)
+        # ✅ OPTIMIZATION: Run count and fetch in parallel
+        count_task = self.jobs.count_documents(query)
+        
+        # ✅ OPTIMIZATION: Use projection to only fetch needed fields for list view
+        projection = {
+            "_id": 1,
+            "post_name": 1,
+            "organization": 1,
+            "location": 1,
+            "job_location": 1,
+            "job_type": 1,
+            "job_level": 1,
+            "category": 1,
+            "color_type": 1,
+            "post_date": 1,
+            "last_date": 1,
+            "salary_min": 1,
+            "salary_max": 1,
+            "total_posts": 1,
+            "experience_min_years": 1,
+            "experience_max_years": 1,
+            "required_qualification": 1,
+            "has_apply_with_us": 1,
+            "has_official_notification": 1,
+            "has_application_fees": 1,
+            "application_fees": 1,
+            "created_at": 1,
+            "urgency_level": 1,
+            "is_fully_remote": 1,
+            "is_hybrid": 1,
+            "tags": 1,
+            "required_skills": 1,
+        }
+        
+        jobs_task = self.jobs.find(query, projection).skip(skip).limit(limit).sort("created_at", -1).to_list(limit)
 
+        # Wait for both to complete
+        total, jobs_list = await asyncio.gather(count_task, jobs_task)
+
+        # ✅ OPTIMIZATION: Process jobs efficiently
         for job in jobs_list:
             job["_id"] = str(job["_id"])
             job.setdefault("color_type", "blue")
+            
+            # ✅ Fast distance calculation (only if user has location)
             distance_km = None
-
             if user_location and user_location.get("latitude") and user_location.get("longitude"):
                 job_loc = job.get("job_location", {})
                 job_lat = job_loc.get("latitude")
                 job_lon = job_loc.get("longitude")
 
                 if job_lat is not None and job_lon is not None and (job_lat != 0 or job_lon != 0):
-                    dist_m = DistanceCalculator.calculate_distance(
-                        user_location["latitude"],
-                        user_location["longitude"],
-                        job_lat,
-                        job_lon
-                    )
-                    distance_km = round(dist_m / 1000, 2)
+                    # ✅ Fast Haversine formula inline (avoid function call overhead)
+                    import math
+                    lat1, lon1 = user_location["latitude"], user_location["longitude"]
+                    lat2, lon2 = job_lat, job_lon
+                    
+                    R = 6371  # Earth's radius in km
+                    dlat = math.radians(lat2 - lat1)
+                    dlon = math.radians(lon2 - lon1)
+                    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+                    c = 2 * math.asin(math.sqrt(a))
+                    distance_km = round(R * c, 2)
 
             job["distance_km"] = distance_km
-
-        total = await self.jobs.count_documents(query)
 
         return {"jobs": jobs_list, "total": total}
 
@@ -1311,7 +1362,6 @@ class JobService:
             }
         }
 
-
     # ====================== UPDATE JOB (ADMIN/CUSTOMADMIN/SUPERADMIN) ======================
 
     async def update_job(
@@ -1497,6 +1547,7 @@ class JobService:
             "applications_deleted": app_delete_result.deleted_count,
         }
 
+
 print("=" * 70)
 print("✅ Job Service Updated - Uses Unified Applications Collection")
 print("   ✅ application_type='job' for all job applications")
@@ -1507,4 +1558,5 @@ print("   ✅ NO payment_pending status - Direct verification_successful")
 print("   ✅ NEW: color_type filter support in list_jobs()")
 print("   ✅ FIXED: real_time_market_ai imported at top")
 print("   ✅ FIXED: get_ai_enhanced_jobs() now inside JobService class")
+print("   ✅ OPTIMIZED: list_jobs() with projection and parallel queries")
 print("=" * 70)

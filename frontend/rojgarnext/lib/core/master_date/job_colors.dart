@@ -1,11 +1,27 @@
 // lib/core/master_date/job_colors.dart
 // ✅ MASTER DATA FOR JOB COLOR TYPES
-// Colors supported: blue, green, red, orange, purple, teal, pink,
-//                   indigo, amber, cyan, grey, white
+// ✅ orderedColorKeys — Blue first, White second, then others
+// ✅ shortDescription (for tooltip) + colorSectors (for tooltip list)
 
 import 'package:flutter/material.dart';
 
 class JobColorMasterData {
+  /// ✅ ORDERED — Blue first, White second, then the rest
+  static const List<String> orderedColorKeys = [
+    'blue',
+    'white',
+    'green',
+    'red',
+    'orange',
+    'purple',
+    'teal',
+    'pink',
+    'indigo',
+    'amber',
+    'cyan',
+    'grey',
+  ];
+
   /// All allowed color type keys — MUST match backend regex
   static const List<String> colorKeys = [
     'blue',
@@ -38,20 +54,175 @@ class JobColorMasterData {
     'white': 'White',
   };
 
+  /// ✅ SHORT one-line description (for compact tooltip)
+  static const Map<String, String> colorShortDescriptions = {
+    'blue': 'Manual labour & skilled trade jobs.',
+    'white': 'Office, IT, management & professional jobs.',
+    'green': 'Environment, agriculture & sustainability jobs.',
+    'red': 'Emergency, defense & high-risk jobs.',
+    'orange': 'Construction, mining & heavy industry jobs.',
+    'purple': 'Creative, design & media jobs.',
+    'teal': 'Healthcare, medical & wellness jobs.',
+    'pink': 'Care-giving, beauty & hospitality jobs.',
+    'indigo': 'Education, training & academic jobs.',
+    'amber': 'Hospitality, tourism & food service jobs.',
+    'cyan': 'Water, marine & aviation jobs.',
+    'grey': 'General administrative & clerical jobs.',
+  };
+
+  /// ✅ SECTORS — compact list for tooltip
+  static const Map<String, List<String>> colorSectors = {
+    'blue': [
+      'Transport & Logistics',
+      'Construction',
+      'Manufacturing',
+      'Warehouse & Packaging',
+      'Security Services',
+      'Home Services',
+      'Automobile & Repair',
+      'Delivery & Courier',
+      'Cleaning & Housekeeping',
+    ],
+    'white': [
+      'Information Technology (IT)',
+      'Banking & Finance',
+      'Management & Consulting',
+      'Marketing & Sales',
+      'Accounting & Auditing',
+      'Legal Services',
+      'Human Resources',
+      'Engineering (Design & R&D)',
+      'Government Administration',
+      'Data Science & Analytics',
+    ],
+    'green': [
+      'Agriculture & Farming',
+      'Horticulture & Nursery',
+      'Forestry & Wildlife',
+      'Environmental Science',
+      'Renewable Energy',
+      'Dairy & Poultry',
+      'Fisheries',
+      'Organic Food Production',
+      'Sustainability & Recycling',
+    ],
+    'red': [
+      'Police & Law Enforcement',
+      'Fire & Rescue Services',
+      'Indian Army',
+      'Indian Navy',
+      'Indian Air Force',
+      'Paramilitary Forces',
+      'Emergency Medical Services',
+      'Disaster Management',
+      'Coast Guard',
+    ],
+    'orange': [
+      'Construction & Infrastructure',
+      'Mining & Quarrying',
+      'Heavy Machinery Operation',
+      'Road & Bridge Construction',
+      'Oil & Gas (Field Work)',
+      'Power Plant Operations',
+      'Steel & Cement Industry',
+      'Dams & Tunnels',
+      'Excavation & Drilling',
+    ],
+    'purple': [
+      'Graphic & Visual Design',
+      'Video & Audio Production',
+      'Animation & VFX',
+      'Content Writing & Copywriting',
+      'Photography & Videography',
+      'Fashion Design',
+      'Interior Design',
+      'UI / UX Design',
+      'Advertising & Branding',
+      'Social Media Management',
+    ],
+    'teal': [
+      'Hospitals & Clinics',
+      'Nursing & Patient Care',
+      'Pharmacy',
+      'Medical Lab Technology',
+      'Physiotherapy & Rehab',
+      'Radiology & Imaging',
+      'Dentistry',
+      'Paramedical Services',
+      'Yoga & Wellness',
+      'Nutrition & Dietetics',
+    ],
+    'pink': [
+      'Beauty & Cosmetology',
+      'Hair Styling & Makeup',
+      'Spa & Massage Therapy',
+      'Childcare & Nanny Services',
+      'Elderly Care',
+      'Housekeeping & Domestic Help',
+      'Pet Grooming & Care',
+      'Social Care & Counselling',
+      'Wedding & Event Planning',
+    ],
+    'indigo': [
+      'Schools & Primary Education',
+      'Colleges & Universities',
+      'Coaching & Tuition',
+      'Training Institutes',
+      'Online Education (EdTech)',
+      'Library & Documentation',
+      'Research & Academics',
+      'Career Counselling',
+      'Special Education',
+    ],
+    'amber': [
+      'Hotels & Resorts',
+      'Restaurants & Cafes',
+      'Bakery & Confectionery',
+      'Travel & Tourism',
+      'Tour Guiding',
+      'Event & Banquet Management',
+      'Front Office & Reception',
+      'Food & Beverage Service',
+      'Quick Service Restaurants',
+    ],
+    'cyan': [
+      'Shipping & Marine Engineering',
+      'Port & Dock Operations',
+      'Fishing & Seafood Industry',
+      'Aviation (Pilot, Crew, Ground)',
+      'Airport Management',
+      'Water Treatment & Supply',
+      'Diving & Underwater Services',
+      'Naval Services (Civil)',
+      'Marine Logistics',
+    ],
+    'grey': [
+      'Data Entry & Back Office',
+      'Clerical & Filing',
+      'Reception & Front Desk',
+      'Office Administration',
+      'Documentation & Records',
+      'Secretarial Services',
+      'Printing & Stationery',
+      'Dispatch & Mailing',
+      'Inventory & Stock Keeping',
+    ],
+  };
+
   /// Icon for each color
   static const Map<String, IconData> colorIcons = {
-    'blue': Icons.work,
-    'green': Icons.account_balance,
+    'blue': Icons.engineering,
+    'green': Icons.agriculture,
     'red': Icons.local_fire_department,
-    'orange': Icons.trending_up,
-    'purple': Icons.wifi,
+    'orange': Icons.construction,
+    'purple': Icons.palette,
     'teal': Icons.medical_services,
-    'pink': Icons.favorite,
+    'pink': Icons.spa,
     'indigo': Icons.school,
-    'amber': Icons.star,
+    'amber': Icons.restaurant,
     'cyan': Icons.water_drop,
-    'grey': Icons.business,
-    'white': Icons.light_mode,
+    'grey': Icons.business_center,
+    'white': Icons.work,
   };
 
   /// Primary color for each key
@@ -124,6 +295,20 @@ class JobColorMasterData {
     if (key == null) return 'Blue';
     final k = key.toLowerCase().trim();
     return colorLabels[k] ?? 'Blue';
+  }
+
+  /// ✅ Short description for compact tooltip
+  static String getShortDescription(String? key) {
+    if (key == null) return 'No description available.';
+    final k = key.toLowerCase().trim();
+    return colorShortDescriptions[k] ?? 'No description available.';
+  }
+
+  /// ✅ Sectors for tooltip
+  static List<String> getSectors(String? key) {
+    if (key == null) return const [];
+    final k = key.toLowerCase().trim();
+    return colorSectors[k] ?? const [];
   }
 
   static IconData getIcon(String? key) {
