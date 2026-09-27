@@ -8,6 +8,7 @@
 // ✅ Preserves all original functionality (caching, delete, refresh, navigation)
 // ✅ UPDATED: Add Job now renders INLINE on the right side of the sidebar
 //            (no route push) with a back button in the AppBar
+// ✅ NEW: Edit button added to each job card - opens AddJobScreen with pre-filled data
 
 import 'dart:convert';
 import 'dart:math' as math;
@@ -76,7 +77,7 @@ class AdminJobAIService {
 // ===============================================================
 // ✅ LOCAL VIEW ENUM — controls which pane renders on the right
 // ===============================================================
-enum _ShowJobsView { list, addJob }
+enum _ShowJobsView { list, addJob, editJob }
 
 // ===============================================================
 // MAIN SCREEN
@@ -114,6 +115,9 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
 
   // ✅ Which pane to show on the right of the sidebar
   _ShowJobsView _view = _ShowJobsView.list;
+
+  // ✅ Job being edited
+  Map<String, dynamic>? _editingJob;
 
   // ================= ANIMATION CONTROLLERS =================
   late AnimationController _pulseController;
@@ -201,6 +205,17 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
   }
 
   String _getDeleteEndpoint(String jobId) {
+    switch (widget.adminRole.toLowerCase()) {
+      case 'customadmin':
+        return '/customadmin/jobs/$jobId';
+      case 'superadmin':
+        return '/superadmin/jobs/$jobId';
+      default:
+        return '/admin/jobs/$jobId';
+    }
+  }
+
+  String _getUpdateEndpoint(String jobId) {
     switch (widget.adminRole.toLowerCase()) {
       case 'customadmin':
         return '/customadmin/jobs/$jobId';
@@ -351,14 +366,40 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
   // ✅ INLINE NAVIGATION — switch right pane (sidebar stays visible)
   // ============================================================
   void _openAddJobView() {
-    setState(() => _view = _ShowJobsView.addJob);
+    setState(() {
+      _view = _ShowJobsView.addJob;
+      _editingJob = null;
+    });
+  }
+
+  void _openEditJobView(Map<String, dynamic> job) {
+    debugPrint("📝 Opening edit view for job: ${job['post_name']}");
+    debugPrint("📝 Job ID: ${job['_id']}");
+    debugPrint("📝 Job data keys: ${job.keys.toList()}");
+    
+    setState(() {
+      _view = _ShowJobsView.editJob;
+      _editingJob = job;
+    });
   }
 
   void _closeAddJobView() {
     // Go back to the list and force-refresh so the new job shows up
-    setState(() => _view = _ShowJobsView.list);
+    setState(() {
+      _view = _ShowJobsView.list;
+      _editingJob = null;
+    });
     _fetchJobs();
     // Bubble up to the parent dashboard (badge counts etc.)
+    widget.onJobUpdated?.call();
+  }
+
+  void _closeEditJobView() {
+    setState(() {
+      _view = _ShowJobsView.list;
+      _editingJob = null;
+    });
+    _fetchJobs();
     widget.onJobUpdated?.call();
   }
 
@@ -425,19 +466,49 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
   // ================= BUILD =================
   @override
   Widget build(BuildContext context) {
-    // ✅ Inline view: Add Job (sidebar remains visible because we are
-    //    rendered inside the dashboard's Expanded content area)
+    // ✅ Inline view: Add Job (sidebar remains visible)
     if (_view == _ShowJobsView.addJob) {
       return Column(
         children: [
-          _buildInlineAddJobHeader(),
+          _buildInlineHeader(
+            title: "Add New Job",
+            subtitle: "Fill all 8 tabs and publish",
+            onBack: _closeAddJobView,
+            icon: Icons.add_circle_outline,
+          ),
           Expanded(
             child: AddJobScreen(
               adminRole: widget.adminRole,
               onJobAdded: () {
-                // Keep the AddJobScreen open after success so the admin
-                // can add another job; list refresh happens on back press.
                 widget.onJobUpdated?.call();
+              },
+            ),
+          ),
+        ],
+      );
+    }
+
+    // ✅ Inline view: Edit Job (sidebar remains visible)
+    if (_view == _ShowJobsView.editJob && _editingJob != null) {
+      return Column(
+        children: [
+          _buildInlineHeader(
+            title: "Edit Job",
+            subtitle: _editingJob!['post_name'] ?? "Update job details",
+            onBack: _closeEditJobView,
+            icon: Icons.edit,
+          ),
+          Expanded(
+            child: AddJobScreen(
+              adminRole: widget.adminRole,
+              editingJob: _editingJob,
+              isEditMode: true,
+              onJobAdded: () {
+                widget.onJobUpdated?.call();
+              },
+              onJobUpdated: () {
+                debugPrint("✅ Job updated - refreshing list");
+                _closeEditJobView();
               },
             ),
           ),
@@ -469,9 +540,14 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
   }
 
   // ============================================================
-  // ✅ INLINE ADD-JOB HEADER (back button + title)
+  // ✅ INLINE HEADER (back button + title) — reusable
   // ============================================================
-  Widget _buildInlineAddJobHeader() {
+  Widget _buildInlineHeader({
+    required String title,
+    required String subtitle,
+    required VoidCallback onBack,
+    required IconData icon,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -492,7 +568,7 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
             borderRadius: BorderRadius.circular(12),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
-              onTap: _closeAddJobView,
+              onTap: onBack,
               splashColor: const Color(0xFF6C63FF).withOpacity(0.15),
               child: Padding(
                 padding: const EdgeInsets.all(10),
@@ -520,15 +596,28 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
           ),
           const SizedBox(width: 14),
 
+          // ---- Icon ----
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 12),
+
           // ---- Title ----
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Text(
-                  "Add New Job",
-                  style: TextStyle(
+                  title,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
@@ -537,8 +626,10 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
                 ),
                 SizedBox(height: 2),
                 Text(
-                  "Fill all 8 tabs and publish",
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  subtitle,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -658,7 +749,6 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
       foregroundColor: Colors.white,
       elevation: 0,
       actions: [
-        // ✅ Add Job button (same inline action)
         IconButton(
           icon: const Icon(Icons.add_circle_outline),
           onPressed: _openAddJobView,
@@ -1165,7 +1255,7 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
     );
   }
 
-  // ================= JOB CARD =================
+  // ================= JOB CARD WITH EDIT BUTTON =================
   Widget _buildJobCard(Map<String, dynamic> job, int index) {
     final jobTitle = job['post_name'] ?? 'Job Title';
     final organization = job['organization'] ?? 'Company';
@@ -1245,6 +1335,17 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
                       ),
                       itemBuilder: (context) => [
                         PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: const [
+                              Icon(Icons.edit_outlined,
+                                  size: 18, color: Color(0xFF6C63FF)),
+                              SizedBox(width: 10),
+                              Text("Edit"),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
                           value: 'delete',
                           child: Row(
                             children: const [
@@ -1257,7 +1358,9 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
                         ),
                       ],
                       onSelected: (value) {
-                        if (value == 'delete') {
+                        if (value == 'edit') {
+                          _openEditJobView(job);
+                        } else if (value == 'delete') {
                           _deleteJob(job['_id'], jobTitle);
                         }
                       },
@@ -1324,6 +1427,29 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                // ==================== EDIT BUTTON ====================
+                SizedBox(
+                  width: double.infinity,
+                  height: 40,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _openEditJobView(job),
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text(
+                      "Edit Job",
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF6C63FF),
+                      side: const BorderSide(
+                          color: Color(0xFF6C63FF), width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1528,7 +1654,6 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
         ],
       ),
       child: FloatingActionButton.extended(
-        // ✅ Now switches the inline view — sidebar stays visible
         onPressed: _openAddJobView,
         icon: const Icon(Icons.add),
         label: const Text(

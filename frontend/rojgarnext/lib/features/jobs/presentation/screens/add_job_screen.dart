@@ -1,7 +1,8 @@
 // lib/features/jobs/presentation/screens/add_job_screen.dart
-// ✅ ULTIMATE AI-BASED TABBED DESIGN - Full CRUD preserved
-// ✅ All original features kept intact + modern tab UI like basic_details_screen
-// ✅ 8 Tabs: Basic | Vacancy | Age & Fees | Timeline | Work | Interview | Notification | Extras
+// ✅ COMPLETE FIXED VERSION
+// ✅ Fixed: NoSuchMethodError 'isNotEmpty' on int (age_min/age_max)
+// ✅ Safe age handling for edit mode
+// ✅ Backend multiple_posts normalized on pre-fill
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -16,12 +17,25 @@ import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/core/master_date/locations.dart';
 import 'package:rojgarnext/features/notification/service/notification_service.dart';
 import 'package:rojgarnext/core/master_date/education.dart';
+import 'package:rojgarnext/core/master_date/job_colors.dart';
 
 class AddJobScreen extends StatefulWidget {
   final String adminRole;
   final VoidCallback? onJobAdded;
+  final VoidCallback? onJobUpdated;
 
-  const AddJobScreen({super.key, this.adminRole = 'admin', this.onJobAdded});
+  // ✅ NEW: Edit mode support
+  final Map<String, dynamic>? editingJob;
+  final bool isEditMode;
+
+  const AddJobScreen({
+    super.key,
+    this.adminRole = 'admin',
+    this.onJobAdded,
+    this.onJobUpdated,
+    this.editingJob,
+    this.isEditMode = false,
+  });
 
   @override
   State<AddJobScreen> createState() => _AddJobScreenState();
@@ -38,6 +52,11 @@ class _AddJobScreenState extends State<AddJobScreen>
   static const int _tabCount = 8;
   late TabController _tabController;
   int _currentTabIndex = 0;
+
+  // ==================== DRAFT JOB ID ====================
+  String? _draftJobId;
+  bool _isSavingDraft = false;
+  Map<int, bool> _tabSaveStatus = {};
 
   final List<IconData> _tabIcons = const [
     Icons.business,
@@ -84,7 +103,7 @@ class _AddJobScreenState extends State<AddJobScreen>
   bool hasApplyWithUs = false;
   final websiteUrlCtrl = TextEditingController();
 
-  // ==================== OFFICIAL NOTIFICATION SECTION ====================
+  // ==================== OFFICIAL NOTIFICATION ====================
   final officialNotificationUrlCtrl = TextEditingController();
   bool hasOfficialNotificationLink = false;
   String? selectedFileName;
@@ -97,7 +116,7 @@ class _AddJobScreenState extends State<AddJobScreen>
   final ageCalcDateCtrl = TextEditingController();
   final ageRelaxationCtrl = TextEditingController();
 
-  // ==================== AGE RELAXATION WITH DROPDOWN ====================
+  // ==================== AGE RELAXATION DROPDOWN ====================
   bool _hasAgeRelaxation = false;
   bool _isEditingRelaxation = false;
   String? _editingRelaxationCategory;
@@ -121,7 +140,7 @@ class _AddJobScreenState extends State<AddJobScreen>
     'J&K Domicile',
   ];
 
-  // ==================== APPLICATION FEES SECTION ====================
+  // ==================== APPLICATION FEES ====================
   bool _hasApplicationFees = false;
   final Map<String, TextEditingController> feesControllers = {};
   final Map<String, String> feesValues = {};
@@ -161,7 +180,7 @@ class _AddJobScreenState extends State<AddJobScreen>
   int? _editingPostIndex;
   bool _isEditingPost = false;
 
-  // ==================== PAY SCALE (Per Post with Dropdown) ====================
+  // ==================== PAY SCALE ====================
   int? _selectedPostForPayScale;
   final TextEditingController payScaleCtrl = TextEditingController();
   final TextEditingController gradePayCtrl = TextEditingController();
@@ -190,9 +209,8 @@ class _AddJobScreenState extends State<AddJobScreen>
     'ESM',
   ];
 
-  // ==================== APPLICATION DATES ====================
-  final TextEditingController applicationStartDateCtrl =
-      TextEditingController();
+  // ==================== DATES ====================
+  final TextEditingController applicationStartDateCtrl = TextEditingController();
   final TextEditingController applicationEndDateCtrl = TextEditingController();
 
   // ==================== OFFICIAL DETAILS ====================
@@ -213,11 +231,11 @@ class _AddJobScreenState extends State<AddJobScreen>
   final TextEditingController maxWeightCtrl = TextEditingController();
   final TextEditingController physicalRelaxationCtrl = TextEditingController();
 
-  // ==================== MEDICAL STANDARDS ====================
+  // ==================== MEDICAL ====================
   bool _hasMedicalRequirement = false;
   final TextEditingController medicalStandardsCtrl = TextEditingController();
 
-  // ==================== TRAINING DETAILS ====================
+  // ==================== TRAINING ====================
   bool _hasTraining = false;
   final TextEditingController trainingDurationCtrl = TextEditingController();
   final TextEditingController trainingStipendCtrl = TextEditingController();
@@ -253,74 +271,37 @@ class _AddJobScreenState extends State<AddJobScreen>
 
   List<String> selectedBenefits = [];
   final List<String> availableBenefits = const [
-    'Health Insurance',
-    'Provident Fund',
-    'Gratuity',
-    'Bonus',
-    'Travel Allowance',
-    'House Rent Allowance',
-    'Food Allowance',
-    'Education Allowance',
-    'Leave Encashment',
-    'Flexible Timing',
-    'Work From Home',
-    'Free Transport',
-    'Free Accommodation',
-    'Medical Facilities',
-    'Training Programs',
-    'Career Growth',
-    'Performance Bonus',
-    'Stock Options',
-    'Mobile Allowance',
+    'Health Insurance', 'Provident Fund', 'Gratuity', 'Bonus',
+    'Travel Allowance', 'House Rent Allowance', 'Food Allowance',
+    'Education Allowance', 'Leave Encashment', 'Flexible Timing',
+    'Work From Home', 'Free Transport', 'Free Accommodation',
+    'Medical Facilities', 'Training Programs', 'Career Growth',
+    'Performance Bonus', 'Stock Options', 'Mobile Allowance',
     'Internet Allowance',
   ];
 
   final List<String> workSchedules = const [
-    'Full Time',
-    'Part Time',
-    'Contractual',
-    'Temporary',
-    'Permanent',
-    'Freelance',
-    'Internship',
-    'Volunteer',
+    'Full Time', 'Part Time', 'Contractual', 'Temporary', 'Permanent',
+    'Freelance', 'Internship', 'Volunteer',
   ];
   String selectedWorkSchedule = 'Full Time';
 
   final List<String> shifts = const [
-    'Day Shift',
-    'Night Shift',
-    'Rotational Shift',
-    'Flexible Shift',
-    'Split Shift',
-    'On Call',
+    'Day Shift', 'Night Shift', 'Rotational Shift', 'Flexible Shift',
+    'Split Shift', 'On Call',
   ];
   String selectedShift = 'Day Shift';
 
   final List<String> workingDays = const [
-    'Monday to Friday',
-    'Monday to Saturday',
-    '5 Days a Week',
-    '6 Days a Week',
-    'Alternate Days',
-    'Rotational Off',
+    'Monday to Friday', 'Monday to Saturday', '5 Days a Week',
+    '6 Days a Week', 'Alternate Days', 'Rotational Off',
   ];
   String selectedWorkingDays = 'Monday to Friday';
 
   List<String> selectedLanguages = [];
   final List<String> availableLanguages = const [
-    'Hindi',
-    'English',
-    'Marathi',
-    'Bengali',
-    'Telugu',
-    'Tamil',
-    'Gujarati',
-    'Kannada',
-    'Malayalam',
-    'Punjabi',
-    'Urdu',
-    'Odia',
+    'Hindi', 'English', 'Marathi', 'Bengali', 'Telugu', 'Tamil',
+    'Gujarati', 'Kannada', 'Malayalam', 'Punjabi', 'Urdu', 'Odia',
     'Assamese',
   ];
   final TextEditingController otherLanguagesCtrl = TextEditingController();
@@ -332,16 +313,9 @@ class _AddJobScreenState extends State<AddJobScreen>
   final TextEditingController interviewLinkCtrl = TextEditingController();
   List<String> interviewDocuments = [];
   final List<String> requiredDocuments = const [
-    'Resume/CV',
-    'Educational Certificates',
-    'Experience Certificates',
-    'Aadhar Card',
-    'PAN Card',
-    'Passport Size Photo',
-    'Caste Certificate',
-    'Disability Certificate',
-    'Ex-Serviceman Certificate',
-    'Income Certificate',
+    'Resume/CV', 'Educational Certificates', 'Experience Certificates',
+    'Aadhar Card', 'PAN Card', 'Passport Size Photo', 'Caste Certificate',
+    'Disability Certificate', 'Ex-Serviceman Certificate', 'Income Certificate',
   ];
 
   final TextEditingController contactPersonCtrl = TextEditingController();
@@ -353,15 +327,9 @@ class _AddJobScreenState extends State<AddJobScreen>
 
   List<String> selectionStages = [];
   final List<String> availableStages = const [
-    'Application Screening',
-    'Written Exam',
-    'Skill Test',
-    'Group Discussion',
-    'Personal Interview',
-    'HR Interview',
-    'Technical Interview',
-    'Medical Examination',
-    'Document Verification',
+    'Application Screening', 'Written Exam', 'Skill Test',
+    'Group Discussion', 'Personal Interview', 'HR Interview',
+    'Technical Interview', 'Medical Examination', 'Document Verification',
     'Final Selection',
   ];
   final TextEditingController selectionProcessDetailsCtrl =
@@ -373,17 +341,11 @@ class _AddJobScreenState extends State<AddJobScreen>
   final TextEditingController bondTermsCtrl = TextEditingController();
 
   final List<String> urgencyLevels = const [
-    'Immediate',
-    'Urgent',
-    'Normal',
-    'Long Term',
+    'Immediate', 'Urgent', 'Normal', 'Long Term',
   ];
   String selectedUrgency = 'Normal';
   final List<String> genderPreferences = const [
-    'Any',
-    'Male',
-    'Female',
-    'Transgender',
+    'Any', 'Male', 'Female', 'Transgender',
   ];
   String selectedGenderPreference = 'Any';
   bool isFullyRemote = false;
@@ -397,36 +359,20 @@ class _AddJobScreenState extends State<AddJobScreen>
   final TextEditingController helplineEmailCtrl = TextEditingController();
 
   final List<String> jobTypes = const [
-    'private',
-    'remote',
-    'hybrid',
-    'government',
+    'private', 'remote', 'hybrid', 'government',
   ];
   final List<String> jobLevels = const [
-    'entry',
-    'mid',
-    'senior',
-    'lead',
-    'executive',
+    'entry', 'mid', 'senior', 'lead', 'executive',
   ];
   final List<String> categories = const [
-    'IT',
-    'Marketing',
-    'Finance',
-    'HR',
-    'Engineering',
-    'Teaching',
-    'Healthcare',
-    'Government',
-    'Banking',
-    'Defense',
-    'Sales',
-    'Operations',
+    'IT', 'Marketing', 'Finance', 'HR', 'Engineering', 'Teaching',
+    'Healthcare', 'Government', 'Banking', 'Defense', 'Sales', 'Operations',
   ];
 
   String jobType = 'private';
   String jobLevel = 'mid';
   String category = 'IT';
+  String _colorType = 'blue';
 
   String? _selectedCountry;
   String? _selectedState;
@@ -466,7 +412,9 @@ class _AddJobScreenState extends State<AddJobScreen>
       'M.F.A.', 'M.J.M.C.', 'M.S.W.', 'LL.M.', 'MD', 'MS', 'MDS', 'M.P.T.',
       'M.Sc Nursing',
     ],
-    'PhD': const ['PhD', 'M.Phil', 'D.Sc', 'D.Litt', 'DBA', 'D.M.A.', 'Ed.D', 'D.Eng'],
+    'PhD': const [
+      'PhD', 'M.Phil', 'D.Sc', 'D.Litt', 'DBA', 'D.M.A.', 'Ed.D', 'D.Eng',
+    ],
   };
 
   final Map<String, List<String>> _degreeSubjectsMap = {
@@ -497,6 +445,22 @@ class _AddJobScreenState extends State<AddJobScreen>
     'M.Phil': [],
   };
 
+  // ============================================================
+  // ✅ SAFE HELPER: Convert age_min/age_max (int/double/String/null) to String
+  // ============================================================
+  String _safeAgeToString(dynamic value) {
+    if (value == null) return '';
+    if (value is int) return value.toString();
+    if (value is double) {
+      if (value == value.truncateToDouble()) {
+        return value.toInt().toString();
+      }
+      return value.toString();
+    }
+    if (value is String) return value.trim();
+    return value.toString().trim();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -521,6 +485,322 @@ class _AddJobScreenState extends State<AddJobScreen>
       feesValues[category] = '';
     }
     _updateQualificationSubOptions();
+
+    for (int i = 0; i < _tabCount; i++) {
+      _tabSaveStatus[i] = false;
+    }
+
+    // ✅ Pre-fill data if in edit mode
+    if (widget.isEditMode && widget.editingJob != null) {
+      _preFillJobData(widget.editingJob!);
+    }
+  }
+
+  // ============================================================
+  // ✅ PRE-FILL JOB DATA FOR EDIT MODE (FIXED)
+  // ============================================================
+  void _preFillJobData(Map<String, dynamic> job) {
+    debugPrint("📝 Pre-filling job data for edit mode");
+    debugPrint("   Job ID: ${job['_id']}");
+    debugPrint("   Job keys: ${job.keys.toList()}");
+
+    try {
+      _draftJobId = job['_id']?.toString();
+
+      // ==================== BASIC TAB ====================
+      organizationCtrl.text = job['organization']?.toString() ?? '';
+      postNameCtrl.text = job['post_name']?.toString() ?? '';
+      descriptionCtrl.text = job['description']?.toString() ?? '';
+      lastDateCtrl.text = job['last_date']?.toString() ?? '';
+      postDateCtrl.text = job['post_date']?.toString() ?? '';
+      websiteUrlCtrl.text = job['website_url']?.toString() ?? '';
+
+      final jobLocation = job['job_location'] as Map? ?? {};
+      cityVillageCtrl.text = jobLocation['city']?.toString() ??
+          jobLocation['village_name']?.toString() ??
+          '';
+      locationCtrl.text = jobLocation['location_name']?.toString() ??
+          job['location']?.toString() ??
+          '';
+
+      if (job['job_type'] != null) {
+        final jt = job['job_type'].toString().toLowerCase();
+        if (jobTypes.contains(jt)) {
+          jobType = jt;
+        }
+      }
+      if (job['job_level'] != null) {
+        final jl = job['job_level'].toString().toLowerCase();
+        if (jobLevels.contains(jl)) {
+          jobLevel = jl;
+        }
+      }
+      if (job['category'] != null) {
+        category = job['category'].toString();
+      }
+      if (job['color_type'] != null) {
+        _colorType =
+            JobColorMasterData.normalize(job['color_type'].toString());
+      }
+
+      hasApplyWithUs = job['has_apply_with_us'] == true;
+      applyWithUsUrlCtrl.text = job['apply_with_us_url']?.toString() ?? '';
+
+      hasOfficialNotificationLink = job['has_official_notification'] == true ||
+          (job['official_notification_url'] != null &&
+              job['official_notification_url'].toString().isNotEmpty);
+      officialNotificationUrlCtrl.text =
+          job['official_notification_url']?.toString() ?? '';
+
+      final advUrl = job['advertisement_url']?.toString();
+      if (advUrl != null && advUrl.isNotEmpty) {
+        hasAdvertisementFile = true;
+        selectedFileName = job['advertisement_filename']?.toString() ??
+            'advertisement.pdf';
+      }
+
+      // ==================== VACANCY TAB ====================
+      // ✅ FIX: Normalize multiple_posts — convert age_min/age_max to String
+      final multiplePostsData = job['multiple_posts'];
+      if (multiplePostsData is List && multiplePostsData.isNotEmpty) {
+        _showMultiplePosts = true;
+        multiplePosts = multiplePostsData.whereType<Map>().map((e) {
+          final Map<String, dynamic> postMap = Map<String, dynamic>.from(e);
+          // ✅ Normalize age_min / age_max to String for the UI layer
+          if (postMap.containsKey('age_min')) {
+            postMap['age_min'] = _safeAgeToString(postMap['age_min']);
+          }
+          if (postMap.containsKey('age_max')) {
+            postMap['age_max'] = _safeAgeToString(postMap['age_max']);
+          }
+          // ✅ Normalize pay_scales to List<Map<String, dynamic>>
+          if (postMap['pay_scales'] is List) {
+            postMap['pay_scales'] = (postMap['pay_scales'] as List)
+                .whereType<Map>()
+                .map((ps) => Map<String, dynamic>.from(ps))
+                .toList();
+          }
+          // ✅ Normalize category_vacancies to List<Map<String, dynamic>>
+          if (postMap['category_vacancies'] is List) {
+            postMap['category_vacancies'] =
+                (postMap['category_vacancies'] as List)
+                    .whereType<Map>()
+                    .map((cv) => Map<String, dynamic>.from(cv))
+                    .toList();
+          }
+          return postMap;
+        }).toList();
+      }
+
+      if (job['required_qualification'] != null) {
+        selectedEducation = job['required_qualification'].toString();
+      }
+      educationDetailsCtrl.text = job['education_details']?.toString() ?? '';
+      isFresherEligible = job['is_fresher_eligible'] != false;
+      isExperiencedEligible = job['is_experienced_eligible'] != false;
+
+      // ==================== AGE & FEES TAB ====================
+      ageCalcDateCtrl.text = job['age_calculation_date']?.toString() ?? '';
+      ageRelaxationCtrl.text = job['age_relaxation_details']?.toString() ?? '';
+
+      final ageRelaxationByCategory = job['age_relaxation_by_category'];
+      if (ageRelaxationByCategory is Map &&
+          ageRelaxationByCategory.isNotEmpty) {
+        _hasAgeRelaxation = true;
+        ageRelaxationByCategory.forEach((key, value) {
+          final years = value?.toString() ?? '';
+          if (years.isNotEmpty) {
+            relaxationValues[key.toString()] = years;
+            if (relaxationControllers.containsKey(key.toString())) {
+              relaxationControllers[key.toString()]?.text = years;
+            } else {
+              relaxationControllers[key.toString()] =
+                  TextEditingController(text: years);
+            }
+          }
+        });
+      }
+
+      final applicationFees = job['application_fees'];
+      if (job['has_application_fees'] == true &&
+          applicationFees is Map &&
+          applicationFees.isNotEmpty) {
+        _hasApplicationFees = true;
+        applicationFees.forEach((key, value) {
+          final amount = value?.toString() ?? '';
+          if (amount.isNotEmpty) {
+            feesValues[key.toString()] = amount;
+            if (feesControllers.containsKey(key.toString())) {
+              feesControllers[key.toString()]?.text = amount;
+            } else {
+              feesControllers[key.toString()] =
+                  TextEditingController(text: amount);
+            }
+          }
+        });
+      }
+
+      // ==================== TIMELINE TAB ====================
+      applicationStartDateCtrl.text =
+          job['application_start_date']?.toString() ?? '';
+      applicationEndDateCtrl.text =
+          job['application_end_date']?.toString() ?? '';
+      notificationNumberCtrl.text =
+          job['notification_number']?.toString() ?? '';
+      notificationDateCtrl.text = job['notification_date']?.toString() ?? '';
+
+      if (job['application_mode'] != null) {
+        final mode = job['application_mode'].toString();
+        if (applicationModes.contains(mode)) {
+          selectedApplicationMode = mode;
+        }
+      }
+
+      final examCitiesData = job['exam_cities'];
+      if (examCitiesData is List) {
+        examCities = examCitiesData.map((e) => e.toString()).toList();
+      }
+
+      admitCardDateCtrl.text = job['admit_card_date']?.toString() ?? '';
+      examDateCtrl.text = job['exam_date']?.toString() ?? '';
+      resultDateCtrl.text = job['result_date']?.toString() ?? '';
+
+      // ==================== WORK TAB ====================
+      if (job['work_schedule'] != null) {
+        final ws = job['work_schedule'].toString();
+        if (workSchedules.contains(ws)) {
+          selectedWorkSchedule = ws;
+        }
+      }
+      if (job['shift'] != null) {
+        final s = job['shift'].toString();
+        if (shifts.contains(s)) {
+          selectedShift = s;
+        }
+      }
+      if (job['working_days'] != null) {
+        final wd = job['working_days'].toString();
+        if (workingDays.contains(wd)) {
+          selectedWorkingDays = wd;
+        }
+      }
+      isFullyRemote = job['is_fully_remote'] == true;
+      isHybrid = job['is_hybrid'] == true;
+
+      final benefitsData = job['benefits'];
+      if (benefitsData is List) {
+        selectedBenefits = benefitsData.map((e) => e.toString()).toList();
+      }
+
+      final languagesData = job['languages_required'];
+      if (languagesData is List) {
+        selectedLanguages = languagesData.map((e) => e.toString()).toList();
+      }
+      otherLanguagesCtrl.text = job['other_languages']?.toString() ?? '';
+
+      experienceDetailsCtrl.text =
+          job['experience_details']?.toString() ?? '';
+
+      // ==================== INTERVIEW TAB ====================
+      isInterviewOnline = job['is_interview_online'] == true;
+      interviewVenueCtrl.text = job['interview_venue']?.toString() ?? '';
+      interviewLinkCtrl.text = job['interview_link']?.toString() ?? '';
+      interviewDateCtrl.text = job['interview_date']?.toString() ?? '';
+      interviewTimeCtrl.text = job['interview_time']?.toString() ?? '';
+
+      final interviewDocsData = job['interview_documents'];
+      if (interviewDocsData is List) {
+        interviewDocuments =
+            interviewDocsData.map((e) => e.toString()).toList();
+      }
+
+      final selectionStagesData = job['selection_stages'];
+      if (selectionStagesData is List) {
+        selectionStages =
+            selectionStagesData.map((e) => e.toString()).toList();
+      }
+      selectionProcessDetailsCtrl.text =
+          job['selection_process_details']?.toString() ?? '';
+
+      hasBond = job['has_bond'] == true;
+      bondDurationCtrl.text = job['bond_duration']?.toString() ?? '';
+      bondAmountCtrl.text = job['bond_amount']?.toString() ?? '';
+      bondTermsCtrl.text = job['bond_terms']?.toString() ?? '';
+
+      contactPersonCtrl.text = job['contact_person']?.toString() ?? '';
+      contactDesignationCtrl.text =
+          job['contact_designation']?.toString() ?? '';
+      contactEmailCtrl.text = job['contact_email']?.toString() ?? '';
+      contactPhoneCtrl.text = job['contact_phone']?.toString() ?? '';
+
+      importantNotesCtrl.text = job['important_notes']?.toString() ?? '';
+      termsAndConditionsCtrl.text =
+          job['terms_conditions']?.toString() ?? '';
+
+      // ==================== NOTIFICATION TAB ====================
+      final physicalEligibility = job['physical_eligibility'];
+      if (physicalEligibility is Map && physicalEligibility.isNotEmpty) {
+        _hasPhysicalRequirement = true;
+        minHeightCtrl.text =
+            physicalEligibility['min_height_cm']?.toString() ?? '';
+        minHeightFemaleCtrl.text =
+            physicalEligibility['min_height_female_cm']?.toString() ?? '';
+        minChestCtrl.text =
+            physicalEligibility['min_chest_cm']?.toString() ?? '';
+        maxWeightCtrl.text =
+            physicalEligibility['max_weight_kg']?.toString() ?? '';
+        physicalRelaxationCtrl.text =
+            physicalEligibility['relaxation']?.toString() ?? '';
+      }
+
+      _hasMedicalRequirement = job['has_medical_requirement'] == true ||
+          (job['medical_standards'] != null &&
+              job['medical_standards'].toString().isNotEmpty);
+      medicalStandardsCtrl.text =
+          job['medical_standards']?.toString() ?? '';
+
+      // ==================== EXTRAS TAB ====================
+      final trainingDetails = job['training_details'];
+      if (job['has_training'] == true &&
+          trainingDetails is Map &&
+          trainingDetails.isNotEmpty) {
+        _hasTraining = true;
+        trainingDurationCtrl.text =
+            trainingDetails['duration']?.toString() ?? '';
+        trainingStipendCtrl.text =
+            trainingDetails['stipend']?.toString() ?? '';
+        trainingLocationCtrl.text =
+            trainingDetails['location']?.toString() ?? '';
+      }
+
+      if (job['urgency_level'] != null) {
+        final urgency = job['urgency_level'].toString();
+        if (urgencyLevels.contains(urgency)) {
+          selectedUrgency = urgency;
+        }
+      }
+
+      if (job['gender_preference'] != null) {
+        final gender = job['gender_preference'].toString();
+        if (genderPreferences.contains(gender)) {
+          selectedGenderPreference = gender;
+        }
+      }
+
+      whatsappNumberCtrl.text = job['whatsapp_number']?.toString() ?? '';
+      telegramChannelCtrl.text = job['telegram_channel']?.toString() ?? '';
+      officialWebsiteCtrl.text = job['official_website']?.toString() ?? '';
+      helplineNumberCtrl.text = job['helpline_number']?.toString() ?? '';
+      helplineEmailCtrl.text = job['helpline_email']?.toString() ?? '';
+
+      for (int i = 0; i < _tabCount; i++) {
+        _tabSaveStatus[i] = true;
+      }
+
+      debugPrint("✅ Job data pre-filled successfully");
+    } catch (e) {
+      debugPrint("❌ Error pre-filling job data: $e");
+    }
   }
 
   void _updateQualificationSubOptions() {
@@ -716,6 +996,496 @@ class _AddJobScreenState extends State<AddJobScreen>
     return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
   }
 
+  // ============================================================
+  // TAB-WISE SAVE
+  // ============================================================
+  Map<String, dynamic> _buildTabData(int tabIndex) {
+    switch (tabIndex) {
+      case 0:
+        return {
+          "organization": organizationCtrl.text.trim().isEmpty
+              ? "Not Specified"
+              : organizationCtrl.text.trim(),
+          "post_name": postNameCtrl.text.trim().isEmpty
+              ? "Untitled Job"
+              : postNameCtrl.text.trim(),
+          "location_text": _useCurrentLocation ? "" : locationCtrl.text.trim(),
+          "job_type": jobType,
+          "job_level": jobLevel,
+          "category": category,
+          "color_type": _colorType,
+          "post_date": postDateCtrl.text.trim().isEmpty
+              ? _getCurrentDate()
+              : postDateCtrl.text.trim(),
+          "use_current_location": _useCurrentLocation,
+          "description": descriptionCtrl.text.trim(),
+          "last_date": lastDateCtrl.text.trim(),
+          "website_url": websiteUrlCtrl.text.trim(),
+          "has_apply_with_us": hasApplyWithUs,
+          "apply_with_us_url": hasApplyWithUs &&
+                  applyWithUsUrlCtrl.text.trim().isNotEmpty
+              ? applyWithUsUrlCtrl.text.trim()
+              : null,
+        };
+
+      case 1:
+        return {
+          "multiple_posts": _showMultiplePosts ? _processMultiplePosts() : [],
+          "total_posts": _showMultiplePosts ? _totalVacancySum : 0,
+          "required_qualification": _getQualificationDisplayString(),
+          "education_details": educationDetailsCtrl.text.trim(),
+          "is_fresher_eligible": isFresherEligible,
+          "is_experienced_eligible": isExperiencedEligible,
+        };
+
+      case 2:
+        final Map<String, dynamic> tabData = {
+          "age_calculation_date": ageCalcDateCtrl.text.trim(),
+          "has_application_fees": _hasApplicationFees,
+          "application_fees":
+              _hasApplicationFees ? _processApplicationFees() : {},
+        };
+        final ageRelaxations = _processAgeRelaxations();
+        if (ageRelaxations.isNotEmpty) {
+          tabData["age_relaxation_by_category"] = ageRelaxations;
+        }
+        if (ageRelaxationCtrl.text.isNotEmpty) {
+          tabData["age_relaxation_details"] = ageRelaxationCtrl.text.trim();
+        }
+        return tabData;
+
+      case 3:
+        return {
+          "application_start_date": applicationStartDateCtrl.text.trim(),
+          "application_end_date": applicationEndDateCtrl.text.trim(),
+          "notification_number": notificationNumberCtrl.text.trim(),
+          "notification_date": notificationDateCtrl.text.trim(),
+          "application_mode": selectedApplicationMode,
+          "exam_cities": examCities,
+          "admit_card_date": admitCardDateCtrl.text.trim(),
+          "exam_date": examDateCtrl.text.trim(),
+          "result_date": resultDateCtrl.text.trim(),
+        };
+
+      case 4:
+        return {
+          "work_schedule": selectedWorkSchedule,
+          "shift": selectedShift,
+          "working_days": selectedWorkingDays,
+          "is_fully_remote": isFullyRemote,
+          "is_hybrid": isHybrid,
+          "benefits": selectedBenefits,
+          "languages_required": selectedLanguages,
+          "other_languages": otherLanguagesCtrl.text.trim(),
+          "experience_details": experienceDetailsCtrl.text.trim(),
+        };
+
+      case 5:
+        return {
+          "interview_venue":
+              isInterviewOnline ? null : interviewVenueCtrl.text.trim(),
+          "interview_link": isInterviewOnline &&
+                  interviewLinkCtrl.text.trim().isNotEmpty
+              ? interviewLinkCtrl.text.trim()
+              : null,
+          "interview_date": interviewDateCtrl.text.trim(),
+          "interview_time": interviewTimeCtrl.text.trim(),
+          "interview_documents": interviewDocuments,
+          "selection_stages": selectionStages,
+          "selection_process_details": selectionProcessDetailsCtrl.text.trim(),
+          "has_bond": hasBond,
+          "bond_duration": hasBond ? bondDurationCtrl.text.trim() : null,
+          "bond_amount": hasBond && bondAmountCtrl.text.trim().isNotEmpty
+              ? int.tryParse(bondAmountCtrl.text.trim())
+              : null,
+          "bond_terms": hasBond ? bondTermsCtrl.text.trim() : null,
+          "contact_person": contactPersonCtrl.text.trim(),
+          "contact_designation": contactDesignationCtrl.text.trim(),
+          "contact_email": contactEmailCtrl.text.trim(),
+          "contact_phone": contactPhoneCtrl.text.trim(),
+          "important_notes": importantNotesCtrl.text.trim(),
+          "terms_conditions": termsAndConditionsCtrl.text.trim(),
+        };
+
+      case 6:
+        return {
+          "has_official_notification": hasOfficialNotificationLink,
+          "official_notification_url": hasOfficialNotificationLink &&
+                  officialNotificationUrlCtrl.text.trim().isNotEmpty
+              ? officialNotificationUrlCtrl.text.trim()
+              : null,
+          "has_physical_requirement": _hasPhysicalRequirement,
+          "physical_eligibility":
+              _hasPhysicalRequirement ? _processPhysicalEligibility() : null,
+          "has_medical_requirement": _hasMedicalRequirement,
+          "medical_standards": _hasMedicalRequirement &&
+                  medicalStandardsCtrl.text.trim().isNotEmpty
+              ? medicalStandardsCtrl.text.trim()
+              : null,
+        };
+
+      case 7:
+        return {
+          "has_training": _hasTraining,
+          "training_details": _hasTraining ? _processTrainingDetails() : null,
+          "urgency_level": selectedUrgency,
+          "gender_preference": selectedGenderPreference,
+          "whatsapp_number": whatsappNumberCtrl.text.trim(),
+          "telegram_channel": telegramChannelCtrl.text.trim(),
+          "official_website": officialWebsiteCtrl.text.trim(),
+          "helpline_number": helplineNumberCtrl.text.trim(),
+          "helpline_email": helplineEmailCtrl.text.trim(),
+        };
+
+      default:
+        return {};
+    }
+  }
+
+  // ✅ FIXED: safe age parsing in _processMultiplePosts
+  List<Map<String, dynamic>> _processMultiplePosts() {
+    List<Map<String, dynamic>> processedPosts = [];
+    for (var post in multiplePosts) {
+      Map<String, dynamic> processedPost = {
+        'post_name': post['post_name'],
+        'total_posts': post['total_posts'],
+        'qualification': post['qualification'],
+        'qualification_main': post['qualification_main'],
+        'qualification_sub': post['qualification_sub'],
+        'degree_stream': post['degree_stream'],
+        'degree_name': post['degree_name'],
+        'other_qualification_details': post['other_qualification_details'] ?? '',
+        'experience_details': post['experience_details'] ?? '',
+      };
+
+      // ✅ Safe age handling
+      final ageMinStr = _safeAgeToString(post['age_min']);
+      if (ageMinStr.isNotEmpty) {
+        final parsedMin = int.tryParse(ageMinStr);
+        if (parsedMin != null) {
+          processedPost['age_min'] = parsedMin;
+        }
+      }
+
+      final ageMaxStr = _safeAgeToString(post['age_max']);
+      if (ageMaxStr.isNotEmpty) {
+        final parsedMax = int.tryParse(ageMaxStr);
+        if (parsedMax != null) {
+          processedPost['age_max'] = parsedMax;
+        }
+      }
+
+      if (post['pay_scales'] != null &&
+          (post['pay_scales'] as List).isNotEmpty) {
+        processedPost['pay_scales'] = post['pay_scales'];
+      }
+      if (post['category_vacancies'] != null &&
+          (post['category_vacancies'] as List).isNotEmpty) {
+        final Map<String, dynamic> postReservation = {};
+        for (var cat in post['category_vacancies']) {
+          postReservation[cat['name'].toLowerCase().replaceAll('/', '_')] =
+              cat['vacancy'];
+        }
+        if (postReservation.isNotEmpty) {
+          processedPost['reservation_vacancy'] = postReservation;
+        }
+      }
+      processedPosts.add(processedPost);
+    }
+    return processedPosts;
+  }
+
+  Map<String, dynamic> _processAgeRelaxations() {
+    Map<String, dynamic> ageRelaxations = {};
+    for (var entry in relaxationValues.entries) {
+      if (entry.value.isNotEmpty) {
+        final years = int.tryParse(entry.value);
+        if (years != null && years > 0) {
+          ageRelaxations[entry.key.toLowerCase()] = years;
+        }
+      }
+    }
+    return ageRelaxations;
+  }
+
+  Map<String, dynamic> _processApplicationFees() {
+    Map<String, dynamic> applicationFees = {};
+    for (var entry in feesValues.entries) {
+      if (entry.value.isNotEmpty) {
+        final amount = int.tryParse(entry.value);
+        if (amount != null && amount > 0) {
+          applicationFees[entry.key.toLowerCase()] = amount;
+        }
+      }
+    }
+    return applicationFees;
+  }
+
+  Map<String, dynamic> _processPhysicalEligibility() {
+    final Map<String, dynamic> physical = {};
+    if (minHeightCtrl.text.isNotEmpty) {
+      physical["min_height_cm"] = minHeightCtrl.text.trim();
+    }
+    if (minHeightFemaleCtrl.text.isNotEmpty) {
+      physical["min_height_female_cm"] = minHeightFemaleCtrl.text.trim();
+    }
+    if (minChestCtrl.text.isNotEmpty) {
+      physical["min_chest_cm"] = minChestCtrl.text.trim();
+    }
+    if (maxWeightCtrl.text.isNotEmpty) {
+      physical["max_weight_kg"] = maxWeightCtrl.text.trim();
+    }
+    if (physicalRelaxationCtrl.text.isNotEmpty) {
+      physical["relaxation"] = physicalRelaxationCtrl.text.trim();
+    }
+    return physical;
+  }
+
+  Map<String, dynamic> _processTrainingDetails() {
+    final Map<String, dynamic> training = {};
+    if (trainingDurationCtrl.text.isNotEmpty) {
+      training["duration"] = trainingDurationCtrl.text.trim();
+    }
+    if (trainingStipendCtrl.text.isNotEmpty) {
+      training["stipend"] = int.tryParse(trainingStipendCtrl.text.trim());
+    }
+    if (trainingLocationCtrl.text.isNotEmpty) {
+      training["location"] = trainingLocationCtrl.text.trim();
+    }
+    return training;
+  }
+
+  Future<bool> _saveCurrentTab() async {
+    if (_isSavingDraft) return false;
+    setState(() => _isSavingDraft = true);
+
+    try {
+      final tabData = _buildTabData(_currentTabIndex);
+
+      if (!_useCurrentLocation && _geocodedResult != null) {
+        tabData["job_location"] = {
+          "latitude": _geocodedResult!['latitude'],
+          "longitude": _geocodedResult!['longitude'],
+          "location_name": locationCtrl.text.trim(),
+          "city": _geocodedResult!['city'],
+          "district": _geocodedResult!['district'],
+          "state": _geocodedResult!['state'],
+          "country": _geocodedResult!['country'],
+          "is_geocoded": true,
+          "geocoded_at": DateTime.now().toIso8601String(),
+          "source": _geocodedResult!['source'],
+        };
+      }
+
+      final token = await SecureStorage.getToken();
+      if (token == null) {
+        throw Exception("No authentication token found");
+      }
+
+      Map<String, dynamic> response;
+
+      if (_draftJobId == null) {
+        final apiEndpoint = _getApiEndpoint();
+        final res = await DioClient.dio.post(
+          apiEndpoint,
+          data: {
+            ...tabData,
+            "status": "draft",
+            "is_draft": true,
+            "current_tab": _currentTabIndex,
+            "tab_${_currentTabIndex}_saved": true,
+          },
+        );
+
+        response = res.data;
+
+        if (response['data'] != null && response['data']['_id'] != null) {
+          _draftJobId = response['data']['_id'].toString();
+        } else if (response['_id'] != null) {
+          _draftJobId = response['_id'].toString();
+        } else if (response['id'] != null) {
+          _draftJobId = response['id'].toString();
+        }
+
+        debugPrint("✅ Draft job created: $_draftJobId");
+      } else {
+        final apiEndpoint = _getApiEndpoint();
+        await DioClient.dio.put(
+          '$apiEndpoint/$_draftJobId',
+          data: {
+            ...tabData,
+            "current_tab": _currentTabIndex,
+            "tab_${_currentTabIndex}_saved": true,
+          },
+        );
+        debugPrint("✅ Draft job updated: $_draftJobId");
+      }
+
+      _tabSaveStatus[_currentTabIndex] = true;
+
+      if (mounted) {
+        showMessage(context, "✅ ${_safeTabLabel} saved successfully!");
+      }
+
+      return true;
+    } catch (e) {
+      debugPrint("❌ Tab save error: $e");
+      if (mounted) {
+        showMessage(context, "Failed to save: ${e.toString()}", isError: true);
+      }
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingDraft = false);
+      }
+    }
+  }
+
+  Future<void> _saveAndGoToNextTab() async {
+    final saved = await _saveCurrentTab();
+    if (!saved) return;
+    if (_currentTabIndex < _tabCount - 1) {
+      _tabController.animateTo(_currentTabIndex + 1);
+    }
+  }
+
+  bool _validateCurrentTab() {
+    return true;
+  }
+
+  // ============================================================
+  // BLUE/WHITE COLOR IDENTIFICATION
+  // ============================================================
+  String _getColorTypeDescription() {
+    switch (_colorType) {
+      case 'blue':
+        return '🔵 Blue Collar Job (Labour, Driver, Security, etc.)';
+      case 'white':
+        return '⚪ White Collar Job (Office, IT, Management, etc.)';
+      case 'green':
+        return '🟢 Green Collar Job (Environment, Agriculture, etc.)';
+      case 'red':
+        return '🔴 Red Collar Job (Emergency, Defense, etc.)';
+      case 'orange':
+        return '🟠 Orange Collar Job (Construction, Mining, etc.)';
+      case 'purple':
+        return '🟣 Purple Collar Job (Creative, Design, etc.)';
+      case 'teal':
+        return '🩵 Teal Collar Job (Healthcare, Medical, etc.)';
+      case 'pink':
+        return '🩷 Pink Collar Job (Care, Beauty, etc.)';
+      case 'indigo':
+        return '🔵 Indigo Collar Job (Education, Training, etc.)';
+      case 'amber':
+        return '🟡 Amber Collar Job (Hospitality, Tourism, etc.)';
+      case 'cyan':
+        return '🩵 Cyan Collar Job (Water, Marine, etc.)';
+      case 'grey':
+        return '⚫ Grey Collar Job (General, Others)';
+      default:
+        return '🔵 Blue Collar Job';
+    }
+  }
+
+  String _getSuggestedColor() {
+    final jobTitle = postNameCtrl.text.toLowerCase();
+    final jobCategory = category.toLowerCase();
+
+    final blueCollarKeywords = [
+      'driver', 'security', 'guard', 'labour', 'labor', 'worker',
+      'helper', 'cleaner', 'sweeper', 'mali', 'gardener',
+      'plumber', 'electrician', 'carpenter', 'painter', 'welder',
+      'mechanic', 'fitter', 'mason', 'construction', 'factory',
+      'warehouse', 'packing', 'loading', 'delivery', 'courier',
+    ];
+
+    final whiteCollarKeywords = [
+      'manager', 'engineer', 'developer', 'analyst', 'consultant',
+      'executive', 'officer', 'director', 'architect', 'designer',
+      'accountant', 'auditor', 'lawyer', 'doctor', 'teacher',
+      'professor', 'scientist', 'researcher', 'administrator',
+      'coordinator', 'supervisor', 'team lead', 'project',
+    ];
+
+    for (final keyword in blueCollarKeywords) {
+      if (jobTitle.contains(keyword)) return 'blue';
+    }
+    for (final keyword in whiteCollarKeywords) {
+      if (jobTitle.contains(keyword)) return 'white';
+    }
+
+    switch (jobCategory) {
+      case 'it':
+      case 'marketing':
+      case 'finance':
+      case 'hr':
+      case 'banking':
+        return 'white';
+      case 'engineering':
+      case 'healthcare':
+      case 'teaching':
+        return 'white';
+      case 'defense':
+      case 'government':
+        return 'blue';
+      case 'operations':
+      case 'sales':
+        return 'blue';
+      default:
+        return 'blue';
+    }
+  }
+
+  // ============================================================
+  // API ENDPOINTS
+  // ============================================================
+  String _getApiEndpoint() {
+    switch (widget.adminRole.toLowerCase()) {
+      case 'customadmin':
+        return '/customadmin/jobs';
+      case 'superadmin':
+        return '/admin/add-job';
+      default:
+        return '/admin/add-job';
+    }
+  }
+
+  String _getUploadEndpoint() {
+    switch (widget.adminRole.toLowerCase()) {
+      case 'customadmin':
+        return '/customadmin/jobs/upload-advertisement';
+      case 'superadmin':
+        return '/admin/add-job-with-advertisement';
+      default:
+        return '/admin/add-job-with-advertisement';
+    }
+  }
+
+  String _getUpdateEndpoint(String jobId) {
+    switch (widget.adminRole.toLowerCase()) {
+      case 'customadmin':
+        return '/customadmin/jobs/$jobId';
+      case 'superadmin':
+        return '/admin/jobs/$jobId';
+      default:
+        return '/admin/jobs/$jobId';
+    }
+  }
+
+  String _getPublishEndpoint(String jobId) {
+    switch (widget.adminRole.toLowerCase()) {
+      case 'customadmin':
+        return '/customadmin/jobs/$jobId/publish';
+      case 'superadmin':
+        return '/admin/jobs/$jobId/publish';
+      default:
+        return '/admin/jobs/$jobId/publish';
+    }
+  }
+
+  // ============================================================
+  // FILE PICKER
+  // ============================================================
   Future<void> _pickAdvertisement() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -742,7 +1512,8 @@ class _AddJobScreenState extends State<AddJobScreen>
           hasAdvertisementFile = true;
         });
         if (mounted) {
-          showMessage(context, "✅ File selected: ${file.name}", isError: false);
+          showMessage(context, "✅ File selected: ${file.name}",
+              isError: false);
         }
       }
     } catch (e) {
@@ -776,7 +1547,9 @@ class _AddJobScreenState extends State<AddJobScreen>
     }
   }
 
-  // ==================== MULTIPLE POST METHODS ====================
+  // ============================================================
+  // MULTIPLE POST METHODS
+  // ============================================================
   int get _totalVacancySum {
     int sum = 0;
     for (var post in multiplePosts) {
@@ -814,6 +1587,7 @@ class _AddJobScreenState extends State<AddJobScreen>
     return 'Any Graduate';
   }
 
+  // ✅ FIXED: _savePost stores age as String (controller-safe)
   void _savePost() {
     final postName = postNameCtrl2.text.trim();
     final vacancy = int.tryParse(vacancyCtrl.text.trim());
@@ -838,6 +1612,7 @@ class _AddJobScreenState extends State<AddJobScreen>
       'degree_name': selectedDegreeName ?? '',
       'other_qualification_details': otherQualificationCtrl.text.trim(),
       'experience_details': experienceDetailsCtrl.text.trim(),
+      // ✅ Store age as String (kept controller-safe)
       'age_min': postAgeMinCtrl.text.trim(),
       'age_max': postAgeMaxCtrl.text.trim(),
       'pay_scales': (_isEditingPost && _editingPostIndex != null)
@@ -875,25 +1650,29 @@ class _AddJobScreenState extends State<AddJobScreen>
     experienceDetailsCtrl.clear();
   }
 
+  // ✅ FIXED: _startEditPost uses safe age conversion
   void _startEditPost(int index) {
     final post = multiplePosts[index];
     setState(() {
       _isEditingPost = true;
       _editingPostIndex = index;
-      postNameCtrl2.text = post['post_name'] ?? '';
+      postNameCtrl2.text = post['post_name']?.toString() ?? '';
       vacancyCtrl.text = (post['total_posts'] ?? 1).toString();
       selectedQualificationFromEducation = post['qualification_main'];
       selectedQualificationSubOption = post['qualification_sub'];
       selectedDegreeStream = post['degree_stream'];
       selectedDegreeName = post['degree_name'];
-      otherQualificationCtrl.text = post['other_qualification_details'] ?? '';
-      experienceDetailsCtrl.text = post['experience_details'] ?? '';
+      otherQualificationCtrl.text =
+          post['other_qualification_details']?.toString() ?? '';
+      experienceDetailsCtrl.text =
+          post['experience_details']?.toString() ?? '';
       _updateQualificationSubOptions();
       if (selectedDegreeStream != null && selectedDegreeStream!.isNotEmpty) {
         _updateDegreeNames();
       }
-      postAgeMinCtrl.text = post['age_min'] ?? '';
-      postAgeMaxCtrl.text = post['age_max'] ?? '';
+      // ✅ Safe age to String conversion
+      postAgeMinCtrl.text = _safeAgeToString(post['age_min']);
+      postAgeMaxCtrl.text = _safeAgeToString(post['age_max']);
     });
   }
 
@@ -944,7 +1723,9 @@ class _AddJobScreenState extends State<AddJobScreen>
     });
   }
 
-  // ==================== PAY SCALE METHODS ====================
+  // ============================================================
+  // PAY SCALE METHODS
+  // ============================================================
   void _startEditPayScale(int postIndex, int payScaleIndex) {
     final payScale = multiplePosts[postIndex]['pay_scales'][payScaleIndex];
     setState(() {
@@ -1056,7 +1837,9 @@ class _AddJobScreenState extends State<AddJobScreen>
     });
   }
 
-  // ==================== CATEGORY VACANCY METHODS ====================
+  // ============================================================
+  // CATEGORY VACANCY METHODS
+  // ============================================================
   void _saveCategoryForPost() {
     if (_editingCategoryPostIndex == null) {
       showMessage(context, "Please select a post first", isError: true);
@@ -1159,7 +1942,9 @@ class _AddJobScreenState extends State<AddJobScreen>
     );
   }
 
-  // ==================== AGE RELAXATION METHODS ====================
+  // ============================================================
+  // AGE RELAXATION METHODS
+  // ============================================================
   void _saveRelaxation() {
     final category = relaxationCategoryCtrl.text.trim();
     final years = relaxationYearsCtrl.text.trim();
@@ -1238,7 +2023,9 @@ class _AddJobScreenState extends State<AddJobScreen>
     );
   }
 
-  // ==================== APPLICATION FEES METHODS ====================
+  // ============================================================
+  // APPLICATION FEES METHODS
+  // ============================================================
   void _saveApplicationFee() {
     final category = feeCategoryCtrl.text.trim();
     final amount = feeAmountCtrl.text.trim();
@@ -1317,7 +2104,9 @@ class _AddJobScreenState extends State<AddJobScreen>
     );
   }
 
-  // ==================== EXAM CITY METHODS ====================
+  // ============================================================
+  // EXAM CITY METHODS
+  // ============================================================
   void _addExamCity() {
     final city = examCityCtrl.text.trim();
     if (city.isEmpty) {
@@ -1358,6 +2147,9 @@ class _AddJobScreenState extends State<AddJobScreen>
     );
   }
 
+  // ============================================================
+  // LOCATION METHODS
+  // ============================================================
   Future<void> _refreshNotificationCount() async {
     try {
       await NotificationService.getUnreadCount();
@@ -1518,328 +2310,74 @@ class _AddJobScreenState extends State<AddJobScreen>
     }
   }
 
-  String _getApiEndpoint() {
-    switch (widget.adminRole.toLowerCase()) {
-      case 'customadmin':
-        return '/customadmin/jobs';
-      case 'superadmin':
-        return '/admin/add-job';
-      default:
-        return '/admin/add-job';
-    }
-  }
-
-  String _getUploadEndpoint() {
-    switch (widget.adminRole.toLowerCase()) {
-      case 'customadmin':
-        return '/customadmin/jobs/upload-advertisement';
-      case 'superadmin':
-        return '/admin/add-job-with-advertisement';
-      default:
-        return '/admin/add-job-with-advertisement';
-    }
-  }
-
+  // ============================================================
+  // PUBLISH / UPDATE
+  // ============================================================
   bool _hasAnyNotification() {
     return (hasOfficialNotificationLink &&
             officialNotificationUrlCtrl.text.trim().isNotEmpty) ||
         (hasAdvertisementFile && selectedFileBytes != null);
   }
 
-  // ==================== MAIN ADD JOB METHOD ====================
-  Future<void> _addJob() async {
+  Future<void> _publishJob() async {
     if (!_hasAnyNotification()) {
       if (mounted) {
         showMessage(
           context,
-          "Please provide either Official Notification PDF Link OR upload an Advertisement file",
+          "⚠️ Please provide either Official Notification PDF Link OR upload an Advertisement file before publishing",
           isError: true,
         );
       }
+      _tabController.animateTo(6);
       return;
     }
 
-    if (hasAdvertisementFile &&
-        selectedFileBytes != null &&
-        selectedFileBytes!.length > maxFileSizeBytes) {
-      if (mounted) {
-        showMessage(context, "❌ File size exceeds limit", isError: true);
+    if (_draftJobId == null) {
+      showMessage(context, "Saving all tabs first...", isError: false);
+      for (int i = 0; i < _tabCount; i++) {
+        _currentTabIndex = i;
+        final saved = await _saveCurrentTab();
+        if (!saved) {
+          showMessage(context, "Failed to save tab ${_tabLabels[i]}",
+              isError: true);
+          return;
+        }
       }
-      return;
     }
 
     if (mounted) {
       setState(() => isLoading = true);
     }
 
-    String locationText = _useCurrentLocation ? "" : locationCtrl.text.trim();
-    Map<String, dynamic>? coordinates = _geocodedResult;
-
-    final Map<String, dynamic> jobData = {
-      "post_date": postDateCtrl.text.isNotEmpty
-          ? postDateCtrl.text.trim()
-          : _getCurrentDate(),
-      "organization": organizationCtrl.text.trim().isEmpty
-          ? "Not Specified"
-          : organizationCtrl.text.trim(),
-      "post_name": postNameCtrl.text.trim().isEmpty
-          ? "Job Opportunity"
-          : postNameCtrl.text.trim(),
-      "location_text": _useCurrentLocation ? "" : locationText,
-      "job_type": jobType,
-      "job_level": jobLevel,
-      "category": category,
-      "status": "open",
-      "required_qualification": _getQualificationDisplayString(),
-      "experience_min_years": 0,
-      "required_skills": [],
-      "nice_to_have_skills": [],
-      "benefits": selectedBenefits,
-      "tags": [],
-      "use_current_location": _useCurrentLocation,
-      "education_details": educationDetailsCtrl.text.trim(),
-      "experience_details": experienceDetailsCtrl.text.trim(),
-      "is_fresher_eligible": isFresherEligible,
-      "is_experienced_eligible": isExperiencedEligible,
-      "work_schedule": selectedWorkSchedule,
-      "shift": selectedShift,
-      "working_days": selectedWorkingDays,
-      "languages_required": selectedLanguages,
-      "other_languages": otherLanguagesCtrl.text.trim(),
-      "interview_venue":
-          isInterviewOnline ? null : interviewVenueCtrl.text.trim(),
-      "interview_link":
-          isInterviewOnline ? interviewLinkCtrl.text.trim() : null,
-      "interview_date": interviewDateCtrl.text.trim(),
-      "interview_time": interviewTimeCtrl.text.trim(),
-      "interview_documents": interviewDocuments,
-      "contact_person": contactPersonCtrl.text.trim(),
-      "contact_designation": contactDesignationCtrl.text.trim(),
-      "contact_email": contactEmailCtrl.text.trim(),
-      "contact_phone": contactPhoneCtrl.text.trim(),
-      "important_notes": importantNotesCtrl.text.trim(),
-      "terms_conditions": termsAndConditionsCtrl.text.trim(),
-      "selection_stages": selectionStages,
-      "selection_process_details": selectionProcessDetailsCtrl.text.trim(),
-      "urgency_level": selectedUrgency,
-      "gender_preference": selectedGenderPreference,
-      "is_fully_remote": isFullyRemote,
-      "is_hybrid": isHybrid,
-      "official_website": officialWebsiteCtrl.text.trim(),
-      "helpline_number": helplineNumberCtrl.text.trim(),
-      "helpline_email": helplineEmailCtrl.text.trim(),
-      "whatsapp_number": whatsappNumberCtrl.text.trim(),
-      "telegram_channel": telegramChannelCtrl.text.trim(),
-      "application_mode": selectedApplicationMode,
-      "exam_cities": examCities,
-    };
-
-    if (descriptionCtrl.text.trim().isNotEmpty) {
-      jobData["description"] = descriptionCtrl.text.trim();
-    }
-    if (lastDateCtrl.text.isNotEmpty) {
-      jobData["last_date"] = lastDateCtrl.text.trim();
-    }
-    if (websiteUrlCtrl.text.isNotEmpty) {
-      jobData["website_url"] = websiteUrlCtrl.text.trim();
-    }
-    if (ageCalcDateCtrl.text.isNotEmpty) {
-      jobData["age_calculation_date"] = ageCalcDateCtrl.text.trim();
-    }
-
-    // Age relaxation
-    Map<String, dynamic> ageRelaxations = {};
-    for (var entry in relaxationValues.entries) {
-      if (entry.value.isNotEmpty) {
-        final years = int.tryParse(entry.value);
-        if (years != null && years > 0) {
-          ageRelaxations[entry.key.toLowerCase()] = years;
-        }
-      }
-    }
-    if (ageRelaxations.isNotEmpty) {
-      jobData["age_relaxation_by_category"] = ageRelaxations;
-    } else if (ageRelaxationCtrl.text.isNotEmpty) {
-      jobData["age_relaxation_details"] = ageRelaxationCtrl.text.trim();
-    }
-
-    // Application Fees
-    if (_hasApplicationFees && feesValues.isNotEmpty) {
-      Map<String, dynamic> applicationFees = {};
-      for (var entry in feesValues.entries) {
-        if (entry.value.isNotEmpty) {
-          final amount = int.tryParse(entry.value);
-          if (amount != null && amount > 0) {
-            applicationFees[entry.key.toLowerCase()] = amount;
-          }
-        }
-      }
-      if (applicationFees.isNotEmpty) {
-        jobData["application_fees"] = applicationFees;
-        jobData["has_application_fees"] = true;
-      }
-    }
-
-    // Multiple Posts
-    if (_showMultiplePosts && multiplePosts.isNotEmpty) {
-      List<Map<String, dynamic>> processedPosts = [];
-      for (var post in multiplePosts) {
-        Map<String, dynamic> processedPost = {
-          'post_name': post['post_name'],
-          'total_posts': post['total_posts'],
-          'qualification': post['qualification'],
-          'qualification_main': post['qualification_main'],
-          'qualification_sub': post['qualification_sub'],
-          'degree_stream': post['degree_stream'],
-          'degree_name': post['degree_name'],
-          'other_qualification_details':
-              post['other_qualification_details'] ?? '',
-          'experience_details': post['experience_details'] ?? '',
-        };
-        if (post['age_min']?.isNotEmpty == true) {
-          processedPost['age_min'] = int.tryParse(post['age_min']);
-        }
-        if (post['age_max']?.isNotEmpty == true) {
-          processedPost['age_max'] = int.tryParse(post['age_max']);
-        }
-        if (post['pay_scales'] != null &&
-            (post['pay_scales'] as List).isNotEmpty) {
-          processedPost['pay_scales'] = post['pay_scales'];
-        }
-        if (post['category_vacancies'] != null &&
-            (post['category_vacancies'] as List).isNotEmpty) {
-          final Map<String, dynamic> postReservation = {};
-          for (var cat in post['category_vacancies']) {
-            postReservation[cat['name'].toLowerCase().replaceAll('/', '_')] =
-                cat['vacancy'];
-          }
-          if (postReservation.isNotEmpty) {
-            processedPost['reservation_vacancy'] = postReservation;
-          }
-        }
-        processedPosts.add(processedPost);
-      }
-      jobData["multiple_posts"] = processedPosts;
-      jobData["total_posts"] = _totalVacancySum;
-    }
-
-    // Application Dates
-    if (applicationStartDateCtrl.text.isNotEmpty) {
-      jobData["application_start_date"] = applicationStartDateCtrl.text.trim();
-    }
-    if (applicationEndDateCtrl.text.isNotEmpty) {
-      jobData["application_end_date"] = applicationEndDateCtrl.text.trim();
-    }
-
-    // Official Details
-    if (notificationNumberCtrl.text.isNotEmpty) {
-      jobData["notification_number"] = notificationNumberCtrl.text.trim();
-    }
-    if (notificationDateCtrl.text.isNotEmpty) {
-      jobData["notification_date"] = notificationDateCtrl.text.trim();
-    }
-
-    // Physical Eligibility
-    if (_hasPhysicalRequirement) {
-      final Map<String, dynamic> physical = {};
-      if (minHeightCtrl.text.isNotEmpty) {
-        physical["min_height_cm"] = minHeightCtrl.text.trim();
-      }
-      if (minHeightFemaleCtrl.text.isNotEmpty) {
-        physical["min_height_female_cm"] = minHeightFemaleCtrl.text.trim();
-      }
-      if (minChestCtrl.text.isNotEmpty) {
-        physical["min_chest_cm"] = minChestCtrl.text.trim();
-      }
-      if (maxWeightCtrl.text.isNotEmpty) {
-        physical["max_weight_kg"] = maxWeightCtrl.text.trim();
-      }
-      if (physicalRelaxationCtrl.text.isNotEmpty) {
-        physical["relaxation"] = physicalRelaxationCtrl.text.trim();
-      }
-      if (physical.isNotEmpty) {
-        jobData["physical_eligibility"] = physical;
-      }
-    }
-
-    // Medical Standards
-    if (_hasMedicalRequirement && medicalStandardsCtrl.text.isNotEmpty) {
-      jobData["medical_standards"] = medicalStandardsCtrl.text.trim();
-    }
-
-    // Training Details
-    if (_hasTraining) {
-      final Map<String, dynamic> training = {};
-      if (trainingDurationCtrl.text.isNotEmpty) {
-        training["duration"] = trainingDurationCtrl.text.trim();
-      }
-      if (trainingStipendCtrl.text.isNotEmpty) {
-        training["stipend"] = int.tryParse(trainingStipendCtrl.text.trim());
-      }
-      if (trainingLocationCtrl.text.isNotEmpty) {
-        training["location"] = trainingLocationCtrl.text.trim();
-      }
-      if (training.isNotEmpty) {
-        jobData["training_details"] = training;
-      }
-    }
-
-    // Bond
-    if (hasBond) {
-      jobData["has_bond"] = true;
-      if (bondDurationCtrl.text.isNotEmpty) {
-        jobData["bond_duration"] = bondDurationCtrl.text.trim();
-      }
-      if (bondAmountCtrl.text.isNotEmpty) {
-        jobData["bond_amount"] = int.tryParse(bondAmountCtrl.text.trim());
-      }
-      if (bondTermsCtrl.text.isNotEmpty) {
-        jobData["bond_terms"] = bondTermsCtrl.text.trim();
-      }
-    }
-
-    // Important Dates
-    if (admitCardDateCtrl.text.isNotEmpty) {
-      jobData["admit_card_date"] = admitCardDateCtrl.text.trim();
-    }
-    if (examDateCtrl.text.isNotEmpty) {
-      jobData["exam_date"] = examDateCtrl.text.trim();
-    }
-    if (resultDateCtrl.text.isNotEmpty) {
-      jobData["result_date"] = resultDateCtrl.text.trim();
-    }
-
-    // Official Notification
-    if (hasOfficialNotificationLink &&
-        officialNotificationUrlCtrl.text.trim().isNotEmpty) {
-      jobData["official_notification_url"] =
-          officialNotificationUrlCtrl.text.trim();
-      jobData["has_official_notification"] = true;
-    }
-
-    // Location
-    if (!_useCurrentLocation && coordinates != null) {
-      jobData["job_location"] = {
-        "latitude": coordinates['latitude'],
-        "longitude": coordinates['longitude'],
-        "location_name": locationText,
-        "city": coordinates['city'],
-        "district": coordinates['district'],
-        "state": coordinates['state'],
-        "country": coordinates['country'],
-        "is_geocoded": true,
-        "geocoded_at": DateTime.now().toIso8601String(),
-        "source": coordinates['source'],
-      };
-    }
-
-    // Apply with Us
-    if (hasApplyWithUs && applyWithUsUrlCtrl.text.trim().isNotEmpty) {
-      jobData["apply_with_us_url"] = applyWithUsUrlCtrl.text.trim();
-      jobData["has_apply_with_us"] = true;
-    }
-
     try {
+      final Map<String, dynamic> finalJobData = {
+        "status": "open",
+        "is_draft": false,
+        ..._buildTabData(0),
+        ..._buildTabData(1),
+        ..._buildTabData(2),
+        ..._buildTabData(3),
+        ..._buildTabData(4),
+        ..._buildTabData(5),
+        ..._buildTabData(6),
+        ..._buildTabData(7),
+      };
+
+      if (!_useCurrentLocation && _geocodedResult != null) {
+        finalJobData["job_location"] = {
+          "latitude": _geocodedResult!['latitude'],
+          "longitude": _geocodedResult!['longitude'],
+          "location_name": locationCtrl.text.trim(),
+          "city": _geocodedResult!['city'],
+          "district": _geocodedResult!['district'],
+          "state": _geocodedResult!['state'],
+          "country": _geocodedResult!['country'],
+          "is_geocoded": true,
+          "geocoded_at": DateTime.now().toIso8601String(),
+          "source": _geocodedResult!['source'],
+        };
+      }
+
       if (hasAdvertisementFile &&
           selectedFileBytes != null &&
           selectedFileName != null) {
@@ -1862,12 +2400,16 @@ class _AddJobScreenState extends State<AddJobScreen>
               : null,
         );
         request.files.add(multipartFile);
-        request.fields['job_data'] = jsonEncode(jobData);
+        request.fields['job_data'] = jsonEncode(finalJobData);
+        if (_draftJobId != null) {
+          request.fields['job_id'] = _draftJobId!;
+        }
         final streamedResponse = await request.send();
         final response = await http.Response.fromStream(streamedResponse);
 
         if (mounted && response.statusCode == 200) {
-          showMessage(context, "✅ Job added successfully! Notifications sent.");
+          showMessage(context,
+              "✅ Job published successfully! Notifications sent.");
           await _refreshNotificationCount();
           _clearForm();
           if (mounted && widget.onJobAdded != null) {
@@ -1877,9 +2419,18 @@ class _AddJobScreenState extends State<AddJobScreen>
           throw Exception("Upload failed: ${response.statusCode}");
         }
       } else {
-        await DioClient.dio.post(_getApiEndpoint(), data: jobData);
+        if (_draftJobId != null) {
+          await DioClient.dio.put(
+            _getUpdateEndpoint(_draftJobId!),
+            data: finalJobData,
+          );
+          await DioClient.dio.post(_getPublishEndpoint(_draftJobId!));
+        } else {
+          await DioClient.dio.post(_getApiEndpoint(), data: finalJobData);
+        }
         if (mounted) {
-          showMessage(context, "✅ Job added successfully! Notifications sent.");
+          showMessage(context,
+              "✅ Job published successfully! Notifications sent.");
         }
         await _refreshNotificationCount();
         _clearForm();
@@ -1891,7 +2442,112 @@ class _AddJobScreenState extends State<AddJobScreen>
       if (mounted) {
         showMessage(
           context,
-          "Failed to add job: ${e.toString()}",
+          "Failed to publish job: ${e.toString()}",
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          isUploading = false;
+        });
+      }
+    }
+  }
+
+  // ============================================================
+  // SAVE UPDATES (EDIT MODE)
+  // ============================================================
+  Future<void> _saveUpdates() async {
+    if (mounted) {
+      setState(() => isLoading = true);
+    }
+
+    try {
+      final Map<String, dynamic> updatedJobData = {
+        ..._buildTabData(0),
+        ..._buildTabData(1),
+        ..._buildTabData(2),
+        ..._buildTabData(3),
+        ..._buildTabData(4),
+        ..._buildTabData(5),
+        ..._buildTabData(6),
+        ..._buildTabData(7),
+      };
+
+      if (!_useCurrentLocation && _geocodedResult != null) {
+        updatedJobData["job_location"] = {
+          "latitude": _geocodedResult!['latitude'],
+          "longitude": _geocodedResult!['longitude'],
+          "location_name": locationCtrl.text.trim(),
+          "city": _geocodedResult!['city'],
+          "district": _geocodedResult!['district'],
+          "state": _geocodedResult!['state'],
+          "country": _geocodedResult!['country'],
+          "is_geocoded": true,
+          "geocoded_at": DateTime.now().toIso8601String(),
+          "source": _geocodedResult!['source'],
+        };
+      }
+
+      if (hasAdvertisementFile &&
+          selectedFileBytes != null &&
+          selectedFileName != null) {
+        setState(() => isUploading = true);
+
+        final token = await SecureStorage.getToken();
+        if (token == null) {
+          throw Exception("No authentication token found");
+        }
+
+        final uri = Uri.parse('${ApiConfig.baseUrl}${_getUploadEndpoint()}');
+        final request = http.MultipartRequest('POST', uri);
+        request.headers['Authorization'] = 'Bearer $token';
+
+        final multipartFile = http.MultipartFile.fromBytes(
+          'file',
+          selectedFileBytes!,
+          filename: selectedFileName!,
+          contentType: selectedFileMimeType != null
+              ? MediaType.parse(selectedFileMimeType!)
+              : null,
+        );
+        request.files.add(multipartFile);
+        request.fields['job_data'] = jsonEncode(updatedJobData);
+        request.fields['job_id'] = _draftJobId!;
+        request.fields['is_update'] = 'true';
+
+        final streamedResponse = await request.send();
+        final response = await http.Response.fromStream(streamedResponse);
+
+        if (response.statusCode != 200) {
+          throw Exception("Upload failed: ${response.statusCode}");
+        }
+      } else {
+        await DioClient.dio.put(
+          _getUpdateEndpoint(_draftJobId!),
+          data: updatedJobData,
+        );
+      }
+
+      debugPrint("✅ Job updated successfully: $_draftJobId");
+
+      if (mounted) {
+        showMessage(context, "✅ Job updated successfully!");
+        if (widget.onJobUpdated != null) {
+          widget.onJobUpdated!();
+        }
+        if (widget.onJobAdded != null) {
+          widget.onJobAdded!();
+        }
+      }
+    } catch (e) {
+      debugPrint("❌ Update failed: $e");
+      if (mounted) {
+        showMessage(
+          context,
+          "Failed to update job: ${e.toString()}",
           isError: true,
         );
       }
@@ -2022,6 +2678,14 @@ class _AddJobScreenState extends State<AddJobScreen>
     jobType = 'private';
     jobLevel = 'mid';
     category = 'IT';
+    _colorType = 'blue';
+
+    _draftJobId = null;
+    _isSavingDraft = false;
+    for (int i = 0; i < _tabCount; i++) {
+      _tabSaveStatus[i] = false;
+    }
+
     if (mounted) {
       setState(() {
         _selectedCountry = 'India';
@@ -2032,10 +2696,13 @@ class _AddJobScreenState extends State<AddJobScreen>
         _geocodedResult = null;
         _geocodingStatus = '';
       });
+      _tabController.animateTo(0);
     }
   }
 
-  // ==================== TAB NAVIGATION ====================
+  // ============================================================
+  // TAB NAVIGATION
+  // ============================================================
   void _goToNextTabSafe() {
     final current = _tabController.index;
     if (current < _tabCount - 1) {
@@ -2052,7 +2719,9 @@ class _AddJobScreenState extends State<AddJobScreen>
     }
   }
 
-  // ==================== BUILD ====================
+  // ============================================================
+  // BUILD
+  // ============================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2104,8 +2773,10 @@ class _AddJobScreenState extends State<AddJobScreen>
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+        gradient: LinearGradient(
+          colors: widget.isEditMode
+              ? [const Color(0xFFFF6588), const Color(0xFF6C63FF)]
+              : [const Color(0xFF6C63FF), const Color(0xFFFF6588)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -2129,7 +2800,11 @@ class _AddJobScreenState extends State<AddJobScreen>
               color: Colors.white.withOpacity(0.25),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(_safeTabIcon, color: Colors.white, size: 22),
+            child: Icon(
+              widget.isEditMode ? Icons.edit : _safeTabIcon,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -2138,12 +2813,21 @@ class _AddJobScreenState extends State<AddJobScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  "Add New Job - ${widget.adminRole.toUpperCase()}",
+                  widget.isEditMode
+                      ? "Edit Job - ${widget.adminRole.toUpperCase()}"
+                      : "Add New Job - ${widget.adminRole.toUpperCase()}",
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     letterSpacing: 0.2,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black26,
+                        blurRadius: 4,
+                        offset: Offset(1, 1),
+                      ),
+                    ],
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -2154,7 +2838,7 @@ class _AddJobScreenState extends State<AddJobScreen>
                   style: const TextStyle(
                     fontSize: 12,
                     color: Colors.white,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -2163,6 +2847,36 @@ class _AddJobScreenState extends State<AddJobScreen>
             ),
           ),
           const SizedBox(width: 8),
+          if (_draftJobId != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: widget.isEditMode
+                    ? Colors.orange.shade600
+                    : Colors.green.shade600,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    widget.isEditMode ? Icons.edit : Icons.save,
+                    color: Colors.white,
+                    size: 12,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    widget.isEditMode ? "Editing" : "Draft",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
@@ -2203,16 +2917,15 @@ class _AddJobScreenState extends State<AddJobScreen>
         child: Row(
           children: List.generate(_tabCount, (index) {
             final isSelected = _currentTabIndex == index;
+            final isSaved = _tabSaveStatus[index] == true;
             return GestureDetector(
               onTap: () => _tabController.animateTo(index),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeInOut,
                 margin: const EdgeInsets.symmetric(horizontal: 3),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: isSelected
                       ? const LinearGradient(
@@ -2224,8 +2937,8 @@ class _AddJobScreenState extends State<AddJobScreen>
                   border: Border.all(
                     color: isSelected
                         ? Colors.transparent
-                        : Colors.grey.shade300,
-                    width: 1,
+                        : (isSaved ? Colors.green : Colors.grey.shade300),
+                    width: isSaved && !isSelected ? 2 : 1,
                   ),
                   boxShadow: isSelected
                       ? [
@@ -2243,11 +2956,15 @@ class _AddJobScreenState extends State<AddJobScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _tabIcons[index],
+                      isSaved && !isSelected
+                          ? Icons.check_circle
+                          : _tabIcons[index],
                       size: 16,
                       color: isSelected
                           ? Colors.white
-                          : const Color(0xFF3A3A3A),
+                          : (isSaved
+                              ? Colors.green
+                              : const Color(0xFF1A1A1A)),
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -2279,7 +2996,7 @@ class _AddJobScreenState extends State<AddJobScreen>
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.98),
+        color: Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.15),
@@ -2291,7 +3008,6 @@ class _AddJobScreenState extends State<AddJobScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Progress bar
           Row(
             children: List.generate(_tabCount, (index) {
               return Expanded(
@@ -2299,9 +3015,11 @@ class _AddJobScreenState extends State<AddJobScreen>
                   height: 5,
                   margin: const EdgeInsets.symmetric(horizontal: 1.5),
                   decoration: BoxDecoration(
-                    color: _currentTabIndex >= index
-                        ? const Color(0xFF6C63FF)
-                        : Colors.grey.shade300,
+                    color: _tabSaveStatus[index] == true
+                        ? Colors.green
+                        : (_currentTabIndex >= index
+                            ? const Color(0xFF6C63FF)
+                            : Colors.grey.shade300),
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
@@ -2314,17 +3032,16 @@ class _AddJobScreenState extends State<AddJobScreen>
               Expanded(
                 child: Text(
                   "Step ${_currentTabIndex + 1} of $_tabCount • $_safeTabLabel",
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
-                    color: Colors.grey.shade800,
-                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A1A),
+                    fontWeight: FontWeight.bold,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 8),
-              // Prev button
               if (_currentTabIndex > 0)
                 IconButton(
                   onPressed: _goToPreviousTabSafe,
@@ -2340,76 +3057,134 @@ class _AddJobScreenState extends State<AddJobScreen>
                   ),
                 ),
               if (_currentTabIndex > 0) const SizedBox(width: 8),
-              // Publish button
-              Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF6C63FF).withOpacity(0.35),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: ElevatedButton(
-                  onPressed: (isLoading || isUploading) ? null : _addJob,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: (isLoading || isUploading)
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.publish, size: 18),
-                            SizedBox(width: 8),
-                            Text(
-                              "Publish Job",
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Next button
               if (_currentTabIndex < _tabCount - 1)
-                IconButton(
-                  onPressed: _goToNextTabSafe,
-                  icon: const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 18,
-                    color: Colors.white,
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: widget.isEditMode
+                          ? [const Color(0xFFFF6588), const Color(0xFF6C63FF)]
+                          : [const Color(0xFF6C63FF), const Color(0xFFFF6588)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6C63FF).withOpacity(0.35),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
-                  tooltip: "Next",
-                  style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFF6C63FF),
-                    padding: const EdgeInsets.all(12),
+                  child: ElevatedButton(
+                    onPressed: _isSavingDraft ? null : _saveAndGoToNextTab,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isSavingDraft
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(Icons.save, size: 18),
+                              SizedBox(width: 6),
+                              Text(
+                                "Save & Next",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.3,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(Icons.arrow_forward, size: 16),
+                            ],
+                          ),
+                  ),
+                ),
+              if (_currentTabIndex == _tabCount - 1)
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: widget.isEditMode
+                          ? [const Color(0xFFFF6588), const Color(0xFF6C63FF)]
+                          : [const Color(0xFF10B981), const Color(0xFF059669)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (widget.isEditMode
+                                ? const Color(0xFFFF6588)
+                                : Colors.green)
+                            .withOpacity(0.35),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: (isLoading || isUploading)
+                        ? null
+                        : (widget.isEditMode ? _saveUpdates : _publishJob),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: (isLoading || isUploading)
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                widget.isEditMode ? Icons.save : Icons.publish,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                widget.isEditMode
+                                    ? "Save Changes"
+                                    : "Publish Job",
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.3,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
                 ),
             ],
@@ -2421,7 +3196,6 @@ class _AddJobScreenState extends State<AddJobScreen>
 
   // ==================== TAB CONTENTS ====================
 
-  // ---------- TAB 1: BASIC ----------
   Widget _buildBasicTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -2488,6 +3262,127 @@ class _AddJobScreenState extends State<AddJobScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _sectionHeader(
+                  "Job Color Type",
+                  Icons.color_lens,
+                  subtitle: "Identify blue collar or white collar job",
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _colorType == 'blue'
+                        ? Colors.blue.shade50
+                        : _colorType == 'white'
+                            ? Colors.grey.shade100
+                            : Colors.purple.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _colorType == 'blue'
+                          ? Colors.blue
+                          : _colorType == 'white'
+                              ? Colors.grey.shade400
+                              : Colors.purple,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _colorType == 'blue'
+                            ? Icons.engineering
+                            : _colorType == 'white'
+                                ? Icons.business_center
+                                : Icons.work,
+                        color: _colorType == 'blue'
+                            ? Colors.blue
+                            : _colorType == 'white'
+                                ? Colors.grey.shade700
+                                : Colors.purple,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _getColorTypeDescription(),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _colorType == 'blue'
+                                ? Colors.blue.shade800
+                                : _colorType == 'white'
+                                    ? Colors.grey.shade800
+                                    : Colors.purple.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (postNameCtrl.text.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.amber.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.lightbulb,
+                            color: Colors.amber, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "AI suggests: ${_getSuggestedColor() == 'blue' ? '🔵 Blue Collar' : '⚪ White Collar'} based on job title",
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.amber.shade900,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _colorType = _getSuggestedColor();
+                            });
+                          },
+                          child: const Text(
+                            "Apply",
+                            style: TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildColorOption('blue', '🔵 Blue Collar', Colors.blue),
+                    _buildColorOption('white', '⚪ White Collar',
+                        Colors.grey.shade600),
+                    _buildColorOption(
+                        'green', '🟢 Green Collar', Colors.green),
+                    _buildColorOption('red', '🔴 Red Collar', Colors.red),
+                    _buildColorOption(
+                        'orange', '🟠 Orange Collar', Colors.orange),
+                    _buildColorOption(
+                        'purple', '🟣 Purple Collar', Colors.purple),
+                    _buildColorOption('teal', '🩵 Teal Collar', Colors.teal),
+                    _buildColorOption('pink', '🩷 Pink Collar', Colors.pink),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
                   "Location",
                   Icons.location_on,
                   subtitle: "Where is this job located?",
@@ -2496,12 +3391,58 @@ class _AddJobScreenState extends State<AddJobScreen>
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Dates & Links",
+                  Icons.date_range,
+                  subtitle: "Important dates and URLs",
+                ),
+                _buildAIDateField(postDateCtrl, "Post Date"),
+                _buildAIDateField(lastDateCtrl, "Last Date to Apply"),
+                _buildAITextField(
+                  websiteUrlCtrl,
+                  "Website URL",
+                  hintText: "https://example.com",
+                  prefixIcon: Icons.public,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // ---------- TAB 2: VACANCY ----------
+  Widget _buildColorOption(String colorKey, String label, Color color) {
+    final isSelected = _colorType == colorKey;
+    return GestureDetector(
+      onTap: () => setState(() => _colorType = colorKey),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? color : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? Colors.white : const Color(0xFF1A1A1A),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildVacancyTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -2521,12 +3462,59 @@ class _AddJobScreenState extends State<AddJobScreen>
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          _buildGlassContainer(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionHeader(
+                  "Education Requirements",
+                  Icons.school,
+                  subtitle: "Qualification and eligibility",
+                ),
+                _buildAIDropdown(
+                  selectedEducation,
+                  educationLevels,
+                  "Education Level",
+                  onChanged: (v) => setState(() => selectedEducation = v!),
+                ),
+                _buildAITextField(
+                  educationDetailsCtrl,
+                  "Education Details",
+                  maxLines: 3,
+                  hintText: "Details about required education",
+                  prefixIcon: Icons.school,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildToggleTile(
+                        title: "Fresher Eligible",
+                        value: isFresherEligible,
+                        onChanged: (v) =>
+                            setState(() => isFresherEligible = v),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildToggleTile(
+                        title: "Experienced Eligible",
+                        value: isExperiencedEligible,
+                        onChanged: (v) =>
+                            setState(() => isExperiencedEligible = v),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // ---------- TAB 3: AGE & FEES ----------
   Widget _buildAgeFeesTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -2564,7 +3552,6 @@ class _AddJobScreenState extends State<AddJobScreen>
     );
   }
 
-  // ---------- TAB 4: TIMELINE ----------
   Widget _buildTimelineTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -2630,7 +3617,6 @@ class _AddJobScreenState extends State<AddJobScreen>
     );
   }
 
-  // ---------- TAB 5: WORK ----------
   Widget _buildWorkTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -2655,11 +3641,17 @@ class _AddJobScreenState extends State<AddJobScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _sectionHeader(
-                  "Education & Experience",
-                  Icons.school,
-                  subtitle: "Qualification and experience required",
+                  "Experience Details",
+                  Icons.work_history,
+                  subtitle: "Experience requirements",
                 ),
-                _buildEducationContent(),
+                _buildAITextField(
+                  experienceDetailsCtrl,
+                  "Experience Details",
+                  maxLines: 3,
+                  hintText: "e.g., Minimum 2 years experience required",
+                  prefixIcon: Icons.work_history,
+                ),
               ],
             ),
           ),
@@ -2696,7 +3688,6 @@ class _AddJobScreenState extends State<AddJobScreen>
     );
   }
 
-  // ---------- TAB 6: INTERVIEW ----------
   Widget _buildInterviewTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -2762,7 +3753,6 @@ class _AddJobScreenState extends State<AddJobScreen>
     );
   }
 
-  // ---------- TAB 7: NOTIFICATION ----------
   Widget _buildNotificationTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -2775,7 +3765,8 @@ class _AddJobScreenState extends State<AddJobScreen>
                 _sectionHeader(
                   "Official Notification",
                   Icons.notifications,
-                  subtitle: "Provide PDF link or upload file (required)",
+                  subtitle:
+                      "Provide PDF link or upload file (required for publish)",
                 ),
                 _buildOfficialNotificationContent(),
               ],
@@ -2814,7 +3805,6 @@ class _AddJobScreenState extends State<AddJobScreen>
     );
   }
 
-  // ---------- TAB 8: EXTRAS ----------
   Widget _buildExtrasTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -2909,6 +3899,18 @@ class _AddJobScreenState extends State<AddJobScreen>
                   hintText: "https://example.com",
                   prefixIcon: Icons.public,
                 ),
+                _buildAITextField(
+                  helplineNumberCtrl,
+                  "Helpline Number",
+                  keyboardType: TextInputType.phone,
+                  prefixIcon: Icons.support_agent,
+                ),
+                _buildAITextField(
+                  helplineEmailCtrl,
+                  "Helpline Email",
+                  keyboardType: TextInputType.emailAddress,
+                  prefixIcon: Icons.email,
+                ),
               ],
             ),
           ),
@@ -2917,7 +3919,7 @@ class _AddJobScreenState extends State<AddJobScreen>
     );
   }
 
-  // ==================== CONTENT BUILDERS (Tab internals) ====================
+  // ==================== CONTENT BUILDERS ====================
 
   Widget _buildLocationContent() {
     return Column(
@@ -2936,13 +3938,20 @@ class _AddJobScreenState extends State<AddJobScreen>
           child: SwitchListTile(
             title: const Text(
               "Use my current location",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Color(0xFF1A1A1A),
+              ),
             ),
             subtitle: Text(
               _useCurrentLocation
                   ? "Job will be posted with your saved account location"
                   : "Enter location manually",
-              style: const TextStyle(fontSize: 11),
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF5A5A5A),
+              ),
             ),
             value: _useCurrentLocation,
             onChanged: _toggleCurrentLocation,
@@ -2961,7 +3970,10 @@ class _AddJobScreenState extends State<AddJobScreen>
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
                 SizedBox(width: 8),
-                Text("Checking saved location..."),
+                Text(
+                  "Checking saved location...",
+                  style: TextStyle(color: Color(0xFF1A1A1A)),
+                ),
               ],
             ),
           ),
@@ -3139,13 +4151,20 @@ class _AddJobScreenState extends State<AddJobScreen>
       child: SwitchListTile(
         title: const Text(
           "Add Multiple Posts (Post-wise Details)",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Color(0xFF1A1A1A),
+          ),
         ),
         subtitle: Text(
           _showMultiplePosts
               ? "ON: Add different posts with separate details"
               : "OFF: No posts added",
-          style: const TextStyle(fontSize: 11),
+          style: const TextStyle(
+            fontSize: 11,
+            color: Color(0xFF5A5A5A),
+          ),
         ),
         value: _showMultiplePosts,
         onChanged: (value) {
@@ -3222,7 +4241,10 @@ class _AddJobScreenState extends State<AddJobScreen>
                   children: [
                     const Text(
                       "Qualification Required:",
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _buildAIDropdown(
@@ -3246,7 +4268,8 @@ class _AddJobScreenState extends State<AddJobScreen>
                         selectedQualificationFromEducation != '10th Pass' &&
                         selectedQualificationFromEducation != '12th Pass' &&
                         selectedQualificationFromEducation != 'Any Graduate' &&
-                        selectedQualificationFromEducation != 'Any Post Graduate')
+                        selectedQualificationFromEducation !=
+                            'Any Post Graduate')
                       _buildAIDropdown(
                         selectedQualificationSubOption,
                         _qualificationSubOptions,
@@ -3286,7 +4309,8 @@ class _AddJobScreenState extends State<AddJobScreen>
                       otherQualificationCtrl,
                       "Other Qualification Details (Optional)",
                       maxLines: 2,
-                      hintText: "e.g., Any additional certification or training",
+                      hintText:
+                          "e.g., Any additional certification or training",
                     ),
                     const SizedBox(height: 12),
                     _buildAITextField(
@@ -3405,6 +4429,7 @@ class _AddJobScreenState extends State<AddJobScreen>
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
                       ),
                     ),
                     Container(
@@ -3440,32 +4465,45 @@ class _AddJobScreenState extends State<AddJobScreen>
     );
   }
 
+  // ✅ FIXED: _buildPostCard uses safe age conversion
   Widget _buildPostCard(int index, Map<String, dynamic> post) {
-    final hasPayScales =
-        post['pay_scales'] != null && (post['pay_scales'] as List).isNotEmpty;
+    final hasPayScales = post['pay_scales'] != null &&
+        (post['pay_scales'] as List).isNotEmpty;
     final qualificationDisplay = post['qualification'] ?? 'Not specified';
     final otherQualification = post['other_qualification_details'] ?? '';
     final experienceDetails = post['experience_details'] ?? '';
+
+    // ✅ SAFE: age_min/age_max may be int, double, String, or null
+    final String ageMinStr = _safeAgeToString(post['age_min']);
+    final String ageMaxStr = _safeAgeToString(post['age_max']);
+    final bool hasAgeLimit = ageMinStr.isNotEmpty || ageMaxStr.isNotEmpty;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ExpansionTile(
         title: Text(
-          post['post_name'],
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          post['post_name']?.toString() ?? 'Untitled Post',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1A1A1A),
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Vacancies: ${post['total_posts']}"),
+            Text(
+              "Vacancies: ${post['total_posts'] ?? 0}",
+              style: const TextStyle(color: Color(0xFF1A1A1A)),
+            ),
             Text(
               "Qualification: $qualificationDisplay",
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF1A1A1A)),
             ),
             if (otherQualification.isNotEmpty)
               Text(
                 "Other: $otherQualification",
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style:
+                    const TextStyle(fontSize: 11, color: Color(0xFF5A5A5A)),
               ),
             if (experienceDetails.isNotEmpty)
               Text(
@@ -3495,8 +4533,8 @@ class _AddJobScreenState extends State<AddJobScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (post['age_min'].isNotEmpty == true ||
-                    post['age_max'].isNotEmpty == true)
+                // ✅ FIXED: safe age limit check
+                if (hasAgeLimit)
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -3504,7 +4542,8 @@ class _AddJobScreenState extends State<AddJobScreen>
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      "Age Limit: ${post['age_min'] ?? ''} - ${post['age_max'] ?? ''} years",
+                      "Age Limit: ${ageMinStr.isEmpty ? '—' : ageMinStr} - ${ageMaxStr.isEmpty ? '—' : ageMaxStr} years",
+                      style: const TextStyle(color: Color(0xFF1A1A1A)),
                     ),
                   ),
                 if (experienceDetails.isNotEmpty)
@@ -3523,7 +4562,10 @@ class _AddJobScreenState extends State<AddJobScreen>
                         Expanded(
                           child: Text(
                             "Experience: $experienceDetails",
-                            style: const TextStyle(fontSize: 13),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF1A1A1A),
+                            ),
                           ),
                         ),
                       ],
@@ -3532,7 +4574,10 @@ class _AddJobScreenState extends State<AddJobScreen>
                 const SizedBox(height: 12),
                 const Text(
                   "Salary & Grade Pay Structure:",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 if (hasPayScales)
@@ -3558,7 +4603,10 @@ class _AddJobScreenState extends State<AddJobScreen>
                       children: [
                         const Text(
                           "Category-wise Vacancy:",
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A),
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Switch(
@@ -3608,7 +4656,10 @@ class _AddJobScreenState extends State<AddJobScreen>
                       children: [
                         const Text(
                           "Total Category Vacancies:",
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A),
+                          ),
                         ),
                         Text(
                           "${_getTotalCategoryVacancySum(index)}",
@@ -3621,7 +4672,10 @@ class _AddJobScreenState extends State<AddJobScreen>
                       ],
                     ),
                   ),
-                  ...(post['category_vacancies'] as List).asMap().entries.map(
+                  ...(post['category_vacancies'] as List)
+                      .asMap()
+                      .entries
+                      .map(
                         (catEntry) => _buildCategoryCard(
                             index, catEntry.key, catEntry.value),
                       ),
@@ -3674,7 +4728,10 @@ class _AddJobScreenState extends State<AddJobScreen>
           ),
           title: Text(
             payScale['pay_scale']?.toString() ?? 'Not specified',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1A1A),
+            ),
           ),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -3683,13 +4740,19 @@ class _AddJobScreenState extends State<AddJobScreen>
                   payScale['grade_pay'].toString().isNotEmpty)
                 Text(
                   "Grade Pay: ${payScale['grade_pay']}",
-                  style: const TextStyle(fontSize: 12),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF1A1A1A),
+                  ),
                 ),
               if (payScale['pay_band'] != null &&
                   payScale['pay_band'].toString().isNotEmpty)
                 Text(
                   "Pay Band: ${payScale['pay_band']}",
-                  style: const TextStyle(fontSize: 12),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF1A1A1A),
+                  ),
                 ),
               if (payScale['min_salary'] != null ||
                   payScale['max_salary'] != null)
@@ -3732,7 +4795,13 @@ class _AddJobScreenState extends State<AddJobScreen>
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: const Icon(Icons.category, color: Colors.indigo),
-        title: Text(category['name']),
+        title: Text(
+          category['name'],
+          style: const TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3808,19 +4877,27 @@ class _AddJobScreenState extends State<AddJobScreen>
             children: [
               DropdownButtonFormField<int>(
                 initialValue: _selectedPostForPayScale,
-                hint: const Text("Select Post for Salary Structure"),
+                hint: const Text(
+                  "Select Post for Salary Structure",
+                  style: TextStyle(color: Color(0xFF1A1A1A)),
+                ),
                 decoration: const InputDecoration(
                   labelText: "Select Post *",
+                  labelStyle: TextStyle(color: Color(0xFF2C2C2C)),
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.work),
+                  prefixIcon: Icon(Icons.work, color: Color(0xFF4A4A4A)),
                 ),
+                style: const TextStyle(color: Color(0xFF1A1A1A)),
                 items: multiplePosts
                     .asMap()
                     .entries
                     .map(
                       (entry) => DropdownMenuItem<int>(
                         value: entry.key,
-                        child: Text(entry.value['post_name']),
+                        child: Text(
+                          entry.value['post_name'],
+                          style: const TextStyle(color: Color(0xFF1A1A1A)),
+                        ),
                       ),
                     )
                     .toList(),
@@ -3857,6 +4934,7 @@ class _AddJobScreenState extends State<AddJobScreen>
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
+                            color: Color(0xFF1A1A1A),
                           ),
                         ),
                       ),
@@ -3949,7 +5027,11 @@ class _AddJobScreenState extends State<AddJobScreen>
                   const SizedBox(height: 8),
                   const Text(
                     "Current Salary Structures for this Post:",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Color(0xFF1A1A1A),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   ...(multiplePosts[_selectedPostForPayScale!]['pay_scales']
@@ -3979,6 +5061,7 @@ class _AddJobScreenState extends State<AddJobScreen>
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
+                                        color: Color(0xFF1A1A1A),
                                       ),
                                     ),
                                   ),
@@ -3995,7 +5078,8 @@ class _AddJobScreenState extends State<AddJobScreen>
                                           entry.key,
                                         ),
                                         padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
+                                        constraints:
+                                            const BoxConstraints(),
                                       ),
                                       IconButton(
                                         icon: const Icon(
@@ -4009,7 +5093,8 @@ class _AddJobScreenState extends State<AddJobScreen>
                                           entry.key,
                                         ),
                                         padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
+                                        constraints:
+                                            const BoxConstraints(),
                                       ),
                                     ],
                                   ),
@@ -4022,13 +5107,21 @@ class _AddJobScreenState extends State<AddJobScreen>
                                       .isNotEmpty)
                                 Text(
                                   "Grade Pay: ${entry.value['grade_pay']}",
-                                  style: const TextStyle(fontSize: 11),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF1A1A1A),
+                                  ),
                                 ),
                               if (entry.value['pay_band'] != null &&
-                                  entry.value['pay_band'].toString().isNotEmpty)
+                                  entry.value['pay_band']
+                                      .toString()
+                                      .isNotEmpty)
                                 Text(
                                   "Pay Band: ${entry.value['pay_band']}",
-                                  style: const TextStyle(fontSize: 11),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF1A1A1A),
+                                  ),
                                 ),
                               if (entry.value['min_salary'] != null ||
                                   entry.value['max_salary'] != null)
@@ -4082,6 +5175,7 @@ class _AddJobScreenState extends State<AddJobScreen>
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
+                        color: Color(0xFF1A1A1A),
                       ),
                     ),
                   ],
@@ -4094,17 +5188,30 @@ class _AddJobScreenState extends State<AddJobScreen>
                         initialValue: categoryNameCtrl.text.isEmpty
                             ? null
                             : categoryNameCtrl.text,
-                        hint: const Text("Select Category"),
+                        hint: const Text(
+                          "Select Category",
+                          style: TextStyle(color: Color(0xFF1A1A1A)),
+                        ),
                         decoration: const InputDecoration(
                           labelText: "Category",
+                          labelStyle: TextStyle(color: Color(0xFF2C2C2C)),
                           border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.category),
+                          prefixIcon: Icon(
+                            Icons.category,
+                            color: Color(0xFF4A4A4A),
+                          ),
                         ),
+                        style: const TextStyle(color: Color(0xFF1A1A1A)),
                         items: predefinedCategories
                             .map(
                               (cat) => DropdownMenuItem(
                                 value: cat,
-                                child: Text(cat),
+                                child: Text(
+                                  cat,
+                                  style: const TextStyle(
+                                    color: Color(0xFF1A1A1A),
+                                  ),
+                                ),
                               ),
                             )
                             .toList(),
@@ -4118,10 +5225,18 @@ class _AddJobScreenState extends State<AddJobScreen>
                       child: TextFormField(
                         controller: categoryVacancyCtrl,
                         keyboardType: TextInputType.number,
+                        style: const TextStyle(
+                          color: Color(0xFF1A1A1A),
+                          fontWeight: FontWeight.w500,
+                        ),
                         decoration: const InputDecoration(
                           labelText: "Vacancies",
+                          labelStyle: TextStyle(color: Color(0xFF2C2C2C)),
                           border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.people),
+                          prefixIcon: Icon(
+                            Icons.people,
+                            color: Color(0xFF4A4A4A),
+                          ),
                         ),
                       ),
                     ),
@@ -4167,7 +5282,10 @@ class _AddJobScreenState extends State<AddJobScreen>
                 children: [
                   const Text(
                     "Age Relaxation by Category",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                    ),
                   ),
                   Switch(
                     value: _hasAgeRelaxation,
@@ -4182,7 +5300,7 @@ class _AddJobScreenState extends State<AddJobScreen>
                 const SizedBox(height: 12),
                 const Text(
                   "Enter relaxation in years for each category:",
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 12, color: Color(0xFF5A5A5A)),
                 ),
                 const SizedBox(height: 16),
                 Container(
@@ -4232,21 +5350,36 @@ class _AddJobScreenState extends State<AddJobScreen>
                               initialValue: _isEditingRelaxation
                                   ? _editingRelaxationCategory
                                   : null,
-                              hint: const Text("Select Category"),
+                              hint: const Text(
+                                "Select Category",
+                                style: TextStyle(color: Color(0xFF1A1A1A)),
+                              ),
                               decoration: const InputDecoration(
                                 labelText: "Category",
+                                labelStyle:
+                                    TextStyle(color: Color(0xFF2C2C2C)),
                                 border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.category),
+                                prefixIcon: Icon(
+                                  Icons.category,
+                                  color: Color(0xFF4A4A4A),
+                                ),
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: 12,
                                   vertical: 8,
                                 ),
                               ),
+                              style:
+                                  const TextStyle(color: Color(0xFF1A1A1A)),
                               items: relaxationCategories
                                   .map(
                                     (cat) => DropdownMenuItem(
                                       value: cat,
-                                      child: Text(cat),
+                                      child: Text(
+                                        cat,
+                                        style: const TextStyle(
+                                          color: Color(0xFF1A1A1A),
+                                        ),
+                                      ),
                                     ),
                                   )
                                   .toList(),
@@ -4263,11 +5396,22 @@ class _AddJobScreenState extends State<AddJobScreen>
                             child: TextFormField(
                               controller: relaxationYearsCtrl,
                               keyboardType: TextInputType.number,
+                              style: const TextStyle(
+                                color: Color(0xFF1A1A1A),
+                                fontWeight: FontWeight.w500,
+                              ),
                               decoration: const InputDecoration(
                                 labelText: "Years",
+                                labelStyle:
+                                    TextStyle(color: Color(0xFF2C2C2C)),
                                 hintText: "e.g., 3",
+                                hintStyle:
+                                    TextStyle(color: Color(0xFF9E9E9E)),
                                 border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.timer),
+                                prefixIcon: Icon(
+                                  Icons.timer,
+                                  color: Color(0xFF4A4A4A),
+                                ),
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: 12,
                                   vertical: 8,
@@ -4318,7 +5462,10 @@ class _AddJobScreenState extends State<AddJobScreen>
                             const SizedBox(width: 8),
                             const Text(
                               "Category-wise Age Relaxation:",
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1A1A1A),
+                              ),
                             ),
                             const Spacer(),
                             Container(
@@ -4335,6 +5482,7 @@ class _AddJobScreenState extends State<AddJobScreen>
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1A1A1A),
                                 ),
                               ),
                             ),
@@ -4362,6 +5510,7 @@ class _AddJobScreenState extends State<AddJobScreen>
                                 entry.key,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w500,
+                                  color: Color(0xFF1A1A1A),
                                 ),
                               ),
                               trailing: Row(
@@ -4471,8 +5620,9 @@ class _AddJobScreenState extends State<AddJobScreen>
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color:
-                _hasApplicationFees ? Colors.teal.shade50 : Colors.grey.shade50,
+            color: _hasApplicationFees
+                ? Colors.teal.shade50
+                : Colors.grey.shade50,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: _hasApplicationFees ? Colors.teal : Colors.grey.shade300,
@@ -4483,13 +5633,20 @@ class _AddJobScreenState extends State<AddJobScreen>
               SwitchListTile(
                 title: const Text(
                   "Enable Category-wise Application Fees",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Color(0xFF1A1A1A),
+                  ),
                 ),
                 subtitle: Text(
                   _hasApplicationFees
                       ? "ON: Set different fees for different categories"
                       : "OFF: No application fees",
-                  style: const TextStyle(fontSize: 11),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF5A5A5A),
+                  ),
                 ),
                 value: _hasApplicationFees,
                 onChanged: (value) {
@@ -4557,21 +5714,36 @@ class _AddJobScreenState extends State<AddJobScreen>
                                   : (feeCategoryCtrl.text.isEmpty
                                       ? null
                                       : feeCategoryCtrl.text),
-                              hint: const Text("Select Category"),
+                              hint: const Text(
+                                "Select Category",
+                                style: TextStyle(color: Color(0xFF1A1A1A)),
+                              ),
                               decoration: const InputDecoration(
                                 labelText: "Category",
+                                labelStyle:
+                                    TextStyle(color: Color(0xFF2C2C2C)),
                                 border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.category),
+                                prefixIcon: Icon(
+                                  Icons.category,
+                                  color: Color(0xFF4A4A4A),
+                                ),
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: 12,
                                   vertical: 8,
                                 ),
                               ),
+                              style:
+                                  const TextStyle(color: Color(0xFF1A1A1A)),
                               items: predefinedFeeCategories
                                   .map(
                                     (cat) => DropdownMenuItem(
                                       value: cat,
-                                      child: Text(cat),
+                                      child: Text(
+                                        cat,
+                                        style: const TextStyle(
+                                          color: Color(0xFF1A1A1A),
+                                        ),
+                                      ),
                                     ),
                                   )
                                   .toList(),
@@ -4588,11 +5760,22 @@ class _AddJobScreenState extends State<AddJobScreen>
                             child: TextFormField(
                               controller: feeAmountCtrl,
                               keyboardType: TextInputType.number,
+                              style: const TextStyle(
+                                color: Color(0xFF1A1A1A),
+                                fontWeight: FontWeight.w500,
+                              ),
                               decoration: const InputDecoration(
                                 labelText: "Fee (₹)",
+                                labelStyle:
+                                    TextStyle(color: Color(0xFF2C2C2C)),
                                 hintText: "e.g., 500",
+                                hintStyle:
+                                    TextStyle(color: Color(0xFF9E9E9E)),
                                 border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.currency_rupee),
+                                prefixIcon: Icon(
+                                  Icons.currency_rupee,
+                                  color: Color(0xFF4A4A4A),
+                                ),
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: 12,
                                   vertical: 8,
@@ -4640,7 +5823,10 @@ class _AddJobScreenState extends State<AddJobScreen>
                             const SizedBox(width: 8),
                             const Text(
                               "Category-wise Application Fees:",
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1A1A1A),
+                              ),
                             ),
                             const Spacer(),
                             Container(
@@ -4657,6 +5843,7 @@ class _AddJobScreenState extends State<AddJobScreen>
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1A1A1A),
                                 ),
                               ),
                             ),
@@ -4684,6 +5871,7 @@ class _AddJobScreenState extends State<AddJobScreen>
                                 entry.key,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w500,
+                                  color: Color(0xFF1A1A1A),
                                 ),
                               ),
                               trailing: Row(
@@ -4872,7 +6060,10 @@ class _AddJobScreenState extends State<AddJobScreen>
           const SizedBox(height: 12),
           const Text(
             "Added Exam Cities:",
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1A1A),
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -4883,7 +6074,10 @@ class _AddJobScreenState extends State<AddJobScreen>
                 .entries
                 .map(
                   (entry) => Chip(
-                    label: Text(entry.value),
+                    label: Text(
+                      entry.value,
+                      style: const TextStyle(color: Color(0xFF1A1A1A)),
+                    ),
                     avatar: const Icon(Icons.location_on, size: 16),
                     deleteIcon: const Icon(Icons.close, size: 16),
                     onDeleted: () => _deleteExamCity(entry.key),
@@ -4963,53 +6157,6 @@ class _AddJobScreenState extends State<AddJobScreen>
     );
   }
 
-  Widget _buildEducationContent() {
-    return Column(
-      children: [
-        _buildAIDropdown(
-          selectedEducation,
-          educationLevels,
-          "Education Level",
-          onChanged: (v) => setState(() => selectedEducation = v!),
-        ),
-        _buildAITextField(
-          educationDetailsCtrl,
-          "Education Details",
-          maxLines: 3,
-          hintText: "Details about required education",
-          prefixIcon: Icons.school,
-        ),
-        _buildAITextField(
-          experienceDetailsCtrl,
-          "Experience Details",
-          maxLines: 3,
-          hintText: "e.g., Minimum 2 years experience required",
-          prefixIcon: Icons.work_history,
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _buildToggleTile(
-                title: "Fresher Eligible",
-                value: isFresherEligible,
-                onChanged: (v) => setState(() => isFresherEligible = v),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildToggleTile(
-                title: "Experienced Eligible",
-                value: isExperiencedEligible,
-                onChanged: (v) => setState(() => isExperiencedEligible = v),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Widget _buildBenefitsContent() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -5022,7 +6169,10 @@ class _AddJobScreenState extends State<AddJobScreen>
         children: [
           const Text(
             "Select Benefits:",
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1A1A),
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -5031,7 +6181,14 @@ class _AddJobScreenState extends State<AddJobScreen>
             children: availableBenefits.map((benefit) {
               final isSelected = selectedBenefits.contains(benefit);
               return FilterChip(
-                label: Text(benefit),
+                label: Text(
+                  benefit,
+                  style: TextStyle(
+                    color: isSelected
+                        ? const Color(0xFF1A1A1A)
+                        : const Color(0xFF1A1A1A),
+                  ),
+                ),
                 selected: isSelected,
                 onSelected: (selected) {
                   setState(() {
@@ -5064,7 +6221,10 @@ class _AddJobScreenState extends State<AddJobScreen>
         children: [
           const Text(
             "Required Languages:",
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1A1A),
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -5073,7 +6233,10 @@ class _AddJobScreenState extends State<AddJobScreen>
             children: availableLanguages.map((lang) {
               final isSelected = selectedLanguages.contains(lang);
               return FilterChip(
-                label: Text(lang),
+                label: Text(
+                  lang,
+                  style: const TextStyle(color: Color(0xFF1A1A1A)),
+                ),
                 selected: isSelected,
                 onSelected: (selected) {
                   setState(() {
@@ -5143,7 +6306,10 @@ class _AddJobScreenState extends State<AddJobScreen>
         const SizedBox(height: 12),
         const Text(
           "Required Documents for Interview:",
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1A1A1A),
+          ),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -5152,7 +6318,10 @@ class _AddJobScreenState extends State<AddJobScreen>
           children: requiredDocuments.map((doc) {
             final isSelected = interviewDocuments.contains(doc);
             return FilterChip(
-              label: Text(doc),
+              label: Text(
+                doc,
+                style: const TextStyle(color: Color(0xFF1A1A1A)),
+              ),
               selected: isSelected,
               onSelected: (selected) {
                 setState(() {
@@ -5181,7 +6350,10 @@ class _AddJobScreenState extends State<AddJobScreen>
           children: availableStages.map((stage) {
             final isSelected = selectionStages.contains(stage);
             return FilterChip(
-              label: Text(stage),
+              label: Text(
+                stage,
+                style: const TextStyle(color: Color(0xFF1A1A1A)),
+              ),
               selected: isSelected,
               onSelected: (selected) {
                 setState(() {
@@ -5219,10 +6391,14 @@ class _AddJobScreenState extends State<AddJobScreen>
             SwitchListTile(
               title: const Text(
                 "Service Bond Required",
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A),
+                ),
               ),
               subtitle: const Text(
                 "Is there any service bond or agreement?",
+                style: TextStyle(color: Color(0xFF5A5A5A)),
               ),
               value: hasBond,
               onChanged: (newValue) => setState(() => hasBond = newValue),
@@ -5314,10 +6490,14 @@ class _AddJobScreenState extends State<AddJobScreen>
                 SwitchListTile(
                   title: const Text(
                     "Official Notification PDF Link",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                    ),
                   ),
                   subtitle: const Text(
                     "Provide a direct URL link to the official notification PDF",
+                    style: TextStyle(color: Color(0xFF5A5A5A)),
                   ),
                   value: hasOfficialNotificationLink,
                   onChanged: (value) {
@@ -5355,10 +6535,14 @@ class _AddJobScreenState extends State<AddJobScreen>
                 SwitchListTile(
                   title: const Text(
                     "Upload Advertisement File",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                    ),
                   ),
                   subtitle: const Text(
                     "Upload PDF or Image file as advertisement",
+                    style: TextStyle(color: Color(0xFF5A5A5A)),
                   ),
                   value: hasAdvertisementFile,
                   onChanged: (value) {
@@ -5398,15 +6582,17 @@ class _AddJobScreenState extends State<AddJobScreen>
                                 selectedFileName!,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w500,
+                                  color: Color(0xFF1A1A1A),
                                 ),
                               ),
-                              Text(
-                                "${(selectedFileBytes!.length / 1024).toStringAsFixed(1)} KB",
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
+                              if (selectedFileBytes != null)
+                                Text(
+                                  "${(selectedFileBytes!.length / 1024).toStringAsFixed(1)} KB",
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF5A5A5A),
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
@@ -5434,7 +6620,7 @@ class _AddJobScreenState extends State<AddJobScreen>
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  "You can provide EITHER a PDF link OR upload a file. At least one is required.",
+                  "⚠️ PDF/Link is required only for FINAL PUBLISH. You can save this tab without it!",
                   style: TextStyle(fontSize: 12, color: Colors.amber),
                 ),
               ),
@@ -5455,10 +6641,14 @@ class _AddJobScreenState extends State<AddJobScreen>
             SwitchListTile(
               title: const Text(
                 "Enable 'Apply with Us' Button",
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A),
+                ),
               ),
               subtitle: const Text(
                 "Redirect users to an external application form",
+                style: TextStyle(color: Color(0xFF5A5A5A)),
               ),
               value: hasApplyWithUs,
               onChanged: (value) {
@@ -5479,14 +6669,6 @@ class _AddJobScreenState extends State<AddJobScreen>
                 prefixIcon: Icons.open_in_browser,
               ),
             ],
-            const SizedBox(height: 12),
-            _buildAITextField(
-              websiteUrlCtrl,
-              "Website URL",
-              hintText: "https://example.com",
-              prefixIcon: Icons.public,
-            ),
-            _buildAIDateField(lastDateCtrl, "Last Date to Apply"),
           ],
         ),
       ),
@@ -5508,10 +6690,14 @@ class _AddJobScreenState extends State<AddJobScreen>
               SwitchListTile(
                 title: const Text(
                   "Physical Requirements",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
                 ),
                 subtitle: const Text(
                   "Height, chest, weight requirements (Police/Defense jobs)",
+                  style: TextStyle(color: Color(0xFF5A5A5A)),
                 ),
                 value: _hasPhysicalRequirement,
                 onChanged: (value) =>
@@ -5582,10 +6768,14 @@ class _AddJobScreenState extends State<AddJobScreen>
               SwitchListTile(
                 title: const Text(
                   "Medical Standards",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
                 ),
                 subtitle: const Text(
                   "Medical fitness requirements for the job",
+                  style: TextStyle(color: Color(0xFF5A5A5A)),
                 ),
                 value: _hasMedicalRequirement,
                 onChanged: (value) =>
@@ -5620,10 +6810,14 @@ class _AddJobScreenState extends State<AddJobScreen>
             SwitchListTile(
               title: const Text(
                 "Training Details",
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A),
+                ),
               ),
               subtitle: const Text(
                 "Is there any training period for selected candidates?",
+                style: TextStyle(color: Color(0xFF5A5A5A)),
               ),
               value: _hasTraining,
               onChanged: (value) => setState(() => _hasTraining = value),
@@ -5678,11 +6872,12 @@ class _AddJobScreenState extends State<AddJobScreen>
   }
 
   // ==================== REUSABLE WIDGETS ====================
+
   Widget _buildGlassContainer({required Widget child}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.85),
+        color: Colors.white.withOpacity(0.95),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
         boxShadow: [
@@ -5716,15 +6911,19 @@ class _AddJobScreenState extends State<AddJobScreen>
                 child: Icon(icon, color: Colors.white, size: 18),
               ),
               const SizedBox(width: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Container(
                 width: 30,
                 height: 2,
@@ -5742,7 +6941,11 @@ class _AddJobScreenState extends State<AddJobScreen>
               padding: const EdgeInsets.only(left: 44, top: 4),
               child: Text(
                 subtitle,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF5A5A5A),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
         ],
@@ -5765,10 +6968,10 @@ class _AddJobScreenState extends State<AddJobScreen>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: Colors.grey.shade300, width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.05),
+              color: Colors.grey.withOpacity(0.08),
               blurRadius: 5,
               spreadRadius: 1,
             ),
@@ -5778,25 +6981,33 @@ class _AddJobScreenState extends State<AddJobScreen>
           controller: ctrl,
           keyboardType: keyboardType,
           maxLines: maxLines,
-          style: const TextStyle(color: Colors.black87),
+          style: const TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
           decoration: InputDecoration(
             labelText: required ? "$label *" : label,
-            labelStyle: TextStyle(
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
+            labelStyle: const TextStyle(
+              color: Color(0xFF2C2C2C),
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
             ),
             hintText: hintText ?? (required ? null : "Optional"),
-            hintStyle: TextStyle(color: Colors.grey.shade400),
+            hintStyle: const TextStyle(
+              color: Color(0xFF9E9E9E),
+              fontSize: 13,
+            ),
             prefixIcon: prefixIcon != null
-                ? Icon(prefixIcon, color: Colors.grey.shade600, size: 20)
+                ? Icon(prefixIcon, color: const Color(0xFF4A4A4A), size: 20)
                 : null,
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
-              vertical: 14,
+              vertical: 16,
             ),
             filled: true,
-            fillColor: Colors.transparent,
+            fillColor: Colors.white,
           ),
           validator: (value) =>
               required && (value == null || value.isEmpty) ? "Required" : null,
@@ -5818,10 +7029,10 @@ class _AddJobScreenState extends State<AddJobScreen>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: Colors.grey.shade300, width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.05),
+              color: Colors.grey.withOpacity(0.08),
               blurRadius: 5,
               spreadRadius: 1,
             ),
@@ -5831,25 +7042,38 @@ class _AddJobScreenState extends State<AddJobScreen>
           initialValue: value,
           decoration: InputDecoration(
             labelText: required ? "$label *" : label,
-            labelStyle: TextStyle(
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
+            labelStyle: const TextStyle(
+              color: Color(0xFF2C2C2C),
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
             ),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 14,
             ),
-            suffixIcon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
+            suffixIcon: const Icon(
+              Icons.arrow_drop_down,
+              color: Color(0xFF4A4A4A),
+            ),
+            filled: true,
+            fillColor: Colors.white,
           ),
           dropdownColor: Colors.white,
-          style: const TextStyle(color: Colors.black87, fontSize: 14),
+          style: const TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
           items: items.map((item) {
             return DropdownMenuItem<T>(
               value: item,
               child: Text(
                 item.toString(),
-                style: const TextStyle(color: Colors.black87),
+                style: const TextStyle(
+                  color: Color(0xFF1A1A1A),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             );
           }).toList(),
@@ -5872,10 +7096,10 @@ class _AddJobScreenState extends State<AddJobScreen>
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: Colors.grey.shade300, width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.05),
+              color: Colors.grey.withOpacity(0.08),
               blurRadius: 5,
               spreadRadius: 1,
             ),
@@ -5884,28 +7108,35 @@ class _AddJobScreenState extends State<AddJobScreen>
         child: TextFormField(
           controller: ctrl,
           readOnly: true,
-          style: const TextStyle(color: Colors.black87),
+          style: const TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
           decoration: InputDecoration(
             labelText: required ? "$label *" : label,
-            labelStyle: TextStyle(
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
+            labelStyle: const TextStyle(
+              color: Color(0xFF2C2C2C),
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
             ),
-            prefixIcon: Icon(
+            prefixIcon: const Icon(
               Icons.calendar_today,
-              color: Colors.grey.shade600,
+              color: Color(0xFF4A4A4A),
               size: 18,
             ),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
-              vertical: 14,
+              vertical: 16,
             ),
-            suffixIcon: Icon(
+            suffixIcon: const Icon(
               Icons.event,
-              color: Colors.grey.shade400,
+              color: Color(0xFF757575),
               size: 18,
             ),
+            filled: true,
+            fillColor: Colors.white,
           ),
           onTap: () => _selectDate(ctrl),
           validator: (value) =>
@@ -5924,18 +7155,26 @@ class _AddJobScreenState extends State<AddJobScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         clipBehavior: Clip.antiAlias,
         child: CheckboxListTile(
-          title: Text(title, style: const TextStyle(fontSize: 12)),
+          title: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF1A1A1A),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           value: value,
           onChanged: (v) => onChanged(v ?? false),
           contentPadding: const EdgeInsets.symmetric(horizontal: 4),
           activeColor: const Color(0xFF6C63FF),
+          checkColor: Colors.white,
           controlAffinity: ListTileControlAffinity.leading,
           dense: true,
         ),

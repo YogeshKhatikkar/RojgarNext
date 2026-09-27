@@ -121,6 +121,7 @@ async def create_all_indexes(db):
     await create_index_safely(db.job, "organization")
     await create_index_safely(db.job, "job_type")
     await create_index_safely(db.job, "category")
+    await create_index_safely(db.job, "color_type") 
     
     # Profile indexes
     await create_index_safely(db.profile, "email", unique=True)

@@ -20,6 +20,13 @@ class JobUpdateSchema(BaseModel):
     last_date: Optional[str] = None
     status: Optional[str] = Field(None, pattern="^(open|closed|filled)$")
     category: Optional[str] = None
+
+    # ✅ NEW: color_type
+    color_type: Optional[str] = Field(
+        None,
+        pattern="^(blue|green|red|orange|purple|teal|pink|indigo|amber|cyan|grey|gray|white)$"
+    )
+
     is_featured: Optional[bool] = None
     is_urgent: Optional[bool] = None
     total_posts: Optional[int] = None

@@ -1,5 +1,6 @@
-# app/modules/jobs/routes.py - UPDATED (NO apply_mode)
+# app/modules/jobs/routes.py - UPDATED (NO apply_mode) + color_type filter
 # ✅ FIXED: Added logger import
+# ✅ NEW: color_type query parameter in list_jobs
 
 from fastapi import APIRouter, Depends, Query, BackgroundTasks, UploadFile, File, Form, HTTPException, Body
 from typing import Optional, List, Annotated, Dict
@@ -19,12 +20,10 @@ from app.modules.jobs.schema import (
     ApplicationStatusUpdateSchema
 )
 
-# ✅ ADD THIS LOGGER
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Include AI routes
 router.include_router(jobs_ai_router)
 
 ENABLE_JOB_FETCH = False
@@ -75,18 +74,18 @@ async def get_job_advertisement(
     """Get job advertisement URL from Cloudinary"""
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
-    
+
     job = await db.job.find_one({"_id": ObjectId(job_id)})
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     advertisement_url = job.get("advertisement_url")
     advertisement_name = job.get("advertisement_name")
     advertisement_storage = job.get("advertisement_storage", "unknown")
-    
+
     if not advertisement_url:
         raise HTTPException(status_code=404, detail="No advertisement found for this job")
-    
+
     return {
         "success": True,
         "url": advertisement_url,
@@ -111,10 +110,10 @@ async def get_admin_jobs(
             auth_user = await db.auth.find_one({"_id": ObjectId(user_id)})
             if auth_user:
                 admin_email = auth_user.get("email")
-    
+
     if not admin_email:
         raise HTTPException(status_code=400, detail="Admin email not found")
-    
+
     return await service.get_admin_jobs(admin_email)
 
 
@@ -133,10 +132,10 @@ async def get_admin_applications(
             auth_user = await db.auth.find_one({"_id": ObjectId(user_id)})
             if auth_user:
                 admin_email = auth_user.get("email")
-    
+
     if not admin_email:
         raise HTTPException(status_code=400, detail="Admin email not found")
-    
+
     return await service.get_admin_applications(admin_email, status)
 
 
@@ -148,6 +147,10 @@ async def list_jobs(
     limit: int = Query(50, ge=1, le=200),
     job_type: Optional[str] = Query(None, description="private/remote/government/hybrid/all"),
     category: Optional[str] = Query(None, description="IT/Banking/Healthcare/etc"),
+    color_type: Optional[str] = Query(
+        None,
+        description="blue/green/red/orange/purple/teal/pink/indigo/amber/cyan/grey/white/all"
+    ),  # ✅ NEW
     search: Optional[str] = Query(None),
     service: JobService = Depends(get_job_service),
     current_user: dict = Depends(get_current_user)
@@ -157,11 +160,12 @@ async def list_jobs(
     print(f"📋 LIST JOBS REQUEST")
     print(f"   job_type: {job_type}")
     print(f"   category: {category}")
+    print(f"   color_type: {color_type}")   # ✅ NEW
     print(f"   search: {search}")
     print(f"   skip: {skip}")
     print(f"   limit: {limit}")
     print("=" * 50)
-    
+
     user_location = None
     if current_user:
         email = current_user.get("email")
@@ -174,8 +178,10 @@ async def list_jobs(
                     "latitude": loc.get("latitude"),
                     "longitude": loc.get("longitude")
                 }
-    
-    return await service.list_jobs(skip, limit, job_type, category, search, user_location)
+
+    return await service.list_jobs(
+        skip, limit, job_type, category, search, user_location, color_type  # ✅ NEW
+    )
 
 
 @router.get("/recommended")
@@ -237,41 +243,39 @@ async def update_application_status(
     """Admin changes status + notifies user via Notification module"""
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
-    
+
     application = await db.applications.find_one({"_id": ObjectId(application_id)})
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    
+
     job = await db.job.find_one({"_id": ObjectId(application.get("job_id"))})
     admin_email = user.get("email")
-    
-    # Permission check
+
     if job and job.get("added_by") != admin_email and user.get("role") != "superadmin":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     old_status = application.get("status", "unknown")
-    
+
     update_data = {
         "status": status,
         "last_status_update": datetime.utcnow(),
         "last_updated_by": admin_email,
         "updated_at": datetime.utcnow()
     }
-    
+
     if notes:
         update_data["admin_notes"] = notes
-    
+
     result = await db.applications.update_one(
         {"_id": ObjectId(application_id)},
         {"$set": update_data}
     )
-    
+
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Application not found or status unchanged")
-    
-    # Send notification to user
+
     from app.modules.notification.service import central_notification
-    
+
     applicant_email = application.get("applicant_email")
     if applicant_email:
         status_messages = {
@@ -287,17 +291,23 @@ async def update_application_status(
             "confirmed_application": "✅ Your application has been confirmed!",
             "update_application": "📝 Your update has been submitted for admin review."
         }
-        
+
         await central_notification.send_notification(
             user_ids=[applicant_email],
             notification_type="application_status",
             title=f"Application Status: {status.upper()}",
             message=status_messages.get(status, f"Your application status has been updated to {status}."),
-            metadata={"application_id": application_id, "job_title": job.get("post_name") if job else "", "old_status": old_status, "new_status": status},
+            metadata={
+                "application_id": application_id,
+                "job_title": job.get("post_name") if job else "",
+                "old_status": old_status,
+                "new_status": status,
+                "color_type": (job.get("color_type", "blue") if job else "blue"),  # ✅ NEW
+            },
             send_email=True,
             send_websocket=True
         )
-    
+
     return {
         "success": True,
         "message": f"Application status updated from {old_status} to {status}",
@@ -324,29 +334,25 @@ async def update_application_user_status(
     """
     from datetime import datetime
     from app.modules.notification.service import central_notification
-    
+
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
-    
-    # Get application
+
     application = await db.applications.find_one({"_id": ObjectId(application_id)})
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    
-    # Verify user owns this application
+
     user_email = current_user.get("email")
     if application.get("applicant_email") != user_email:
         raise HTTPException(status_code=403, detail="Unauthorized - This is not your application")
-    
-    # Check current status - only allowed from review_application status
+
     current_status = application.get("status", "")
     if current_status != "review_application":
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Cannot confirm application in '{current_status}' status. Only applications under review can be confirmed."
         )
-    
-    # Update application status
+
     update_data = {
         "status": status,
         "confirmed_at": datetime.utcnow(),
@@ -354,21 +360,20 @@ async def update_application_user_status(
         "confirmation_notes": notes,
         "updated_at": datetime.utcnow()
     }
-    
+
     result = await db.applications.update_one(
         {"_id": ObjectId(application_id)},
         {"$set": update_data}
     )
-    
+
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Application not found")
-    
-    # Get job details for notification
+
     job = await db.job.find_one({"_id": ObjectId(application.get("job_id"))})
     job_title = job.get("post_name", "Job") if job else "Job"
     organization = job.get("organization", "Company") if job else "Company"
-    
-    # Send notification to admin (job poster)
+    color_type = job.get("color_type", "blue") if job else "blue"  # ✅ NEW
+
     admin_email = job.get("added_by") if job else None
     if admin_email:
         await central_notification.send_notification(
@@ -380,13 +385,13 @@ async def update_application_user_status(
                 "application_id": application_id,
                 "applicant_email": user_email,
                 "job_title": job_title,
-                "status": "confirmed_application"
+                "status": "confirmed_application",
+                "color_type": color_type,  # ✅ NEW
             },
             send_email=True,
             send_websocket=True
         )
-    
-    # Send notification to customadmins
+
     customadmins = await db.auth.find({"role": "customadmin", "is_active": True}).to_list(100)
     for customadmin in customadmins:
         ca_email = customadmin.get("email")
@@ -399,13 +404,13 @@ async def update_application_user_status(
                 metadata={
                     "application_id": application_id,
                     "applicant_email": user_email,
-                    "job_title": job_title
+                    "job_title": job_title,
+                    "color_type": color_type,  # ✅ NEW
                 },
                 send_email=True,
                 send_websocket=True
             )
-    
-    # Send confirmation to user
+
     await central_notification.send_notification(
         user_ids=[user_email],
         notification_type="application_status",
@@ -414,12 +419,13 @@ async def update_application_user_status(
         metadata={
             "application_id": application_id,
             "job_title": job_title,
-            "status": "confirmed_application"
+            "status": "confirmed_application",
+            "color_type": color_type,  # ✅ NEW
         },
         send_email=True,
         send_websocket=True
     )
-    
+
     return {
         "success": True,
         "message": "Application confirmed successfully",
@@ -443,33 +449,28 @@ async def submit_application_update(
     """
     from datetime import datetime
     from app.modules.notification.service import central_notification
-    
+
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
-    
-    # Get application
+
     application = await db.applications.find_one({"_id": ObjectId(application_id)})
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    
-    # Verify user owns this application
+
     user_email = current_user.get("email")
     if application.get("applicant_email") != user_email:
         raise HTTPException(status_code=403, detail="Unauthorized - This is not your application")
-    
-    # Check current status - only allowed from review_application status
+
     current_status = application.get("status", "")
     if current_status != "review_application":
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Cannot update application in '{current_status}' status. Only applications under review can be updated."
         )
-    
-    # Validate updates
+
     if not updates or len(updates) == 0:
         raise HTTPException(status_code=400, detail="At least one update field is required")
-    
-    # Prepare update data
+
     update_data = {
         "status": "update_application",
         "application_updates": updates,
@@ -478,24 +479,22 @@ async def submit_application_update(
         "update_submitted_by": user_email,
         "updated_at": datetime.utcnow()
     }
-    
+
     result = await db.applications.update_one(
         {"_id": ObjectId(application_id)},
         {"$set": update_data}
     )
-    
+
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Application not found")
-    
-    # Get job details for notification
+
     job = await db.job.find_one({"_id": ObjectId(application.get("job_id"))})
     job_title = job.get("post_name", "Job") if job else "Job"
     organization = job.get("organization", "Company") if job else "Company"
-    
-    # Format updates for notification
+    color_type = job.get("color_type", "blue") if job else "blue"  # ✅ NEW
+
     updates_text = "\n".join([f"• {u.get('field_name', 'Field')}: {u.get('field_value', 'Value')}" for u in updates])
-    
-    # Send notification to admin (job poster)
+
     admin_email = job.get("added_by") if job else None
     if admin_email:
         await central_notification.send_notification(
@@ -509,13 +508,13 @@ async def submit_application_update(
                 "updates": updates,
                 "notes": notes,
                 "job_title": job_title,
-                "status": "update_application"
+                "status": "update_application",
+                "color_type": color_type,  # ✅ NEW
             },
             send_email=True,
             send_websocket=True
         )
-    
-    # Send notification to customadmins
+
     customadmins = await db.auth.find({"role": "customadmin", "is_active": True}).to_list(100)
     for customadmin in customadmins:
         ca_email = customadmin.get("email")
@@ -529,13 +528,13 @@ async def submit_application_update(
                     "application_id": application_id,
                     "applicant_email": user_email,
                     "job_title": job_title,
-                    "updates_count": len(updates)
+                    "updates_count": len(updates),
+                    "color_type": color_type,  # ✅ NEW
                 },
                 send_email=True,
                 send_websocket=True
             )
-    
-    # Send confirmation to user
+
     await central_notification.send_notification(
         user_ids=[user_email],
         notification_type="application_status",
@@ -544,12 +543,13 @@ async def submit_application_update(
         metadata={
             "application_id": application_id,
             "job_title": job_title,
-            "status": "update_application"
+            "status": "update_application",
+            "color_type": color_type,  # ✅ NEW
         },
         send_email=True,
         send_websocket=True
     )
-    
+
     return {
         "success": True,
         "message": "Application update submitted successfully",
@@ -571,27 +571,25 @@ async def get_application_updates(
     """
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
-    
+
     application = await db.applications.find_one({"_id": ObjectId(application_id)})
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    
-    # Check permission - user or admin can view
+
     user_email = current_user.get("email")
     user_role = current_user.get("role", "").lower()
-    
+
     is_owner = application.get("applicant_email") == user_email
     is_admin = user_role in ["admin", "customadmin", "superadmin"]
-    
+
     if not (is_owner or is_admin):
         raise HTTPException(status_code=403, detail="Unauthorized")
-    
-    # Get updates
+
     updates = application.get("application_updates", [])
     update_notes = application.get("update_notes")
     update_submitted_at = application.get("update_submitted_at")
     update_submitted_by = application.get("update_submitted_by")
-    
+
     return {
         "success": True,
         "updates": updates,
@@ -615,35 +613,31 @@ async def admin_process_application_update(
     """
     from datetime import datetime
     from app.modules.notification.service import central_notification
-    
+
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
-    
-    # Get application
+
     application = await db.applications.find_one({"_id": ObjectId(application_id)})
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    
-    # Check current status - only update_application status
+
     current_status = application.get("status", "")
     if current_status != "update_application":
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Cannot process update in '{current_status}' status"
         )
-    
+
     admin_email = user.get("email")
-    
-    # Get job details
+
     job = await db.job.find_one({"_id": ObjectId(application.get("job_id"))})
     job_title = job.get("post_name", "Job") if job else "Job"
+    color_type = job.get("color_type", "blue") if job else "blue"  # ✅ NEW
     applicant_email = application.get("applicant_email")
-    
+
     if action == "approve":
-        # Approve the update - merge updates into application fields
         updates = application.get("application_updates", [])
-        
-        # Prepare update data
+
         update_data = {
             "status": "approved_application",
             "update_approved_at": datetime.utcnow(),
@@ -651,23 +645,21 @@ async def admin_process_application_update(
             "admin_update_notes": admin_notes,
             "updated_at": datetime.utcnow()
         }
-        
-        # Add individual field updates
+
         for update in updates:
             field_name = update.get("field_name")
             field_value = update.get("field_value")
             if field_name and field_value:
                 update_data[f"additional_info.{field_name}"] = field_value
-        
+
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
             {"$set": update_data}
         )
-        
+
         message = "Application update approved successfully"
         status = "approved_application"
-        
-        # Notify user about approval
+
         await central_notification.send_notification(
             user_ids=[applicant_email],
             notification_type="application_status",
@@ -677,13 +669,14 @@ async def admin_process_application_update(
                 "application_id": application_id,
                 "job_title": job_title,
                 "action": action,
-                "admin_notes": admin_notes
+                "admin_notes": admin_notes,
+                "color_type": color_type,  # ✅ NEW
             },
             send_email=True,
             send_websocket=True
         )
-        
-    else:  # reject
+
+    else:
         update_data = {
             "status": "update_rejected",
             "update_rejected_at": datetime.utcnow(),
@@ -691,16 +684,15 @@ async def admin_process_application_update(
             "admin_update_notes": admin_notes,
             "updated_at": datetime.utcnow()
         }
-        
+
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
             {"$set": update_data}
         )
-        
+
         message = "Application update rejected"
         status = "update_rejected"
-        
-        # Notify user about rejection
+
         await central_notification.send_notification(
             user_ids=[applicant_email],
             notification_type="application_status",
@@ -710,12 +702,13 @@ async def admin_process_application_update(
                 "application_id": application_id,
                 "job_title": job_title,
                 "action": action,
-                "admin_notes": admin_notes
+                "admin_notes": admin_notes,
+                "color_type": color_type,  # ✅ NEW
             },
             send_email=True,
             send_websocket=True
         )
-    
+
     return {
         "success": True,
         "message": message,
@@ -728,7 +721,7 @@ async def admin_process_application_update(
 
 @router.get("/{job_id}")
 async def get_job(
-    job_id: str, 
+    job_id: str,
     service: JobService = Depends(get_job_service)
 ):
     return await service.get_job(job_id)
@@ -745,7 +738,7 @@ async def update_job(
 
 @router.delete("/{job_id}")
 async def delete_job(
-    job_id: str, 
+    job_id: str,
     service: JobService = Depends(get_job_service)
 ):
     return await service.delete_job(job_id)
@@ -757,7 +750,7 @@ async def ai_detector_health(
 ):
     """Check AI fake job detector health"""
     from app.modules.jobs.AI.fake_job_detector import fake_job_detector
-    
+
     return {
         "ai_fake_detector": "active" if fake_job_detector.client else "fallback_mode",
         "openai_configured": bool(settings.OPENAI_API_KEY),
@@ -793,25 +786,23 @@ async def refresh_job_advertisement_url(
     Returns a new signed URL valid for 24 hours
     """
     from app.core.services.cloudinary import get_signed_view_url, get_signed_download_url
-    
+
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
-    
+
     job = await db.job.find_one({"_id": ObjectId(job_id)})
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     public_id = job.get("advertisement_public_id")
     resource_type = job.get("advertisement_resource_type", "raw")
-    
+
     if not public_id:
         raise HTTPException(status_code=404, detail="No advertisement found for this job")
-    
-    # Generate new signed URLs
+
     new_view_url = await get_signed_view_url(public_id, resource_type, expires_seconds=86400)
     new_download_url = await get_signed_download_url(public_id, resource_type, expires_seconds=86400)
-    
-    # Update job with new URLs
+
     await db.job.update_one(
         {"_id": ObjectId(job_id)},
         {
@@ -822,7 +813,7 @@ async def refresh_job_advertisement_url(
             }
         }
     )
-    
+
     return {
         "success": True,
         "url": new_view_url,
@@ -842,7 +833,7 @@ async def get_job_application_fees(
     return await service.get_application_fees(job_id)
 
 
-# ====================== ✅ FIXED: apply-with-payment ENDPOINT ======================
+# ====================== APPLY WITH PAYMENT ENDPOINT ======================
 
 @router.post("/apply-with-payment/{job_id}")
 async def apply_with_payment(
@@ -851,7 +842,7 @@ async def apply_with_payment(
     application_data: ApplicationCreateSchema = Body(...),
     service: JobService = Depends(get_job_service),
     user=Depends(get_current_user)
- ):
+):
     """
     ✅ FIXED: User applies to a job with payment verification
     - IDEMPOTENT: No duplicate applications
@@ -861,9 +852,7 @@ async def apply_with_payment(
     return await service.apply_with_payment_idempotent(job_id, application_data, user, payment_id)
 
 
-# ====================== ✅ FIXED: update-payment-status ENDPOINT ======================
-
-
+# ====================== UPDATE PAYMENT STATUS ENDPOINT ======================
 
 @router.post("/update-payment-status/{job_id}")
 async def update_job_payment_status(
@@ -894,7 +883,6 @@ async def update_job_payment_status(
         logger.info(f"   Status: {payment_status}")
         logger.info("=" * 70)
 
-        # ✅ Find the application
         app_query = {"user_email": user_email, "job_id": job_id, "application_type": "job"}
         if payment_id and ObjectId.is_valid(payment_id):
             app_query = {"_id": ObjectId(payment_id)}
@@ -905,7 +893,6 @@ async def update_job_payment_status(
 
         if not application:
             logger.warning(f"⚠️ Application not found for job_id: {job_id}")
-            # Try to find by job_id only
             application = await db.applications.find_one({
                 "user_email": user_email,
                 "job_id": job_id,
@@ -921,7 +908,6 @@ async def update_job_payment_status(
 
         application_id = str(application["_id"])
 
-        # ✅ Update application with payment details
         update_data_db = {
             "status": "verification_successful",
             "payment_verification_status": "approved",
@@ -945,7 +931,6 @@ async def update_job_payment_status(
 
         logger.info(f"✅ Application {application_id} updated to verification_successful")
 
-        # ✅ Send notification
         applicant_email = application.get("applicant_email") or application.get("user_email")
         if applicant_email:
             from app.modules.notification.service import central_notification
@@ -962,7 +947,8 @@ async def update_job_payment_status(
                     "job_title": application.get("job_title", "Job"),
                     "application_id": application_id,
                     "razorpay_payment_id": razorpay_payment_id,
-                    "razorpay_order_id": razorpay_order_id
+                    "razorpay_order_id": razorpay_order_id,
+                    "color_type": application.get("color_type", "blue"),  # ✅ NEW
                 },
                 send_email=True,
                 send_websocket=True
@@ -1044,7 +1030,7 @@ async def check_job_saved(
     """
     is_saved = await service.is_job_saved(job_id, current_user)
     is_applied = await service.is_job_applied(job_id, current_user)
-    
+
     return {
         "success": True,
         "is_saved": is_saved,
@@ -1072,3 +1058,4 @@ async def convert_saved_to_applied_endpoint(
 print("✅ Centralized Job Routes Loaded - NO apply_mode, uses status='saved' only")
 print("✅ apply-with-payment endpoint FIXED - Idempotent, NO payment_pending")
 print("✅ update-payment-status endpoint FIXED - Logger added, Idempotent, NO payment_pending")
+print("✅ NEW: color_type query param added to list_jobs")
