@@ -1,9 +1,10 @@
 # app/core/config/settings.py
-# ✅ SINGLE SOURCE OF TRUTH - Everything reads from .env
-# ✅ ZERO hardcoded values - change .env, restart server, done!
-# ✅ MOBILE_OTP_BYPASS is the MASTER SWITCH for SMS/WhatsApp dev/prod behavior
-# ✅ EMAIL IS ALWAYS REAL - NEVER BYPASSED
-# ✅ SAFE_MONGO_URI + IS_LOCAL_DB + IS_ATLAS_DB + MONGO_OPTIONS auto-derived
+# ============================================================
+# ✅ UNIVERSAL SETTINGS - Works with ANY SMS/WhatsApp provider
+# ✅ Auto-detects trial vs production
+# ✅ Auto-fallback support
+# ✅ Zero hardcoded values
+# ============================================================
 
 from pydantic_settings import BaseSettings
 from typing import List, Optional, Dict, Any
@@ -32,31 +33,83 @@ class Settings(BaseSettings):
     SECRET_TOKEN: str = "change-me"
 
     # ============================================================
-    # 🧪 OTP BYPASS - THE MASTER SWITCH (SMS/WhatsApp ONLY)
-    # ============================================================
-    # 
-    # ⚠️ IMPORTANT: This flag ONLY affects SMS and WhatsApp OTP.
-    # ⚠️ EMAIL OTP IS ALWAYS REAL - NEVER BYPASSED.
-    #
-    # true  → DEV MODE for SMS/WhatsApp:
-    #         - NO SMS sent
-    #         - NO WhatsApp sent
-    #         - Mobile OTP verification accepts DEV_OTP_CODE (123456)
-    #         - Email OTP is STILL sent for real with random 6-digit
-    #
-    # false → PROD MODE:
-    #         - Real SMS sent
-    #         - Real WhatsApp sent
-    #         - Real Email sent (same as always)
-    #         - Only real OTPs work
+    # 🧪 OTP BYPASS - MASTER SWITCH
     # ============================================================
     MOBILE_OTP_BYPASS: bool = True
     DEV_OTP_CODE: str = "123456"
 
     # ============================================================
+    # 📱 SMS PROVIDER CONFIGURATION
+    # ============================================================
+    SMS_PROVIDER: str = "twilio"  # twilio | msg91 | fast2sms | brevo | auto
+    SMS_FALLBACK_ENABLED: bool = True
+    SMS_FALLBACK_ORDER: str = "twilio,msg91,fast2sms,brevo"
+
+    # Twilio
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_PHONE: str = ""
+    TWILIO_IS_TRIAL_ACCOUNT: bool = False
+    TWILIO_WHATSAPP_NUMBER: str = ""
+    TWILIO_WHATSAPP_CONTENT_SID: str = ""
+    TWILIO_WHATSAPP_TEMPLATE_SID: str = ""
+
+    # MSG91
+    MSG91_AUTH_KEY: str = ""
+    MSG91_SENDER_ID: str = "RJGARN"
+    MSG91_TEMPLATE_ID_OTP: str = ""
+    MSG91_TEMPLATE_ID_VERIFY: str = ""
+    MSG91_TEMPLATE_ID_ALERT: str = ""
+    MSG91_ROUTE: str = "4"
+    MSG91_COUNTRY: str = "91"
+    MSG91_DLT_TE_ID: str = ""
+
+    # MSG91 WhatsApp
+    MSG91_WHATSAPP_API_KEY: str = ""
+    MSG91_WHATSAPP_INTEGRATED_NUMBER: str = ""
+    MSG91_WHATSAPP_TEMPLATE_OTP: str = ""
+    MSG91_WHATSAPP_TEMPLATE_ALERT: str = ""
+    MSG91_WHATSAPP_TEMPLATE_JOB: str = ""
+    MSG91_WHATSAPP_TEMPLATE_STATUS: str = ""
+
+    # Fast2SMS
+    FAST2SMS_API_KEY: str = ""
+
+    # Brevo
+    BREVO_API_KEY: str = ""
+    BREVO_SMS_SENDER: str = "RojgarNext"
+    BREVO_SMS_API_KEY: str = ""
+
+    # ============================================================
+    # 💬 WHATSAPP PROVIDER CONFIGURATION
+    # ============================================================
+    WHATSAPP_PROVIDER: str = "twilio"  # twilio | msg91 | meta | auto | disabled
+    WHATSAPP_FALLBACK_TO_SMS: bool = True
+
+    # Meta WhatsApp Business
+    META_WA_PHONE_NUMBER_ID: str = ""
+    META_WA_ACCESS_TOKEN: str = ""
+    META_WA_BUSINESS_ACCOUNT_ID: str = ""
+    META_WA_VERIFY_TOKEN: str = ""
+    META_WA_TEMPLATE_OTP: str = ""
+    META_WA_TEMPLATE_ALERT: str = ""
+
+    # ============================================================
+    # 🔔 NOTIFICATION CHANNELS
+    # ============================================================
+    NOTIFY_OTP_CHANNELS: str = "email,sms,whatsapp"
+    NOTIFY_VERIFICATION_CHANNELS: str = "email,sms"
+    NOTIFY_JOB_ALERT_CHANNELS: str = "email,whatsapp,inapp"
+    NOTIFY_APPLICATION_STATUS_CHANNELS: str = "email,inapp"
+    NOTIFY_PAYMENT_CHANNELS: str = "email,sms,inapp"
+    NOTIFY_ADMIN_ALERT_CHANNELS: str = "email,inapp"
+    NOTIFY_PASSWORD_RESET_CHANNELS: str = "email,sms,whatsapp"
+    NOTIFY_WELCOME_CHANNELS: str = "email,inapp"
+
+    # ============================================================
     # 📧 EMAIL PROVIDER
     # ============================================================
-    EMAIL_PROVIDER: str = "smtp"  # smtp | brevo | sendgrid | mailgun
+    EMAIL_PROVIDER: str = "smtp"
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
@@ -64,7 +117,6 @@ class Settings(BaseSettings):
     SMTP_FROM: str = ""
     SMTP_FROM_NAME: str = "RojgarNext"
 
-    BREVO_API_KEY: str = ""
     BREVO_SENDER_EMAIL: str = ""
     BREVO_SENDER_NAME: str = "RojgarNext"
     BREVO_SMTP_HOST: str = "smtp-relay.brevo.com"
@@ -82,74 +134,6 @@ class Settings(BaseSettings):
     MAILGUN_FROM_NAME: str = "RojgarNext"
 
     # ============================================================
-    # 📱 SMS PROVIDER
-    # ============================================================
-    SMS_PROVIDER: str = "msg91"  # twilio | msg91 | fast2sms | brevo
-
-    TWILIO_ACCOUNT_SID: str = ""
-    TWILIO_AUTH_TOKEN: str = ""
-    TWILIO_PHONE: str = ""
-
-    MSG91_AUTH_KEY: str = ""
-    MSG91_SENDER_ID: str = "RJGARN"
-    MSG91_TEMPLATE_ID_OTP: str = ""
-    MSG91_TEMPLATE_ID_VERIFY: str = ""
-    MSG91_TEMPLATE_ID_ALERT: str = ""
-    MSG91_ROUTE: str = "4"
-    MSG91_COUNTRY: str = "91"
-    MSG91_DLT_TE_ID: str = ""
-
-    FAST2SMS_API_KEY: str = ""
-
-    BREVO_SMS_SENDER: str = "RojgarNext"
-    BREVO_SMS_API_KEY: str = ""
-
-    # ============================================================
-    # 💬 WHATSAPP PROVIDER
-    # ============================================================
-    WHATSAPP_PROVIDER: str = "msg91"  # msg91 | twilio | meta | disabled
-
-    MSG91_WHATSAPP_API_KEY: str = ""
-    MSG91_WHATSAPP_INTEGRATED_NUMBER: str = ""
-    MSG91_WHATSAPP_TEMPLATE_OTP: str = ""
-    MSG91_WHATSAPP_TEMPLATE_ALERT: str = ""
-    MSG91_WHATSAPP_TEMPLATE_JOB: str = ""
-    MSG91_WHATSAPP_TEMPLATE_STATUS: str = ""
-
-    TWILIO_WHATSAPP_NUMBER: str = ""
-
-    META_WA_PHONE_NUMBER_ID: str = ""
-    META_WA_ACCESS_TOKEN: str = ""
-    META_WA_BUSINESS_ACCOUNT_ID: str = ""
-    META_WA_VERIFY_TOKEN: str = ""
-    META_WA_TEMPLATE_OTP: str = ""
-    META_WA_TEMPLATE_ALERT: str = ""
-
-    WHATSAPP_FALLBACK_TO_SMS: bool = False
-
-    # ============================================================
-    # 🔔 NOTIFICATION CHANNELS
-    # ============================================================
-    NOTIFY_OTP_CHANNELS: str = "email,sms,whatsapp"
-    NOTIFY_VERIFICATION_CHANNELS: str = "email,sms"
-    NOTIFY_JOB_ALERT_CHANNELS: str = "email,whatsapp,inapp"
-    NOTIFY_APPLICATION_STATUS_CHANNELS: str = "email,inapp"
-    NOTIFY_PAYMENT_CHANNELS: str = "email,sms,inapp"
-    NOTIFY_ADMIN_ALERT_CHANNELS: str = "email,inapp"
-    NOTIFY_PASSWORD_RESET_CHANNELS: str = "email,sms,whatsapp"
-    NOTIFY_WELCOME_CHANNELS: str = "email,inapp"
-
-    # ============================================================
-    # 🧪 DEV OVERRIDES
-    # ============================================================
-    DEV_MODE_LOG_ONLY: bool = False
-    USE_MOCK_PROVIDERS: bool = False
-
-    EMAIL_RATE_LIMIT_PER_HOUR: int = 100
-    SMS_RATE_LIMIT_PER_HOUR: int = 100
-    WHATSAPP_RATE_LIMIT_PER_HOUR: int = 100
-
-    # ============================================================
     # 🌐 OTHER
     # ============================================================
     APP_BASE_URL: str = "http://localhost:8000"
@@ -161,34 +145,15 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
 
-    ADZUNA_APP_ID: str = ""
-    ADZUNA_API_KEY: str = ""
-
-    GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL: str = ""
-    GOOGLE_DRIVE_PRIVATE_KEY: str = ""
-    GOOGLE_DRIVE_FOLDER_ID: str = ""
-    GOOGLE_DRIVE_FOLDER_NAME: str = "rojgarnext_advertisements"
-
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
     RAZORPAY_WEBHOOK_SECRET: str = ""
     RAZORPAY_TEST_MODE: bool = True
 
-    PHONEPE_MERCHANT_ID: str = ""
-    PHONEPE_SALT_KEY: str = ""
-    PHONEPE_SALT_INDEX: int = 1
-    PHONEPE_API_URL: str = ""
-    PHONEPE_STATUS_URL: str = ""
-    PHONEPE_CLIENT_ID: str = ""
-    PHONEPE_CLIENT_SECRET: str = ""
-    PHONEPE_CLIENT_VERSION: str = "1"
-    PHONEPE_ENV: str = "SANDBOX"
-    PHONEPE_REDIRECT_URL: str = ""
-
     UPI_ID: str = ""
 
     # ============================================================
-    # 🔧 HELPER METHODS (used by dispatcher)
+    # 🔧 HELPER METHODS
     # ============================================================
     def get_channels(self, notification_type: str) -> List[str]:
         """Get list of channels for a notification type"""
@@ -206,7 +171,7 @@ class Settings(BaseSettings):
         return [c.strip().lower() for c in raw.split(",") if c.strip()]
 
     def get_channels_for(self, notification_type: str) -> List[str]:
-        """Alias for get_channels — used by notification_dispatcher.py"""
+        """Alias for get_channels"""
         return self.get_channels(notification_type)
 
     # ============================================================
@@ -214,87 +179,160 @@ class Settings(BaseSettings):
     # ============================================================
     @property
     def is_otp_bypass_enabled(self) -> bool:
-        """
-        The master switch for SMS/WhatsApp OTP mode.
-        
-        True  → Development mode: SMS/WhatsApp BYPASSED, Mobile OTP = DEV_OTP_CODE
-        False → Production mode: SMS/WhatsApp SENT for real
-        
-        ⚠️ EMAIL IS ALWAYS REAL - this flag does NOT affect email.
-        """
         return self.MOBILE_OTP_BYPASS is True
 
     @property
     def is_mobile_otp_bypassed(self) -> bool:
-        """True when SMS/WhatsApp should be bypassed."""
         return self.MOBILE_OTP_BYPASS is True
 
     @property
     def is_email_always_real(self) -> bool:
-        """
-        EMAIL IS ALWAYS REAL - never bypassed.
-        This is True regardless of MOBILE_OTP_BYPASS setting.
-        """
         return True
 
     @property
     def dev_otp_value(self) -> str:
-        """Returns the fixed OTP code used for MOBILE verification in development mode."""
         return self.DEV_OTP_CODE
 
     @property
     def otp_code(self) -> str:
-        """Alias for dev_otp_value - used for MOBILE OTP verification in dev mode."""
         return self.DEV_OTP_CODE
 
     # ============================================================
-    # 🗄️ DATABASE HELPERS (auto-derived from MONGO_URI)
+    # 📱 UNIVERSAL PROVIDER DETECTION
+    # ============================================================
+    def is_provider_configured(self, provider: str) -> bool:
+        """Check if a provider has valid credentials configured"""
+        provider = provider.lower().strip()
+        
+        if provider == "twilio":
+            return bool(self.TWILIO_ACCOUNT_SID and self.TWILIO_AUTH_TOKEN and self.TWILIO_PHONE)
+        elif provider == "msg91":
+            return bool(self.MSG91_AUTH_KEY)
+        elif provider == "fast2sms":
+            return bool(self.FAST2SMS_API_KEY)
+        elif provider == "brevo":
+            return bool(self.BREVO_SMS_API_KEY or self.BREVO_API_KEY)
+        return False
+
+    def is_whatsapp_provider_configured(self, provider: str) -> bool:
+        """Check if a WhatsApp provider has valid credentials"""
+        provider = provider.lower().strip()
+        
+        if provider == "twilio":
+            return bool(self.TWILIO_ACCOUNT_SID and self.TWILIO_AUTH_TOKEN and self.TWILIO_WHATSAPP_NUMBER)
+        elif provider == "msg91":
+            return bool((self.MSG91_WHATSAPP_API_KEY or self.MSG91_AUTH_KEY) and self.MSG91_WHATSAPP_INTEGRATED_NUMBER)
+        elif provider == "meta":
+            return bool(self.META_WA_PHONE_NUMBER_ID and self.META_WA_ACCESS_TOKEN)
+        elif provider == "disabled":
+            return False
+        return False
+
+    @property
+    def sms_fallback_providers(self) -> List[str]:
+        """Get ordered list of SMS providers for fallback"""
+        order = [p.strip().lower() for p in self.SMS_FALLBACK_ORDER.split(",") if p.strip()]
+        return order
+
+    @property
+    def active_sms_provider(self) -> str:
+        """
+        Determine which SMS provider to use.
+        
+        If SMS_PROVIDER=auto, find first configured provider.
+        Otherwise, use configured provider (with validation).
+        """
+        if self.SMS_PROVIDER.lower() == "auto":
+            for provider in self.sms_fallback_providers:
+                if self.is_provider_configured(provider):
+                    return provider
+            return "none"
+        
+        provider = self.SMS_PROVIDER.lower().strip()
+        if self.is_provider_configured(provider):
+            return provider
+        
+        # Configured provider not valid, try fallback
+        if self.SMS_FALLBACK_ENABLED:
+            for fb_provider in self.sms_fallback_providers:
+                if fb_provider != provider and self.is_provider_configured(fb_provider):
+                    return fb_provider
+        
+        return "none"
+
+    @property
+    def active_whatsapp_provider(self) -> str:
+        """Determine which WhatsApp provider to use."""
+        if self.WHATSAPP_PROVIDER.lower() == "auto":
+            for provider in ["twilio", "msg91", "meta"]:
+                if self.is_whatsapp_provider_configured(provider):
+                    return provider
+            return "disabled"
+        
+        provider = self.WHATSAPP_PROVIDER.lower().strip()
+        if provider == "disabled":
+            return "disabled"
+        
+        if self.is_whatsapp_provider_configured(provider):
+            return provider
+        
+        # Fallback
+        for fb_provider in ["twilio", "msg91", "meta"]:
+            if fb_provider != provider and self.is_whatsapp_provider_configured(fb_provider):
+                return fb_provider
+        
+        return "disabled"
+
+    # ============================================================
+    # 📱 TWILIO TRIAL HELPERS
+    # ============================================================
+    @property
+    def twilio_allowed_templates(self) -> List[str]:
+        """Twilio's predefined trial template IDs."""
+        return [
+            "sms_2fa",
+            "sms_appointment_reminders",
+            "sms_order_confirmation",
+            "sms_delivery_updates",
+            "sms_customer_support",
+            "sms_marketing_promotions",
+            "sms_event_notifications",
+            "sms_account_alerts",
+            "sms_feedback_surveys",
+            "sms_internal_alerts",
+        ]
+
+    def is_valid_twilio_trial_template(self, template: str) -> bool:
+        return template in self.twilio_allowed_templates
+
+    # ============================================================
+    # 🗄️ DATABASE HELPERS
     # ============================================================
     @property
     def SAFE_MONGO_URI(self) -> str:
-        """
-        Returns the MongoDB URI with safe parameters.
-        URL-encodes password if it contains special characters like @.
-        """
         uri = self.MONGO_URI or "mongodb://localhost:27017/rojgarnext"
-
-        # If it's a SRV (Atlas) URI, ensure retryWrites is present
         if uri.startswith("mongodb+srv://"):
             if "retryWrites=" not in uri:
                 separator = "&" if "?" in uri else "?"
                 uri = f"{uri}{separator}retryWrites=true&w=majority"
-
-        # For non-SRV URIs, ensure retryWrites as well
         elif uri.startswith("mongodb://"):
             if "retryWrites=" not in uri:
                 separator = "&" if "?" in uri else "?"
                 uri = f"{uri}{separator}retryWrites=true&w=majority"
-
         return uri
 
     @property
     def IS_LOCAL_DB(self) -> bool:
-        """True if MONGO_URI points to localhost / 127.0.0.1"""
         uri = (self.MONGO_URI or "").lower()
-        return (
-            "localhost" in uri
-            or "127.0.0.1" in uri
-            or uri.startswith("mongodb://localhost")
-        )
+        return "localhost" in uri or "127.0.0.1" in uri
 
     @property
     def IS_ATLAS_DB(self) -> bool:
-        """True if MONGO_URI is a MongoDB Atlas SRV URI"""
         uri = (self.MONGO_URI or "").lower()
         return uri.startswith("mongodb+srv://") or "mongodb.net" in uri
 
     @property
     def MONGO_OPTIONS(self) -> Dict[str, Any]:
-        """
-        Returns motor/pymongo connection options based on DB type.
-        Local → no TLS, short timeouts (fast fail)
-        Atlas → TLS enabled, longer timeouts (network)
-        """
         if self.IS_ATLAS_DB:
             return {
                 "serverSelectionTimeoutMS": 30000,
@@ -308,17 +346,15 @@ class Settings(BaseSettings):
                 "maxPoolSize": 100,
                 "minPoolSize": 5,
             }
-        else:
-            # Local or unknown → lightweight options
-            return {
-                "serverSelectionTimeoutMS": 5000,
-                "connectTimeoutMS": 5000,
-                "socketTimeoutMS": 10000,
-                "retryWrites": True,
-                "retryReads": True,
-                "maxPoolSize": 50,
-                "minPoolSize": 2,
-            }
+        return {
+            "serverSelectionTimeoutMS": 5000,
+            "connectTimeoutMS": 5000,
+            "socketTimeoutMS": 10000,
+            "retryWrites": True,
+            "retryReads": True,
+            "maxPoolSize": 50,
+            "minPoolSize": 2,
+        }
 
     class Config:
         env_file = ".env"
@@ -329,29 +365,25 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # ============================================================
-# 🎯 STARTUP DIAGNOSTIC LOG
+# 🎯 STARTUP DIAGNOSTIC
 # ============================================================
 print("=" * 70)
 print("🔧 ROJGARNEXT SETTINGS LOADED")
 print("=" * 70)
 print(f"   Environment: {settings.ENVIRONMENT}")
 print(f"   MOBILE_OTP_BYPASS: {settings.MOBILE_OTP_BYPASS}")
-if settings.MOBILE_OTP_BYPASS:
-    print(f"   🟢 SMS/WhatsApp MODE: DEVELOPMENT (BYPASSED)")
-    print(f"   🔑 Dev Mobile OTP: {settings.DEV_OTP_CODE}")
-    print(f"   ⚠️  Real SMS: DISABLED")
-    print(f"   ⚠️  Real WhatsApp: DISABLED")
-    print(f"   ✅ EMAIL: ALWAYS REAL (never bypassed)")
-else:
-    print(f"   🔴 SMS/WhatsApp MODE: PRODUCTION")
-    print(f"   🎲 OTP Type: Random 6-digit")
-    print(f"   📤 Real SMS: ENABLED")
-    print(f"   📤 Real WhatsApp: ENABLED")
-    print(f"   ✅ EMAIL: ALWAYS REAL")
-print(f"   📧 EMAIL_PROVIDER: {settings.EMAIL_PROVIDER}")
-print(f"   📱 SMS_PROVIDER: {settings.SMS_PROVIDER}")
-print(f"   💬 WHATSAPP_PROVIDER: {settings.WHATSAPP_PROVIDER}")
+print(f"   📱 SMS Provider: {settings.SMS_PROVIDER} → Active: {settings.active_sms_provider}")
+print(f"   💬 WhatsApp Provider: {settings.WHATSAPP_PROVIDER} → Active: {settings.active_whatsapp_provider}")
+print(f"   📧 Email Provider: {settings.EMAIL_PROVIDER}")
 print("-" * 70)
-print(f"   🗄️ DATABASE TYPE: {'LOCAL' if settings.IS_LOCAL_DB else 'ATLAS' if settings.IS_ATLAS_DB else 'UNKNOWN'}")
-print(f"   🔗 MONGO URI: {settings.SAFE_MONGO_URI[:60]}...")
+if settings.MOBILE_OTP_BYPASS:
+    print(f"   🟢 MODE: DEVELOPMENT")
+    print(f"      - SMS/WhatsApp: BYPASSED (use {settings.DEV_OTP_CODE})")
+    print(f"      - Email: ALWAYS REAL")
+else:
+    print(f"   🔴 MODE: PRODUCTION")
+    print(f"      - SMS/WhatsApp: REAL SEND")
+    print(f"      - Email: ALWAYS REAL")
+print("-" * 70)
+print(f"   🗄️ Database: {'LOCAL' if settings.IS_LOCAL_DB else 'ATLAS' if settings.IS_ATLAS_DB else 'UNKNOWN'}")
 print("=" * 70)

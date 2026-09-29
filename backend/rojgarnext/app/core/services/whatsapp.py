@@ -1,18 +1,11 @@
 # app/core/services/whatsapp.py
 # ============================================================
-# 💬 UNIFIED WHATSAPP SERVICE - COMPLETELY FIXED
-# Supports: MSG91 | Twilio | Meta (WhatsApp Business Cloud API) | Disabled
-# Switch via WHATSAPP_PROVIDER in .env — NO CODE CHANGES NEEDED
+# 💬 UNIVERSAL WHATSAPP SERVICE
 # ============================================================
-# ✅ MOBILE_OTP_BYPASS=true  → DEV MODE  → Log only, no real WhatsApp
-# ✅ MOBILE_OTP_BYPASS=false → PROD MODE → Real WhatsApp sent
-# ============================================================
-# 🔧 FIXES APPLIED:
-#   1. Twilio trial account errors handled gracefully (no fallback loop)
-#   2. ContentSid error (21654) detected and logged clearly
-#   3. SMS fallback skipped if SMS_PROVIDER=twilio (same trial issue)
-#   4. Proper TwilioRestException import and handling
-#   5. Sync wrapper fixed (no nested event loop conflicts)
+# ✅ Auto-detects provider from .env
+# ✅ Supports: Twilio | MSG91 | Meta | Disabled
+# ✅ Correct status reporting (no false success)
+# ✅ Clear "SKIPPED" reason when disabled
 # ============================================================
 
 import logging
@@ -25,205 +18,33 @@ from app.core.config.settings import settings
 logger = logging.getLogger(__name__)
 
 
-# ============================================================
-# BASE PROVIDER
-# ============================================================
 class BaseWhatsAppProvider:
     name = "base"
 
-    async def send_message(
-        self,
-        to_mobile: str,
-        message: str,
-        template_id: Optional[str] = None,
-        variables: Optional[dict] = None,
-        media_url: Optional[str] = None,
-    ) -> bool:
+    def is_configured(self) -> bool:
+        return False
+
+    async def send_message(self, *args, **kwargs) -> bool:
         raise NotImplementedError
 
-    def send_message_sync(
-        self,
-        to_mobile: str,
-        message: str,
-        template_id: Optional[str] = None,
-        variables: Optional[dict] = None,
-        media_url: Optional[str] = None,
-    ) -> bool:
-        """
-        ✅ FIXED: Safe sync wrapper that doesn't conflict with running event loops.
-        """
-        try:
-            # Check if there's already a running loop
-            try:
-                asyncio.get_running_loop()
-                # We're inside an async context — create a new loop in a thread
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    future = pool.submit(
-                        asyncio.run,
-                        self.send_message(
-                            to_mobile, message, template_id, variables, media_url
-                        ),
-                    )
-                    return future.result(timeout=35)
-            except RuntimeError:
-                # No running loop — safe to create one
-                return asyncio.run(
-                    self.send_message(
-                        to_mobile, message, template_id, variables, media_url
-                    )
-                )
-        except Exception as e:
-            logger.error(f"❌ [WhatsApp] Sync wrapper failed: {e}")
-            return False
+    def send_message_sync(self, *args, **kwargs) -> bool:
+        raise NotImplementedError
 
 
 # ============================================================
-# 1️⃣ MSG91 WhatsApp
-# ============================================================
-class MSG91WhatsAppProvider(BaseWhatsAppProvider):
-    name = "msg91"
-    URL = "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/"
-
-    def __init__(self):
-        self.api_key = settings.MSG91_WHATSAPP_API_KEY or settings.MSG91_AUTH_KEY
-        self.integrated_number = settings.MSG91_WHATSAPP_INTEGRATED_NUMBER
-        self.template_otp = settings.MSG91_WHATSAPP_TEMPLATE_OTP
-        self.template_alert = settings.MSG91_WHATSAPP_TEMPLATE_ALERT
-        self.template_job = settings.MSG91_WHATSAPP_TEMPLATE_JOB
-        self.template_status = settings.MSG91_WHATSAPP_TEMPLATE_STATUS
-
-    def _format_mobile(self, mobile: str) -> str:
-        mobile = str(mobile).strip().replace(" ", "").replace("-", "")
-        if mobile.startswith("+"):
-            mobile = mobile[1:]
-        if not mobile.startswith("91"):
-            mobile = f"91{mobile}"
-        return mobile
-
-    def _pick_template(self, template_id, variables):
-        if template_id:
-            return template_id
-        if variables and "otp" in variables:
-            return self.template_otp
-        if variables and "job_title" in variables:
-            return self.template_job
-        if variables and "status" in variables:
-            return self.template_status
-        return self.template_alert
-
-    def _build_payload(self, mobile, message, template_id, variables):
-        tpl = self._pick_template(template_id, variables)
-        if not tpl:
-            return None
-        components = {}
-        if variables:
-            components = {"body_1": str(variables.get("name", variables.get("otp", "")))}
-            if "otp" in variables:
-                components["body_1"] = str(variables["otp"])
-            if "message" in variables:
-                components["body_2"] = str(variables["message"])
-            if "job_title" in variables:
-                components["body_2"] = str(variables["job_title"])
-            if "company" in variables:
-                components["body_3"] = str(variables["company"])
-
-        return {
-            "integrated_number": self.integrated_number,
-            "content_type": "template",
-            "payload": {
-                "messaging_product": "whatsapp",
-                "type": "template",
-                "template": {
-                    "name": tpl,
-                    "language": {"code": "en", "policy": "deterministic"},
-                    "to_and_components": [
-                        {
-                            "to": [mobile],
-                            "components": {
-                                k: {"type": "text", "value": v}
-                                for k, v in components.items()
-                            },
-                        }
-                    ],
-                },
-            },
-        }
-
-    async def send_message(
-        self,
-        to_mobile: str,
-        message: str,
-        template_id: Optional[str] = None,
-        variables: Optional[dict] = None,
-        media_url: Optional[str] = None,
-    ) -> bool:
-        if not self.api_key or not self.integrated_number:
-            logger.warning("❌ [MSG91 WhatsApp] Not configured (missing API key or integrated number)")
-            return False
-
-        mobile = self._format_mobile(to_mobile)
-        payload = self._build_payload(mobile, message, template_id, variables)
-        if not payload:
-            logger.warning("❌ [MSG91 WhatsApp] No template available - check MSG91_WHATSAPP_TEMPLATE_* in .env")
-            return False
-
-        headers = {"authkey": self.api_key, "Content-Type": "application/json"}
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                r = await client.post(self.URL, json=payload, headers=headers)
-            if r.status_code in (200, 201):
-                logger.info(f"✅ [MSG91 WhatsApp] Sent to {mobile}")
-                return True
-            logger.error(f"❌ [MSG91 WhatsApp] Failed: {r.status_code} {r.text[:300]}")
-            return False
-        except Exception as e:
-            logger.error(f"❌ [MSG91 WhatsApp] Exception: {e}")
-            return False
-
-    def send_message_sync(
-        self,
-        to_mobile: str,
-        message: str,
-        template_id: Optional[str] = None,
-        variables: Optional[dict] = None,
-        media_url: Optional[str] = None,
-    ) -> bool:
-        if not self.api_key or not self.integrated_number:
-            logger.warning("❌ [MSG91 WhatsApp] Not configured")
-            return False
-
-        mobile = self._format_mobile(to_mobile)
-        payload = self._build_payload(mobile, message, template_id, variables)
-        if not payload:
-            logger.warning("❌ [MSG91 WhatsApp] No template available")
-            return False
-
-        headers = {"authkey": self.api_key, "Content-Type": "application/json"}
-        try:
-            with httpx.Client(timeout=30.0) as client:
-                r = client.post(self.URL, json=payload, headers=headers)
-            if r.status_code in (200, 201):
-                logger.info(f"✅ [MSG91 WhatsApp] Sent (sync) to {mobile}")
-                return True
-            logger.error(f"❌ [MSG91 WhatsApp] Failed: {r.status_code} {r.text[:300]}")
-            return False
-        except Exception as e:
-            logger.error(f"❌ [MSG91 WhatsApp] Sync exception: {e}")
-            return False
-
-
-# ============================================================
-# 2️⃣ TWILIO WhatsApp - COMPLETELY FIXED
+# 💬 TWILIO WHATSAPP
 # ============================================================
 class TwilioWhatsAppProvider(BaseWhatsAppProvider):
     name = "twilio"
+    _error_21654_logged = False
 
     def __init__(self):
         self.sid = settings.TWILIO_ACCOUNT_SID
         self.token = settings.TWILIO_AUTH_TOKEN
         self.from_number = settings.TWILIO_WHATSAPP_NUMBER or "whatsapp:+14155238886"
-        self._trial_warning_logged = False  # Avoid log spam
+
+    def is_configured(self) -> bool:
+        return bool(self.sid and self.token and self.from_number)
 
     def _format_mobile(self, mobile: str) -> str:
         mobile = str(mobile).strip().replace(" ", "").replace("-", "")
@@ -235,60 +56,8 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
             return f"whatsapp:+{mobile}"
         return f"whatsapp:+91{mobile}"
 
-    def _handle_twilio_error(self, e, to: str) -> bool:
-        """
-        ✅ FIXED: Handle Twilio errors gracefully with clear messages.
-        """
-        try:
-            from twilio.base.exceptions import TwilioRestException
-            if isinstance(e, TwilioRestException):
-                code = getattr(e, 'code', None)
-                if code == 21654:
-                    if not self._trial_warning_logged:
-                        logger.error(
-                            "=" * 70 + "\n"
-                            "❌ [Twilio WhatsApp] ContentSid Required (Error 21654)\n"
-                            "   Twilio WhatsApp requires a pre-approved template.\n"
-                            "   \n"
-                            "   🔧 SOLUTIONS:\n"
-                            "   1. Switch provider: WHATSAPP_PROVIDER=msg91 in .env\n"
-                            "   2. OR disable: WHATSAPP_PROVIDER=disabled in .env\n"
-                            "   3. OR set MOBILE_OTP_BYPASS=true for development\n"
-                            "=" * 70
-                        )
-                        self._trial_warning_logged = True
-                    return False
-                elif code == 63016:
-                    logger.error(
-                        f"❌ [Twilio WhatsApp] Sandbox expired/not joined (63016) - {to}\n"
-                        f"   Join sandbox: https://www.twilio.com/console/sms/whatsapp/learn"
-                    )
-                    return False
-                elif code == 21608:
-                    logger.error(
-                        f"❌ [Twilio WhatsApp] Number not verified (21608) - {to}\n"
-                        f"   Verify: https://console.twilio.com/us1/develop/phone-numbers/manage/verified"
-                    )
-                    return False
-                else:
-                    logger.error(f"❌ [Twilio WhatsApp] API Error {code}: {str(e)[:200]}")
-                    return False
-        except ImportError:
-            pass
-
-        logger.error(f"❌ [Twilio WhatsApp] Exception: {type(e).__name__}: {str(e)[:200]}")
-        return False
-
-    async def send_message(
-        self,
-        to_mobile: str,
-        message: str,
-        template_id: Optional[str] = None,
-        variables: Optional[dict] = None,
-        media_url: Optional[str] = None,
-    ) -> bool:
-        if not self.sid or not self.token:
-            logger.warning("❌ [Twilio WhatsApp] Not configured (SID/TOKEN missing)")
+    async def send_message(self, to_mobile, message, template_id=None, variables=None, media_url=None):
+        if not self.is_configured():
             return False
 
         try:
@@ -297,54 +66,107 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
             to = self._format_mobile(to_mobile)
 
             def _send():
-                kwargs = {
-                    "body": message,
-                    "from_": self.from_number,
-                    "to": to,
-                }
+                kwargs = {"body": message, "from_": self.from_number, "to": to}
                 if media_url:
                     kwargs["media_url"] = [media_url]
                 return client.messages.create(**kwargs)
 
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, _send)
-            logger.info(f"✅ [Twilio WhatsApp] Sent to {to} | SID: {result.sid}")
+            logger.info(f"✅ [Twilio WhatsApp] Sent! SID: {result.sid}")
             return True
         except Exception as e:
-            return self._handle_twilio_error(e, to_mobile)
-
-    def send_message_sync(
-        self,
-        to_mobile: str,
-        message: str,
-        template_id: Optional[str] = None,
-        variables: Optional[dict] = None,
-        media_url: Optional[str] = None,
-    ) -> bool:
-        if not self.sid or not self.token:
-            logger.warning("❌ [Twilio WhatsApp] Not configured")
+            if not TwilioWhatsAppProvider._error_21654_logged:
+                TwilioWhatsAppProvider._error_21654_logged = True
+                logger.error(
+                    "❌ [Twilio WhatsApp] Trial account needs ContentSid.\n"
+                    "   ✅ SOLUTION: WHATSAPP_PROVIDER=disabled in .env"
+                )
             return False
 
+    def send_message_sync(self, to_mobile, message, template_id=None, variables=None, media_url=None):
         try:
-            from twilio.rest import Client
-            client = Client(self.sid, self.token)
-            to = self._format_mobile(to_mobile)
-            kwargs = {
-                "body": message,
-                "from_": self.from_number,
-                "to": to,
-            }
-            if media_url:
-                kwargs["media_url"] = [media_url]
-            result = client.messages.create(**kwargs)
-            logger.info(f"✅ [Twilio WhatsApp] Sent (sync) to {to} | SID: {result.sid}")
-            return True
-        except Exception as e:
-            return self._handle_twilio_error(e, to_mobile)
+            return asyncio.run(self.send_message(to_mobile, message, template_id, variables, media_url))
+        except Exception:
+            return False
 
 
 # ============================================================
-# 3️⃣ META WhatsApp Business Cloud API
+# 💬 MSG91 WHATSAPP
+# ============================================================
+class MSG91WhatsAppProvider(BaseWhatsAppProvider):
+    name = "msg91"
+    URL = "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/"
+
+    def __init__(self):
+        self.api_key = settings.MSG91_WHATSAPP_API_KEY or settings.MSG91_AUTH_KEY
+        self.integrated_number = settings.MSG91_WHATSAPP_INTEGRATED_NUMBER
+        self.template_otp = settings.MSG91_WHATSAPP_TEMPLATE_OTP
+        self.template_alert = settings.MSG91_WHATSAPP_TEMPLATE_ALERT
+
+    def is_configured(self) -> bool:
+        return bool(self.api_key and self.integrated_number)
+
+    def _format_mobile(self, mobile: str) -> str:
+        mobile = str(mobile).strip().replace(" ", "").replace("-", "")
+        if mobile.startswith("+"):
+            mobile = mobile[1:]
+        if not mobile.startswith("91"):
+            mobile = f"91{mobile}"
+        return mobile
+
+    async def send_message(self, to_mobile, message, template_id=None, variables=None, media_url=None):
+        if not self.is_configured():
+            return False
+
+        mobile = self._format_mobile(to_mobile)
+        tpl = template_id or (self.template_otp if variables and "otp" in variables else self.template_alert)
+        
+        if not tpl:
+            logger.error("❌ [MSG91 WhatsApp] No template configured")
+            return False
+
+        payload = {
+            "integrated_number": self.integrated_number,
+            "content_type": "template",
+            "payload": {
+                "messaging_product": "whatsapp",
+                "type": "template",
+                "template": {
+                    "name": tpl,
+                    "language": {"code": "en", "policy": "deterministic"},
+                    "to_and_components": [{
+                        "to": [mobile],
+                        "components": {
+                            "body_1": {"type": "text", "value": str(variables.get("otp", "")) if variables else ""}
+                        }
+                    }],
+                },
+            },
+        }
+
+        headers = {"authkey": self.api_key, "Content-Type": "application/json"}
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                r = await client.post(self.URL, json=payload, headers=headers)
+            if r.status_code in (200, 201):
+                logger.info(f"✅ [MSG91 WhatsApp] Sent to {mobile}")
+                return True
+            logger.error(f"❌ [MSG91 WhatsApp] Failed: {r.status_code}")
+            return False
+        except Exception as e:
+            logger.error(f"❌ [MSG91 WhatsApp] {type(e).__name__}: {e}")
+            return False
+
+    def send_message_sync(self, to_mobile, message, template_id=None, variables=None, media_url=None):
+        try:
+            return asyncio.run(self.send_message(to_mobile, message, template_id, variables, media_url))
+        except Exception:
+            return False
+
+
+# ============================================================
+# 💬 META WHATSAPP BUSINESS
 # ============================================================
 class MetaWhatsAppProvider(BaseWhatsAppProvider):
     name = "meta"
@@ -355,6 +177,9 @@ class MetaWhatsAppProvider(BaseWhatsAppProvider):
         self.template_otp = settings.META_WA_TEMPLATE_OTP
         self.template_alert = settings.META_WA_TEMPLATE_ALERT
 
+    def is_configured(self) -> bool:
+        return bool(self.phone_number_id and self.access_token)
+
     def _format_mobile(self, mobile: str) -> str:
         mobile = str(mobile).strip().replace(" ", "").replace("-", "")
         if mobile.startswith("+"):
@@ -363,16 +188,22 @@ class MetaWhatsAppProvider(BaseWhatsAppProvider):
             mobile = f"91{mobile}"
         return mobile
 
-    def _build_payload(self, to, message, template_id, variables):
-        tpl = template_id or (
-            self.template_otp if variables and "otp" in variables else self.template_alert
-        )
+    async def send_message(self, to_mobile, message, template_id=None, variables=None, media_url=None):
+        if not self.is_configured():
+            return False
+
+        to = self._format_mobile(to_mobile)
+        url = f"https://graph.facebook.com/v20.0/{self.phone_number_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        
+        tpl = template_id or (self.template_otp if variables and "otp" in variables else self.template_alert)
+        
         if tpl and variables:
-            params = [
-                {"type": "text", "text": str(variables[k])}
-                for k in sorted(variables.keys())
-            ]
-            return {
+            params = [{"type": "text", "text": str(v)} for k, v in sorted(variables.items())]
+            payload = {
                 "messaging_product": "whatsapp",
                 "to": to,
                 "type": "template",
@@ -382,32 +213,13 @@ class MetaWhatsAppProvider(BaseWhatsAppProvider):
                     "components": [{"type": "body", "parameters": params}],
                 },
             }
-        return {
-            "messaging_product": "whatsapp",
-            "to": to,
-            "type": "text",
-            "text": {"body": message},
-        }
-
-    async def send_message(
-        self,
-        to_mobile: str,
-        message: str,
-        template_id: Optional[str] = None,
-        variables: Optional[dict] = None,
-        media_url: Optional[str] = None,
-    ) -> bool:
-        if not self.phone_number_id or not self.access_token:
-            logger.warning("❌ [Meta WhatsApp] Not configured")
-            return False
-
-        to = self._format_mobile(to_mobile)
-        url = f"https://graph.facebook.com/v20.0/{self.phone_number_id}/messages"
-        headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json",
-        }
-        payload = self._build_payload(to, message, template_id, variables)
+        else:
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": to,
+                "type": "text",
+                "text": {"body": message},
+            }
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -415,252 +227,135 @@ class MetaWhatsAppProvider(BaseWhatsAppProvider):
             if r.status_code in (200, 201):
                 logger.info(f"✅ [Meta WhatsApp] Sent to {to}")
                 return True
-            logger.error(f"❌ [Meta WhatsApp] Failed: {r.status_code} {r.text[:300]}")
+            logger.error(f"❌ [Meta WhatsApp] Failed: {r.status_code}")
             return False
         except Exception as e:
-            logger.error(f"❌ [Meta WhatsApp] Exception: {e}")
+            logger.error(f"❌ [Meta WhatsApp] {type(e).__name__}: {e}")
             return False
 
-    def send_message_sync(
-        self,
-        to_mobile: str,
-        message: str,
-        template_id: Optional[str] = None,
-        variables: Optional[dict] = None,
-        media_url: Optional[str] = None,
-    ) -> bool:
-        if not self.phone_number_id or not self.access_token:
-            logger.warning("❌ [Meta WhatsApp] Not configured")
-            return False
-
-        to = self._format_mobile(to_mobile)
-        url = f"https://graph.facebook.com/v20.0/{self.phone_number_id}/messages"
-        headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json",
-        }
-        payload = self._build_payload(to, message, template_id, variables)
-
+    def send_message_sync(self, to_mobile, message, template_id=None, variables=None, media_url=None):
         try:
-            with httpx.Client(timeout=30.0) as client:
-                r = client.post(url, json=payload, headers=headers)
-            if r.status_code in (200, 201):
-                logger.info(f"✅ [Meta WhatsApp] Sent (sync) to {to}")
-                return True
-            logger.error(f"❌ [Meta WhatsApp] Failed: {r.status_code} {r.text[:300]}")
-            return False
-        except Exception as e:
-            logger.error(f"❌ [Meta WhatsApp] Sync exception: {e}")
+            return asyncio.run(self.send_message(to_mobile, message, template_id, variables, media_url))
+        except Exception:
             return False
 
 
 # ============================================================
-# 4️⃣ DISABLED / NO-OP
+# 🚫 DISABLED PROVIDER
 # ============================================================
 class DisabledWhatsAppProvider(BaseWhatsAppProvider):
     name = "disabled"
 
+    def is_configured(self) -> bool:
+        return False
+
     async def send_message(self, *args, **kwargs) -> bool:
-        logger.debug("ℹ️ WhatsApp provider is disabled")
         return False
 
     def send_message_sync(self, *args, **kwargs) -> bool:
-        logger.debug("ℹ️ WhatsApp provider is disabled")
         return False
 
 
 # ============================================================
-# 🎯 UNIFIED WHATSAPP SERVICE (COMPLETELY FIXED)
+# 🎯 UNIVERSAL WHATSAPP SERVICE
 # ============================================================
-class UnifiedWhatsAppService:
-    """
-    ✅ CRITICAL: In DEV MODE (MOBILE_OTP_BYPASS=true), NO real WhatsApp is sent.
-    ✅ In PROD MODE (MOBILE_OTP_BYPASS=false), real WhatsApp IS sent.
-    🔧 FIXED: SMS fallback now skips if SMS_PROVIDER is also Twilio (trial issue).
-    """
-
+class UniversalWhatsAppService:
     def __init__(self):
-        self.provider_name = (settings.WHATSAPP_PROVIDER or "disabled").lower()
-        self.provider = self._get_provider(self.provider_name)
-        # ✅ Track if we've already warned about trial issues (avoid log spam)
-        self._fallback_warning_logged = False
-        logger.info(f"💬 WhatsApp service initialized: provider={self.provider_name}")
+        self.providers = {
+            "twilio": TwilioWhatsAppProvider(),
+            "msg91": MSG91WhatsAppProvider(),
+            "meta": MetaWhatsAppProvider(),
+            "disabled": DisabledWhatsAppProvider(),
+        }
+        self.primary_provider = settings.active_whatsapp_provider
+        self.fallback_to_sms = settings.WHATSAPP_FALLBACK_TO_SMS
+        self._log_startup()
+
+    def _log_startup(self):
+        logger.info("=" * 70)
+        logger.info("💬 UNIVERSAL WHATSAPP SERVICE INITIALIZED")
+        logger.info(f"   Primary: {self.primary_provider}")
+        if self.primary_provider == "disabled":
+            logger.info(f"   ⚠️ WhatsApp is DISABLED")
+        logger.info(f"   Fallback to SMS: {self.fallback_to_sms}")
+        logger.info(f"   Mode: {'DEVELOPMENT' if settings.MOBILE_OTP_BYPASS else 'PRODUCTION'}")
+        logger.info("=" * 70)
 
     def _get_provider(self, name: str) -> BaseWhatsAppProvider:
-        if name == "msg91":
-            return MSG91WhatsAppProvider()
-        elif name == "twilio":
-            return TwilioWhatsAppProvider()
-        elif name == "meta":
-            return MetaWhatsAppProvider()
-        else:
-            return DisabledWhatsAppProvider()
+        return self.providers.get(name.lower(), DisabledWhatsAppProvider())
 
-    def _should_skip_sms_fallback(self) -> bool:
-        """
-        ✅ FIXED: Skip SMS fallback if SMS provider is also Twilio (trial account).
-        This prevents the endless error loop in logs.
-        """
-        sms_provider = (settings.SMS_PROVIDER or "").lower()
-        if sms_provider == "twilio":
-            if not self._fallback_warning_logged:
-                logger.warning(
-                    "⚠️ WhatsApp → SMS fallback SKIPPED "
-                    "(SMS_PROVIDER=twilio also has trial limitations). "
-                    "Switch to MSG91 or set MOBILE_OTP_BYPASS=true."
-                )
-                self._fallback_warning_logged = True
-            return True
-        return False
-
-    async def send(
-        self,
-        to_mobile: str,
-        message: str,
-        template_id: Optional[str] = None,
-        variables: Optional[dict] = None,
-        media_url: Optional[str] = None,
-    ) -> bool:
-        # ✅ DEV MODE: MOBILE_OTP_BYPASS=true → Log only, no real WhatsApp
+    async def send(self, to_mobile, message, template_id=None, variables=None, media_url=None) -> bool:
+        # DEV MODE
         if settings.MOBILE_OTP_BYPASS:
-            logger.info(
-                f"🔧 [DEV MODE] WhatsApp NOT sent (MOBILE_OTP_BYPASS=true)"
-            )
-            logger.info(f"   To: {to_mobile}")
-            if variables and "otp" in variables:
-                logger.info(f"   OTP: {variables['otp']}")
+            logger.info(f"🔧 [DEV] WhatsApp bypassed for {to_mobile}")
             return True
 
-        # ✅ PROD MODE: MOBILE_OTP_BYPASS=false → Real WhatsApp
-        if self.provider_name == "disabled":
-            logger.info("ℹ️ WhatsApp provider is disabled - skipping")
+        # DISABLED
+        if self.primary_provider == "disabled":
+            logger.info(f"⊘ WhatsApp skipped - provider is disabled")
             return False
 
-        ok = await self.provider.send_message(
-            to_mobile, message, template_id=template_id, variables=variables,
-            media_url=media_url,
-        )
+        provider = self._get_provider(self.primary_provider)
+        if not provider.is_configured():
+            logger.error(f"❌ WhatsApp provider {self.primary_provider} not configured")
+            return False
 
-        # ✅ FIXED: Only attempt SMS fallback if it makes sense
-        if not ok and settings.WHATSAPP_FALLBACK_TO_SMS:
-            if self._should_skip_sms_fallback():
-                return False
+        try:
+            result = await provider.send_message(to_mobile, message, template_id, variables, media_url)
+            if result:
+                return True
+            # Only fallback if explicitly enabled
+            if self.fallback_to_sms:
+                return await self._fallback_to_sms(to_mobile, message, template_id, variables)
+            return False
+        except Exception as e:
+            logger.error(f"❌ WhatsApp error: {e}")
+            return False
 
+    def send_sync(self, to_mobile, message, template_id=None, variables=None, media_url=None) -> bool:
+        try:
+            return asyncio.run(self.send(to_mobile, message, template_id, variables, media_url))
+        except Exception:
+            return False
+
+    async def _fallback_to_sms(self, to_mobile, message, template_id, variables) -> bool:
+        try:
+            from app.core.services.sms import send_sms_async
             logger.warning("⚠️ WhatsApp failed, falling back to SMS")
-            try:
-                from app.core.services.sms import send_sms_async
-                ok = await send_sms_async(
-                    to_mobile=to_mobile,
-                    message=message,
-                    template_id=(
-                        settings.MSG91_TEMPLATE_ID_OTP
-                        if variables and "otp" in variables
-                        else settings.MSG91_TEMPLATE_ID_ALERT
-                    ),
-                    variables=variables,
-                )
-            except Exception as e:
-                logger.error(f"❌ SMS fallback failed: {e}")
-
-        return ok
-
-    def send_sync(
-        self,
-        to_mobile: str,
-        message: str,
-        template_id: Optional[str] = None,
-        variables: Optional[dict] = None,
-        media_url: Optional[str] = None,
-    ) -> bool:
-        # ✅ DEV MODE: MOBILE_OTP_BYPASS=true → Log only, no real WhatsApp
-        if settings.MOBILE_OTP_BYPASS:
-            logger.info(
-                f"🔧 [DEV MODE] WhatsApp NOT sent (MOBILE_OTP_BYPASS=true)"
+            return await send_sms_async(
+                to_mobile=to_mobile,
+                message=message,
+                template_id=settings.MSG91_TEMPLATE_ID_OTP if variables and "otp" in variables else settings.MSG91_TEMPLATE_ID_ALERT,
+                variables=variables,
             )
-            logger.info(f"   To: {to_mobile}")
-            if variables and "otp" in variables:
-                logger.info(f"   OTP: {variables['otp']}")
-            return True
-
-        # ✅ PROD MODE: MOBILE_OTP_BYPASS=false → Real WhatsApp
-        if self.provider_name == "disabled":
-            logger.info("ℹ️ WhatsApp provider is disabled - skipping")
+        except Exception as e:
+            logger.error(f"❌ SMS fallback failed: {e}")
             return False
-
-        ok = self.provider.send_message_sync(
-            to_mobile, message, template_id=template_id, variables=variables,
-            media_url=media_url,
-        )
-
-        # ✅ FIXED: Only attempt SMS fallback if it makes sense
-        if not ok and settings.WHATSAPP_FALLBACK_TO_SMS:
-            if self._should_skip_sms_fallback():
-                return False
-
-            logger.warning("⚠️ WhatsApp failed, falling back to SMS (sync)")
-            try:
-                from app.core.services.sms import send_mobile_otp, get_sms_service
-                if variables and "otp" in variables:
-                    ok = send_mobile_otp(to_mobile, variables["otp"])
-                else:
-                    svc = get_sms_service()
-                    ok = svc.send_sync(
-                        to_mobile=to_mobile,
-                        message=message,
-                        template_id=settings.MSG91_TEMPLATE_ID_ALERT,
-                        variables=variables,
-                    )
-            except Exception as e:
-                logger.error(f"❌ SMS fallback (sync) failed: {e}")
-
-        return ok
 
 
 # ============================================================
 # 🌍 GLOBAL INSTANCE + PUBLIC HELPERS
 # ============================================================
-_whatsapp_service: Optional[UnifiedWhatsAppService] = None
+_whatsapp_service: Optional[UniversalWhatsAppService] = None
 
 
-def get_whatsapp_service() -> UnifiedWhatsAppService:
+def get_whatsapp_service() -> UniversalWhatsAppService:
     global _whatsapp_service
     if _whatsapp_service is None:
-        _whatsapp_service = UnifiedWhatsAppService()
+        _whatsapp_service = UniversalWhatsAppService()
     return _whatsapp_service
 
 
-async def send_whatsapp(
-    to_mobile: str,
-    message: str,
-    template_id: Optional[str] = None,
-    variables: Optional[dict] = None,
-    media_url: Optional[str] = None,
-) -> bool:
-    return await get_whatsapp_service().send(
-        to_mobile=to_mobile,
-        message=message,
-        template_id=template_id,
-        variables=variables,
-        media_url=media_url,
-    )
+async def send_whatsapp(to_mobile, message, template_id=None, variables=None, media_url=None) -> bool:
+    return await get_whatsapp_service().send(to_mobile, message, template_id, variables, media_url)
 
 
-def send_whatsapp_sync(
-    to_mobile: str,
-    message: str,
-    template_id: Optional[str] = None,
-    variables: Optional[dict] = None,
-    media_url: Optional[str] = None,
-) -> bool:
-    return get_whatsapp_service().send_sync(
-        to_mobile=to_mobile,
-        message=message,
-        template_id=template_id,
-        variables=variables,
-        media_url=media_url,
-    )
+def send_whatsapp_sync(to_mobile, message, template_id=None, variables=None, media_url=None) -> bool:
+    return get_whatsapp_service().send_sync(to_mobile, message, template_id, variables, media_url)
 
 
-print("✅ Unified WhatsApp Service Loaded (FIXED)")
-print(f"   Provider: {settings.WHATSAPP_PROVIDER}")
-print(f"   OTP Mode: {'DEVELOPMENT (log only)' if settings.MOBILE_OTP_BYPASS else 'PRODUCTION (real send)'}")
+print("=" * 70)
+print("✅ Universal WhatsApp Service Loaded")
+print(f"   Primary Provider: {settings.active_whatsapp_provider}")
+print(f"   Fallback to SMS: {settings.WHATSAPP_FALLBACK_TO_SMS}")
+print("=" * 70)
