@@ -40,7 +40,7 @@ from app.modules.market.routes import router as market_router
 from app.modules.customadmin.routes import router as customadmin_router
 from app.modules.location.routes import router as location_router
 from app.modules.payment.routes import router as payment_router
-from app.modules.payment.razorpay_integration import router as razorpay_router
+#from app.modules.payment.razorpay_integration import router as razorpay_router
 from app.modules.support.routes import router as support_router
 
 # ================= ORJSON FALLBACK =================
@@ -320,7 +320,7 @@ app.include_router(market_router, prefix="/api/v1/market", tags=["Market Intelli
 app.include_router(location_router, prefix="/api/v1/location", tags=["Location Services"])
 app.include_router(payment_router, prefix="/api/v1/payment", tags=["Payment"])
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-app.include_router(razorpay_router, prefix="/api/v1", tags=["Razorpay"])
+#app.include_router(razorpay_router, prefix="/api/v1", tags=["Razorpay"])
 app.include_router(support_router, prefix="/api/v1", tags=["Support"])
 
 

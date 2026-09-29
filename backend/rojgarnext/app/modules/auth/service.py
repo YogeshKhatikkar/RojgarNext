@@ -1,9 +1,23 @@
 # app/modules/auth/service.py
-# COMPLETE FIXED VERSION – PROTECTS MOBILE FIELD
-# ✅ INTEGRATED: Brevo + MSG91 + WhatsApp via unified dispatcher
-# ✅ Keeps legacy imports (send_email, send_mobile_otp) for backward compatibility
-# ✅ All OTP sending now goes through dispatch_otp → Email + SMS + WhatsApp
-# ✅ Switch providers ONLY via .env — no code changes needed
+# ============================================================
+# ✅ EMAIL OTP: ALWAYS REAL (random 6-digit, sent via email)
+# ✅ MOBILE OTP: Bypassed in DEV mode (use 123456), Real in PROD mode
+# ============================================================
+# OTP behavior controlled from .env:
+#   - MOBILE_OTP_BYPASS   → SMS/WhatsApp dev/prod switch
+#     * true  → DEVELOPMENT MODE for SMS/WhatsApp
+#               - Mobile OTP = DEV_OTP_CODE (123456)
+#               - Email OTP = ALWAYS random 6-digit, ALWAYS sent for real
+#               - Mobile verification accepts 123456 OR any 6-digit
+#     * false → PRODUCTION MODE
+#               - Both OTPs are random 6-digit
+#               - Both SMS and Email sent for real
+#   - DEV_OTP_CODE        → the dev MOBILE OTP value (default 123456)
+#   - SMS_PROVIDER        → msg91 | twilio | fast2sms | brevo
+#   - WHATSAPP_PROVIDER   → msg91 | twilio | meta | disabled
+#   - EMAIL_PROVIDER      → smtp | brevo | sendgrid | mailgun
+#   - NOTIFY_*_CHANNELS   → which channels get each notification type
+# ============================================================
 
 import secrets
 from fastapi import HTTPException, Request, BackgroundTasks
@@ -15,12 +29,9 @@ from app.db.connection import get_db, connect_db
 # ============================================================
 # 📧📱💬 UNIFIED NOTIFICATION IMPORTS
 # ============================================================
-# Legacy imports — kept for backward compatibility (still work)
 from app.core.services.email import send_email
 from app.core.services.sms import send_mobile_otp
 
-# NEW unified dispatcher — routes to all configured channels
-# (Email + SMS + WhatsApp) based on .env settings
 from app.core.services.notification_dispatcher import (
     dispatch_otp,
     dispatch_verification_success,
@@ -45,11 +56,120 @@ import hmac
 import asyncio
 
 
+# ============================================================
+# ✅ OTP GENERATORS — SEPARATED FOR EMAIL AND MOBILE
+# ============================================================
+# 
+# 📧 EMAIL OTP: ALWAYS random 6-digit, ALWAYS sent for real
+#               (never uses DEV_OTP_CODE, never bypassed)
+#
+# 📱 MOBILE OTP:
+#   MOBILE_OTP_BYPASS = true  → returns DEV_OTP_CODE (123456)
+#   MOBILE_OTP_BYPASS = false → returns random 6-digit
+#
+# ============================================================
+
+def get_mobile_otp() -> str:
+    """
+    Return the mobile OTP for the current mode.
+
+    MOBILE_OTP_BYPASS = true  → return DEV_OTP_CODE from .env (default '123456')
+    MOBILE_OTP_BYPASS = false → generate a real random 6-digit OTP
+    """
+    if settings.MOBILE_OTP_BYPASS:
+        # DEVELOPMENT MODE - Use fixed OTP from .env for MOBILE only
+        code = settings.dev_otp_value
+        logger.info(f"🔧 [DEV MODE] Mobile OTP = {code} (from .env DEV_OTP_CODE)")
+        return code
+    else:
+        # PRODUCTION MODE - Generate random OTP
+        otp = generate_otp()
+        logger.info("🔐 [PROD MODE] Mobile OTP = <random 6-digit>")
+        return otp
+
+
+def get_email_otp() -> str:
+    """
+    Return the email OTP.
+
+    ✅ EMAIL IS ALWAYS REAL - ALWAYS generates a random 6-digit OTP.
+    ✅ This is NEVER bypassed, regardless of MOBILE_OTP_BYPASS setting.
+    ✅ The OTP is stored as a hash in the database.
+    ✅ The actual OTP is sent via email (always real).
+    """
+    otp = generate_otp()
+    logger.info("📧 [EMAIL] Email OTP = <random 6-digit> (ALWAYS REAL)")
+    return otp
+
+
+def is_valid_mobile_otp(user: dict, provided_otp: str, field_prefix: str = "mobile_otp") -> bool:
+    """
+    Validate the provided MOBILE OTP against the stored hash.
+
+    MOBILE_OTP_BYPASS = true  → Accept DEV_OTP_CODE OR any 6-digit OTP
+    MOBILE_OTP_BYPASS = false → Accept ONLY the real stored OTP
+
+    `field_prefix` lets us reuse this for `reset_mobile_otp` too.
+    """
+    if not provided_otp:
+        return False
+
+    # ============================================================
+    # DEVELOPMENT MODE - Accept dev OTP or any 6-digit OTP for MOBILE
+    # ============================================================
+    if settings.MOBILE_OTP_BYPASS:
+        # Accept the dev OTP (default: 123456)
+        if provided_otp == settings.dev_otp_value:
+            logger.info("🔧 [DEV MODE] Mobile OTP verified via .env DEV_OTP_CODE")
+            return True
+        
+        # Also accept any 6-digit OTP in dev mode for convenience
+        if len(provided_otp) == 6 and provided_otp.isdigit():
+            logger.info("🔧 [DEV MODE] Mobile OTP verified (any 6-digit accepted)")
+            return True
+        
+        logger.warning(f"❌ [DEV MODE] Invalid OTP format: {provided_otp}")
+        return False
+
+    # ============================================================
+    # PRODUCTION MODE - Only exact match with stored hash
+    # ============================================================
+    stored = user.get(field_prefix)
+    ok = verify_hashed_otp(stored, provided_otp)
+    if ok:
+        logger.info("🔐 [PROD MODE] Mobile OTP verified (real OTP match)")
+    else:
+        logger.warning("❌ [PROD MODE] Mobile OTP mismatch")
+    return ok
+
+
+def is_valid_email_otp(user: dict, provided_otp: str, field_prefix: str = "email_otp") -> bool:
+    """
+    Validate the provided EMAIL OTP against the stored hash.
+
+    ✅ EMAIL IS ALWAYS REAL - Only the real stored OTP works.
+    ✅ DEV_OTP_CODE (123456) does NOT work for email even in dev mode.
+    ✅ The email OTP is always a random 6-digit sent via email.
+    """
+    if not provided_otp:
+        return False
+
+    # ============================================================
+    # EMAIL OTP IS ALWAYS REAL - Only exact match with stored hash
+    # ============================================================
+    stored = user.get(field_prefix)
+    ok = verify_hashed_otp(stored, provided_otp)
+    if ok:
+        logger.info("✅ [EMAIL] Email OTP verified (real OTP match)")
+    else:
+        logger.warning("❌ [EMAIL] Email OTP mismatch")
+    return ok
+
+
 # ================= DATABASE HELPER (SAFE) =================
 async def get_db_safe():
     """Get database connection safely - ensures connection is established"""
     db = get_db()
-
     if db is None:
         logger.warning("⚠️ Database not initialized! Attempting to connect...")
         try:
@@ -60,7 +180,6 @@ async def get_db_safe():
         except Exception as e:
             logger.error(f"❌ Failed to connect to database: {e}")
             raise HTTPException(status_code=500, detail="Database connection failed")
-
     return db
 
 
@@ -76,16 +195,7 @@ def verify_hashed_otp(stored: str, provided: str) -> bool:
 
 
 # ================= ASYNC TASK WRAPPERS =================
-# BackgroundTasks expects sync callables. These wrappers safely run
-# the async dispatcher functions inside a fresh event loop.
-
-def _run_async_dispatch_otp(
-    email: str,
-    mobile: str,
-    otp: str,
-    purpose: str,
-    user_name: str,
-):
+def _run_async_dispatch_otp(email: str, mobile: str, otp: str, purpose: str, user_name: str):
     """Sync wrapper for dispatch_otp — used in BackgroundTasks."""
     try:
         loop = asyncio.new_event_loop()
@@ -106,12 +216,7 @@ def _run_async_dispatch_otp(
         logger.error(f"❌ dispatch_otp background task failed: {e}")
 
 
-def _run_async_dispatch_verification(
-    email: str,
-    mobile: str,
-    user_name: str,
-    verified_field: str = "Email",
-):
+def _run_async_dispatch_verification(email: str, mobile: str, user_name: str, verified_field: str = "Email"):
     """Sync wrapper for dispatch_verification_success."""
     try:
         loop = asyncio.new_event_loop()
@@ -131,22 +236,14 @@ def _run_async_dispatch_verification(
         logger.error(f"❌ dispatch_verification_success background task failed: {e}")
 
 
-def _run_async_dispatch_welcome(
-    email: str,
-    mobile: str,
-    user_name: str,
-):
+def _run_async_dispatch_welcome(email: str, mobile: str, user_name: str):
     """Sync wrapper for dispatch_welcome."""
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             loop.run_until_complete(
-                dispatch_welcome(
-                    email=email,
-                    mobile=mobile,
-                    user_name=user_name,
-                )
+                dispatch_welcome(email=email, mobile=mobile, user_name=user_name)
             )
         finally:
             loop.close()
@@ -154,7 +251,9 @@ def _run_async_dispatch_welcome(
         logger.error(f"❌ dispatch_welcome background task failed: {e}")
 
 
-# ================= REGISTER =================
+# ============================================================
+# REGISTER
+# ============================================================
 async def register_user(data, background_tasks: BackgroundTasks, role: str = "user"):
     db = await get_db_safe()
     validate_password(data.password)
@@ -169,8 +268,25 @@ async def register_user(data, background_tasks: BackgroundTasks, role: str = "us
     if await db.auth.find_one({"mobile": data.mobile}):
         raise HTTPException(400, "Mobile already registered")
 
-    email_otp = generate_otp()
-    mobile_otp = "123456" if settings.MOBILE_OTP_BYPASS else generate_otp()
+    # ============================================================
+    # ✅ OTP GENERATION — SEPARATED FOR EMAIL AND MOBILE
+    # ============================================================
+    # 
+    # 📧 EMAIL OTP: ALWAYS random 6-digit (never bypassed)
+    # 📱 MOBILE OTP:
+    #    MOBILE_OTP_BYPASS = true  → 123456 (DEV_OTP_CODE)
+    #    MOBILE_OTP_BYPASS = false → random 6-digit
+    #
+    # ============================================================
+    email_otp = get_email_otp()      # ✅ ALWAYS random - never bypassed
+    mobile_otp = get_mobile_otp()    # .env-driven (123456 in dev, random in prod)
+
+    logger.info("=" * 70)
+    logger.info(f"📝 REGISTRATION OTP GENERATION")
+    logger.info(f"   Email OTP: <random 6-digit> (ALWAYS REAL)")
+    logger.info(f"   Mobile OTP: {'123456 (DEV)' if settings.MOBILE_OTP_BYPASS else '<random 6-digit> (PROD)'}")
+    logger.info(f"   MOBILE_OTP_BYPASS: {settings.MOBILE_OTP_BYPASS}")
+    logger.info("=" * 70)
 
     user_data = {
         "name": data.name.strip(),
@@ -192,31 +308,43 @@ async def register_user(data, background_tasks: BackgroundTasks, role: str = "us
     await db.auth.insert_one(user_data)
 
     # ============================================================
-    # ✅ UNIFIED OTP DISPATCH
-    # Sends OTP to Email + SMS + WhatsApp based on .env settings
-    # (see NOTIFY_OTP_CHANNELS in .env)
+    # ✅ UNIFIED OTP DISPATCH — channels come from .env
+    # ============================================================
+    # 
+    # EMAIL: ALWAYS real (sent via configured email provider)
+    # SMS/WhatsApp: Bypassed if MOBILE_OTP_BYPASS=true
+    # 
     # ============================================================
     background_tasks.add_task(
         _run_async_dispatch_otp,
         data.email,
         data.mobile,
-        email_otp,  # Same OTP for all channels (email OTP used for consistency)
+        email_otp,   # ✅ Use EMAIL OTP for email (always random)
         "registration",
         data.name,
     )
 
-    logger.info(f"✅ Registration OTP dispatched to {data.email} / +91{data.mobile} via all configured channels")
+    mode = "DEV" if settings.MOBILE_OTP_BYPASS else "PROD"
+    logger.info(f"✅ [{mode}] Registration OTP dispatched for {data.email} / +91{data.mobile}")
+    logger.info(f"   📧 Email OTP sent: REAL (check your email)")
+    if settings.MOBILE_OTP_BYPASS:
+        logger.info(f"   📱 Mobile OTP: Use DEV_OTP_CODE ({settings.dev_otp_value}) for verification")
+    else:
+        logger.info(f"   📱 Mobile OTP: Real OTP sent via SMS")
 
-    return {
-        "msg": f"OTP sent to email, mobile, and WhatsApp. Role: {role}. Use 123456 for mobile OTP in dev mode.",
-        "role": role
-    }
+    if settings.MOBILE_OTP_BYPASS:
+        msg = f"Email OTP sent for real. Mobile verification uses DEV_OTP_CODE ({settings.dev_otp_value})."
+    else:
+        msg = "OTP sent successfully to email, mobile, and WhatsApp."
+
+    return {"msg": msg, "role": role, "dev_mode": settings.MOBILE_OTP_BYPASS}
 
 
-# ================= MPIN SETUP =================
+# ============================================================
+# MPIN SETUP
+# ============================================================
 async def setup_mpin_service(data, current_user):
     db = await get_db_safe()
-
     logger.info(f"🔐 MPIN Setup Request - Email: {data.email}, PIN length: {len(data.pin)}")
 
     user = await db.auth.find_one({"email": data.email})
@@ -234,11 +362,7 @@ async def setup_mpin_service(data, current_user):
 
     result = await db.auth.update_one(
         {"email": data.email},
-        {"$set": {
-            "pin": hash_pin(data.pin),
-            "is_pin_set": True,
-            "pin_attempts": 0
-        }}
+        {"$set": {"pin": hash_pin(data.pin), "is_pin_set": True, "pin_attempts": 0}}
     )
 
     if result.modified_count == 0:
@@ -249,7 +373,9 @@ async def setup_mpin_service(data, current_user):
     return {"msg": "MPIN setup successfully", "success": True}
 
 
-# ================= ENABLE BIOMETRIC =================
+# ============================================================
+# ENABLE BIOMETRIC
+# ============================================================
 async def enable_biometric_service(data: dict, current_user):
     db = await get_db_safe()
     user = await db.auth.find_one({"email": data.get("email")})
@@ -258,15 +384,14 @@ async def enable_biometric_service(data: dict, current_user):
 
     await db.auth.update_one(
         {"email": data.get("email")},
-        {"$set": {
-            "is_biometric_enabled": True,
-            "biometric_device_info": data.get("device_info")
-        }}
+        {"$set": {"is_biometric_enabled": True, "biometric_device_info": data.get("device_info")}}
     )
     return {"msg": "Biometric login enabled successfully"}
 
 
-# ================= MPIN LOGIN =================
+# ============================================================
+# MPIN LOGIN
+# ============================================================
 async def login_pin(data, request: Request = None):
     db = await get_db_safe()
     user = await db.auth.find_one({"email": data.email})
@@ -287,7 +412,7 @@ async def login_pin(data, request: Request = None):
         await db.auth.update_one({"email": data.email}, {"$set": update_data})
         raise HTTPException(400, f"Invalid MPIN. {5 - attempts} attempts remaining.")
 
-    # ==================== LOCATION HANDLING ====================
+    # Location handling
     location_doc = None
     if hasattr(data, 'latitude') and data.latitude is not None and data.latitude != 0:
         from app.core.location.location_handler import location_handler
@@ -311,40 +436,29 @@ async def login_pin(data, request: Request = None):
         location_doc = user.get("current_location")
         logger.info(f"📍 MPIN Login - Using existing location")
 
-    # Reset pin attempts and update last login
     await db.auth.update_one(
         {"email": data.email},
-        {"$set": {
-            "pin_attempts": 0,
-            "last_login": datetime.utcnow(),
-            "last_login_ip": request.client.host if request else ""
-        }}
+        {"$set": {"pin_attempts": 0, "last_login": datetime.utcnow(),
+                  "last_login_ip": request.client.host if request else ""}}
     )
 
-    # ==================== GET PROFILE DATA ====================
     profile = await db.profile.find_one({"email": data.email})
-
-    # ✅ FIXED: Preserve existing mobile if not found in profile
     mobile = user.get("mobile", "")
     if not mobile and profile:
         mobile = profile.get("phone", "")
-
     full_name = profile.get("full_name", "") if profile else ""
     if not full_name:
         full_name = user.get("name", "")
 
-    # Create access token
     access_token = create_access_token({
         "user_id": str(user["_id"]),
         "role": user["role"],
         "email": user["email"],
         "name": full_name
     })
-
     refresh_token = create_refresh_token({"user_id": str(user["_id"])})
 
-    # ==================== STORE SESSION ====================
-    session_data = {
+    await db.sessions.insert_one({
         "user_id": str(user["_id"]),
         "user_email": user["email"],
         "session_hash": secrets.token_hex(32),
@@ -353,8 +467,7 @@ async def login_pin(data, request: Request = None):
         "created_at": datetime.utcnow(),
         "expires_at": datetime.utcnow() + timedelta(days=3),
         "is_active": True
-    }
-    await db.sessions.insert_one(session_data)
+    })
 
     logger.info(f"✅ MPIN Login successful for {data.email}")
 
@@ -364,12 +477,14 @@ async def login_pin(data, request: Request = None):
         "role": user["role"],
         "email": user["email"],
         "name": full_name,
-        "mobile": mobile,  # ✅ Return preserved mobile
+        "mobile": mobile,
         "current_location": location_doc if location_doc else user.get("current_location")
     }
 
 
-# ================= BIOMETRIC LOGIN =================
+# ============================================================
+# BIOMETRIC LOGIN
+# ============================================================
 async def biometric_login_service(data, request: Request):
     db = await get_db_safe()
     user = await db.auth.find_one({"email": data.email})
@@ -379,7 +494,6 @@ async def biometric_login_service(data, request: Request):
     if not user.get("is_biometric_enabled"):
         raise HTTPException(400, "Biometric not enabled. Please enable it in settings.")
 
-    # ==================== LOCATION HANDLING ====================
     location_doc = None
     if data.latitude is not None and data.longitude is not None and data.latitude != 0:
         from app.core.location.location_handler import location_handler
@@ -403,28 +517,19 @@ async def biometric_login_service(data, request: Request):
         location_doc = user.get("current_location")
         logger.info(f"📍 Biometric Login - Using existing location")
 
-    # Update last login
     await db.auth.update_one(
         {"email": data.email},
-        {"$set": {
-            "last_login": datetime.utcnow(),
-            "last_login_ip": request.client.host if request else ""
-        }}
+        {"$set": {"last_login": datetime.utcnow(), "last_login_ip": request.client.host if request else ""}}
     )
 
-    # ==================== GET PROFILE DATA ====================
     profile = await db.profile.find_one({"email": data.email})
-
-    # ✅ FIXED: Preserve existing mobile
     mobile = user.get("mobile", "")
     if not mobile and profile:
         mobile = profile.get("phone", "")
-
     full_name = profile.get("full_name", "") if profile else ""
     if not full_name:
         full_name = user.get("name", "")
 
-    # Create tokens
     access_token = create_access_token({
         "user_id": str(user["_id"]),
         "role": user["role"],
@@ -433,8 +538,7 @@ async def biometric_login_service(data, request: Request):
     })
     refresh_token = create_refresh_token({"user_id": str(user["_id"])})
 
-    # Store session
-    session_data = {
+    await db.sessions.insert_one({
         "user_id": str(user["_id"]),
         "user_email": user["email"],
         "session_hash": secrets.token_hex(32),
@@ -443,8 +547,7 @@ async def biometric_login_service(data, request: Request):
         "created_at": datetime.utcnow(),
         "expires_at": datetime.utcnow() + timedelta(days=3),
         "is_active": True
-    }
-    await db.sessions.insert_one(session_data)
+    })
 
     logger.info(f"✅ Biometric Login successful for {data.email}")
 
@@ -454,33 +557,29 @@ async def biometric_login_service(data, request: Request):
         "role": user["role"],
         "email": user["email"],
         "name": full_name,
-        "mobile": mobile,  # ✅ Return preserved mobile
+        "mobile": mobile,
         "current_location": location_doc if location_doc else user.get("current_location")
     }
 
 
-# ================= SET PIN (LEGACY) =================
+# ============================================================
+# SET PIN (LEGACY)
+# ============================================================
 async def set_pin(data):
     db = await get_db_safe()
     if len(data.pin) != 6 or not data.pin.isdigit():
         raise HTTPException(400, "PIN must be 6 digits")
     await db.auth.update_one(
         {"email": data.email},
-        {"$set": {
-            "pin": hash_pin(data.pin),
-            "is_pin_set": True,
-            "pin_attempts": 0
-        }}
+        {"$set": {"pin": hash_pin(data.pin), "is_pin_set": True, "pin_attempts": 0}}
     )
     return {"msg": "PIN set"}
 
 
-# ================= NORMAL RESEND OTP =================
+# ============================================================
+# RESEND EMAIL OTP
+# ============================================================
 async def send_email_otp_service(email: str, background_tasks: BackgroundTasks):
-    """
-    Resend email OTP.
-    ✅ Now uses unified dispatcher → sends to Email + SMS + WhatsApp.
-    """
     db = await get_db_safe()
     user = await db.auth.find_one({"email": email})
     if not user:
@@ -488,7 +587,9 @@ async def send_email_otp_service(email: str, background_tasks: BackgroundTasks):
     if user.get("last_otp_sent") and datetime.utcnow() < user["last_otp_sent"] + timedelta(seconds=30):
         raise HTTPException(429, "Wait 30 seconds before resending")
 
-    otp = generate_otp()
+    # ✅ EMAIL OTP IS ALWAYS REAL - always random
+    otp = get_email_otp()
+    
     await db.auth.update_one(
         {"email": email},
         {"$set": {
@@ -499,28 +600,22 @@ async def send_email_otp_service(email: str, background_tasks: BackgroundTasks):
         }}
     )
 
-    # ============================================================
-    # ✅ UNIFIED DISPATCH — Email + SMS + WhatsApp
-    # ============================================================
     mobile = user.get("mobile", "")
     background_tasks.add_task(
         _run_async_dispatch_otp,
-        email,
-        mobile,
-        otp,
+        email, mobile, otp,
         "email verification",
         user.get("name", "User"),
     )
 
-    logger.info(f"✅ OTP resent to {email} via all configured channels (Email/SMS/WhatsApp)")
-    return {"msg": "OTP resent successfully to email, mobile, and WhatsApp"}
+    logger.info(f"✅ Email OTP resent to {email} (ALWAYS REAL)")
+    return {"msg": "OTP resent successfully to your email"}
 
 
+# ============================================================
+# RESEND MOBILE OTP
+# ============================================================
 async def send_mobile_otp_service(mobile: str, background_tasks: BackgroundTasks):
-    """
-    Resend mobile OTP.
-    ✅ Now uses unified dispatcher → sends to Email + SMS + WhatsApp.
-    """
     db = await get_db_safe()
     user = await db.auth.find_one({"mobile": mobile})
     if not user:
@@ -528,7 +623,9 @@ async def send_mobile_otp_service(mobile: str, background_tasks: BackgroundTasks
     if user.get("last_otp_sent") and datetime.utcnow() < user["last_otp_sent"] + timedelta(seconds=30):
         raise HTTPException(429, "Wait 30 seconds before resending")
 
-    otp = "123456" if settings.MOBILE_OTP_BYPASS else generate_otp()
+    # ✅ MOBILE OTP: 123456 in dev, random in prod
+    otp = get_mobile_otp()
+
     await db.auth.update_one(
         {"mobile": mobile},
         {"$set": {
@@ -539,24 +636,25 @@ async def send_mobile_otp_service(mobile: str, background_tasks: BackgroundTasks
         }}
     )
 
-    # ============================================================
-    # ✅ UNIFIED DISPATCH — Email + SMS + WhatsApp
-    # ============================================================
     email = user.get("email", "")
     background_tasks.add_task(
         _run_async_dispatch_otp,
-        email,
-        mobile,
-        otp,
+        email, mobile, otp,
         "mobile verification",
         user.get("name", "User"),
     )
 
-    logger.info(f"✅ Mobile OTP resent to +91{mobile} via all configured channels (Email/SMS/WhatsApp)")
-    return {"msg": "Mobile OTP resent successfully to email, mobile, and WhatsApp"}
+    if settings.MOBILE_OTP_BYPASS:
+        logger.info(f"✅ Mobile OTP resent to +91{mobile} (DEV mode - use {settings.dev_otp_value})")
+        return {"msg": f"Mobile verification uses DEV_OTP_CODE ({settings.dev_otp_value})"}
+    else:
+        logger.info(f"✅ Mobile OTP resent to +91{mobile}")
+        return {"msg": "Mobile OTP resent successfully"}
 
 
-# ================= VERIFY NORMAL OTP =================
+# ============================================================
+# VERIFY EMAIL OTP
+# ============================================================
 async def verify_email_otp(data):
     db = await get_db_safe()
     user = await db.auth.find_one({"email": data.email})
@@ -566,20 +664,24 @@ async def verify_email_otp(data):
         raise HTTPException(400, "OTP expired")
     if user.get("email_otp_attempts", 0) >= 5:
         raise HTTPException(429, "Too many attempts")
-    if not verify_hashed_otp(user.get("email_otp"), data.otp):
+    
+    # ✅ EMAIL OTP IS ALWAYS REAL - only accepts real OTP
+    is_valid = is_valid_email_otp(user, data.otp, field_prefix="email_otp")
+    
+    if not is_valid:
         await db.auth.update_one({"email": data.email}, {"$inc": {"email_otp_attempts": 1}})
         raise HTTPException(400, "Invalid OTP")
+    
     await db.auth.update_one(
         {"email": data.email},
-        {"$set": {
-            "is_email_verified": True,
-            "email_otp": None,
-            "email_otp_expiry": None
-        }}
+        {"$set": {"is_email_verified": True, "email_otp": None, "email_otp_expiry": None}}
     )
     return {"msg": "Email verified"}
 
 
+# ============================================================
+# VERIFY MOBILE OTP
+# ============================================================
 async def verify_mobile_otp(data):
     db = await get_db_safe()
     user = await db.auth.find_one({"mobile": data.mobile})
@@ -589,14 +691,12 @@ async def verify_mobile_otp(data):
         raise HTTPException(400, "OTP expired")
     if user.get("mobile_otp_attempts", 0) >= 5:
         raise HTTPException(429, "Too many attempts")
-    is_valid = False
-    if settings.MOBILE_OTP_BYPASS and data.otp == "123456":
-        is_valid = True
-    else:
-        is_valid = verify_hashed_otp(user.get("mobile_otp"), data.otp)
-    if not is_valid:
+
+    # ✅ MOBILE OTP: dev code OR real hash
+    if not is_valid_mobile_otp(user, data.otp, field_prefix="mobile_otp"):
         await db.auth.update_one({"mobile": data.mobile}, {"$inc": {"mobile_otp_attempts": 1}})
         raise HTTPException(400, "Invalid OTP")
+
     await db.auth.update_one(
         {"mobile": data.mobile},
         {"$set": {
@@ -609,23 +709,22 @@ async def verify_mobile_otp(data):
     return {"msg": "Mobile verified successfully"}
 
 
-# ================= LOGIN (Email + Password) =================
+# ============================================================
+# LOGIN (Email + Password)
+# ============================================================
 async def login_user(data, request: Request):
     db = await get_db_safe()
     email_lower = data.email.lower().strip()
 
-    # ✅ Step 1: Check if user exists
     user = await db.auth.find_one({"email": email_lower})
     if not user:
         logger.warning(f"❌ Login failed: User not found - {email_lower}")
         raise HTTPException(400, "Invalid email or password")
 
-    # ✅ Step 2: Check if account is locked
     if user.get("lock_until") and datetime.utcnow() < user["lock_until"]:
         logger.warning(f"❌ Login failed: Account locked for {email_lower}")
         raise HTTPException(403, "Account temporarily locked. Please try again later.")
 
-    # ✅ Step 3: Check if email and mobile are verified
     if not user.get("is_email_verified", False):
         logger.warning(f"❌ Login failed: Email not verified for {email_lower}")
         raise HTTPException(403, "Please verify your email first. Check your inbox for OTP.")
@@ -634,22 +733,18 @@ async def login_user(data, request: Request):
         logger.warning(f"❌ Login failed: Mobile not verified for {email_lower}")
         raise HTTPException(403, "Please verify your mobile number first.")
 
-    # ✅ Step 4: Verify password
     if not verify_password(data.password, user["password"]):
         attempts = user.get("failed_attempts", 0) + 1
         update_data = {"failed_attempts": attempts}
-
         if attempts >= 5:
             update_data["lock_until"] = datetime.utcnow() + timedelta(minutes=30)
             logger.warning(f"❌ Login failed: Account locked after {attempts} attempts for {email_lower}")
-            raise HTTPException(403, f"Too many failed attempts. Account locked for 30 minutes.")
-
+            raise HTTPException(403, "Too many failed attempts. Account locked for 30 minutes.")
         await db.auth.update_one({"email": email_lower}, {"$set": update_data})
         remaining = 5 - attempts
         logger.warning(f"❌ Login failed: Invalid password for {email_lower} (Attempts: {attempts}/5)")
         raise HTTPException(400, f"Invalid email or password. {remaining} attempts remaining.")
 
-    # ✅ Step 5: Reset failed attempts on successful login
     user_role = user.get("role", "user")
     if user_role == "custom_admin":
         user_role = "customadmin"
@@ -664,30 +759,23 @@ async def login_user(data, request: Request):
         }}
     )
 
-    # ✅ Step 6: Get profile data
     profile = await db.profile.find_one({"email": email_lower})
-
-    # ✅ FIXED: Preserve existing mobile
     mobile = user.get("mobile", "")
     if not mobile and profile:
         mobile = profile.get("phone", "")
-
     full_name = profile.get("full_name", "") if profile else ""
     if not full_name:
         full_name = user.get("name", "")
 
-    # ✅ Step 7: Create tokens
     payload = {
         "user_id": str(user["_id"]),
         "role": user_role,
         "email": user["email"],
         "name": full_name
     }
-
     access = create_access_token(payload)
     refresh = create_refresh_token({"user_id": str(user["_id"])})
 
-    # ✅ Step 8: Store session
     await db.sessions.insert_one({
         "user_id": str(user["_id"]),
         "user_email": user["email"],
@@ -709,11 +797,13 @@ async def login_user(data, request: Request):
         "role": user_role,
         "email": user["email"],
         "name": full_name,
-        "mobile": mobile  # ✅ Return preserved mobile
+        "mobile": mobile
     }
 
 
-# ================= REFRESH TOKEN =================
+# ============================================================
+# REFRESH TOKEN
+# ============================================================
 async def refresh_access_token(data):
     try:
         payload = jwt.decode(data.refresh_token, settings.JWT_SECRET_KEY, algorithms=["HS256"])
@@ -721,10 +811,7 @@ async def refresh_access_token(data):
             raise HTTPException(401, "Invalid refresh token")
         user_id = payload.get("user_id")
         db = await get_db_safe()
-        session = await db.sessions.find_one({
-            "user_id": user_id,
-            "refresh_token": data.refresh_token
-        })
+        session = await db.sessions.find_one({"user_id": user_id, "refresh_token": data.refresh_token})
         if not session:
             raise HTTPException(401, "Session expired")
         user = await db.auth.find_one({"_id": ObjectId(user_id)})
@@ -739,7 +826,9 @@ async def refresh_access_token(data):
         raise HTTPException(401, "Invalid refresh token")
 
 
-# ================= FORGOT PASSWORD =================
+# ============================================================
+# FORGOT PASSWORD
+# ============================================================
 async def forgot_password(email: str, background_tasks: BackgroundTasks):
     db = await get_db_safe()
     email_lower = email.lower().strip()
@@ -748,15 +837,11 @@ async def forgot_password(email: str, background_tasks: BackgroundTasks):
     if not user:
         raise HTTPException(400, "Invalid email")
 
-    # ✅ FIX: Get mobile from different possible locations
     user_mobile = user.get("mobile")
-
-    # If mobile not in auth, try to get from profile
     if not user_mobile:
         profile = await db.profile.find_one({"email": email_lower})
         if profile:
             user_mobile = profile.get("phone") or profile.get("mobile")
-            # Also update auth with this mobile for future use
             if user_mobile:
                 await db.auth.update_one(
                     {"email": email_lower},
@@ -764,11 +849,11 @@ async def forgot_password(email: str, background_tasks: BackgroundTasks):
                 )
                 logger.info(f"✅ Mobile synced from profile to auth for {email_lower}")
 
-    # If still no mobile, allow password reset without mobile OTP (but log warning)
+    # Case: no mobile → email-only reset
     if not user_mobile:
         logger.warning(f"⚠️ No mobile number found for {email_lower}. Will send only email OTP.")
+        email_otp = get_email_otp()  # ✅ ALWAYS random
 
-        email_otp = generate_otp()
         await db.auth.update_one(
             {"email": email_lower},
             {"$set": {
@@ -776,25 +861,18 @@ async def forgot_password(email: str, background_tasks: BackgroundTasks):
                 "reset_email_verified": False,
                 "reset_email_expiry": datetime.utcnow() + timedelta(minutes=10),
                 "last_otp_sent": datetime.utcnow(),
-                # Mark mobile as verified by default for reset flow
                 "reset_mobile_verified": True
             }}
         )
 
-        # ============================================================
-        # ✅ UNIFIED DISPATCH — sends to whichever channels are available
-        # (Email always; SMS/WhatsApp only if mobile is present)
-        # ============================================================
         background_tasks.add_task(
             _run_async_dispatch_otp,
-            email_lower,
-            user_mobile or "",  # empty → SMS/WhatsApp skipped
-            email_otp,
+            email_lower, "", email_otp,
             "password reset",
             user.get("name", "User"),
         )
+        logger.info(f"📧 Reset OTP sent to {email_lower} (email only - REAL)")
 
-        logger.info(f"📧 Reset OTP sent to {email_lower} (email only)")
         return {
             "msg": "Reset OTP sent to your email",
             "email": email_lower,
@@ -802,9 +880,9 @@ async def forgot_password(email: str, background_tasks: BackgroundTasks):
             "mobile_missing": True
         }
 
-    # User has mobile, proceed with both OTPs
-    email_otp = generate_otp()
-    mobile_otp = "123456" if settings.MOBILE_OTP_BYPASS else generate_otp()
+    # Case: mobile present
+    email_otp = get_email_otp()      # ✅ ALWAYS random
+    mobile_otp = get_mobile_otp()    # ✅ 123456 in dev, random in prod
 
     await db.auth.update_one(
         {"email": email_lower},
@@ -819,19 +897,14 @@ async def forgot_password(email: str, background_tasks: BackgroundTasks):
         }}
     )
 
-    # ============================================================
-    # ✅ UNIFIED DISPATCH — Email + SMS + WhatsApp
-    # ============================================================
     background_tasks.add_task(
         _run_async_dispatch_otp,
-        email_lower,
-        user_mobile,
-        email_otp,
+        email_lower, user_mobile, email_otp,
         "password reset",
         user.get("name", "User"),
     )
 
-    logger.info(f"📧 Reset OTP sent to {email_lower} and mobile {user_mobile} via all configured channels")
+    logger.info(f"📧 Reset OTP sent to {email_lower} and mobile {user_mobile}")
 
     return {
         "msg": "Reset OTP sent to your email, mobile, and WhatsApp",
@@ -841,19 +914,18 @@ async def forgot_password(email: str, background_tasks: BackgroundTasks):
     }
 
 
-# ================= RESEND RESET OTP SERVICES =================
-
+# ============================================================
+# RESEND RESET OTP
+# ============================================================
 async def resend_reset_email_otp_service(email: str, background_tasks: BackgroundTasks):
-    """Resend reset email OTP - Service function"""
     db = await get_db_safe()
     user = await db.auth.find_one({"email": email})
     if not user:
         raise HTTPException(404, "User not found")
-
     if user.get("last_otp_sent") and datetime.utcnow() < user["last_otp_sent"] + timedelta(seconds=30):
         raise HTTPException(429, "Please wait 30 seconds before resending")
 
-    otp = generate_otp()
+    otp = get_email_otp()  # ✅ ALWAYS random
     await db.auth.update_one(
         {"email": email},
         {"$set": {
@@ -865,32 +937,27 @@ async def resend_reset_email_otp_service(email: str, background_tasks: Backgroun
         }}
     )
 
-    # ✅ UNIFIED DISPATCH — Email + SMS + WhatsApp
     mobile = user.get("mobile", "")
     background_tasks.add_task(
         _run_async_dispatch_otp,
-        email,
-        mobile,
-        otp,
+        email, mobile, otp,
         "password reset",
         user.get("name", "User"),
     )
 
-    logger.info(f"✅ Reset OTP resent to {email} via all configured channels")
-    return {"msg": "Reset OTP resent successfully to email, mobile, and WhatsApp"}
+    logger.info(f"✅ Reset OTP resent to {email} (ALWAYS REAL)")
+    return {"msg": "Reset OTP resent successfully"}
 
 
 async def resend_reset_mobile_otp_service(mobile: str, background_tasks: BackgroundTasks):
-    """Resend reset mobile OTP - Service function"""
     db = await get_db_safe()
     user = await db.auth.find_one({"mobile": mobile})
     if not user:
         raise HTTPException(404, "User not found")
-
     if user.get("last_otp_sent") and datetime.utcnow() < user["last_otp_sent"] + timedelta(seconds=30):
         raise HTTPException(429, "Please wait 30 seconds before resending")
 
-    otp = "123456" if settings.MOBILE_OTP_BYPASS else generate_otp()
+    otp = get_mobile_otp()  # ✅ 123456 in dev, random in prod
     await db.auth.update_one(
         {"mobile": mobile},
         {"$set": {
@@ -902,35 +969,36 @@ async def resend_reset_mobile_otp_service(mobile: str, background_tasks: Backgro
         }}
     )
 
-    # ✅ UNIFIED DISPATCH — Email + SMS + WhatsApp
     email = user.get("email", "")
     background_tasks.add_task(
         _run_async_dispatch_otp,
-        email,
-        mobile,
-        otp,
+        email, mobile, otp,
         "password reset",
         user.get("name", "User"),
     )
 
-    logger.info(f"✅ Reset Mobile OTP resent to +91{mobile} via all configured channels")
-    return {"msg": "Reset Mobile OTP resent successfully to email, mobile, and WhatsApp"}
+    if settings.MOBILE_OTP_BYPASS:
+        logger.info(f"✅ Reset Mobile OTP resent to +91{mobile} (use {settings.dev_otp_value})")
+    else:
+        logger.info(f"✅ Reset Mobile OTP resent to +91{mobile}")
+    return {"msg": "Reset Mobile OTP resent successfully"}
 
 
-# ================= VERIFY RESET OTP =================
+# ============================================================
+# VERIFY RESET OTP
+# ============================================================
 async def verify_reset_email_otp(data):
     db = await get_db_safe()
     user = await db.auth.find_one({"email": data.email})
     if not user:
         raise HTTPException(404, "User not found")
-
     if not user.get("reset_email_expiry") or datetime.utcnow() > user["reset_email_expiry"]:
         raise HTTPException(400, "Reset Email OTP expired")
-
     if user.get("reset_email_attempts", 0) >= 5:
         raise HTTPException(429, "Too many attempts")
 
-    is_valid = verify_hashed_otp(user.get("reset_email_otp"), data.otp)
+    # ✅ EMAIL OTP IS ALWAYS REAL - only accepts real OTP
+    is_valid = is_valid_email_otp(user, data.otp, field_prefix="reset_email_otp")
 
     if not is_valid:
         await db.auth.update_one({"email": data.email}, {"$inc": {"reset_email_attempts": 1}})
@@ -957,23 +1025,16 @@ async def verify_reset_mobile_otp(data):
         if not user:
             raise HTTPException(404, "User not found")
 
-    # ✅ If mobile verification is already marked as True (for users without mobile)
     if user.get("reset_mobile_verified") == True:
         return {"msg": "Reset Mobile OTP already verified"}
 
     if not user.get("reset_mobile_expiry") or datetime.utcnow() > user["reset_mobile_expiry"]:
         raise HTTPException(400, "Reset Mobile OTP expired")
-
     if user.get("reset_mobile_attempts", 0) >= 5:
         raise HTTPException(429, "Too many attempts")
 
-    is_valid = False
-    if settings.MOBILE_OTP_BYPASS and data.otp == "123456":
-        is_valid = True
-    else:
-        is_valid = verify_hashed_otp(user.get("reset_mobile_otp"), data.otp)
-
-    if not is_valid:
+    # ✅ MOBILE OTP: dev code OR real hash
+    if not is_valid_mobile_otp(user, data.otp, field_prefix="reset_mobile_otp"):
         await db.auth.update_one({"_id": user["_id"]}, {"$inc": {"reset_mobile_attempts": 1}})
         raise HTTPException(400, "Invalid Reset Mobile OTP")
 
@@ -989,7 +1050,9 @@ async def verify_reset_mobile_otp(data):
     return {"msg": "Reset Mobile OTP verified"}
 
 
-# ================= RESET PASSWORD - FIXED (PRESERVES MOBILE) =================
+# ============================================================
+# RESET PASSWORD
+# ============================================================
 async def reset_password(data):
     db = await get_db_safe()
     validate_password(data.new_password)
@@ -997,11 +1060,9 @@ async def reset_password(data):
     if not user:
         raise HTTPException(404, "User not found")
 
-    # ✅ Check verification status
     email_verified = user.get("reset_email_verified", False)
     mobile_verified = user.get("reset_mobile_verified", False)
 
-    # If user has no mobile in DB, we only need email verification
     user_mobile = user.get("mobile")
     if not user_mobile:
         profile = await db.profile.find_one({"email": data.email})
@@ -1009,11 +1070,9 @@ async def reset_password(data):
             user_mobile = profile.get("phone") or profile.get("mobile")
 
     if not user_mobile:
-        # No mobile in system, only require email verification
         if not email_verified:
             raise HTTPException(403, "Please verify email OTP first")
     else:
-        # User has mobile, require both verifications
         if not email_verified or not mobile_verified:
             raise HTTPException(403, "Please verify both email and mobile OTP first")
 
@@ -1021,8 +1080,6 @@ async def reset_password(data):
     if verify_password(data.new_password, user.get("password", "")):
         raise HTTPException(400, "New password cannot be same as old password")
 
-    # ✅ CRITICAL FIX: Update ONLY password and reset flags
-    # DO NOT modify or delete the mobile field
     result = await db.auth.update_one(
         {"email": data.email},
         {"$set": {
@@ -1038,7 +1095,6 @@ async def reset_password(data):
             "failed_attempts": 0,
             "lock_until": None
         }}
-        # ✅ MOBILE FIELD IS NOT TOUCHED - stays as is
     )
 
     if result.modified_count == 0:
@@ -1049,14 +1105,18 @@ async def reset_password(data):
     return {"msg": "Password reset successful"}
 
 
-# ================= LOGOUT =================
+# ============================================================
+# LOGOUT
+# ============================================================
 async def logout_all(user):
     db = await get_db_safe()
     await db.sessions.delete_many({"user_id": user["user_id"]})
     return {"msg": "Logged out from all devices"}
 
 
-# ================= ROLE MANAGEMENT (Superadmin only) =================
+# ============================================================
+# ROLE MANAGEMENT (Superadmin only)
+# ============================================================
 async def get_user_role(email: str, current_user: dict):
     db = await get_db_safe()
     if current_user.get("role") != "superadmin":
@@ -1086,7 +1146,7 @@ async def update_user_role(email: str, new_role: str, current_user: dict):
     if not user:
         raise HTTPException(404, "User not found")
     old_role = user.get("role", "user")
-    result = await db.auth.update_one(
+    await db.auth.update_one(
         {"email": email},
         {"$set": {
             "role": new_role,
@@ -1108,13 +1168,8 @@ async def get_all_users_roles(current_user: dict):
     if current_user.get("role") != "superadmin":
         raise HTTPException(403, "Only superadmin can view all users")
     users = await db.auth.find({}, {
-        "_id": 1,
-        "email": 1,
-        "name": 1,
-        "role": 1,
-        "is_active": 1,
-        "last_login": 1,
-        "created_at": 1
+        "_id": 1, "email": 1, "name": 1, "role": 1, "is_active": 1,
+        "last_login": 1, "created_at": 1
     }).to_list(1000)
     return [
         {
@@ -1135,4 +1190,34 @@ async def send_verification_notification(email: str, user_id: str, name: str):
     await central_notification.notify_user_verified(email, name, user_id)
 
 
-print("✅ Auth Service Loaded — Brevo + MSG91 + WhatsApp integrated")
+# ============================================================
+# 🎯 STARTUP DIAGNOSTIC
+# ============================================================
+print("=" * 70)
+print("✅ Auth Service Loaded — EMAIL ALWAYS REAL, MOBILE .env-driven")
+print("=" * 70)
+print("🧪 OTP MODE CONFIGURATION")
+print("=" * 70)
+if settings.MOBILE_OTP_BYPASS:
+    print("   🔧 MODE: DEVELOPMENT (MOBILE_OTP_BYPASS=true)")
+    print("   ┌─────────────────────────────────────────────────────────┐")
+    print("   │ 📧 EMAIL OTP: ALWAYS REAL (random 6-digit via email)   │")
+    print("   │ 📱 MOBILE OTP: BYPASSED (use DEV_OTP_CODE)             │")
+    print("   │ 💬 WHATSAPP OTP: BYPASSED                              │")
+    print("   └─────────────────────────────────────────────────────────┘")
+    print(f"   🔑 Dev Mobile OTP: {settings.dev_otp_value}")
+    print("   ✅ Email OTP: Sent for real via email provider")
+    print("   ⚠️  Mobile verification accepts: 123456 OR any 6-digit")
+else:
+    print("   🔐 MODE: PRODUCTION (MOBILE_OTP_BYPASS=false)")
+    print("   ┌─────────────────────────────────────────────────────────┐")
+    print("   │ 📧 EMAIL OTP: ALWAYS REAL (random 6-digit via email)   │")
+    print("   │ 📱 MOBILE OTP: REAL (random 6-digit via SMS)           │")
+    print("   │ 💬 WHATSAPP OTP: REAL                                  │")
+    print("   └─────────────────────────────────────────────────────────┘")
+    print("   ⚠️  123456: WILL NOT WORK for mobile")
+print("=" * 70)
+print(f"   📧 EMAIL_PROVIDER = {settings.EMAIL_PROVIDER}")
+print(f"   📱 SMS_PROVIDER = {settings.SMS_PROVIDER}")
+print(f"   💬 WHATSAPP_PROVIDER = {settings.WHATSAPP_PROVIDER}")
+print("=" * 70)

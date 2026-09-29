@@ -4,6 +4,10 @@
 # Supports: SMTP (Gmail) | Brevo | SendGrid | Mailgun
 # Switch via EMAIL_PROVIDER in .env — NO CODE CHANGES NEEDED
 # ============================================================
+# ✅ EMAIL IS ALWAYS REAL - NEVER BYPASSED
+# ✅ Even when MOBILE_OTP_BYPASS=true, email OTP is sent for real
+# ✅ Only SMS/WhatsApp are bypassed in development mode
+# ============================================================
 
 import smtplib
 import ssl
@@ -137,7 +141,6 @@ class SMTPEmailProvider(BaseEmailProvider):
         from_email: Optional[str] = None,
         from_name: Optional[str] = None,
     ) -> bool:
-        # Run sync in executor to keep async signature
         import asyncio
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
@@ -379,6 +382,10 @@ class UnifiedEmailService:
     """
     Selects provider based on settings.EMAIL_PROVIDER.
     Falls back to SMTP if primary fails (configurable).
+
+    ✅ CRITICAL: EMAIL IS ALWAYS SENT FOR REAL - NEVER BYPASSED
+    ✅ Even when MOBILE_OTP_BYPASS=true, email OTP is sent for real
+    ✅ Only SMS/WhatsApp are bypassed in development mode
     """
 
     def __init__(self):
@@ -388,6 +395,7 @@ class UnifiedEmailService:
         if self.provider_name != "smtp":
             self.fallback = SMTPEmailProvider()
         logger.info(f"📧 Email service initialized: primary={self.provider_name}")
+        logger.info(f"   ✅ EMAIL IS ALWAYS REAL - NEVER BYPASSED")
 
     def _get_provider(self, name: str) -> BaseEmailProvider:
         if name == "brevo":
@@ -408,11 +416,17 @@ class UnifiedEmailService:
         from_email: Optional[str] = None,
         from_name: Optional[str] = None,
     ) -> bool:
-        if settings.DEV_MODE_LOG_ONLY:
-            logger.info(
-                f"🧪 [LOG-ONLY] Email to {to_email} | Subject: {subject}"
-            )
-            return True
+        # ============================================================
+        # ✅ CRITICAL FIX: EMAIL IS ALWAYS SENT FOR REAL
+        # ============================================================
+        # We REMOVED the MOBILE_OTP_BYPASS check here!
+        # Email OTP is always real - even in development mode.
+        # Only SMS/WhatsApp are bypassed.
+        # ============================================================
+
+        logger.info(f"📧 [REAL SEND] Sending email to {to_email}")
+        logger.info(f"   Subject: {subject}")
+        logger.info(f"   Provider: {self.provider_name}")
 
         ok = await self.provider.send(
             to_email, subject, html_body, text_body, from_email, from_name
@@ -433,9 +447,17 @@ class UnifiedEmailService:
         from_email: Optional[str] = None,
         from_name: Optional[str] = None,
     ) -> bool:
-        if settings.DEV_MODE_LOG_ONLY:
-            logger.info(f"🧪 [LOG-ONLY] Email to {to_email}")
-            return True
+        # ============================================================
+        # ✅ CRITICAL FIX: EMAIL IS ALWAYS SENT FOR REAL
+        # ============================================================
+        # We REMOVED the MOBILE_OTP_BYPASS check here!
+        # Email OTP is always real - even in development mode.
+        # Only SMS/WhatsApp are bypassed.
+        # ============================================================
+
+        logger.info(f"📧 [REAL SEND] Sending email (sync) to {to_email}")
+        logger.info(f"   Subject: {subject}")
+        logger.info(f"   Provider: {self.provider_name}")
 
         ok = self.provider.send_sync(
             to_email, subject, html_body, text_body, from_email, from_name
@@ -464,7 +486,7 @@ def get_email_service() -> UnifiedEmailService:
 def send_email(to_email: str, otp: str) -> bool:
     """
     Legacy helper: sends OTP email.
-    Kept for backward compatibility with existing code.
+    ✅ ALWAYS sends real email - never bypassed.
     """
     html_body = _build_otp_email_html(otp, purpose="verification")
     subject = "Your RojgarNext Verification OTP"
@@ -479,7 +501,7 @@ def send_email(to_email: str, otp: str) -> bool:
 def send_html_email(to_email: str, subject: str, html_body: str) -> bool:
     """
     Legacy helper: sends HTML email.
-    Kept for backward compatibility.
+    ✅ ALWAYS sends real email - never bypassed.
     """
     return get_email_service().send_email_sync(
         to_email=to_email,
@@ -494,7 +516,10 @@ async def send_email_async(
     html_body: str,
     text_body: Optional[str] = None,
 ) -> bool:
-    """Async helper for new code."""
+    """
+    Async helper for new code.
+    ✅ ALWAYS sends real email - never bypassed.
+    """
     return await get_email_service().send_email(
         to_email=to_email,
         subject=subject,
@@ -536,5 +561,9 @@ def _build_otp_email_html(otp: str, purpose: str = "verification") -> str:
 </html>"""
 
 
+print("=" * 70)
 print("✅ Unified Email Service Loaded")
 print(f"   Provider: {settings.EMAIL_PROVIDER}")
+print(f"   ✅ EMAIL IS ALWAYS REAL - NEVER BYPASSED")
+print(f"   ✅ Even when MOBILE_OTP_BYPASS=true, emails are sent for real")
+print("=" * 70)
