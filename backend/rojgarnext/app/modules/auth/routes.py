@@ -124,42 +124,37 @@ async def login(
     try:
         login_result = await login_user(login_data, request)
     except HTTPException as e:
+        # ✅ Pass detailed error through
         raise e
     except Exception as e:
         logger.error(f"Login error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error during login")
 
-    # Update location if provided
+    # Update location if provided (only on successful login)
     if login_result.get("access_token") and latitude is not None and longitude is not None:
-        db = get_db()
-        email_lower = email.lower().strip()
-        user = await db.auth.find_one({"email": email_lower})
-        location_data = await location_handler.get_location_name(latitude, longitude)
-        new_location_data = {
-            "latitude": latitude,
-            "longitude": longitude,
-            "location_name": location_name or location_data.get("location_name", f"{latitude}, {longitude}"),
-            "city": location_data.get("city", ""),
-            "district": location_data.get("district", ""),
-            "state": location_data.get("state", ""),
-            "country": location_data.get("country", "India"),
-            "last_updated": datetime.utcnow()
-        }
-        distance_moved = None
-        if user and user.get("current_location"):
-            cur = user["current_location"]
-            old_lat = cur.get("latitude")
-            old_lng = cur.get("longitude")
-            if old_lat is not None and old_lng is not None:
-                distance_moved = location_handler.calculate_distance(old_lat, old_lng, latitude, longitude)
-        await db.auth.update_one(
-            {"email": email_lower},
-            {"$set": {"current_location": new_location_data, "last_location_update": datetime.utcnow()}}
-        )
-        login_result["location_updated"] = True
-        if distance_moved is not None:
-            login_result["distance_moved_meters"] = round(distance_moved, 2)
-        login_result["current_location"] = new_location_data
+        try:
+            db = get_db()
+            email_lower = email.lower().strip()
+            location_data = await location_handler.get_location_name(latitude, longitude)
+            new_location_data = {
+                "latitude": latitude,
+                "longitude": longitude,
+                "location_name": location_name or location_data.get("location_name", f"{latitude}, {longitude}"),
+                "city": location_data.get("city", ""),
+                "district": location_data.get("district", ""),
+                "state": location_data.get("state", ""),
+                "country": location_data.get("country", "India"),
+                "last_updated": datetime.utcnow()
+            }
+            await db.auth.update_one(
+                {"email": email_lower},
+                {"$set": {"current_location": new_location_data, "last_location_update": datetime.utcnow()}}
+            )
+            login_result["location_updated"] = True
+            login_result["current_location"] = new_location_data
+        except Exception as loc_error:
+            logger.warning(f"Location update failed during login: {loc_error}")
+            # Don't fail login if location fails
 
     return JSONResponse(content=serialize_dates(login_result))
 

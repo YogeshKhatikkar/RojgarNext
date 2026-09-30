@@ -276,11 +276,29 @@ app.add_middleware(
 )
 
 # ================= ERROR HANDLERS =================
+# ================= ERROR HANDLERS =================
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """
+    Handle HTTP exceptions with full detail support.
+    Preserves dict detail for account lock info.
+    """
+    # ✅ If detail is a dict, return it as-is with full info
+    if isinstance(exc.detail, dict):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "success": False,
+                "code": exc.detail.get("code", f"E{exc.status_code}"),
+                "message": exc.detail.get("message", "HTTP Error"),
+                "detail": exc.detail,  # ✅ Full detail dict preserved
+                "request_id": str(uuid.uuid4())[:8],
+            }
+        )
+    
     return ApiResponse.error(
         message=str(exc.detail) if isinstance(exc.detail, str) else "HTTP Error",
         code=f"E{exc.status_code}",

@@ -1,10 +1,63 @@
 // lib/core/network/dio_client.dart
 // ✅ COMPLETE WITH ERROR HANDLING
+// ✅ FIXED: 403, 401, 429 are treated as ERRORS
+// ✅ PRESERVES detailed error info including lock_until
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 import '../storage/secure_storage.dart';
+
+/// ✅ Custom exception for detailed API errors
+class ApiException implements Exception {
+  final int statusCode;
+  final String code;
+  final String message;
+  final Map<String, dynamic>? detail;
+  
+  ApiException({
+    required this.statusCode,
+    required this.code,
+    required this.message,
+    this.detail,
+  });
+  
+  /// ✅ Check if this is an account lock error
+  bool get isAccountLocked => 
+      code == 'ACCOUNT_LOCKED' || 
+      detail?['code'] == 'ACCOUNT_LOCKED';
+  
+  /// ✅ Get remaining seconds until unlock
+  int? get secondsRemaining {
+    final sec = detail?['seconds_remaining'];
+    if (sec is int) return sec;
+    if (sec is String) return int.tryParse(sec);
+    return null;
+  }
+  
+  /// ✅ Get lock_until timestamp
+  DateTime? get lockUntil {
+    final until = detail?['lock_until'];
+    if (until is String) {
+      try {
+        return DateTime.parse(until);
+      } catch (_) {}
+    }
+    return null;
+  }
+  
+  /// ✅ Get remaining attempts
+  int? get remainingAttempts {
+    final remaining = detail?['remaining_attempts'];
+    if (remaining is int) return remaining;
+    if (remaining is String) return int.tryParse(remaining);
+    return null;
+  }
+  
+  @override
+  String toString() => message;
+}
+
 
 class DioClient {
   static Dio? _dio;
@@ -27,7 +80,9 @@ class DioClient {
         contentType: Headers.jsonContentType,
         responseType: ResponseType.json,
         validateStatus: (status) {
-          return status != null && status < 500;
+          // ✅ CRITICAL: Only 2xx = success
+          // 4xx/5xx all throw DioException
+          return status != null && status >= 200 && status < 300;
         },
       ),
     );
@@ -41,7 +96,6 @@ class DioClient {
           }
           if (kDebugMode) {
             debugPrint("🌐 REQUEST: ${options.method} ${options.uri}");
-            debugPrint("📦 Headers: ${options.headers}");
             if (options.data != null) {
               debugPrint("📦 Body: ${options.data}");
             }
@@ -56,25 +110,15 @@ class DioClient {
         },
         onError: (DioException e, handler) async {
           if (kDebugMode) {
-            debugPrint("❌ DIO ERROR: ${e.type}");
-            debugPrint("   Message: ${e.message}");
-            debugPrint("   Response: ${e.response?.data}");
+            debugPrint("❌ DIO ERROR [${e.response?.statusCode}]: ${e.response?.data}");
           }
 
+          // ✅ Clear session ONLY on 401
           if (e.response?.statusCode == 401) {
-            await SecureStorage.clear();
+            await SecureStorage.clearAuthData();
           }
 
-          final errorMessage = extractErrorMessage(e);
-
-          return handler.reject(
-            DioException(
-              requestOptions: e.requestOptions,
-              error: errorMessage,
-              response: e.response,
-              type: e.type,
-            ),
-          );
+          return handler.next(e);
         },
       ),
     );
@@ -82,53 +126,75 @@ class DioClient {
     _isInitialized = true;
   }
 
-  static String extractErrorMessage(DioException e) {
+  /// ✅ Convert DioException to ApiException
+  static ApiException toApiException(DioException e) {
+    final statusCode = e.response?.statusCode ?? 0;
+    final data = e.response?.data;
+    
+    String code = 'E$statusCode';
+    String message = e.message ?? 'Network error';
+    Map<String, dynamic>? detail;
+    
+    if (data is Map<String, dynamic>) {
+      // ✅ Extract code
+      code = data['code']?.toString() ?? code;
+      
+      // ✅ Extract message (priority: message > detail > error)
+      if (data['message'] != null && data['message'].toString().isNotEmpty) {
+        message = data['message'].toString();
+      } else if (data['detail'] != null) {
+        final d = data['detail'];
+        if (d is Map) {
+          message = d['message']?.toString() ?? message;
+          detail = Map<String, dynamic>.from(d);
+        } else if (d is String) {
+          message = d;
+        } else if (d is List) {
+          message = d.map((e) => e.toString()).join('\n');
+        }
+      } else if (data['error'] != null) {
+        message = data['error'].toString();
+      }
+      
+      // ✅ If detail is a dict, extract it
+      if (data['detail'] is Map) {
+        detail = Map<String, dynamic>.from(data['detail'] as Map);
+        // ✅ Also check nested code in detail
+        if (detail['code'] != null) {
+          code = detail['code'].toString();
+        }
+      }
+      
+      // ✅ If top-level response IS the detail (no wrapper)
+      if (detail == null && data.containsKey('seconds_remaining')) {
+        detail = Map<String, dynamic>.from(data);
+      }
+    } else if (data is String && data.isNotEmpty) {
+      message = data;
+    }
+    
+    // ✅ Handle connection errors
     if (e.type == DioExceptionType.connectionError) {
-      return "Cannot connect to server at ${ApiConfig.baseUrl}\n\n"
+      message = "Cannot connect to server.\n\n"
           "Please ensure:\n"
           "1. Backend is running on port 8000\n"
-          "2. Run: cd backend/rojgarnext && uvicorn app.main:app --reload --port 8000\n"
-          "3. Check firewall settings\n"
-          "4. If on web, ensure CORS is configured";
-    }
-
-    if (e.type == DioExceptionType.connectionTimeout ||
+          "2. Check your internet connection";
+    } else if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.sendTimeout) {
-      return "Connection timeout. Backend might not be running on port 8000.";
+      message = "Connection timeout. Please check your internet connection.";
     }
+    
+    return ApiException(
+      statusCode: statusCode,
+      code: code,
+      message: message,
+      detail: detail,
+    );
+  }
 
-    if (e.response?.data != null) {
-      final data = e.response!.data;
-      if (data is Map<String, dynamic>) {
-        if (data.containsKey('message')) {
-          return data['message'].toString();
-        }
-        if (data.containsKey('detail')) {
-          final detail = data['detail'];
-          if (detail is List) {
-            return detail.map((e) => e.toString()).join('\n');
-          }
-          return detail.toString();
-        }
-        if (data.containsKey('error')) {
-          return data['error'].toString();
-        }
-        return data.toString();
-      } else if (data is String) {
-        return data;
-      }
-    }
-
-    if (e.response?.statusCode == 404) {
-      return "API endpoint not found (404). Please check if the backend is running correctly.";
-    }
-
-    if (e.response?.statusCode == 500) {
-      return "Internal server error (500). Please check backend logs.";
-    }
-
-    return e.message ?? "Network error occurred. Please try again.";
+  static String extractErrorMessage(DioException e) {
+    return toApiException(e).message;
   }
 }
 

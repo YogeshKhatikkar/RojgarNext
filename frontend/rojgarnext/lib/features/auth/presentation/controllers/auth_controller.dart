@@ -1,6 +1,11 @@
 // lib/features/auth/presentation/controllers/auth_controller.dart
-// ✅ ULTRA-FAST - NO LOCATION ON LOGIN
+// ✅ COMPLETE PRODUCTION-READY VERSION
+// ✅ AUTO-UNLOCK: Locked account automatically unlocks after countdown
+// ✅ Live countdown timer shown to user
+// ✅ No more silent failures
+// ✅ All original functionality preserved
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
@@ -8,9 +13,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:local_auth/local_auth.dart';
-import 'dart:convert';
 
 import 'package:rojgarnext/core/storage/secure_storage.dart';
+import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/features/auth/services/auth_service.dart';
 import 'package:rojgarnext/core/routes/app_routes.dart';
 import 'package:rojgarnext/core/services/unified_location_service.dart';
@@ -27,7 +32,21 @@ class AuthController extends ChangeNotifier {
   bool _isResetMobileVerified = false;
 
   // ============================================================
-  // ✅ LOCATION - ONLY FETCHED WHEN EXPLICITLY REQUESTED
+  // ✅ ACCOUNT LOCK STATE
+  // ============================================================
+  bool _isAccountLocked = false;
+  int _lockSecondsRemaining = 0;
+  DateTime? _lockUntil;
+  Timer? _lockCountdownTimer;
+  String? _lockedEmail;
+
+  bool get isAccountLocked => _isAccountLocked;
+  int get lockSecondsRemaining => _lockSecondsRemaining;
+  DateTime? get lockUntil => _lockUntil;
+  String? get lockedEmail => _lockedEmail;
+
+  // ============================================================
+  // ✅ LOCATION STATE
   // ============================================================
   Map<String, dynamic>? _currentLocation;
   DateTime? _lastLocationUpdate;
@@ -42,7 +61,7 @@ class AuthController extends ChangeNotifier {
   String get lastLocationError => _lastLocationError;
 
   // ============================================================
-  // ✅ INTERNET CONNECTION STATE
+  // ✅ INTERNET STATE
   // ============================================================
   bool _isConnected = true;
   bool get isConnected => _isConnected;
@@ -70,14 +89,102 @@ class AuthController extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ HELPER: Get Stored Email from Multiple Sources
+  // ✅ ACCOUNT LOCK HANDLING
+  // ============================================================
+  
+  /// Start lock countdown timer
+  void _startLockCountdown({
+    required int secondsRemaining,
+    required String email,
+    DateTime? lockUntil,
+  }) {
+    // Cancel any existing timer
+    _lockCountdownTimer?.cancel();
+
+    _isAccountLocked = true;
+    _lockSecondsRemaining = secondsRemaining;
+    _lockedEmail = email;
+    _lockUntil = lockUntil ?? DateTime.now().add(Duration(seconds: secondsRemaining));
+
+    debugPrint("🔒 Account locked for $secondsRemaining seconds");
+    notifyListeners();
+
+    _lockCountdownTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (timer) {
+        if (_lockSecondsRemaining <= 1) {
+          timer.cancel();
+          _onLockExpired();
+        } else {
+          _lockSecondsRemaining--;
+          notifyListeners();
+        }
+      },
+    );
+  }
+
+  /// Called when countdown reaches 0
+  void _onLockExpired() {
+    debugPrint("✅ Account lock expired - auto-unlocking");
+    _isAccountLocked = false;
+    _lockSecondsRemaining = 0;
+    _lockUntil = null;
+    final unlockedEmail = _lockedEmail;
+    _lockedEmail = null;
+    notifyListeners();
+
+    _showMessage(
+      "✅ Account unlocked! You can now login again.",
+      isError: false,
+    );
+
+    debugPrint("✅ Auto-unlocked for: $unlockedEmail");
+  }
+
+  /// Stop lock countdown (e.g., when user navigates away)
+  void stopLockCountdown() {
+    _lockCountdownTimer?.cancel();
+    _lockCountdownTimer = null;
+    _isAccountLocked = false;
+    _lockSecondsRemaining = 0;
+    _lockUntil = null;
+    _lockedEmail = null;
+    notifyListeners();
+  }
+
+  /// Format seconds to "MM:SS" or "Xm Ys"
+  String get lockCountdownDisplay {
+    if (_lockSecondsRemaining <= 0) return "0:00";
+    
+    final minutes = _lockSecondsRemaining ~/ 60;
+    final seconds = _lockSecondsRemaining % 60;
+    
+    if (minutes > 0) {
+      return "$minutes:${seconds.toString().padLeft(2, '0')}";
+    }
+    return "${seconds}s";
+  }
+
+  /// Full human-readable countdown
+  String get lockCountdownHumanReadable {
+    if (_lockSecondsRemaining <= 0) return "0 seconds";
+    
+    final minutes = _lockSecondsRemaining ~/ 60;
+    final seconds = _lockSecondsRemaining % 60;
+    
+    if (minutes > 0) {
+      return "$minutes minute${minutes > 1 ? 's' : ''} ${seconds > 0 ? '$seconds second${seconds > 1 ? 's' : ''}' : ''}";
+    }
+    return "$seconds second${seconds > 1 ? 's' : ''}";
+  }
+
+  // ============================================================
+  // ✅ HELPER: Get Stored Email
   // ============================================================
   Future<String?> _getStoredEmail() async {
     try {
       String? email = await SecureStorage.getEmail();
-      if (email != null && email.isNotEmpty) {
-        return email;
-      }
+      if (email != null && email.isNotEmpty) return email;
 
       try {
         final prefs = await SharedPreferences.getInstance();
@@ -105,7 +212,7 @@ class AuthController extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ LOCATION - ONLY FETCHED WHEN EXPLICITLY REQUESTED
+  // ✅ LOCATION METHODS
   // ============================================================
   Future<Map<String, dynamic>?> getCurrentLocationWithDetails() async {
     _setLoading(true);
@@ -121,7 +228,10 @@ class AuthController extends ChangeNotifier {
       return location;
     } catch (e) {
       _lastLocationError = e.toString();
-      _showMessage('❌ Location Error: ${e.toString().replaceAll('Exception:', '')}', isError: true);
+      _showMessage(
+        '❌ Location Error: ${e.toString().replaceAll('Exception:', '')}',
+        isError: true,
+      );
       return null;
     } finally {
       _setLoading(false);
@@ -129,7 +239,7 @@ class AuthController extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ REGISTER - ULTRA FAST (NO LOCATION)
+  // ✅ REGISTER
   // ============================================================
   Future<void> register(Map<String, dynamic> data, BuildContext context) async {
     _setLoading(true);
@@ -148,16 +258,29 @@ class AuthController extends ChangeNotifier {
         );
       }
     } catch (e) {
-      _showMessage(e.toString().replaceAll("Exception:", "").trim(), isError: true);
+      _showMessage(
+        e.toString().replaceAll("Exception:", "").trim(),
+        isError: true,
+      );
     } finally {
       _setLoading(false);
     }
   }
 
   // ============================================================
-  // ✅ LOGIN - ULTRA FAST (NO LOCATION)
+  // ✅ LOGIN - WITH AUTO-UNLOCK SUPPORT
   // ============================================================
   Future<void> login(String email, String password, BuildContext context) async {
+    // ✅ Prevent login if still locked
+    if (_isAccountLocked) {
+      _showMessage(
+        "🔒 Account is locked. Please wait ${lockCountdownHumanReadable}.",
+        isError: true,
+      );
+      return;
+    }
+
+    // Input validation
     if (email.isEmpty) {
       _showMessage("Please enter your email address", isError: true);
       return;
@@ -183,15 +306,17 @@ class AuthController extends ChangeNotifier {
       );
 
       if (res['access_token'] == null || res['access_token'].isEmpty) {
-        throw Exception("Login failed. Please check your credentials.");
+        throw ApiException(
+          statusCode: 500,
+          code: 'NO_TOKEN',
+          message: "Login failed. Please check your credentials.",
+        );
       }
 
-      await SecureStorage.setToken(res['access_token']);
-      await SecureStorage.setEmail(email);
-      await SecureStorage.setMobile(res['mobile'] ?? '');
-      await SecureStorage.setName(res['name'] ?? '');
+      // ✅ Clear any lock state on success
+      stopLockCountdown();
+
       final String role = (res["role"] ?? "user").toString().toLowerCase();
-      await SecureStorage.setRole(role);
 
       notifyListeners();
       _showMessage("Login Successful! ✅");
@@ -213,17 +338,57 @@ class AuthController extends ChangeNotifier {
       }
     } catch (e) {
       String errorMessage = e.toString().replaceAll("Exception:", "").trim();
-      if (errorMessage.toLowerCase().contains("invalid email") ||
-          errorMessage.toLowerCase().contains("invalid password")) {
-        _showMessage("❌ Invalid email or password. Please try again.", isError: true);
-      } else if (errorMessage.toLowerCase().contains("verify your email")) {
-        _showMessage("❌ Please verify your email first. Check your inbox for OTP.", isError: true);
-      } else if (errorMessage.toLowerCase().contains("verify your mobile")) {
-        _showMessage("❌ Please verify your mobile number first.", isError: true);
-      } else if (errorMessage.toLowerCase().contains("locked")) {
-        _showMessage("❌ Account locked due to too many failed attempts. Please try again later.", isError: true);
+      
+      // ✅ Handle ApiException with full lock info
+      if (e is ApiException) {
+        if (e.isAccountLocked) {
+          // ✅ START AUTO-UNLOCK COUNTDOWN
+          final seconds = e.secondsRemaining ?? 1800;
+          _startLockCountdown(
+            secondsRemaining: seconds,
+            email: email,
+            lockUntil: e.lockUntil,
+          );
+          
+          _showMessage(
+            "🔒 Account locked for ${lockCountdownHumanReadable}. Auto-unlock in progress...",
+            isError: true,
+          );
+        } else if (e.code == 'INVALID_PASSWORD' ||
+            e.code == 'EMAIL_NOT_VERIFIED' ||
+            e.code == 'MOBILE_NOT_VERIFIED') {
+          _showMessage(e.message, isError: true);
+        } else if (e.statusCode == 400) {
+          // Wrong password with remaining attempts
+          _showMessage(e.message, isError: true);
+        } else {
+          _showMessage(e.message, isError: true);
+        }
       } else {
-        _showMessage(errorMessage, isError: true);
+        // Non-ApiException fallback
+        final lowerError = errorMessage.toLowerCase();
+        
+        if (lowerError.contains("locked") || 
+            lowerError.contains("temporarily locked")) {
+          // Try to extract seconds from message
+          int seconds = 1800;
+          final match = RegExp(r'(\d+)\s*second').firstMatch(lowerError);
+          if (match != null) {
+            seconds = int.tryParse(match.group(1) ?? '1800') ?? 1800;
+          }
+          
+          _startLockCountdown(
+            secondsRemaining: seconds,
+            email: email,
+          );
+          
+          _showMessage(
+            "🔒 Account locked. Auto-unlock in progress...",
+            isError: true,
+          );
+        } else {
+          _showMessage(errorMessage, isError: true);
+        }
       }
     } finally {
       _setLoading(false);
@@ -231,13 +396,14 @@ class AuthController extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ UPDATE LOCATION - ONLY WHEN EXPLICITLY CALLED
+  // ✅ UPDATE LOCATION
   // ============================================================
   Future<bool> updateUserLocation() async {
     _setLoading(true);
     final location = await getCurrentLocationWithDetails();
     if (location == null) {
-      _showMessage("Could not get current location. Please enable GPS.", isError: true);
+      _showMessage("Could not get current location. Please enable GPS.",
+          isError: true);
       _setLoading(false);
       return false;
     }
@@ -318,7 +484,10 @@ class AuthController extends ChangeNotifier {
       _showMessage("OTP sent to Email & Mobile 📩");
       return result;
     } catch (e) {
-      _showMessage(e.toString().replaceAll("Exception:", "").trim(), isError: true);
+      _showMessage(
+        e.toString().replaceAll("Exception:", "").trim(),
+        isError: true,
+      );
       return null;
     } finally {
       _setLoading(false);
@@ -343,26 +512,33 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  Future<bool> verifyResetOtp(String email, String mobile, String emailOtp, String mobileOtp) async {
+  Future<bool> verifyResetOtp(
+      String email, String mobile, String emailOtp, String mobileOtp) async {
     _setLoading(true);
     try {
-      await AuthService.verifyResetEmail(<String, dynamic>{"email": email, "otp": emailOtp});
+      await AuthService.verifyResetEmail(
+          <String, dynamic>{"email": email, "otp": emailOtp});
       _isResetEmailVerified = true;
-      await AuthService.verifyResetMobile(<String, dynamic>{"mobile": mobile, "otp": mobileOtp});
+      await AuthService.verifyResetMobile(
+          <String, dynamic>{"mobile": mobile, "otp": mobileOtp});
       _isResetMobileVerified = true;
       _showMessage("OTP Verified! ✅");
       return true;
     } catch (e) {
       _isResetEmailVerified = false;
       _isResetMobileVerified = false;
-      _showMessage(e.toString().replaceAll("Exception:", "").trim(), isError: true);
+      _showMessage(
+        e.toString().replaceAll("Exception:", "").trim(),
+        isError: true,
+      );
       return false;
     } finally {
       _setLoading(false);
     }
   }
 
-  bool get isResetOtpVerified => _isResetEmailVerified && _isResetMobileVerified;
+  bool get isResetOtpVerified =>
+      _isResetEmailVerified && _isResetMobileVerified;
 
   Future<bool> resetPassword(String email, String newPassword) async {
     if (!isResetOtpVerified) {
@@ -371,7 +547,8 @@ class AuthController extends ChangeNotifier {
     }
     _setLoading(true);
     try {
-      await AuthService.resetPassword(<String, dynamic>{"email": email, "new_password": newPassword});
+      await AuthService.resetPassword(
+          <String, dynamic>{"email": email, "new_password": newPassword});
       await SecureStorage.logout();
       _showMessage("Password changed! 🎉 Please login with your new password.");
       _isResetEmailVerified = false;
@@ -379,7 +556,10 @@ class AuthController extends ChangeNotifier {
       clearLocationCache();
       return true;
     } catch (e) {
-      _showMessage(e.toString().replaceAll("Exception:", "").trim(), isError: true);
+      _showMessage(
+        e.toString().replaceAll("Exception:", "").trim(),
+        isError: true,
+      );
       return false;
     } finally {
       _setLoading(false);
@@ -399,7 +579,8 @@ class AuthController extends ChangeNotifier {
       return;
     }
     if (email.isEmpty || !email.contains('@')) {
-      _showMessage("Invalid email. Please login again with email & password.", isError: true);
+      _showMessage("Invalid email. Please login again with email & password.",
+          isError: true);
       return;
     }
     _setLoading(true);
@@ -415,14 +596,17 @@ class AuthController extends ChangeNotifier {
       await SecureStorage.setMpinEnabled(true);
       _showMessage("MPIN Setup Successful! ✅");
     } catch (e) {
-      _showMessage(e.toString().replaceAll("Exception:", "").trim(), isError: true);
+      _showMessage(
+        e.toString().replaceAll("Exception:", "").trim(),
+        isError: true,
+      );
     } finally {
       _setLoading(false);
     }
   }
 
   // ============================================================
-  // ✅ BIOMETRIC ENABLE
+  // ✅ BIOMETRIC
   // ============================================================
   Future<void> enableBiometric(String email) async {
     if (email.isEmpty || !email.contains('@')) {
@@ -450,7 +634,10 @@ class AuthController extends ChangeNotifier {
       await SecureStorage.setBiometricType(biometricType);
       _showMessage("🔐 Fingerprint Login Enabled Successfully!");
     } catch (e) {
-      _showMessage(e.toString().replaceAll("Exception:", "").trim(), isError: true);
+      _showMessage(
+        e.toString().replaceAll("Exception:", "").trim(),
+        isError: true,
+      );
     } finally {
       _setLoading(false);
     }
@@ -492,7 +679,9 @@ class AuthController extends ChangeNotifier {
 
   Future<String> _getDeviceId() async {
     try {
-      if (PlatformUtils.isWeb) return "web_${DateTime.now().millisecondsSinceEpoch}";
+      if (PlatformUtils.isWeb) {
+        return "web_${DateTime.now().millisecondsSinceEpoch}";
+      }
       if (PlatformUtils.isAndroid) {
         final deviceInfo = DeviceInfoPlugin();
         final androidInfo = await deviceInfo.androidInfo;
@@ -511,7 +700,8 @@ class AuthController extends ChangeNotifier {
   // ============================================================
   // ✅ MPIN LOGIN
   // ============================================================
-  Future<void> loginWithMpin(String email, String pin, BuildContext context) async {
+  Future<void> loginWithMpin(
+      String email, String pin, BuildContext context) async {
     if (pin.length != 6 || !RegExp(r'^\d{6}$').hasMatch(pin)) {
       _showMessage("Enter valid 6-digit MPIN", isError: true);
       return;
@@ -521,7 +711,11 @@ class AuthController extends ChangeNotifier {
       final Map<String, dynamic> requestData = {"email": email, "pin": pin};
       final res = await AuthService.loginPin(requestData);
       if (res['success'] == false || res['access_token'] == null) {
-        throw Exception(res['message'] ?? 'MPIN login failed.');
+        throw ApiException(
+          statusCode: 400,
+          code: 'MPIN_FAILED',
+          message: res['message'] ?? 'MPIN login failed.',
+        );
       }
       final String role = (res["role"] ?? "user").toString().toLowerCase();
       notifyListeners();
@@ -542,7 +736,10 @@ class AuthController extends ChangeNotifier {
         }
       }
     } catch (e) {
-      _showMessage(e.toString().replaceAll("Exception:", "").trim(), isError: true);
+      _showMessage(
+        e.toString().replaceAll("Exception:", "").trim(),
+        isError: true,
+      );
     } finally {
       _setLoading(false);
     }
@@ -555,7 +752,10 @@ class AuthController extends ChangeNotifier {
     _setLoading(true);
     try {
       if (PlatformUtils.isWeb) {
-        _showMessage('🌐 Fingerprint login is not available on Web browsers.', isError: true);
+        _showMessage(
+          '🌐 Fingerprint login is not available on Web browsers.',
+          isError: true,
+        );
         _setLoading(false);
         return;
       }
@@ -565,9 +765,17 @@ class AuthController extends ChangeNotifier {
         if (shouldEnable == true && context.mounted) {
           final email = await _getStoredEmail();
           if (email != null && email.isNotEmpty) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => FingerprintSetupPage(email: email)));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => FingerprintSetupPage(email: email),
+              ),
+            );
           } else {
-            _showMessage('📧 Please login with email & password first to enable fingerprint.', isError: true);
+            _showMessage(
+              '📧 Please login with email & password first to enable fingerprint.',
+              isError: true,
+            );
           }
         }
         _setLoading(false);
@@ -576,35 +784,58 @@ class AuthController extends ChangeNotifier {
       final localAuth = LocalAuthentication();
       final isDeviceSupported = await localAuth.isDeviceSupported();
       if (!isDeviceSupported) {
-        _showMessage('📱 Fingerprint authentication is not supported on this device.', isError: true);
+        _showMessage(
+          '📱 Fingerprint authentication is not supported on this device.',
+          isError: true,
+        );
         _setLoading(false);
         return;
       }
       final canCheckBiometrics = await localAuth.canCheckBiometrics;
       if (!canCheckBiometrics) {
-        _showMessage('❌ No fingerprint enrolled on this device.\n\nPlease enable fingerprint in your device settings.', isError: true);
+        _showMessage(
+          '❌ No fingerprint enrolled.\nPlease enable fingerprint in device settings.',
+          isError: true,
+        );
         _setLoading(false);
         return;
       }
       String? email = await _getStoredEmail();
       if (email == null || email.isEmpty) {
-        _showMessage('📧 Email not found.\n\nPlease login with email & password at least once.', isError: true);
+        _showMessage(
+          '📧 Email not found.\nPlease login with email & password once.',
+          isError: true,
+        );
         _setLoading(false);
         return;
       }
       final didAuthenticate = await localAuth.authenticate(
         localizedReason: 'Login to RojgarNext with your fingerprint',
-        options: AuthenticationOptions(biometricOnly: true, stickyAuth: true),
+        options: AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
       );
       if (!didAuthenticate) {
-        _showMessage('❌ Fingerprint authentication cancelled or failed.\n\nPlease try again or use password login.', isError: true);
+        _showMessage(
+          '❌ Fingerprint authentication cancelled or failed.',
+          isError: true,
+        );
         _setLoading(false);
         return;
       }
-      final requestData = <String, dynamic>{"email": email, "device_info": await _getDeviceInfo(), "device_id": await _getDeviceId()};
+      final requestData = <String, dynamic>{
+        "email": email,
+        "device_info": await _getDeviceInfo(),
+        "device_id": await _getDeviceId(),
+      };
       final res = await AuthService.biometricLogin(requestData);
       if (res['success'] == false || res['access_token'] == null) {
-        throw Exception(res['message'] ?? 'Biometric login failed.');
+        throw ApiException(
+          statusCode: 400,
+          code: 'BIOMETRIC_FAILED',
+          message: res['message'] ?? 'Biometric login failed.',
+        );
       }
       final String role = (res["role"] ?? "user").toString().toLowerCase();
       await SecureStorage.setToken(res['access_token']);
@@ -631,7 +862,10 @@ class AuthController extends ChangeNotifier {
         }
       }
     } catch (e) {
-      _showMessage("❌ Fingerprint login failed: ${e.toString().replaceAll('Exception:', '').trim()}", isError: true);
+      _showMessage(
+        "❌ Fingerprint login failed: ${e.toString().replaceAll('Exception:', '').trim()}",
+        isError: true,
+      );
     } finally {
       _setLoading(false);
     }
@@ -643,109 +877,55 @@ class AuthController extends ChangeNotifier {
       barrierDismissible: true,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(children: [Icon(Icons.fingerprint, color: Colors.blue, size: 28), SizedBox(width: 12), Text("Enable Fingerprint Login")]),
-        content: const Text("Fingerprint login is not enabled yet.\n\nWould you like to enable it now?\n\nYou'll need to verify your fingerprint once to set it up.\n\n✅ Your fingerprint will NEVER be deleted on logout.", style: TextStyle(fontSize: 14, height: 1.5)),
+        title: const Row(
+          children: [
+            Icon(Icons.fingerprint, color: Colors.blue, size: 28),
+            SizedBox(width: 12),
+            Text("Enable Fingerprint Login"),
+          ],
+        ),
+        content: const Text(
+          "Fingerprint login is not enabled yet.\n\n"
+          "Would you like to enable it now?\n\n"
+          "✅ Your fingerprint will NEVER be deleted on logout.",
+          style: TextStyle(fontSize: 14, height: 1.5),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text("Cancel")),
-          ElevatedButton(onPressed: () => Navigator.pop(dialogContext, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.fingerprint, size: 18, color: Colors.white), SizedBox(width: 8), Text("Enable Now")])),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.fingerprint, size: 18, color: Colors.white),
+                SizedBox(width: 8),
+                Text("Enable Now"),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // ============================================================
-  // ✅ CHECK AND HANDLE BIOMETRIC LOGIN
-  // ============================================================
   Future<void> checkAndHandleBiometricLogin(BuildContext context) async {
-    _setLoading(true);
-    try {
-      if (PlatformUtils.isWeb) {
-        _showMessage('🌐 Fingerprint login is not available on Web browsers.', isError: true);
-        _setLoading(false);
-        return;
-      }
-      final isBiometricEnabled = await SecureStorage.isBiometricEnabled();
-      if (!isBiometricEnabled) {
-        final shouldEnable = await _showEnableBiometricDialog(context);
-        if (shouldEnable == true && context.mounted) {
-          final email = await _getStoredEmail();
-          if (email != null && email.isNotEmpty) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => FingerprintSetupPage(email: email)));
-          } else {
-            _showMessage('Please login with email & password first to enable biometric.', isError: true);
-          }
-        }
-        _setLoading(false);
-        return;
-      }
-      final localAuth = LocalAuthentication();
-      final isDeviceSupported = await localAuth.isDeviceSupported();
-      if (!isDeviceSupported) {
-        _showMessage('📱 Fingerprint authentication is not supported on this device.', isError: true);
-        _setLoading(false);
-        return;
-      }
-      final canCheckBiometrics = await localAuth.canCheckBiometrics;
-      if (!canCheckBiometrics) {
-        _showMessage('❌ No fingerprint enrolled on this device.\n\nPlease enable fingerprint in your device settings.', isError: true);
-        _setLoading(false);
-        return;
-      }
-      String? email = await _getStoredEmail();
-      if (email == null || email.isEmpty) {
-        _showMessage('📧 Email not found.\n\nPlease login with email & password at least once.', isError: true);
-        _setLoading(false);
-        return;
-      }
-      final didAuthenticate = await localAuth.authenticate(
-        localizedReason: 'Login to RojgarNext',
-        options: AuthenticationOptions(biometricOnly: true, stickyAuth: true),
-      );
-      if (!didAuthenticate) {
-        _showMessage('❌ Fingerprint authentication cancelled or failed.', isError: true);
-        _setLoading(false);
-        return;
-      }
-      final requestData = <String, dynamic>{"email": email};
-      final res = await AuthService.biometricLogin(requestData);
-      if (res['success'] == false || res['access_token'] == null) {
-        throw Exception(res['message'] ?? 'Biometric login failed.');
-      }
-      final String role = (res["role"] ?? "user").toString().toLowerCase();
-      await SecureStorage.setToken(res['access_token']);
-      await SecureStorage.setRole(role);
-      await SecureStorage.setEmail(res['email'] ?? email);
-      await SecureStorage.setName(res['name'] ?? '');
-      await SecureStorage.setMobile(res['mobile'] ?? '');
-      await SecureStorage.setBiometricEnabled(true);
-      notifyListeners();
-      _showMessage("✅ Fingerprint Login Successful! 🎉");
-      if (context.mounted) {
-        switch (role) {
-          case "superadmin":
-            GoRouter.of(context).pushReplacement(AppRoutes.superAdminDashboard);
-            break;
-          case "admin":
-            GoRouter.of(context).pushReplacement(AppRoutes.adminDashboard);
-            break;
-          case "customadmin":
-            GoRouter.of(context).pushReplacement(AppRoutes.customAdminDashboard);
-            break;
-          default:
-            GoRouter.of(context).pushReplacement(AppRoutes.userDashboard);
-        }
-      }
-    } catch (e) {
-      _showMessage("❌ Fingerprint login failed: ${e.toString().replaceAll('Exception:', '').trim()}", isError: true);
-    } finally {
-      _setLoading(false);
-    }
+    return await biometricLogin(context);
   }
 
   // ============================================================
-  // ✅ LOGOUT - PRESERVE BIOMETRIC AND MPIN
+  // ✅ LOGOUT
   // ============================================================
   Future<void> logout() async {
+    stopLockCountdown();
     await SecureStorage.logout();
     _currentLocation = null;
     _lastLocationUpdate = null;
@@ -773,5 +953,11 @@ class AuthController extends ChangeNotifier {
       'mobile': await SecureStorage.getMobile() ?? '',
       'role': await SecureStorage.getRole() ?? 'user',
     };
+  }
+
+  @override
+  void dispose() {
+    stopLockCountdown();
+    super.dispose();
   }
 }

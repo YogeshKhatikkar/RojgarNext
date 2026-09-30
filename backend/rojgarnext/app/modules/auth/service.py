@@ -769,48 +769,180 @@ async def verify_mobile_otp(data):
 
 
 # ============================================================
-# LOGIN (Email + Password)
+# LOGIN (Email + Password) - COMPLETE FIXED WITH LOCK INFO
 # ============================================================
 async def login_user(data, request: Request):
+    """
+    Login with email and password.
+    
+    Returns lock info if account is locked:
+    - lock_until: ISO timestamp when account unlocks
+    - seconds_remaining: seconds until unlock
+    - failed_attempts: current failed attempts count
+    """
     db = await get_db_safe()
     email_lower = data.email.lower().strip()
 
     user = await db.auth.find_one({"email": email_lower})
     if not user:
         logger.warning(f"❌ Login failed: User not found - {email_lower}")
-        raise HTTPException(400, "Invalid email or password")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid email or password"
+        )
 
-    if user.get("lock_until") and datetime.utcnow() < user["lock_until"]:
-        raise HTTPException(403, "Account temporarily locked.")
+    # ============================================================
+    # ✅ CHECK IF ACCOUNT IS LOCKED
+    # ============================================================
+    lock_until = user.get("lock_until")
+    if lock_until:
+        now = datetime.utcnow()
+        
+        # Ensure lock_until is timezone-naive
+        if lock_until.tzinfo is not None:
+            lock_until = lock_until.replace(tzinfo=None)
+        
+        if now < lock_until:
+            # ✅ Account IS still locked
+            seconds_remaining = int((lock_until - now).total_seconds())
+            
+            logger.warning(
+                f"🔒 Login blocked - Account locked for {seconds_remaining}s "
+                f"- {email_lower}"
+            )
+            
+            # ✅ Return DETAILED lock info
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "ACCOUNT_LOCKED",
+                    "message": f"Account temporarily locked. Please try again after {seconds_remaining} seconds.",
+                    "lock_until": lock_until.isoformat(),
+                    "seconds_remaining": seconds_remaining,
+                    "failed_attempts": user.get("failed_attempts", 0),
+                    "email": email_lower,
+                }
+            )
+        else:
+            # ✅ Lock expired - auto-unlock
+            logger.info(f"🔓 Auto-unlocking expired account: {email_lower}")
+            await db.auth.update_one(
+                {"email": email_lower},
+                {
+                    "$set": {
+                        "failed_attempts": 0,
+                        "lock_until": None,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            # Refresh user data
+            user = await db.auth.find_one({"email": email_lower})
+            if not user:
+                raise HTTPException(status_code=400, detail="User not found")
 
+    # ============================================================
+    # ✅ CHECK EMAIL VERIFICATION
+    # ============================================================
     if not user.get("is_email_verified", False):
-        raise HTTPException(403, "Please verify your email first.")
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "EMAIL_NOT_VERIFIED",
+                "message": "Please verify your email first. Check your inbox for OTP.",
+                "email": email_lower,
+            }
+        )
 
     if not user.get("is_mobile_verified", False):
-        raise HTTPException(403, "Please verify your mobile number first.")
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "MOBILE_NOT_VERIFIED",
+                "message": "Please verify your mobile number first.",
+                "email": email_lower,
+            }
+        )
 
+    # ============================================================
+    # ✅ CHECK PASSWORD
+    # ============================================================
     if not verify_password(data.password, user["password"]):
         attempts = user.get("failed_attempts", 0) + 1
-        update_data = {"failed_attempts": attempts}
-        if attempts >= 5:
-            update_data["lock_until"] = datetime.utcnow() + timedelta(minutes=30)
-            await db.auth.update_one({"email": email_lower}, {"$set": update_data})
-            raise HTTPException(403, "Too many failed attempts. Locked for 30 minutes.")
-        await db.auth.update_one({"email": email_lower}, {"$set": update_data})
-        raise HTTPException(400, f"Invalid credentials. {5 - attempts} attempts remaining.")
+        max_attempts = 5
+        
+        update_data = {
+            "failed_attempts": attempts,
+            "last_failed_login": datetime.utcnow()
+        }
+        
+        # ✅ Lock account if max attempts exceeded
+        if attempts >= max_attempts:
+            lock_until_new = datetime.utcnow() + timedelta(minutes=30)
+            update_data["lock_until"] = lock_until_new
+            
+            await db.auth.update_one(
+                {"email": email_lower},
+                {"$set": update_data}
+            )
+            
+            logger.warning(
+                f"🔒 Account LOCKED for 30 minutes: {email_lower} "
+                f"(attempts: {attempts})"
+            )
+            
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "ACCOUNT_LOCKED",
+                    "message": f"Too many failed attempts. Account locked for 30 minutes.",
+                    "lock_until": lock_until_new.isoformat(),
+                    "seconds_remaining": 1800,  # 30 minutes in seconds
+                    "failed_attempts": attempts,
+                    "email": email_lower,
+                }
+            )
+        
+        await db.auth.update_one(
+            {"email": email_lower},
+            {"$set": update_data}
+        )
+        
+        remaining = max_attempts - attempts
+        logger.warning(
+            f"❌ Wrong password for {email_lower}. "
+            f"Attempts: {attempts}/{max_attempts}"
+        )
+        
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "INVALID_PASSWORD",
+                "message": f"Invalid password. {remaining} attempts remaining.",
+                "remaining_attempts": remaining,
+                "failed_attempts": attempts,
+            }
+        )
 
+    # ============================================================
+    # ✅ SUCCESSFUL LOGIN
+    # ============================================================
     user_role = user.get("role", "user")
     if user_role == "custom_admin":
         user_role = "customadmin"
 
+    # Reset failed attempts and lock
     await db.auth.update_one(
         {"email": email_lower},
-        {"$set": {
-            "failed_attempts": 0,
-            "lock_until": None,
-            "last_login": datetime.utcnow(),
-            "last_login_ip": request.client.host
-        }}
+        {
+            "$set": {
+                "failed_attempts": 0,
+                "lock_until": None,
+                "last_login": datetime.utcnow(),
+                "last_login_ip": request.client.host if request.client else "",
+                "updated_at": datetime.utcnow()
+            }
+        }
     )
 
     profile = await db.profile.find_one({"email": email_lower})
@@ -836,7 +968,7 @@ async def login_user(data, request: Request):
         "role": user_role,
         "session_hash": secrets.token_hex(32),
         "refresh_token": refresh,
-        "ip": request.client.host,
+        "ip": request.client.host if request.client else "",
         "device": request.headers.get("user-agent", "Unknown"),
         "created_at": datetime.utcnow(),
         "expires_at": datetime.utcnow() + timedelta(days=7),
@@ -1085,13 +1217,19 @@ async def resend_reset_mobile_otp_service(mobile: str, background_tasks: Backgro
 
 
 # ============================================================
-# VERIFY RESET OTP
+# VERIFY RESET EMAIL OTP - FIXED (Don't clear OTP)
 # ============================================================
 async def verify_reset_email_otp(data):
     db = await get_db_safe()
     user = await db.auth.find_one({"email": data.email})
     if not user:
         raise HTTPException(404, "User not found")
+    
+    # ✅ Check if already verified (allow re-verification)
+    if user.get("reset_email_verified") == True:
+        logger.info(f"✅ Email already verified for {data.email}")
+        return {"msg": "Reset Email OTP already verified"}
+    
     if not user.get("reset_email_expiry") or datetime.utcnow() > user["reset_email_expiry"]:
         raise HTTPException(400, "Reset Email OTP expired")
     if user.get("reset_email_attempts", 0) >= 5:
@@ -1106,18 +1244,23 @@ async def verify_reset_email_otp(data):
         )
         raise HTTPException(400, "Invalid Reset Email OTP")
 
+    # ✅ FIXED: DON'T clear the OTP — just mark as verified
+    # OTP will be cleared only after successful password reset
     await db.auth.update_one(
         {"email": data.email},
         {"$set": {
             "reset_email_verified": True,
-            "reset_email_otp": None,
-            "reset_email_expiry": None,
             "reset_email_attempts": 0
+            # ❌ REMOVED: "reset_email_otp": None
+            # ❌ REMOVED: "reset_email_expiry": None
         }}
     )
     return {"msg": "Reset Email OTP verified"}
 
 
+# ============================================================
+# VERIFY RESET MOBILE OTP - FIXED (Don't clear OTP)
+# ============================================================
 async def verify_reset_mobile_otp(data):
     db = await get_db_safe()
     user = await db.auth.find_one({"mobile": data.mobile})
@@ -1127,27 +1270,15 @@ async def verify_reset_mobile_otp(data):
         if not user:
             raise HTTPException(404, "User not found")
 
+    # ✅ Check if already verified (allow re-verification)
     if user.get("reset_mobile_verified") == True:
+        logger.info(f"✅ Mobile already verified")
         return {"msg": "Reset Mobile OTP already verified"}
 
     if not user.get("reset_mobile_expiry") or datetime.utcnow() > user["reset_mobile_expiry"]:
         raise HTTPException(400, "Reset Mobile OTP expired")
     if user.get("reset_mobile_attempts", 0) >= 5:
         raise HTTPException(429, "Too many attempts")
-
-    # ============================================================
-    # ✅ DEBUG LOGGING - See why OTP mismatches
-    # ============================================================
-    stored_hash = user.get("reset_mobile_otp")
-    provided_hash = hash_otp(data.otp.strip())
-    
-    logger.info("=" * 70)
-    logger.info(f"🔍 MOBILE OTP VERIFICATION DEBUG")
-    logger.info(f"   Provided OTP: {data.otp}")
-    logger.info(f"   Provided hash: {provided_hash[:20]}...")
-    logger.info(f"   Stored hash: {stored_hash[:20] if stored_hash else 'NONE'}...")
-    logger.info(f"   Match: {stored_hash == provided_hash}")
-    logger.info("=" * 70)
 
     if not is_valid_mobile_otp(user, data.otp, field_prefix="reset_mobile_otp"):
         await db.auth.update_one(
@@ -1156,20 +1287,21 @@ async def verify_reset_mobile_otp(data):
         )
         raise HTTPException(400, "Invalid Reset Mobile OTP")
 
+    # ✅ FIXED: DON'T clear the OTP — just mark as verified
     await db.auth.update_one(
         {"_id": user["_id"]},
         {"$set": {
             "reset_mobile_verified": True,
-            "reset_mobile_otp": None,
-            "reset_mobile_expiry": None,
             "reset_mobile_attempts": 0
+            # ❌ REMOVED: "reset_mobile_otp": None
+            # ❌ REMOVED: "reset_mobile_expiry": None
         }}
     )
     return {"msg": "Reset Mobile OTP verified"}
 
 
 # ============================================================
-# RESET PASSWORD
+# RESET PASSWORD - FIXED (Clear OTPs after successful reset)
 # ============================================================
 async def reset_password(data):
     db = await get_db_safe()
@@ -1198,6 +1330,7 @@ async def reset_password(data):
     if verify_password(data.new_password, user.get("password", "")):
         raise HTTPException(400, "New password cannot be same as old password")
 
+    # ✅ NOW clear everything AFTER successful password reset
     result = await db.auth.update_one(
         {"email": data.email},
         {"$set": {
@@ -1211,7 +1344,7 @@ async def reset_password(data):
             "reset_email_attempts": 0,
             "reset_mobile_attempts": 0,
             "failed_attempts": 0,
-            "lock_until": None
+            "lock_until": None  # ✅ Also unlock account
         }}
     )
 
@@ -1220,7 +1353,6 @@ async def reset_password(data):
 
     logger.info(f"✅ Password reset successful for {data.email}")
     return {"msg": "Password reset successful"}
-
 
 # ============================================================
 # LOGOUT

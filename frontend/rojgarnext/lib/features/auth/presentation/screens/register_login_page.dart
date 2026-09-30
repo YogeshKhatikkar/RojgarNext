@@ -1,9 +1,10 @@
 // lib/features/auth/presentation/screens/register_login_page.dart
-// ✅ AI‑BASED MODERN DESIGN (light gradient, glass containers, consistent with other screens)
-// ✅ MPIN Login Button Always Visible (fixed)
-// ✅ MPIN section: NO scrollbar, email + keypad + button fit on screen (web & mobile)
-// ✅ All original logic preserved (login, register, MPIN, biometric, password strength)
+// ✅ COMPLETE PRODUCTION-READY VERSION
+// ✅ LOCK SCREEN with LIVE COUNTDOWN TIMER
+// ✅ AUTO-UNLOCK when countdown reaches 0
+// ✅ All original functionality preserved
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
@@ -38,6 +39,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
   final registerMobileCtrl = TextEditingController();
   final registerPasswordCtrl = TextEditingController();
 
+  // ✅ State variables (at class level - NOT inside StatefulBuilder)
   bool showPassword = false;
   bool showRegisterPassword = false;
 
@@ -115,13 +117,18 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
   }
 
   // ============================================================
-  // BUILD – AI‑BASED MODERN UI
+  // BUILD
   // ============================================================
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthController>(context);
     final size = MediaQuery.of(context).size;
     final isMobile = size.width < 600;
+
+    // ✅ If account is locked, show LOCK SCREEN instead of login form
+    if (auth.isAccountLocked) {
+      return _buildAccountLockedScreen(auth);
+    }
 
     return Scaffold(
       body: Stack(
@@ -137,7 +144,6 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                   ),
                   child: Container(
                     width: isMobile ? double.infinity : 440,
-                    // ✅ Allow the container to shrink/grow with available height
                     constraints: BoxConstraints(
                       maxHeight: size.height - (isMobile ? 80 : 120),
                     ),
@@ -150,8 +156,6 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                         const SizedBox(height: 20),
                         _buildTabBar(),
                         const SizedBox(height: 20),
-                        // ✅ Expanded gives TabBarView the remaining height so it
-                        //    can be laid out without a hard-coded pixel height.
                         Expanded(
                           child: TabBarView(
                             controller: _tabController,
@@ -169,7 +173,6 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
               ),
             ),
           ),
-          // Internet Connection Checker
           Positioned(
             top: 0,
             left: 0,
@@ -177,6 +180,265 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
             child: InternetChecker(),
           ),
         ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // ✅ ACCOUNT LOCKED SCREEN WITH LIVE COUNTDOWN
+  // ============================================================
+  Widget _buildAccountLockedScreen(AuthController auth) {
+    return Scaffold(
+      body: Container(
+        decoration: _buildGradientBackground(),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 480),
+                padding: const EdgeInsets.all(32),
+                decoration: _buildGlassContainerDecoration(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 🔒 Lock Icon with Animation
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF6B6B).withOpacity(0.4),
+                            blurRadius: 30,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.lock_clock,
+                        size: 60,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // Title
+                    const Text(
+                      "Account Temporarily Locked",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Subtitle
+                    Text(
+                      "Too many failed login attempts detected.\n"
+                      "Your account is locked for security reasons.",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+
+                    // ⏱️ LIVE COUNTDOWN TIMER
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 20,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF6C63FF).withOpacity(0.15),
+                            const Color(0xFFFF6588).withOpacity(0.1),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFF6C63FF).withOpacity(0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            "🔓 Auto-unlock in",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF6C63FF),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // ✅ Big countdown display
+                          Text(
+                            auth.lockCountdownDisplay,
+                            style: const TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF6C63FF),
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            auth.lockCountdownHumanReadable,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Progress bar
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: LinearProgressIndicator(
+                        value: auth.lockUntil != null
+                            ? 1 - (auth.lockSecondsRemaining /
+                                (auth.lockUntil!
+                                        .difference(DateTime.now())
+                                        .inSeconds +
+                                    auth.lockSecondsRemaining))
+                            : 0,
+                        minHeight: 8,
+                        backgroundColor: Colors.grey.shade200,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFF6C63FF),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // Info
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 20,
+                            color: Colors.orange,
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              "Your account will unlock automatically. "
+                              "The login form will reappear once the timer reaches zero.",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFFB45309),
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Manual refresh button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF6C63FF).withOpacity(0.3),
+                              blurRadius: 12,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            // Check if lock actually expired
+                            if (auth.lockSecondsRemaining <= 0) {
+                              auth.stopLockCountdown();
+                              _safeShowMessage("Account unlocked! Please login.");
+                            } else {
+                              _safeShowMessage(
+                                "Still locked. Please wait ${auth.lockCountdownHumanReadable}.",
+                                isError: true,
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.refresh, color: Colors.white),
+                          label: const Text(
+                            "Check Unlock Status",
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Support contact
+                    TextButton.icon(
+                      onPressed: () {
+                        _safeShowMessage(
+                          "Please contact support@rojgarnext.com for help.",
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.support_agent,
+                        size: 18,
+                        color: Color(0xFF6C63FF),
+                      ),
+                      label: const Text(
+                        "Contact Support",
+                        style: TextStyle(
+                          color: Color(0xFF6C63FF),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -263,9 +525,6 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     );
   }
 
-  // ============================================================
-  // TAB BAR
-  // ============================================================
   Widget _buildTabBar() {
     return Container(
       decoration: BoxDecoration(
@@ -306,7 +565,6 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
   Widget _buildLoginTab(AuthController auth) {
     return Column(
       children: [
-        // Login method chips
         Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
@@ -340,7 +598,6 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
           ),
         ),
         const SizedBox(height: 16),
-        // ✅ Email / Fingerprint tabs may scroll; MPIN tab handles its own layout.
         Expanded(
           child: _loginMethodIndex == 1
               ? _buildMpinLogin(auth)
@@ -413,7 +670,12 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
       children: [
         _buildTextField(loginEmailCtrl, "Email Address", Icons.email_outlined),
         const SizedBox(height: 12),
-        _buildPasswordField(loginPasswordCtrl, "Password", Icons.lock_outline),
+        _buildPasswordField(
+          loginPasswordCtrl,
+          "Password",
+          Icons.lock_outline,
+          isLoginField: true, // ✅ Login field
+        ),
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
@@ -477,7 +739,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
   }
 
   // ============================================================
-  // MPIN LOGIN – NO SCROLL, BUTTON ALWAYS VISIBLE
+  // MPIN LOGIN
   // ============================================================
   Widget _buildMpinLogin(AuthController auth) {
     final TextEditingController localPinCtrl = TextEditingController();
@@ -487,7 +749,6 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
       builder: (context, setMpinState) {
         return LayoutBuilder(
           builder: (context, constraints) {
-            // ✅ Responsive sizing so the pad + button fit on short screens.
             final isShort = constraints.maxHeight < 560;
             final double numberBtnHeight = isShort ? 40 : 50;
             final double numberBtnWidth = isShort ? 52 : 60;
@@ -497,18 +758,12 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
             return SingleChildScrollView(
               physics: const ClampingScrollPhysics(),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
-                // ✅ IntrinsicHeight gives the Column a bounded height so
-                //    Spacer() (which uses Expanded internally) works.
-                //    Without it, Spacer collapses to size 0 → the
-                //    "Cannot hit test a render box with no size" error.
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: IntrinsicHeight(
                   child: Column(
                     children: [
                       _buildTextField(
-                          mpinEmailCtrl, "Email Address", Icons.email_outlined),
+                        mpinEmailCtrl, "Email Address", Icons.email_outlined),
                       SizedBox(height: topSpacing),
                       Container(
                         width: double.infinity,
@@ -659,10 +914,6 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                           ],
                         ),
                       ),
-                      // ✅ Spacer works here because IntrinsicHeight gives
-                      //    the Column a finite height (from ConstrainedBox
-                      //    minHeight = viewport). This pushes the button
-                      //    to the bottom without any scrollbar.
                       const Spacer(),
                       SizedBox(height: isShort ? 12 : 20),
                       _ModernButton(
@@ -694,7 +945,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
   }
 
   // ============================================================
-  // NUMBER PAD – RESPONSIVE
+  // NUMBER PAD
   // ============================================================
   Widget _buildNumberPad({
     required Function(String) onNumberPressed,
@@ -1047,9 +1298,14 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
               registerMobileCtrl, "Mobile Number", Icons.phone_android_outlined,
               isRequired: true),
           const SizedBox(height: 16),
+          // ✅ Register password field (isLoginField: false)
           _buildPasswordField(
-              registerPasswordCtrl, "Password", Icons.lock_outline,
-              isRequired: true),
+            registerPasswordCtrl,
+            "Password",
+            Icons.lock_outline,
+            isRequired: true,
+            isLoginField: false,
+          ),
           const SizedBox(height: 12),
           _PasswordStrengthRow(
             hasUpper: hasUpper,
@@ -1121,6 +1377,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
   }) {
     return TextField(
       controller: ctrl,
+      enabled: true, // ✅ Explicitly enabled
       style: const TextStyle(color: Colors.black87, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
@@ -1146,60 +1403,67 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
     );
   }
 
+  // ============================================================
+  // ✅ FIXED: PASSWORD FIELD
+  // ✅ Removed StatefulBuilder (was causing state sync issues)
+  // ✅ Uses OUTER setState via callback
+  // ============================================================
   Widget _buildPasswordField(
     TextEditingController ctrl,
     String hint,
     IconData icon, {
     bool isRequired = false,
+    required bool isLoginField,
   }) {
-    return StatefulBuilder(
-      builder: (context, setState) {
-        bool obscure = (hint == "Password" && !showPassword) ||
-            (hint != "Password" && !showRegisterPassword);
-        return TextField(
-          controller: ctrl,
-          obscureText: obscure,
-          style: const TextStyle(color: Colors.black87, fontSize: 14),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-            prefixIcon: Icon(icon, color: Colors.grey.shade600, size: 20),
-            suffixIcon: IconButton(
-              icon: Icon(
-                obscure ? Icons.visibility_off : Icons.visibility,
-                color: Colors.grey.shade600,
-                size: 18,
-              ),
-              onPressed: () {
-                setState(() {
-                  if (hint == "Password") {
-                    showPassword = !showPassword;
-                  } else {
-                    showRegisterPassword = !showRegisterPassword;
-                  }
-                });
-              },
+    // ✅ Choose which state variable based on context
+    final bool isObscured = isLoginField ? !showPassword : !showRegisterPassword;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: TextField(
+        controller: ctrl,
+        obscureText: isObscured,
+        enabled: true,
+        style: const TextStyle(color: Colors.black87, fontSize: 14),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+          prefixIcon: Icon(icon, color: Colors.grey.shade600, size: 20),
+          suffixIcon: IconButton(
+            icon: Icon(
+              isObscured ? Icons.visibility_off : Icons.visibility,
+              color: Colors.grey.shade600,
+              size: 18,
             ),
-            filled: true,
-            fillColor: Colors.grey.shade100,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide:
-                  const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            // ✅ CRITICAL FIX: Call OUTER setState
+            onPressed: () {
+              setState(() {
+                if (isLoginField) {
+                  showPassword = !showPassword;
+                } else {
+                  showRegisterPassword = !showRegisterPassword;
+                }
+              });
+            },
           ),
-        );
-      },
+          filled: true,
+          fillColor: Colors.grey.shade100,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        ),
+      ),
     );
   }
 }

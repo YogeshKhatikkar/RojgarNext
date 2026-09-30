@@ -1,5 +1,7 @@
 // lib/features/auth/services/auth_service.dart
-// ✅ COMPLETE FIXED VERSION
+// ✅ COMPLETE PRODUCTION-READY VERSION
+// ✅ Login throws ApiException with FULL lock info
+// ✅ Token ONLY saved on success
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -15,18 +17,9 @@ class AuthService {
     if (kDebugMode) debugPrint(msg);
   }
 
-  static String _err(DioException e) {
-    String msg = DioClient.extractErrorMessage(e);
-    if (msg.isEmpty) {
-      msg = e.message ?? "Network error occurred";
-    }
-    _log("❌ AuthService: $msg");
-    return msg;
-  }
-
   static dynamic _unwrap(dynamic responseData) {
     if (responseData is Map<String, dynamic>) {
-      if (responseData.containsKey('data')) {
+      if (responseData.containsKey('data') && responseData['data'] != null) {
         return responseData['data'];
       }
     }
@@ -48,27 +41,23 @@ class AuthService {
         'password': data['password'] ?? '',
       };
 
-      if (latitude != null) {
-        requestData['latitude'] = latitude;
-      }
-      if (longitude != null) {
-        requestData['longitude'] = longitude;
-      }
+      if (latitude != null) requestData['latitude'] = latitude;
+      if (longitude != null) requestData['longitude'] = longitude;
       if (locationName != null && locationName.isNotEmpty) {
         requestData['location_name'] = locationName;
       }
 
-      _log(
-          "📤 Register: ${data['email']}, Location included: ${latitude != null}");
-      final Response res =
-          await _dio.post("$_auth/register", data: requestData);
+      _log("📤 Register: ${data['email']}");
+      final Response res = await _dio.post("$_auth/register", data: requestData);
       return _unwrap(res.data);
     } on DioException catch (e) {
-      throw _err(e);
+      throw DioClient.toApiException(e);
     }
   }
 
-  // ================= LOGIN (Email + Password) =================
+  // ================= LOGIN =================
+  // ✅ Token ONLY saved on TRUE success
+  // ✅ Throws ApiException on ANY error (including lock)
   static Future<Map<String, dynamic>> login(
     Map<String, dynamic> data, {
     double? latitude,
@@ -82,12 +71,8 @@ class AuthService {
         'password': data['password'] ?? '',
       };
 
-      if (latitude != null) {
-        requestData['latitude'] = latitude;
-      }
-      if (longitude != null) {
-        requestData['longitude'] = longitude;
-      }
+      if (latitude != null) requestData['latitude'] = latitude;
+      if (longitude != null) requestData['longitude'] = longitude;
       if (locationName != null && locationName.isNotEmpty) {
         requestData['location_name'] = locationName;
       }
@@ -95,31 +80,62 @@ class AuthService {
         requestData['force_location_update'] = true;
       }
 
-      debugPrint("📤 Login request:");
-      debugPrint("   Email: ${data['email']}");
-      debugPrint("   Location: lat=$latitude, lng=$longitude");
+      debugPrint("📤 Login request: ${data['email']}");
 
+      // ✅ Will THROW on 4xx/5xx
       final Response res = await _dio.post("$_auth/login", data: requestData);
-      final Map<String, dynamic> result =
-          _unwrap(res.data) as Map<String, dynamic>;
 
-      await SecureStorage.setToken(result["access_token"] ?? "");
-      await SecureStorage.setRole(result["role"] ?? "user");
-      await SecureStorage.setEmail(result['email']?.toString() ?? "");
+      // ✅ Safely unwrap
+      dynamic unwrapped = _unwrap(res.data);
+      
+      if (unwrapped is! Map<String, dynamic>) {
+        throw ApiException(
+          statusCode: 500,
+          code: 'INVALID_RESPONSE',
+          message: 'Invalid response from server',
+        );
+      }
+
+      final Map<String, dynamic> result = unwrapped;
+
+      // ✅ Verify token exists BEFORE saving
+      final String? accessToken = result["access_token"]?.toString();
+      if (accessToken == null || accessToken.isEmpty) {
+        throw ApiException(
+          statusCode: 500,
+          code: 'NO_TOKEN',
+          message: 'Login failed: No access token received',
+        );
+      }
+
+      // ✅ NOW save auth data
+      await SecureStorage.setToken(accessToken);
+      await SecureStorage.setRole(result["role"]?.toString() ?? "user");
+      await SecureStorage.setEmail(
+        result['email']?.toString() ?? data['email']?.toString() ?? ""
+      );
       await SecureStorage.setMobile(result['mobile']?.toString() ?? "");
       await SecureStorage.setName(result['name']?.toString() ?? "");
+      await SecureStorage.saveIsLoggedIn(true);
 
-      debugPrint("✅ Role saved: ${result["role"]}");
-      debugPrint("✅ Name saved: ${result["name"]}");
-      debugPrint("✅ Mobile saved: ${result["mobile"]}");
+      debugPrint("✅ Login successful: ${result["role"]}");
 
       return result;
     } on DioException catch (e) {
-      final String msg = _err(e);
-      throw msg.toLowerCase().contains("invalid") ||
-              msg.toLowerCase().contains("password")
-          ? "Invalid email or password"
-          : msg;
+      // ✅ Convert to ApiException with full lock info
+      final apiEx = DioClient.toApiException(e);
+      
+      debugPrint("=" * 60);
+      debugPrint("❌ LOGIN FAILED");
+      debugPrint("   Status: ${apiEx.statusCode}");
+      debugPrint("   Code: ${apiEx.code}");
+      debugPrint("   Message: ${apiEx.message}");
+      debugPrint("   Is Locked: ${apiEx.isAccountLocked}");
+      debugPrint("   Seconds Remaining: ${apiEx.secondsRemaining}");
+      debugPrint("   Lock Until: ${apiEx.lockUntil}");
+      debugPrint("=" * 60);
+      
+      throw apiEx;
     }
   }
 
@@ -143,7 +159,7 @@ class AuthService {
           await _dio.post("$_auth/update-location", data: requestData);
       return _unwrap(res.data);
     } on DioException catch (e) {
-      throw _err(e);
+      throw DioClient.toApiException(e);
     }
   }
 
@@ -153,7 +169,7 @@ class AuthService {
       final Response res = await _dio.get("$_auth/my-location");
       return _unwrap(res.data);
     } on DioException catch (e) {
-      throw _err(e);
+      throw DioClient.toApiException(e);
     }
   }
 
@@ -162,55 +178,61 @@ class AuthService {
       Map<String, dynamic> data) async {
     try {
       final Response res = await _dio.post("$_auth/login-pin", data: data);
-      final Map<String, dynamic> result =
-          _unwrap(res.data) as Map<String, dynamic>;
+      
+      dynamic unwrapped = _unwrap(res.data);
+      if (unwrapped is! Map<String, dynamic>) {
+        throw ApiException(
+          statusCode: 500,
+          code: 'INVALID_RESPONSE',
+          message: 'Invalid response',
+        );
+      }
+      
+      final Map<String, dynamic> result = unwrapped;
 
-      final String email = result["email"]?.toString() ?? "";
-      final String name = result["name"]?.toString() ?? "";
-      final String mobile = result["mobile"]?.toString() ?? "";
-      final String role = result["role"]?.toString() ?? "user";
-      final String token = result["access_token"]?.toString() ?? "";
-
-      debugPrint("✅ MPIN Login - Email to save: '$email'");
-      debugPrint("✅ MPIN Login - Name to save: '$name'");
-      debugPrint("✅ MPIN Login - Mobile to save: '$mobile'");
+      final String? token = result["access_token"]?.toString();
+      if (token == null || token.isEmpty) {
+        throw ApiException(
+          statusCode: 500,
+          code: 'NO_TOKEN',
+          message: 'MPIN login failed: No access token',
+        );
+      }
 
       await SecureStorage.setToken(token);
-      await SecureStorage.setRole(role);
-      await SecureStorage.setEmail(email);
-      await SecureStorage.setName(name);
-      await SecureStorage.setMobile(mobile);
+      await SecureStorage.setRole(result["role"]?.toString() ?? "user");
+      await SecureStorage.setEmail(result["email"]?.toString() ?? "");
+      await SecureStorage.setName(result["name"]?.toString() ?? "");
+      await SecureStorage.setMobile(result["mobile"]?.toString() ?? "");
+      await SecureStorage.saveIsLoggedIn(true);
 
       return result;
     } on DioException catch (e) {
-      final String msg = _err(e);
-      if (e.response?.data is Map) {
-        final serverMsg =
-            e.response!.data['message'] ?? e.response!.data['detail'];
-        if (serverMsg is String && serverMsg.isNotEmpty) {
-          throw serverMsg;
-        }
-      }
-      throw msg.contains("Invalid") || msg.contains("PIN")
-          ? "Invalid email or MPIN"
-          : msg;
+      throw DioClient.toApiException(e);
     }
   }
 
-  // ================= MPIN SETUP - FIXED =================
+  // ================= MPIN SETUP =================
   static Future<dynamic> setupMpin(Map<String, dynamic> data) async {
     try {
       final String email = data["email"]?.toString().trim() ?? "";
 
       if (!email.contains('@')) {
-        debugPrint("❌ Invalid email format: '$email'");
-        throw Exception("Please login again with email & password first");
+        throw ApiException(
+          statusCode: 400,
+          code: 'INVALID_EMAIL',
+          message: "Please login again with email & password first",
+        );
       }
 
       final String pin = data["pin"]?.toString().trim() ?? "";
 
       if (pin.length != 6 || !RegExp(r'^\d{6}$').hasMatch(pin)) {
-        throw Exception("PIN must be 6 digits");
+        throw ApiException(
+          statusCode: 400,
+          code: 'INVALID_PIN',
+          message: "PIN must be 6 digits",
+        );
       }
 
       final Map<String, dynamic> requestData = {
@@ -218,28 +240,26 @@ class AuthService {
         "pin": pin,
       };
 
-      debugPrint("📤 Setting MPIN for email: ${requestData['email']}");
-      debugPrint("   PIN length: ${requestData['pin'].length}");
-
       final Response res = await _dio.post("$_auth/set-pin", data: requestData);
-      debugPrint("✅ MPIN setup response: ${res.data}");
       return _unwrap(res.data);
     } on DioException catch (e) {
-      debugPrint("❌ MPIN setup error: ${e.response?.data}");
-      throw _err(e);
+      throw DioClient.toApiException(e);
     }
   }
 
-  // ================= ENABLE BIOMETRIC - FIXED =================
+  // ================= ENABLE BIOMETRIC =================
   static Future<dynamic> enableBiometric(Map<String, dynamic> data) async {
     try {
       final String email = data["email"]?.toString().trim() ?? "";
 
       if (email.isEmpty || !email.contains('@')) {
-        throw Exception("Invalid email");
+        throw ApiException(
+          statusCode: 400,
+          code: 'INVALID_EMAIL',
+          message: "Invalid email",
+        );
       }
 
-      // ✅ Ensure biometric_type is valid
       final String biometricType = data["biometric_type"] ?? "fingerprint";
       final allowedTypes = ["fingerprint", "face", "iris", "none"];
       final String validType = allowedTypes.contains(biometricType) 
@@ -253,28 +273,27 @@ class AuthService {
         "biometric_type": validType,
       };
 
-      debugPrint("📤 Enabling biometric for email: ${requestData['email']}");
-      debugPrint("   Biometric Type: ${requestData['biometric_type']}");
-
       final Response res =
           await _dio.post("$_auth/enable-biometric", data: requestData);
-      debugPrint("✅ Biometric enable response: ${res.data}");
 
       return _unwrap(res.data);
     } on DioException catch (e) {
-      debugPrint("❌ Biometric enable error: ${e.response?.data}");
-      throw _err(e);
+      throw DioClient.toApiException(e);
     }
   }
 
-  // ================= BIOMETRIC LOGIN - FIXED =================
+  // ================= BIOMETRIC LOGIN =================
   static Future<Map<String, dynamic>> biometricLogin(
       Map<String, dynamic> data) async {
     try {
       final String email = data["email"]?.toString().trim() ?? "";
 
       if (email.isEmpty || !email.contains('@')) {
-        throw Exception("Invalid email");
+        throw ApiException(
+          statusCode: 400,
+          code: 'INVALID_EMAIL',
+          message: "Invalid email",
+        );
       }
 
       final Map<String, dynamic> requestData = <String, dynamic>{
@@ -282,47 +301,45 @@ class AuthService {
         "device_info": data["device_info"] ?? "Flutter Device",
       };
 
-      // Add location if provided
       if (data.containsKey('latitude') && data['latitude'] != null) {
         requestData['latitude'] = data['latitude'];
         requestData['longitude'] = data['longitude'];
         requestData['location_name'] = data['location_name'];
       }
 
-      debugPrint("📤 Biometric login for email: ${requestData['email']}");
-
       final Response res =
           await _dio.post("$_auth/biometric-login", data: requestData);
-      final Map<String, dynamic> result =
-          _unwrap(res.data) as Map<String, dynamic>;
+      
+      dynamic unwrapped = _unwrap(res.data);
+      if (unwrapped is! Map<String, dynamic>) {
+        throw ApiException(
+          statusCode: 500,
+          code: 'INVALID_RESPONSE',
+          message: 'Invalid response',
+        );
+      }
+      
+      final Map<String, dynamic> result = unwrapped;
 
-      final String token = result["access_token"]?.toString() ?? "";
-      final String role = result["role"]?.toString() ?? "user";
-      final String emailResult = result["email"]?.toString() ?? "";
-      final String name = result["name"]?.toString() ?? "";
-      final String mobile = result["mobile"]?.toString() ?? "";
-
-      debugPrint("✅ Biometric Login - Email: '$emailResult'");
-      debugPrint("✅ Biometric Login - Name: '$name'");
-      debugPrint("✅ Biometric Login - Mobile: '$mobile'");
+      final String? token = result["access_token"]?.toString();
+      if (token == null || token.isEmpty) {
+        throw ApiException(
+          statusCode: 500,
+          code: 'NO_TOKEN',
+          message: "Biometric login failed: No access token",
+        );
+      }
 
       await SecureStorage.setToken(token);
-      await SecureStorage.setRole(role);
-      await SecureStorage.setEmail(emailResult);
-      await SecureStorage.setName(name);
-      await SecureStorage.setMobile(mobile);
+      await SecureStorage.setRole(result["role"]?.toString() ?? "user");
+      await SecureStorage.setEmail(result["email"]?.toString() ?? email);
+      await SecureStorage.setName(result["name"]?.toString() ?? "");
+      await SecureStorage.setMobile(result["mobile"]?.toString() ?? "");
+      await SecureStorage.saveIsLoggedIn(true);
 
       return result;
     } on DioException catch (e) {
-      final String msg = _err(e);
-      if (e.response?.data is Map) {
-        final serverMsg =
-            e.response!.data['message'] ?? e.response!.data['detail'];
-        if (serverMsg is String && serverMsg.isNotEmpty) {
-          throw serverMsg;
-        }
-      }
-      throw msg;
+      throw DioClient.toApiException(e);
     }
   }
 
@@ -336,11 +353,10 @@ class AuthService {
       final String mobile = body['mobile']?.toString() ?? '';
       if (mobile.isNotEmpty) {
         await SecureStorage.setMobile(mobile);
-        _log("✅ Mobile saved: $mobile");
       }
       return body;
     } on DioException catch (e) {
-      throw DioClient.extractErrorMessage(e);
+      throw DioClient.toApiException(e);
     }
   }
 
@@ -350,7 +366,7 @@ class AuthService {
           data: <String, dynamic>{"email": email});
       return _unwrap(res.data);
     } on DioException catch (e) {
-      throw DioClient.extractErrorMessage(e);
+      throw DioClient.toApiException(e);
     }
   }
 
@@ -360,7 +376,7 @@ class AuthService {
           data: <String, dynamic>{"mobile": mobile});
       return _unwrap(res.data);
     } on DioException catch (e) {
-      throw DioClient.extractErrorMessage(e);
+      throw DioClient.toApiException(e);
     }
   }
 
@@ -370,7 +386,7 @@ class AuthService {
           await _dio.post("$_auth/verify-reset-email", data: data);
       return _unwrap(res.data);
     } on DioException catch (e) {
-      throw DioClient.extractErrorMessage(e);
+      throw DioClient.toApiException(e);
     }
   }
 
@@ -380,7 +396,7 @@ class AuthService {
           await _dio.post("$_auth/verify-reset-mobile", data: data);
       return _unwrap(res.data);
     } on DioException catch (e) {
-      throw DioClient.extractErrorMessage(e);
+      throw DioClient.toApiException(e);
     }
   }
 
@@ -389,7 +405,7 @@ class AuthService {
       final Response res = await _dio.post("$_auth/reset-password", data: data);
       return _unwrap(res.data);
     } on DioException catch (e) {
-      throw DioClient.extractErrorMessage(e);
+      throw DioClient.toApiException(e);
     }
   }
 
@@ -398,7 +414,7 @@ class AuthService {
       final Response res = await _dio.post("$_auth/verify-email", data: data);
       return _unwrap(res.data);
     } on DioException catch (e) {
-      throw _err(e);
+      throw DioClient.toApiException(e);
     }
   }
 
@@ -407,7 +423,7 @@ class AuthService {
       final Response res = await _dio.post("$_auth/verify-mobile", data: data);
       return _unwrap(res.data);
     } on DioException catch (e) {
-      throw _err(e);
+      throw DioClient.toApiException(e);
     }
   }
 
@@ -417,7 +433,7 @@ class AuthService {
           data: <String, dynamic>{"email": email});
       return _unwrap(res.data);
     } on DioException catch (e) {
-      throw _err(e);
+      throw DioClient.toApiException(e);
     }
   }
 
@@ -427,7 +443,7 @@ class AuthService {
           data: <String, dynamic>{"mobile": mobile});
       return _unwrap(res.data);
     } on DioException catch (e) {
-      throw _err(e);
+      throw DioClient.toApiException(e);
     }
   }
 }
