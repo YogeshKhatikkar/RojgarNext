@@ -1,9 +1,7 @@
 # app/core/config/settings.py
 # ============================================================
 # ✅ UNIVERSAL SETTINGS - Works with ANY SMS/WhatsApp provider
-# ✅ Auto-detects trial vs production
-# ✅ Auto-fallback support
-# ✅ Zero hardcoded values
+# ✅ FIXED: Added is_razorpay_test_mode + all Razorpay aliases
 # ============================================================
 
 from pydantic_settings import BaseSettings
@@ -33,19 +31,18 @@ class Settings(BaseSettings):
     SECRET_TOKEN: str = "change-me"
 
     # ============================================================
-    # 🧪 OTP BYPASS - MASTER SWITCH
+    # 🧪 OTP BYPASS
     # ============================================================
     MOBILE_OTP_BYPASS: bool = True
     DEV_OTP_CODE: str = "123456"
 
     # ============================================================
-    # 📱 SMS PROVIDER CONFIGURATION
+    # 📱 SMS PROVIDER
     # ============================================================
-    SMS_PROVIDER: str = "twilio"  # twilio | msg91 | fast2sms | brevo | auto
+    SMS_PROVIDER: str = "twilio"
     SMS_FALLBACK_ENABLED: bool = True
     SMS_FALLBACK_ORDER: str = "twilio,msg91,fast2sms,brevo"
 
-    # Twilio
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_PHONE: str = ""
@@ -54,7 +51,6 @@ class Settings(BaseSettings):
     TWILIO_WHATSAPP_CONTENT_SID: str = ""
     TWILIO_WHATSAPP_TEMPLATE_SID: str = ""
 
-    # MSG91
     MSG91_AUTH_KEY: str = ""
     MSG91_SENDER_ID: str = "RJGARN"
     MSG91_TEMPLATE_ID_OTP: str = ""
@@ -64,7 +60,6 @@ class Settings(BaseSettings):
     MSG91_COUNTRY: str = "91"
     MSG91_DLT_TE_ID: str = ""
 
-    # MSG91 WhatsApp
     MSG91_WHATSAPP_API_KEY: str = ""
     MSG91_WHATSAPP_INTEGRATED_NUMBER: str = ""
     MSG91_WHATSAPP_TEMPLATE_OTP: str = ""
@@ -72,21 +67,18 @@ class Settings(BaseSettings):
     MSG91_WHATSAPP_TEMPLATE_JOB: str = ""
     MSG91_WHATSAPP_TEMPLATE_STATUS: str = ""
 
-    # Fast2SMS
     FAST2SMS_API_KEY: str = ""
 
-    # Brevo
     BREVO_API_KEY: str = ""
     BREVO_SMS_SENDER: str = "RojgarNext"
     BREVO_SMS_API_KEY: str = ""
 
     # ============================================================
-    # 💬 WHATSAPP PROVIDER CONFIGURATION
+    # 💬 WHATSAPP PROVIDER
     # ============================================================
-    WHATSAPP_PROVIDER: str = "twilio"  # twilio | msg91 | meta | auto | disabled
+    WHATSAPP_PROVIDER: str = "twilio"
     WHATSAPP_FALLBACK_TO_SMS: bool = True
 
-    # Meta WhatsApp Business
     META_WA_PHONE_NUMBER_ID: str = ""
     META_WA_ACCESS_TOKEN: str = ""
     META_WA_BUSINESS_ACCOUNT_ID: str = ""
@@ -145,18 +137,25 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
 
+    # ============================================================
+    # 💳 RAZORPAY - ✅ FIXED WITH ALL ALIASES
+    # ============================================================
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
     RAZORPAY_WEBHOOK_SECRET: str = ""
+    
+    # ✅ PRIMARY ATTRIBUTE (used by routes.py)
     RAZORPAY_TEST_MODE: bool = True
-
+    
+    # ✅ ALIASES — prevents AttributeError everywhere
+    # (properties defined below)
+    
     UPI_ID: str = ""
 
     # ============================================================
     # 🔧 HELPER METHODS
     # ============================================================
     def get_channels(self, notification_type: str) -> List[str]:
-        """Get list of channels for a notification type"""
         mapping = {
             "otp": self.NOTIFY_OTP_CHANNELS,
             "verification": self.NOTIFY_VERIFICATION_CHANNELS,
@@ -171,7 +170,6 @@ class Settings(BaseSettings):
         return [c.strip().lower() for c in raw.split(",") if c.strip()]
 
     def get_channels_for(self, notification_type: str) -> List[str]:
-        """Alias for get_channels"""
         return self.get_channels(notification_type)
 
     # ============================================================
@@ -198,12 +196,42 @@ class Settings(BaseSettings):
         return self.DEV_OTP_CODE
 
     # ============================================================
+    # 💳 RAZORPAY HELPERS — ✅ FIXED (all aliases point to RAZORPAY_TEST_MODE)
+    # ============================================================
+    @property
+    def is_razorpay_test_mode(self) -> bool:
+        """
+        ✅ FIXED: This property was MISSING.
+        routes.py accesses settings.is_razorpay_test_mode
+        Now it returns the correct value.
+        """
+        return self.RAZORPAY_TEST_MODE
+
+    @property
+    def IS_RAZORPAY_TEST_MODE(self) -> bool:
+        """Alias (uppercase) for compatibility"""
+        return self.RAZORPAY_TEST_MODE
+
+    @property
+    def razorpay_test_mode(self) -> bool:
+        """Alias (lowercase) for compatibility"""
+        return self.RAZORPAY_TEST_MODE
+
+    @property
+    def is_razorpay_configured(self) -> bool:
+        """Check if Razorpay credentials are set"""
+        return bool(self.RAZORPAY_KEY_ID and self.RAZORPAY_KEY_SECRET)
+
+    @property
+    def razorpay_mode_string(self) -> str:
+        """Returns 'TEST' or 'PRODUCTION' for display"""
+        return "TEST" if self.RAZORPAY_TEST_MODE else "PRODUCTION"
+
+    # ============================================================
     # 📱 UNIVERSAL PROVIDER DETECTION
     # ============================================================
     def is_provider_configured(self, provider: str) -> bool:
-        """Check if a provider has valid credentials configured"""
         provider = provider.lower().strip()
-        
         if provider == "twilio":
             return bool(self.TWILIO_ACCOUNT_SID and self.TWILIO_AUTH_TOKEN and self.TWILIO_PHONE)
         elif provider == "msg91":
@@ -215,9 +243,7 @@ class Settings(BaseSettings):
         return False
 
     def is_whatsapp_provider_configured(self, provider: str) -> bool:
-        """Check if a WhatsApp provider has valid credentials"""
         provider = provider.lower().strip()
-        
         if provider == "twilio":
             return bool(self.TWILIO_ACCOUNT_SID and self.TWILIO_AUTH_TOKEN and self.TWILIO_WHATSAPP_NUMBER)
         elif provider == "msg91":
@@ -230,76 +256,50 @@ class Settings(BaseSettings):
 
     @property
     def sms_fallback_providers(self) -> List[str]:
-        """Get ordered list of SMS providers for fallback"""
         order = [p.strip().lower() for p in self.SMS_FALLBACK_ORDER.split(",") if p.strip()]
         return order
 
     @property
     def active_sms_provider(self) -> str:
-        """
-        Determine which SMS provider to use.
-        
-        If SMS_PROVIDER=auto, find first configured provider.
-        Otherwise, use configured provider (with validation).
-        """
         if self.SMS_PROVIDER.lower() == "auto":
             for provider in self.sms_fallback_providers:
                 if self.is_provider_configured(provider):
                     return provider
             return "none"
-        
         provider = self.SMS_PROVIDER.lower().strip()
         if self.is_provider_configured(provider):
             return provider
-        
-        # Configured provider not valid, try fallback
         if self.SMS_FALLBACK_ENABLED:
             for fb_provider in self.sms_fallback_providers:
                 if fb_provider != provider and self.is_provider_configured(fb_provider):
                     return fb_provider
-        
         return "none"
 
     @property
     def active_whatsapp_provider(self) -> str:
-        """Determine which WhatsApp provider to use."""
         if self.WHATSAPP_PROVIDER.lower() == "auto":
             for provider in ["twilio", "msg91", "meta"]:
                 if self.is_whatsapp_provider_configured(provider):
                     return provider
             return "disabled"
-        
         provider = self.WHATSAPP_PROVIDER.lower().strip()
         if provider == "disabled":
             return "disabled"
-        
         if self.is_whatsapp_provider_configured(provider):
             return provider
-        
-        # Fallback
         for fb_provider in ["twilio", "msg91", "meta"]:
             if fb_provider != provider and self.is_whatsapp_provider_configured(fb_provider):
                 return fb_provider
-        
         return "disabled"
 
-    # ============================================================
-    # 📱 TWILIO TRIAL HELPERS
-    # ============================================================
     @property
     def twilio_allowed_templates(self) -> List[str]:
-        """Twilio's predefined trial template IDs."""
         return [
-            "sms_2fa",
-            "sms_appointment_reminders",
-            "sms_order_confirmation",
-            "sms_delivery_updates",
-            "sms_customer_support",
-            "sms_marketing_promotions",
-            "sms_event_notifications",
-            "sms_account_alerts",
-            "sms_feedback_surveys",
-            "sms_internal_alerts",
+            "sms_2fa", "sms_appointment_reminders",
+            "sms_order_confirmation", "sms_delivery_updates",
+            "sms_customer_support", "sms_marketing_promotions",
+            "sms_event_notifications", "sms_account_alerts",
+            "sms_feedback_surveys", "sms_internal_alerts",
         ]
 
     def is_valid_twilio_trial_template(self, template: str) -> bool:
@@ -375,6 +375,8 @@ print(f"   MOBILE_OTP_BYPASS: {settings.MOBILE_OTP_BYPASS}")
 print(f"   📱 SMS Provider: {settings.SMS_PROVIDER} → Active: {settings.active_sms_provider}")
 print(f"   💬 WhatsApp Provider: {settings.WHATSAPP_PROVIDER} → Active: {settings.active_whatsapp_provider}")
 print(f"   📧 Email Provider: {settings.EMAIL_PROVIDER}")
+print(f"   💳 Razorpay Mode: {settings.razorpay_mode_string}")
+print(f"   💳 Razorpay Configured: {settings.is_razorpay_configured}")
 print("-" * 70)
 if settings.MOBILE_OTP_BYPASS:
     print(f"   🟢 MODE: DEVELOPMENT")

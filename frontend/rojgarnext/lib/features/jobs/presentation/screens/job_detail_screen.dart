@@ -3,14 +3,18 @@
 // ✅ ULTRA‑FAST – Cached profile, instant load, background refresh
 // ✅ AI LOADING ANIMATION with animated auto_awesome icon
 // ✅ FULLY FUNCTIONAL – All original logic preserved
-// ✅ FIXED: Added missing _sectionHeader method
+// ✅ FIXED: Added ALL missing widget builder methods
 // ✅ FIXED: User category properly loaded and passed to payment screen
 // ✅ FIXED: Disability check FIRST, then category (PWD priority)
 // ✅ NEW: Service Charge + GST added to application fees
 // ✅ NEW: Total fees = Application Fees + GST (18%) + Service Charge (₹50)
-// ✅ NEW: Payment screen receives total amount with full breakdown
-// ✅ NEW: PDF links, images, and ALL file types open in FileViewerScreen
-// ✅ NEW: Enhanced file type detection for external URLs and Google Drive
+// ✅ CRITICAL FIX: Advertisement button now shows correctly
+// ✅ CRITICAL FIX: Apply With Us button now shows correctly
+// ✅ CRITICAL FIX: Auto-refresh job data to ensure all fields available
+// ✅ CRITICAL FIX: Better null/empty handling for all URL fields
+// ✅ ADDED: _buildApplicationTimelineSection
+// ✅ ADDED: _buildInfoRow helper
+// ✅ ADDED: ALL other missing widget methods
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -106,7 +110,6 @@ class FeeBreakdown {
     required this.totalFee,
   });
 
-  /// Calculate fee breakdown with 18% GST and fixed service charge
   factory FeeBreakdown.calculate({
     required int applicationFee,
     double gstPercent = 18.0,
@@ -157,17 +160,14 @@ class _JobFileTypeDetector {
     if (url.isEmpty) return false;
     final lower = url.toLowerCase();
 
-    // 1. Check explicit type
     if (explicitType != null) {
       final t = explicitType.toLowerCase();
       if (t == 'pdf' || t.contains('pdf')) return true;
     }
 
-    // 2. Check file extension
     final ext = getExtension(url);
     if (pdfExtensions.contains(ext)) return true;
 
-    // 3. Check URL patterns
     if (lower.contains('/raw/upload/')) return true;
     if (lower.contains('/raw/authenticated/')) return true;
     if (lower.contains('.pdf')) return true;
@@ -176,7 +176,6 @@ class _JobFileTypeDetector {
     if (lower.contains('type=pdf')) return true;
     if (lower.contains('format=pdf')) return true;
 
-    // 4. Google Docs PDF export
     if (lower.contains('docs.google.com') && lower.contains('export=pdf')) {
       return true;
     }
@@ -188,27 +187,22 @@ class _JobFileTypeDetector {
     if (url.isEmpty) return false;
     final lower = url.toLowerCase();
 
-    // 1. Check explicit type
     if (explicitType != null) {
       final t = explicitType.toLowerCase();
       if (t == 'image' || t.contains('image')) return true;
     }
 
-    // 2. Check file extension
     final ext = getExtension(url);
     if (imageExtensions.contains(ext)) return true;
 
-    // 3. Don't classify as image if it's PDF
     if (isPdf(url, explicitType: explicitType)) return false;
 
-    // 4. Cloudinary image patterns
     if (lower.contains('cloudinary.com') &&
         (lower.contains('/image/upload/') ||
          lower.contains('/image/authenticated/'))) {
       return true;
     }
 
-    // 5. Common image URL patterns
     if (lower.contains('image/')) return true;
     if (lower.contains('img/')) return true;
     if (lower.contains('photo/')) return true;
@@ -224,7 +218,6 @@ class _JobFileTypeDetector {
         lower.contains('docs.google.com');
   }
 
-  /// ✅ Get best file type string for FileViewerScreen
   static String detectFileType(String url, {String? explicitType}) {
     if (url.isEmpty) return 'unknown';
 
@@ -234,7 +227,6 @@ class _JobFileTypeDetector {
 
     final ext = getExtension(url);
     if (ext.isNotEmpty) {
-      // Return the extension as the type for better handling
       switch (ext) {
         case 'doc':
         case 'docx':
@@ -299,6 +291,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   bool _hasApplied = false;
   bool _isCheckingApplied = true;
   bool _isPaymentProcessing = false;
+  bool _isRefreshingJobData = false;
 
   String? _officialNotificationUrl;
   String? _advertisementUrl;
@@ -311,29 +304,25 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   bool _isGoogleDriveLink = false;
   bool _isPrivateCloudinaryFile = false;
 
-  // ✅ User category - properly loaded from profile
+  bool _hasApplyWithUs = false;
+  String? _applyWithUsUrl;
+
   String? _userCategory;
   bool _isLoadingCategory = true;
   String? _userCategoryDisplayName;
 
-  // ✅ NEW: Disability status - checked FIRST before category
   bool _isDisabled = false;
   String? _disabilityPercentage;
   String? _disabilityCategory;
   bool _isLoadingDisability = true;
 
-  // AI
   double _matchScore = 0.0;
   List<String> _insights = [];
   Map<String, dynamic> _userProfile = {};
 
-  // Animation
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
-  // ============================================================
-  // FEE CONSTANTS
-  // ============================================================
   static const double GST_PERCENT = 18.0;
   static const int SERVICE_CHARGE = 50;
 
@@ -352,11 +341,12 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       curve: Curves.easeOut,
     );
 
+    _loadNotificationData();
+    _refreshJobData();
     _loadUserProfile();
     _checkIfAlreadyApplied();
     _checkIfSaved();
-    _loadNotificationData();
-    _loadUserProfileData(); // ✅ Loads BOTH disability AND category
+    _loadUserProfileData();
 
     _fadeController.forward();
   }
@@ -365,6 +355,220 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   void dispose() {
     _fadeController.dispose();
     super.dispose();
+  }
+
+  // ============================================================
+  // ✅ REFRESH JOB DATA
+  // ============================================================
+  Future<void> _refreshJobData() async {
+    final jobId = widget.job['_id']?.toString();
+    if (jobId == null || jobId.isEmpty) {
+      debugPrint("⚠️ _refreshJobData: No job ID");
+      return;
+    }
+
+    if (_isRefreshingJobData) return;
+    _isRefreshingJobData = true;
+
+    try {
+      debugPrint("=" * 70);
+      debugPrint("🔄 REFRESHING JOB DATA");
+      debugPrint("   Job ID: $jobId");
+      debugPrint("=" * 70);
+
+      final response = await DioClient.dio.get('/jobs/$jobId');
+
+      if (!mounted) return;
+
+      Map<String, dynamic> freshJob = {};
+      if (response.data is Map) {
+        if (response.data.containsKey('data') && response.data['data'] is Map) {
+          freshJob = Map<String, dynamic>.from(response.data['data']);
+        } else {
+          freshJob = Map<String, dynamic>.from(response.data);
+        }
+      }
+
+      if (freshJob.isNotEmpty) {
+        debugPrint("✅ Fresh job data received");
+        debugPrint("   advertisement_url: ${freshJob['advertisement_url']}");
+        debugPrint("   has_advertisement_file: ${freshJob['has_advertisement_file']}");
+        debugPrint("   apply_with_us_url: ${freshJob['apply_with_us_url']}");
+        debugPrint("   has_apply_with_us: ${freshJob['has_apply_with_us']}");
+        debugPrint("   official_notification_url: ${freshJob['official_notification_url']}");
+
+        widget.job.addAll(freshJob);
+        _loadNotificationData();
+
+        if (mounted) setState(() {});
+      }
+    } catch (e) {
+      debugPrint("⚠️ Failed to refresh job data: $e");
+    } finally {
+      _isRefreshingJobData = false;
+    }
+  }
+
+  // ============================================================
+  // ✅ LOAD NOTIFICATION DATA
+  // ============================================================
+  void _loadNotificationData() {
+    final job = widget.job;
+
+    debugPrint("=" * 70);
+    debugPrint("📢 LOADING NOTIFICATION DATA");
+    debugPrint("=" * 70);
+    debugPrint("🔍 RAW JOB DATA:");
+    debugPrint("   advertisement_url: '${job['advertisement_url']}'");
+    debugPrint("   advertisement_download_url: '${job['advertisement_download_url']}'");
+    debugPrint("   advertisement_is_pdf: ${job['advertisement_is_pdf']}");
+    debugPrint("   advertisement_is_public: ${job['advertisement_is_public']}");
+    debugPrint("   has_advertisement_file: ${job['has_advertisement_file']}");
+    debugPrint("   official_notification_url: '${job['official_notification_url']}'");
+    debugPrint("   official_notification_link: '${job['official_notification_link']}'");
+    debugPrint("   has_official_notification: ${job['has_official_notification']}");
+    debugPrint("   apply_with_us_url: '${job['apply_with_us_url']}'");
+    debugPrint("   has_apply_with_us: ${job['has_apply_with_us']}");
+    debugPrint("   apply_link: '${job['apply_link']}'");
+    debugPrint("   website_url: '${job['website_url']}'");
+    debugPrint("-" * 70);
+
+    _hasOfficialNotification = false;
+    _hasAdvertisement = false;
+    _hasApplyWithUs = false;
+    _officialNotificationUrl = null;
+    _advertisementUrl = null;
+    _advertisementDownloadUrl = null;
+    _applyWithUsUrl = null;
+    _isAdvertisementPdf = false;
+    _isImageFile = false;
+    _isGoogleDriveLink = false;
+    _isPrivateCloudinaryFile = false;
+
+    // ============================================================
+    // OFFICIAL NOTIFICATION CHECK
+    // ============================================================
+    String? officialUrl = job['official_notification_url']?.toString();
+    if (officialUrl == null || officialUrl.trim().isEmpty) {
+      officialUrl = job['official_notification_link']?.toString();
+    }
+    final hasOfficialFlag = job['has_official_notification'] == true;
+
+    debugPrint("📄 Official Notification Check:");
+    debugPrint("   URL: '$officialUrl'");
+    debugPrint("   Flag: $hasOfficialFlag");
+
+    if (_isValidUrl(officialUrl)) {
+      _officialNotificationUrl = officialUrl!.trim();
+      _hasOfficialNotification = true;
+      _isOfficialNotificationPdf = _JobFileTypeDetector.isPdf(
+        _officialNotificationUrl!,
+        explicitType: 'pdf',
+      );
+      debugPrint("   ✅ Official Notification: $_officialNotificationUrl");
+    } else if (hasOfficialFlag) {
+      debugPrint("   ⚠️ Flag is true but URL is empty/invalid");
+    } else {
+      debugPrint("   ℹ️ No official notification");
+    }
+
+    // ============================================================
+    // ADVERTISEMENT CHECK
+    // ============================================================
+    String? advUrl = job['advertisement_url']?.toString();
+    final hasAdvFlag = job['has_advertisement_file'] == true;
+
+    debugPrint("📢 Advertisement Check:");
+    debugPrint("   URL: '$advUrl'");
+    debugPrint("   Flag: $hasAdvFlag");
+
+    if (_isValidUrl(advUrl)) {
+      _advertisementUrl = advUrl!.trim();
+      _hasAdvertisement = true;
+
+      final downloadUrl = job['advertisement_download_url']?.toString();
+      if (_isValidUrl(downloadUrl)) {
+        _advertisementDownloadUrl = downloadUrl!.trim();
+      }
+
+      _isPrivateCloudinaryFile = job['advertisement_is_public'] == false &&
+          _advertisementUrl!.contains('cloudinary.com');
+
+      if (job['advertisement_is_pdf'] == true) {
+        _isAdvertisementPdf = true;
+      } else {
+        _isAdvertisementPdf = _JobFileTypeDetector.isPdf(_advertisementUrl!);
+      }
+
+      _isImageFile = _JobFileTypeDetector.isImage(_advertisementUrl!);
+      _isGoogleDriveLink = _JobFileTypeDetector.isGoogleDrive(_advertisementUrl!);
+
+      debugPrint("   ✅ Advertisement Found:");
+      debugPrint("      URL: $_advertisementUrl");
+      debugPrint("      isPdf: $_isAdvertisementPdf");
+      debugPrint("      isImage: $_isImageFile");
+      debugPrint("      isGoogleDrive: $_isGoogleDriveLink");
+    } else if (hasAdvFlag) {
+      debugPrint("   ⚠️ Flag is true but URL is empty/invalid");
+    } else {
+      debugPrint("   ℹ️ No advertisement");
+    }
+
+    // ============================================================
+    // APPLY WITH US CHECK
+    // ============================================================
+    String? applyUrl = job['apply_with_us_url']?.toString();
+    final hasApplyFlag = job['has_apply_with_us'] == true;
+
+    debugPrint("📋 Apply With Us Check:");
+    debugPrint("   URL: '$applyUrl'");
+    debugPrint("   Flag: $hasApplyFlag");
+
+    if (_isValidUrl(applyUrl)) {
+      _applyWithUsUrl = applyUrl!.trim();
+      _hasApplyWithUs = true;
+      debugPrint("   ✅ Apply With Us: $_applyWithUsUrl");
+    } else if (hasApplyFlag) {
+      final applyLink = job['apply_link']?.toString();
+      if (_isValidUrl(applyLink)) {
+        _applyWithUsUrl = applyLink!.trim();
+        _hasApplyWithUs = true;
+        debugPrint("   ✅ Apply With Us (from apply_link): $_applyWithUsUrl");
+      } else {
+        debugPrint("   ⚠️ Flag is true but no valid URL found");
+      }
+    } else {
+      final applyLink = job['apply_link']?.toString();
+      if (_isValidUrl(applyLink)) {
+        _applyWithUsUrl = applyLink!.trim();
+        _hasApplyWithUs = true;
+        debugPrint("   ✅ Apply With Us (from apply_link): $_applyWithUsUrl");
+      } else {
+        debugPrint("   ℹ️ No Apply With Us");
+      }
+    }
+
+    debugPrint("=" * 70);
+    debugPrint("📊 FINAL FLAGS:");
+    debugPrint("   _hasOfficialNotification: $_hasOfficialNotification");
+    debugPrint("   _hasAdvertisement: $_hasAdvertisement");
+    debugPrint("   _hasApplyWithUs: $_hasApplyWithUs");
+    debugPrint("=" * 70);
+  }
+
+  bool _isValidUrl(String? url) {
+    if (url == null) return false;
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return false;
+    if (trimmed == '#') return false;
+    if (trimmed.toLowerCase() == 'null') return false;
+    if (trimmed.toLowerCase() == 'undefined') return false;
+    if (trimmed.toLowerCase() == 'n/a') return false;
+    if (trimmed.toLowerCase() == 'na') return false;
+    if (trimmed.toLowerCase() == 'none') return false;
+    if (trimmed.toLowerCase() == '-') return false;
+    if (trimmed.length < 5) return false;
+    return true;
   }
 
   // ============================================================
@@ -381,7 +585,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     try {
       final token = await SecureStorage.getToken();
       if (token == null) {
-        // Not logged in - defaults
         if (mounted) {
           setState(() {
             _isDisabled = false;
@@ -391,17 +594,13 @@ class _JobDetailScreenState extends State<JobDetailScreen>
             _isLoadingDisability = false;
           });
         }
-        debugPrint("👤 No token - Default: Not Disabled, General/UR");
         return;
       }
 
-      // ✅ Fetch full profile
       final response = await DioClient.dio.get('/user/full-profile');
-
       if (!mounted) return;
 
       Map<String, dynamic> profile = {};
-
       if (response.data is Map) {
         if (response.data.containsKey('data') && response.data['data'] is Map) {
           profile = response.data['data'] as Map<String, dynamic>;
@@ -410,14 +609,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         }
       }
 
-      // ============================================================
-      // ✅ STEP 1: CHECK DISABILITY FIRST (PRIORITY)
-      // ============================================================
+      // DISABILITY CHECK
       bool isDisabled = false;
       String? disabilityPercentage;
       String? disabilityCategory;
 
-      // Check nested disability object
       final disabilityObj = profile['disability'] as Map<String, dynamic>?;
       if (disabilityObj != null) {
         final isDisabledValue = disabilityObj['is_disabled'];
@@ -435,7 +631,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         disabilityCategory = disabilityObj['disability_category']?.toString();
       }
 
-      // Fallback: check top-level fields (legacy data)
       if (!isDisabled) {
         final isDisableTop = profile['is_disable'];
         if (isDisableTop is bool) {
@@ -455,7 +650,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         }
       }
 
-      // Fallback: check physically_challenged
       if (!isDisabled) {
         final physicallyChallenged =
             profile['physically_challenged']?.toString().toLowerCase();
@@ -464,13 +658,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         }
       }
 
-      debugPrint("♿ Disability Status: $isDisabled");
-      debugPrint("   Percentage: $disabilityPercentage");
-      debugPrint("   Category: $disabilityCategory");
-
-      // ============================================================
-      // ✅ STEP 2: GET CATEGORY (only matters if NOT disabled)
-      // ============================================================
+      // CATEGORY
       String? category = profile['category']?.toString();
 
       if (category == null || category.isEmpty) {
@@ -487,9 +675,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         }
       }
 
-      debugPrint("📋 Raw user category: '$category'");
-
-      // Normalize category
       String normalizedCategory = _normalizeCategory(category);
       String displayName = _getCategoryDisplayName(category);
 
@@ -504,18 +689,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           _isLoadingDisability = false;
         });
       }
-
-      // ✅ Log final effective payment category
-      debugPrint("=" * 60);
-      debugPrint("💳 EFFECTIVE PAYMENT CATEGORY:");
-      if (_isDisabled) {
-        debugPrint("   ♿ PWD (Disabled User)");
-        debugPrint("   → Will use PWD fee from job");
-      } else {
-        debugPrint("   👤 $_userCategoryDisplayName ($normalizedCategory)");
-        debugPrint("   → Will use category fee from job");
-      }
-      debugPrint("=" * 60);
     } catch (e) {
       debugPrint("❌ Error loading user profile data: $e");
       if (mounted) {
@@ -530,7 +703,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     }
   }
 
-  // ✅ Normalize category to match fee keys in job data
   String _normalizeCategory(String? category) {
     if (category == null || category.isEmpty) {
       return 'general/ur';
@@ -543,18 +715,14 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         lowerCategory == 'unreserved') {
       return 'general/ur';
     }
-    if (lowerCategory.contains('obc')) {
-      return 'obc';
-    }
+    if (lowerCategory.contains('obc')) return 'obc';
     if (lowerCategory.contains('sc') && !lowerCategory.contains('scheduled')) {
       return 'sc';
     }
     if (lowerCategory.contains('st') && !lowerCategory.contains('scheduled')) {
       return 'st';
     }
-    if (lowerCategory.contains('ews')) {
-      return 'ews';
-    }
+    if (lowerCategory.contains('ews')) return 'ews';
     if (lowerCategory.contains('pwd') ||
         lowerCategory.contains('ph') ||
         lowerCategory.contains('disabled')) {
@@ -571,7 +739,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     return 'general/ur';
   }
 
-  // ✅ Get display name for category
   String _getCategoryDisplayName(String? category) {
     if (category == null || category.isEmpty) {
       return 'General/UR';
@@ -582,33 +749,21 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     if (lowerCategory.contains('general') || lowerCategory == 'ur') {
       return 'General/UR';
     }
-    if (lowerCategory.contains('obc')) {
-      return 'OBC';
-    }
-    if (lowerCategory.contains('sc')) {
-      return 'SC';
-    }
-    if (lowerCategory.contains('st')) {
-      return 'ST';
-    }
-    if (lowerCategory.contains('ews')) {
-      return 'EWS';
-    }
+    if (lowerCategory.contains('obc')) return 'OBC';
+    if (lowerCategory.contains('sc')) return 'SC';
+    if (lowerCategory.contains('st')) return 'ST';
+    if (lowerCategory.contains('ews')) return 'EWS';
     if (lowerCategory.contains('pwd') || lowerCategory.contains('ph')) {
       return 'PWD';
     }
-    if (lowerCategory.contains('female')) {
-      return 'Female';
-    }
-    if (lowerCategory.contains('esm')) {
-      return 'ESM';
-    }
+    if (lowerCategory.contains('female')) return 'Female';
+    if (lowerCategory.contains('esm')) return 'ESM';
 
     return category;
   }
 
   // ============================================================
-  // DATA LOADING
+  // OTHER DATA LOADING
   // ============================================================
   Future<void> _loadUserProfile() async {
     try {
@@ -628,32 +783,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       }
     } catch (e) {
       debugPrint('Error loading user profile for AI: $e');
-    }
-  }
-
-  void _loadNotificationData() {
-    final officialUrl = widget.job['official_notification_url'];
-    if (officialUrl != null && officialUrl.toString().isNotEmpty) {
-      _officialNotificationUrl = officialUrl.toString();
-      _hasOfficialNotification = true;
-      _isOfficialNotificationPdf = _JobFileTypeDetector.isPdf(
-        _officialNotificationUrl!,
-        explicitType: 'pdf',
-      );
-    }
-
-    final advUrl = widget.job['advertisement_url'];
-    if (advUrl != null && advUrl.toString().isNotEmpty) {
-      _advertisementUrl = advUrl.toString();
-      _hasAdvertisement = true;
-      _advertisementDownloadUrl = widget.job['advertisement_download_url'];
-      _isPrivateCloudinaryFile = widget.job['advertisement_is_public'] == false &&
-          _advertisementUrl!.contains('cloudinary.com');
-
-      final urlLower = _advertisementUrl!.toLowerCase();
-      _isAdvertisementPdf = _JobFileTypeDetector.isPdf(_advertisementUrl!);
-      _isImageFile = _JobFileTypeDetector.isImage(_advertisementUrl!);
-      _isGoogleDriveLink = _JobFileTypeDetector.isGoogleDrive(_advertisementUrl!);
     }
   }
 
@@ -711,55 +840,28 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // ✅ FEE HELPERS - Disability FIRST, then Category
+  // FEE HELPERS
   // ============================================================
-
-  /// ✅ MAIN METHOD: Get the effective category key for payment
-  /// Priority: 1) Disabled → 'pwd' 2) User category → normalized
   String _getEffectivePaymentCategory() {
-    // ✅ RULE 1: If user is disabled, ALWAYS use PWD fee
     if (_isDisabled) {
-      debugPrint("♿ User is DISABLED → Using 'pwd' category");
       return 'pwd';
     }
-
-    // ✅ RULE 2: Otherwise, use user's category
-    final category = _userCategory ?? 'general/ur';
-    debugPrint("👤 User NOT disabled → Using '$category' category");
-    return category;
+    return _userCategory ?? 'general/ur';
   }
 
-  /// ✅ Get display name for the effective payment category
   String _getEffectivePaymentCategoryDisplay() {
-    if (_isDisabled) {
-      return 'PWD (Disabled)';
-    }
+    if (_isDisabled) return 'PWD (Disabled)';
     return _userCategoryDisplayName ?? 'General/UR';
   }
 
-  /// ✅ Check if user is paying as PWD (for badge display)
-  bool _isPayingAsPwd() {
-    return _isDisabled;
-  }
+  bool _isPayingAsPwd() => _isDisabled;
 
-  /// ✅ Get the fee for the effective category (PWD if disabled, else user category)
   int _getCategoryFee(Map<String, dynamic> fees) {
     if (fees == null || fees.isEmpty) return 0;
 
-    // ✅ CRITICAL: Get effective category (PWD if disabled)
     final effectiveCategory = _getEffectivePaymentCategory();
-
-    debugPrint("=" * 60);
-    debugPrint("💰 FEE CALCULATION");
-    debugPrint("   User Disabled: $_isDisabled");
-    debugPrint("   User Category: $_userCategory ($_userCategoryDisplayName)");
-    debugPrint("   Effective Category: $effectiveCategory");
-    debugPrint("   Available Fee Keys: ${fees.keys.toList()}");
-    debugPrint("=" * 60);
-
     int? fee;
 
-    // ✅ Try exact match with effective category
     if (fees.containsKey(effectiveCategory)) {
       final value = fees[effectiveCategory];
       if (value is int) {
@@ -767,14 +869,10 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       } else if (value is String) {
         fee = int.tryParse(value);
       }
-      debugPrint("   ✅ Exact match '$effectiveCategory': ₹$fee");
     }
 
-    // ✅ If no exact match, try alternative keys
     if (fee == null || fee <= 0) {
       final alternativeKeys = _getAlternativeFeeKeys(effectiveCategory);
-      debugPrint("   Trying alternatives: $alternativeKeys");
-
       for (final altKey in alternativeKeys) {
         if (fees.containsKey(altKey)) {
           final value = fees[altKey];
@@ -783,18 +881,13 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           } else if (value is String) {
             fee = int.tryParse(value);
           }
-          debugPrint("   ✅ Alternative '$altKey' match: ₹$fee");
           if (fee != null && fee > 0) break;
         }
       }
     }
 
-    // ✅ If disabled but no PWD fee found, fallback to user's category fee
     if ((fee == null || fee <= 0) && _isDisabled) {
       final fallbackCategory = _userCategory ?? 'general/ur';
-      debugPrint(
-          "   ⚠️ No PWD fee found, falling back to user category: $fallbackCategory");
-
       if (fees.containsKey(fallbackCategory)) {
         final value = fees[fallbackCategory];
         if (value is int) {
@@ -804,7 +897,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         }
       }
 
-      // Try alternatives for fallback category
       if (fee == null || fee <= 0) {
         final altKeys = _getAlternativeFeeKeys(fallbackCategory);
         for (final altKey in altKeys) {
@@ -821,7 +913,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       }
     }
 
-    // ✅ Final fallback to general/ur
     if (fee == null || fee <= 0) {
       final generalValue = fees['general/ur'] ??
           fees['general'] ??
@@ -832,18 +923,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       } else if (generalValue is String) {
         fee = int.tryParse(generalValue);
       }
-      debugPrint("   🔄 Final fallback (general/ur): ₹$fee");
     }
 
-    final finalFee = (fee != null && fee > 0) ? fee : 0;
-    debugPrint("=" * 60);
-    debugPrint("   💰 FINAL FEE: ₹$finalFee for category: $effectiveCategory");
-    debugPrint("=" * 60);
-
-    return finalFee;
+    return (fee != null && fee > 0) ? fee : 0;
   }
 
-  // ✅ Get alternative fee keys for a category
   List<String> _getAlternativeFeeKeys(String category) {
     switch (category.toLowerCase()) {
       case 'general/ur':
@@ -889,29 +973,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     }
   }
 
-  /// ✅ Get user category for display (with PWD priority)
-  String _getUserCategoryForDisplay() {
-    if (_isDisabled) {
-      if (_disabilityPercentage != null && _disabilityPercentage!.isNotEmpty) {
-        return 'PWD ($_disabilityPercentage%)';
-      }
-      if (_disabilityCategory != null && _disabilityCategory!.isNotEmpty) {
-        return 'PWD ($_disabilityCategory)';
-      }
-      return 'PWD (Disabled)';
-    }
-    return _userCategoryDisplayName ?? 'General/UR';
-  }
-
-  // ============================================================
-  // ✅ NEW: FEE BREAKDOWN CALCULATION
-  // ============================================================
   FeeBreakdown _calculateFeeBreakdown() {
     final hasFees = _hasApplicationFees();
     final fees = _getApplicationFees();
     final applicationFee = hasFees ? _getCategoryFee(fees) : 0;
 
-    // ✅ If no application fee exists, total is just service charge
     if (applicationFee <= 0) {
       return FeeBreakdown(
         applicationFee: 0,
@@ -1122,28 +1188,15 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     if (websiteUrl != null &&
         websiteUrl.toString().isNotEmpty &&
         websiteUrl.toString().trim() != '#' &&
-        websiteUrl.toString().trim() != '') {
+        websiteUrl.toString().trim() != '' &&
+        websiteUrl.toString().trim().toLowerCase() != 'null') {
       return true;
     }
     return false;
   }
 
   bool _hasApplyWithUsLink() {
-    final hasApplyWithUs = widget.job['has_apply_with_us'] == true;
-    final applyUrl = widget.job['apply_with_us_url'];
-    if (hasApplyWithUs &&
-        applyUrl != null &&
-        applyUrl.toString().isNotEmpty &&
-        applyUrl.toString().trim() != '#') {
-      return true;
-    }
-    final applyLink = widget.job['apply_link'];
-    if (applyLink != null &&
-        applyLink.toString().isNotEmpty &&
-        applyLink.toString().trim() != '#') {
-      return true;
-    }
-    return false;
+    return _hasApplyWithUs && _applyWithUsUrl != null && _applyWithUsUrl!.isNotEmpty;
   }
 
   String _getWebsiteUrl() {
@@ -1268,9 +1321,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     }
   }
 
-  // ============================================================
-  // ✅ APPLY WITH US - PASSES TOTAL FEES TO PAYMENT SCREEN
-  // ============================================================
   Future<void> _applyWithUs() async {
     final token = await SecureStorage.getToken();
     if (token == null) {
@@ -1315,36 +1365,14 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         freshJob = freshJobResponse.data['data'];
       }
 
-      final hasFees = freshJob['has_application_fees'] == true;
-      final fees = freshJob['application_fees'];
-
-      debugPrint("=" * 60);
-      debugPrint("💳 PAYMENT INITIATION");
-      debugPrint("   Has Fees: $hasFees");
-      debugPrint("   User Disabled: $_isDisabled");
-      debugPrint("   User Category: $_userCategory");
-      debugPrint("   Effective Category: ${_getEffectivePaymentCategory()}");
-      debugPrint("=" * 60);
-
-      // ✅ Always calculate fee breakdown (even if no app fees, service charge applies)
       final feeBreakdown = _calculateFeeBreakdown();
-
-      debugPrint("=" * 60);
-      debugPrint("💰 FEE BREAKDOWN");
-      debugPrint("   Application Fee: ₹${feeBreakdown.applicationFee}");
-      debugPrint("   GST (${GST_PERCENT.toInt()}%): ₹${feeBreakdown.gstAmount}");
-      debugPrint("   Service Charge: ₹${feeBreakdown.serviceCharge}");
-      debugPrint("   TOTAL: ₹${feeBreakdown.totalFee}");
-      debugPrint("=" * 60);
 
       if (feeBreakdown.totalFee <= 0) {
         _showSnackBar("Invalid fee amount", isError: true);
         return;
       }
 
-      // ✅ Get the effective category key and display name
       final categoryKey = _getEffectivePaymentCategory();
-      final categoryDisplayName = _getEffectivePaymentCategoryDisplay();
 
       final orderResponse = await DioClient.dio.post(
         '/payment/razorpay/create-order',
@@ -1354,7 +1382,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           "job_id": jobId,
           "job_title": widget.job['post_name'] ?? 'Job',
           "organization": widget.job['organization'] ?? 'Company',
-          // ✅ Send breakdown to backend for record
           "application_fee": feeBreakdown.applicationFee,
           "gst_amount": feeBreakdown.gstAmount,
           "service_charge": feeBreakdown.serviceCharge,
@@ -1369,14 +1396,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       final keyId = responseData['key_id'] ?? '';
       final paymentId = responseData['payment_id'] ?? '';
 
-      debugPrint("💰 Order Response - Order ID: $orderId, Payment ID: $paymentId");
-
       if (orderId.isEmpty || keyId.isEmpty) {
         _showSnackBar("Payment order failed", isError: true);
         return;
       }
 
-      // ✅ PASS DISABILITY-AWARE CATEGORY AND TOTAL AMOUNT TO PAYMENT SCREEN
       final paymentCompleted = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
@@ -1384,18 +1408,14 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           jobId: jobId,
           jobTitle: widget.job['post_name'] ?? 'Job',
           organization: widget.job['organization'] ?? 'Company',
-          // ✅ Total amount includes app fee + GST + service charge
           amount: feeBreakdown.totalFee,
-          // ✅ Pass breakdown for display in payment screen
           applicationFee: feeBreakdown.applicationFee,
           gstAmount: feeBreakdown.gstAmount,
           serviceCharge: feeBreakdown.serviceCharge,
-          // ✅ PASS THE DISABILITY-AWARE CATEGORY
           categoryUsed: categoryKey,
           paymentId: paymentId,
           expiresAt: DateTime.now().add(const Duration(minutes: 15)),
           onPaymentSuccess: () {
-            debugPrint("✅ Job Payment success callback");
             if (mounted) setState(() => _hasApplied = true);
             if (widget.onApplicationSubmitted != null) {
               widget.onApplicationSubmitted!();
@@ -1430,67 +1450,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           _isApplyingWithUs = false;
           _isPaymentProcessing = false;
         });
-      }
-    }
-  }
-
-  Future<void> _submitDirectApplication(String jobId) async {
-    try {
-      final isSaved = _isSaved;
-      late dynamic response;
-      if (isSaved) {
-        response = await DioClient.dio.post(
-          '/jobs/convert-saved-to-applied/$jobId',
-          data: {
-            "job_id": jobId,
-            "cover_letter": "Applied via 'Apply with Us'",
-            "additional_info": {
-              "applied_from": "job_detail_screen",
-              "application_source": "direct_application",
-              "applied_at": DateTime.now().toIso8601String(),
-            },
-          },
-        );
-      } else {
-        response = await DioClient.dio.post(
-          '/jobs/apply/$jobId',
-          data: {
-            "job_id": jobId,
-            "cover_letter": "Applied via 'Apply with Us'",
-            "additional_info": {
-              "applied_from": "job_detail_screen",
-              "application_source": "direct_application",
-              "applied_at": DateTime.now().toIso8601String(),
-            },
-          },
-        );
-      }
-      if (!mounted) return;
-      final responseData = response.data;
-      final isSuccessResponse = responseData['status'] == 'success' ||
-          responseData['success'] == true;
-      if (isSuccessResponse) {
-        setState(() => _hasApplied = true);
-        _showSnackBar("✅ Application submitted!");
-        if (widget.onApplicationSubmitted != null) {
-          widget.onApplicationSubmitted!();
-        }
-        await Future.delayed(const Duration(milliseconds: 1500));
-        if (mounted && Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
-        }
-      } else {
-        _showSnackBar(
-          responseData['message'] ?? 'Failed to submit',
-          isError: true,
-        );
-      }
-    } catch (e) {
-      if (e.toString().contains("already applied")) {
-        setState(() => _hasApplied = true);
-        _showSnackBar("Already applied", isError: true);
-      } else {
-        _showSnackBar("Failed to apply: ${e.toString()}", isError: true);
       }
     }
   }
@@ -1599,7 +1558,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // ✅ ENHANCED: FILE VIEWERS - Opens ALL file types in FileViewerScreen
+  // FILE VIEWERS
   // ============================================================
   void _showFilePopup(
     String url,
@@ -1619,7 +1578,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       finalUrl = 'https://$finalUrl';
     }
 
-    // ✅ Auto-detect file type if not provided or unknown
     String effectiveFileType = fileType ?? 'unknown';
     if (effectiveFileType == 'unknown' || effectiveFileType.isEmpty) {
       effectiveFileType = _JobFileTypeDetector.detectFileType(
@@ -1627,14 +1585,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         explicitType: fileType,
       );
     }
-
-    debugPrint('=' * 70);
-    debugPrint('📄 OPENING FILE VIEWER');
-    debugPrint('   URL: $finalUrl');
-    debugPrint('   Title: $title');
-    debugPrint('   File Type: $effectiveFileType');
-    debugPrint('   Download URL: ${downloadUrl ?? "same as url"}');
-    debugPrint('=' * 70);
 
     showDialog(
       context: context,
@@ -1660,16 +1610,12 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ VIEW OFFICIAL NOTIFICATION - Opens in FileViewerScreen
-  // ============================================================
   void _viewOfficialNotification() {
     if (_officialNotificationUrl == null || _officialNotificationUrl!.isEmpty) {
       _showSnackBar("No notification link", isError: true);
       return;
     }
 
-    // ✅ Detect if it's a PDF or other type
     final fileType = _isOfficialNotificationPdf
         ? 'pdf'
         : _JobFileTypeDetector.detectFileType(_officialNotificationUrl!);
@@ -1681,22 +1627,13 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ VIEW ADVERTISEMENT - Opens ALL file types in FileViewerScreen
-  // ============================================================
   void _viewAdvertisement() {
     if (_advertisementUrl == null || _advertisementUrl!.isEmpty) {
       _showSnackBar("No advertisement", isError: true);
       return;
     }
 
-    // ✅ Enhanced file type detection using our helper
-    final fileType = _JobFileTypeDetector.detectFileType(
-      _advertisementUrl!,
-    );
-
-    debugPrint('📢 Advertisement file type: $fileType');
-    debugPrint('   URL: $_advertisementUrl');
+    final fileType = _JobFileTypeDetector.detectFileType(_advertisementUrl!);
 
     _showFilePopup(
       _advertisementUrl!,
@@ -1959,6 +1896,64 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
+  // ✅ NEW: APPLICATION TIMELINE SECTION (MISSING METHOD FIXED)
+  // ============================================================
+  Widget _buildApplicationTimelineSection(bool isDark) {
+    final startDate = _getApplicationStartDate();
+    final endDate = _getApplicationEndDate();
+
+    List<Widget> children = [];
+
+    if (startDate.isNotEmpty) {
+      children.add(
+        _buildInfoRow(
+          Icons.play_circle_outline,
+          "Start Date",
+          startDate,
+          color: Colors.green,
+        ),
+      );
+    }
+
+    if (endDate.isNotEmpty) {
+      if (children.isNotEmpty) children.add(const SizedBox(height: 8));
+      children.add(
+        _buildInfoRow(
+          Icons.stop_circle_outlined,
+          "End Date",
+          endDate,
+          color: Colors.red,
+        ),
+      );
+    }
+
+    if (children.isEmpty) {
+      children.add(
+        Text(
+          "Application timeline not specified",
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+          ),
+        ),
+      );
+    }
+
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("Application Timeline", Icons.timeline,
+              color: Colors.teal),
+          const SizedBox(height: 12),
+          ...children,
+        ],
+      ),
+      isDark,
+    );
+  }
+
+  // ============================================================
   // AI LOADING SCREEN
   // ============================================================
   Widget _buildLoadingScreen() {
@@ -2043,7 +2038,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     final hasApplicationFees = _hasApplicationFees();
     final applicationFees = _getApplicationFees();
 
-    // ✅ NEW: Calculate fee breakdown for display
     final feeBreakdown = _calculateFeeBreakdown();
 
     return Scaffold(
@@ -2065,7 +2059,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                           job, typeColor, postedDate, lastDate, isDark),
                       const SizedBox(height: 16),
 
-                      // ✅ DISABILITY STATUS BANNER (if disabled)
+                      // DISABILITY STATUS BANNER
                       if (_isDisabled) _buildDisabilityBanner(isDark),
                       if (_isDisabled) const SizedBox(height: 16),
 
@@ -2085,16 +2079,14 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                           _getApplicationEndDate().isNotEmpty)
                         const SizedBox(height: 16),
 
-                      // ✅ UPDATED: APPLICATION FEES with Service Charge & GST
-                      if (hasApplicationFees &&
-                          applicationFees.isNotEmpty)
+                      // APPLICATION FEES
+                      if (hasApplicationFees && applicationFees.isNotEmpty)
                         _buildApplicationFeesSection(
                           applicationFees,
                           feeBreakdown,
                           isDark,
                         ),
-                      if (hasApplicationFees &&
-                          applicationFees.isNotEmpty)
+                      if (hasApplicationFees && applicationFees.isNotEmpty)
                         const SizedBox(height: 16),
 
                       // AGE LIMIT
@@ -2297,7 +2289,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // ✅ DISABILITY BANNER - Shows when user is disabled
+  // DISABILITY BANNER
   // ============================================================
   Widget _buildDisabilityBanner(bool isDark) {
     return Container(
@@ -2745,8 +2737,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // ✅ UPDATED: APPLICATION FEES - Disability-First Logic
-  // ✅ NEW: Shows Application Fee + GST + Service Charge + Total
+  // APPLICATION FEES SECTION
   // ============================================================
   Widget _buildApplicationFeesSection(
     Map<String, dynamic> fees,
@@ -2759,14 +2750,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 
     List<Widget> feeChildren = [];
 
-    // ✅ Show category-wise application fees (base fees)
     fees.entries.forEach((entry) {
-      // ✅ Check if this is the effective category (PWD or user's category)
       final entryKey = entry.key.toLowerCase();
       final isEffectiveCategory = entryKey == effectiveCategory.toLowerCase() ||
           _getAlternativeFeeKeys(effectiveCategory).contains(entryKey);
 
-      // ✅ Special handling for PWD when user is disabled
       final isPwdEntry = entryKey == 'pwd' ||
           _getAlternativeFeeKeys('pwd').contains(entryKey);
 
@@ -2777,7 +2765,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             children: [
-              // Category badge
               Container(
                 width: 110,
                 padding:
@@ -2794,11 +2781,12 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                       : (isDark
                           ? Colors.teal.shade800
                           : Colors.teal.shade100),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                   border: isHighlighted
                       ? Border.all(
                           color: isPwd ? Colors.orange : Colors.green,
-                          width: 2)
+                          width: 2,
+                        )
                       : null,
                 ),
                 child: Row(
@@ -2807,366 +2795,262 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                     if (isHighlighted)
                       Icon(
                         isPwd ? Icons.accessible : Icons.check_circle,
-                        size: 14,
+                        size: 12,
                         color: isPwd ? Colors.orange : Colors.green,
-                      )
-                    else
-                      const SizedBox.shrink(),
+                      ),
                     if (isHighlighted) const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         entry.key.toString().toUpperCase(),
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                          fontWeight:
+                              isHighlighted ? FontWeight.bold : FontWeight.w500,
                           color: isHighlighted
-                              ? (isPwd
-                                  ? (isDark
-                                      ? Colors.orange.shade200
-                                      : Colors.orange.shade900)
-                                  : (isDark
-                                      ? Colors.green.shade200
-                                      : Colors.green.shade900))
+                              ? (isPwd ? Colors.orange : Colors.green)
                               : (isDark ? Colors.white : Colors.black87),
                         ),
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 12),
-              // Fee amount
               Expanded(
-                child: Row(
-                  children: [
-                    Text(
-                      "₹${entry.value}",
-                      style: TextStyle(
-                        fontSize: isHighlighted ? 18 : 16,
-                        fontWeight: FontWeight.bold,
-                        color: isHighlighted
-                            ? (isPwd ? Colors.orange : Colors.green)
-                            : Colors.teal,
-                      ),
-                    ),
-                    if (isHighlighted) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isPwd ? Colors.orange : Colors.green,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          isPwd ? "PWD RATE" : "YOUR CATEGORY",
-                          style: const TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                child: Text(
+                  "₹${entry.value}",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight:
+                        isHighlighted ? FontWeight.bold : FontWeight.w500,
+                    color: isHighlighted
+                        ? (isPwd ? Colors.orange : Colors.green)
+                        : (isDark ? Colors.white : Colors.black87),
+                  ),
                 ),
               ),
+              if (isHighlighted)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isPwd ? Colors.orange : Colors.green,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    isPwd ? "PWD RATE" : "YOUR RATE",
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
       );
     });
 
-    // ✅ NEW: Build complete fee breakdown (Application Fee + GST + Service Charge + Total)
-    final hasAppFee = feeBreakdown.applicationFee > 0;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isPwd
-              ? (isDark
-                  ? [
-                      Colors.orange.shade900.withOpacity(0.3),
-                      Colors.amber.shade900.withOpacity(0.1)
-                    ]
-                  : [Colors.orange.shade50, Colors.amber.shade50])
-              : (isDark
-                  ? [
-                      Colors.teal.shade900.withOpacity(0.3),
-                      Colors.teal.shade800.withOpacity(0.1)
-                    ]
-                  : [Colors.teal.shade50, Colors.teal.shade100.withOpacity(0.5)]),
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isPwd
-              ? (isDark ? Colors.orange.shade600 : Colors.orange.shade300)
-              : (isDark ? Colors.teal.shade700 : Colors.teal.shade300),
-          width: 1.5,
-        ),
-      ),
-      child: Column(
+    return _buildGlassCard(
+      Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isPwd
-                        ? [Colors.orange, Colors.amber]
-                        : [Colors.teal, Colors.tealAccent],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
+          _sectionHeader("Application Fees", Icons.currency_rupee),
+          const SizedBox(height: 12),
+
+          // User category info banner
+          if (isPwd)
+            Container(
+              padding: const EdgeInsets.all(10),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDark
+                      ? [Colors.orange.shade900, Colors.amber.shade900]
+                      : [Colors.orange.shade100, Colors.amber.shade100],
                 ),
-                child: Icon(
-                  isPwd ? Icons.accessible : Icons.currency_rupee,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Application Fees",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isPwd ? Colors.orange : Colors.teal,
-                      ),
-                    ),
-                    Text(
-                      isPwd
-                          ? "♿ PWD (Disabled) rate applied"
-                          : "Your category: $effectiveDisplay",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade600,
-                        fontWeight:
-                            isPwd ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
-                  ],
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isDark ? Colors.orange.shade700 : Colors.orange.shade400,
                 ),
               ),
-              // User's total fee summary badge
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isPwd
-                        ? [Colors.orange, Colors.amber]
-                        : [Colors.green, Colors.lightGreen],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (isPwd ? Colors.orange : Colors.green)
-                          .withOpacity(0.3),
-                      blurRadius: 8,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+              child: Row(
+                children: [
+                  const Icon(Icons.accessible, color: Colors.orange, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (isPwd) ...[
-                          const Icon(Icons.accessible,
-                              size: 14, color: Colors.white),
-                          const SizedBox(width: 4),
-                        ],
                         Text(
-                          "₹${feeBreakdown.totalFee}",
-                          style: const TextStyle(
-                            fontSize: 18,
+                          "You are paying as: $effectiveDisplay",
+                          style: TextStyle(
+                            fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: isDark ? Colors.white : Colors.orange.shade900,
+                          ),
+                        ),
+                        Text(
+                          "PWD (Divyangjan) category fee applies to you",
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? Colors.orange.shade300
+                                : Colors.orange.shade800,
                           ),
                         ),
                       ],
                     ),
-                    Text(
-                      isPwd ? "PWD Total" : "Total Payable",
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: Colors.white70,
+                  ),
+                ],
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(10),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.blue.shade900 : Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isDark ? Colors.blue.shade700 : Colors.blue.shade200,
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.person, color: Colors.blue, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "You are paying as: $effectiveDisplay",
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.blue.shade900,
                       ),
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+
+          // Category-wise fees
+          const Text(
+            "Category-wise Fees:",
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...feeChildren,
+          const SizedBox(height: 16),
+          const Divider(thickness: 1.5),
+          const SizedBox(height: 12),
+
+          // Fee Breakdown
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  "Application Fee",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                  ),
+                ),
+              ),
+              Text(
+                "₹${feeBreakdown.applicationFee}",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black87,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Divider(
-              color: isDark
-                  ? Colors.grey.shade700
-                  : (isPwd
-                      ? Colors.orange.shade200
-                      : Colors.teal.shade200)),
           const SizedBox(height: 8),
-
-          // ✅ Category-wise base fees
-          ...feeChildren,
-
-          // ✅ NEW: Complete Fee Breakdown
-          const SizedBox(height: 12),
-          Divider(
-              color: isDark
-                  ? Colors.grey.shade700
-                  : (isPwd
-                      ? Colors.orange.shade200
-                      : Colors.teal.shade200)),
-          const SizedBox(height: 8),
-
-          // Breakdown title
-          Text(
-            "💰 Fee Breakdown",
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Application Fee row
-          if (hasAppFee)
-            _buildFeeBreakdownRow(
-              "Application Fees",
-              feeBreakdown.applicationFee,
-              isDark,
-              Colors.teal,
-            ),
-          if (hasAppFee) const SizedBox(height: 8),
-
-          // GST row
-          if (hasAppFee)
-            _buildFeeBreakdownRow(
-              "GST (${GST_PERCENT.toInt()}%)",
-              feeBreakdown.gstAmount,
-              isDark,
-              Colors.orange,
-            ),
-          if (hasAppFee) const SizedBox(height: 8),
-
-          // Service Charge row
-          _buildFeeBreakdownRow(
-            "Service Charge",
-            feeBreakdown.serviceCharge,
-            isDark,
-            Colors.purple,
-          ),
-          const SizedBox(height: 12),
-
-          // Total Divider
-          Container(
-            height: 2,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isPwd
-                    ? [Colors.orange, Colors.amber]
-                    : [Colors.green, Colors.lightGreen],
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  "GST (${GST_PERCENT.toInt()}%)",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                  ),
+                ),
               ),
-              borderRadius: BorderRadius.circular(1),
-            ),
+              Text(
+                "₹${feeBreakdown.gstAmount}",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  "Service Charge",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                  ),
+                ),
+              ),
+              Text(
+                "₹${feeBreakdown.serviceCharge}",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-
-          // Total row
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: isPwd
-                    ? [Colors.orange.shade400, Colors.amber.shade400]
-                    : [Colors.green.shade600, Colors.green.shade400],
+                colors: isDark
+                    ? [Colors.green.shade900, Colors.teal.shade900]
+                    : [Colors.green.shade50, Colors.teal.shade50],
               ),
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: (isPwd ? Colors.orange : Colors.green)
-                      .withOpacity(0.3),
-                  blurRadius: 8,
-                  spreadRadius: 2,
-                ),
-              ],
+              border: Border.all(
+                color: isDark ? Colors.green.shade700 : Colors.green.shade300,
+                width: 1.5,
+              ),
             ),
             child: Row(
               children: [
-                Icon(
-                  isPwd ? Icons.accessible : Icons.payments,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
+                const Icon(Icons.payment, color: Colors.green, size: 24),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     "Total Payable",
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: isDark ? Colors.white : Colors.green.shade900,
                     ),
                   ),
                 ),
                 Text(
                   "₹${feeBreakdown.totalFee}",
-                  style: const TextStyle(
-                    fontSize: 22,
+                  style: TextStyle(
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Info note
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.grey.shade800.withOpacity(0.5)
-                  : Colors.white.withOpacity(0.7),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 14,
-                  color: isPwd ? Colors.orange : Colors.teal,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    hasAppFee
-                        ? "Total = Application Fee ₹${feeBreakdown.applicationFee} + GST ₹${feeBreakdown.gstAmount} + Service Charge ₹${feeBreakdown.serviceCharge} = ₹${feeBreakdown.totalFee}"
-                        : "Service Charge ₹${feeBreakdown.serviceCharge} applies for this application.",
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isDark
-                          ? Colors.grey.shade400
-                          : (isPwd
-                              ? Colors.orange.shade800
-                              : Colors.teal.shade800),
-                    ),
+                    color: isDark ? Colors.green.shade300 : Colors.green.shade800,
                   ),
                 ),
               ],
@@ -3174,136 +3058,73 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           ),
         ],
       ),
-    );
-  }
-
-  // ✅ NEW: Helper to build each breakdown row
-  Widget _buildFeeBreakdownRow(
-    String label,
-    int amount,
-    bool isDark,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.grey.shade800.withOpacity(0.4)
-            : Colors.white.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.circle, size: 8, color: color),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-          ),
-          Text(
-            "₹$amount",
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
+      isDark,
     );
   }
 
   // ============================================================
-  // AGE LIMIT
+  // AGE LIMIT SECTION
   // ============================================================
   Widget _buildAgeLimitSection(bool isDark) {
-    final ageCalcDate = widget.job['age_calculation_date'];
-    final ageRelaxationDetails = widget.job['age_relaxation_details'];
-    final ageRelaxationByCategory = widget.job['age_relaxation_by_category'];
+    final job = widget.job;
+    final calcDate = job['age_calculation_date'];
+    final relaxation = job['age_relaxation_details'];
+    final relaxationByCategory = job['age_relaxation_by_category'];
 
     List<Widget> children = [
-      _buildKeyInfoRow(
-          Icons.calendar_today, "Age Limit", _getAgeLimit(), isDark),
+      _buildInfoRow(
+        Icons.cake,
+        "Age Limit",
+        _getAgeLimit(),
+        color: Colors.orange,
+      ),
     ];
 
-    if (ageCalcDate != null && ageCalcDate.toString().isNotEmpty) {
-      children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.event, "Calculation Date",
-          _formatDate(ageCalcDate), isDark));
-    }
-
-    if (ageRelaxationDetails != null &&
-        ageRelaxationDetails.toString().isNotEmpty) {
-      children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.extension, "Relaxation",
-          ageRelaxationDetails.toString(), isDark));
-    }
-
-    if (ageRelaxationByCategory != null &&
-        ageRelaxationByCategory is Map &&
-        ageRelaxationByCategory.isNotEmpty) {
-      children.add(const Divider(height: 16));
-      children.add(const Text(
-        "Category-wise Relaxation:",
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-      ));
+    if (calcDate != null && calcDate.toString().isNotEmpty) {
       children.add(const SizedBox(height: 8));
-      ageRelaxationByCategory.entries.forEach((entry) {
-        final isUserCategory = _isDisabled
-            ? entry.key.toLowerCase().contains('pwd') ||
-                entry.key.toLowerCase().contains('ph')
-            : entry.key.toLowerCase() == (_userCategory ?? '').toLowerCase();
+      children.add(
+        _buildInfoRow(
+          Icons.calendar_today,
+          "Age as on",
+          _formatDate(calcDate.toString()),
+        ),
+      );
+    }
 
+    if (relaxationByCategory != null &&
+        relaxationByCategory is Map &&
+        relaxationByCategory.isNotEmpty) {
+      children.add(const SizedBox(height: 12));
+      children.add(
+        const Text(
+          "Category-wise Age Relaxation:",
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey,
+          ),
+        ),
+      );
+      children.add(const SizedBox(height: 8));
+
+      (relaxationByCategory as Map).forEach((key, value) {
         children.add(
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.symmetric(vertical: 2),
             child: Row(
               children: [
-                Icon(
-                  isUserCategory ? Icons.check_circle : Icons.people,
-                  size: 14,
-                  color: isUserCategory ? Colors.green : Colors.grey,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  "${entry.key.toUpperCase()}: ",
-                  style: TextStyle(
-                    fontWeight:
-                        isUserCategory ? FontWeight.bold : FontWeight.w500,
-                    color: isUserCategory ? Colors.green : null,
-                  ),
-                ),
-                Text(
-                  "${entry.value} years",
-                  style: TextStyle(
-                    color: isUserCategory ? Colors.green : null,
-                  ),
-                ),
-                if (isUserCategory) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      "YOU",
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                const SizedBox(width: 20),
+                const Icon(Icons.chevron_right, size: 14, color: Colors.grey),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    "$key: +$value years",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.grey.shade300 : Colors.black87,
                     ),
                   ),
-                ],
+                ),
               ],
             ),
           ),
@@ -3311,11 +3132,33 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       });
     }
 
+    if (relaxation != null && relaxation.toString().isNotEmpty) {
+      children.add(const SizedBox(height: 12));
+      children.add(
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            relaxation.toString(),
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.5,
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+            ),
+          ),
+        ),
+      );
+    }
+
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader("Age Requirements", Icons.calendar_today),
+          _sectionHeader("Age Limit", Icons.calendar_today,
+              color: Colors.orange),
           const SizedBox(height: 12),
           ...children,
         ],
@@ -3325,26 +3168,55 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // EXAM CITIES
+  // EXAM CITIES SECTION
   // ============================================================
-  Widget _buildExamCitiesSection(List<dynamic> examCities, bool isDark) {
+  Widget _buildExamCitiesSection(List<dynamic> cities, bool isDark) {
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader("Exam Cities", Icons.location_city),
+          _sectionHeader("Exam Cities", Icons.location_city,
+              color: Colors.blue),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: examCities
-                .map((city) => Chip(
-                      label: Text(city.toString()),
-                      backgroundColor: isDark
-                          ? Colors.grey.shade700
-                          : Colors.blue.shade50,
-                    ))
-                .toList(),
+            children: cities.map((city) {
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.blue.shade900
+                      : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.blue.shade700
+                        : Colors.blue.shade200,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.location_on,
+                        size: 14,
+                        color: isDark ? Colors.blue.shade300 : Colors.blue),
+                    const SizedBox(width: 4),
+                    Text(
+                      city.toString(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: isDark
+                            ? Colors.blue.shade200
+                            : Colors.blue.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
@@ -3353,35 +3225,32 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // WORK DETAILS
+  // WORK DETAILS SECTION
   // ============================================================
   Widget _buildWorkDetailsSection(bool isDark) {
-    List<Widget> children = [
-      _buildKeyInfoRow(Icons.schedule, "Schedule", _getWorkSchedule(), isDark),
-      const Divider(height: 16),
-      _buildKeyInfoRow(Icons.nightlight_round, "Shift", _getShift(), isDark),
-      const Divider(height: 16),
-      _buildKeyInfoRow(
-          Icons.calendar_today, "Working Days", _getWorkingDays(), isDark),
-    ];
-
-    if (widget.job['is_fully_remote'] == true) {
-      children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.wifi, "Mode", "Fully Remote", isDark,
-          color: Colors.purple));
-    } else if (widget.job['is_hybrid'] == true) {
-      children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.sync, "Mode", "Hybrid", isDark,
-          color: Colors.orange));
-    }
-
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionHeader("Work Details", Icons.work_outline),
           const SizedBox(height: 12),
-          ...children,
+          _buildKeyInfoRow(
+              Icons.schedule, "Work Schedule", _getWorkSchedule(), isDark),
+          const Divider(height: 16),
+          _buildKeyInfoRow(Icons.access_time, "Shift", _getShift(), isDark),
+          const Divider(height: 16),
+          _buildKeyInfoRow(
+              Icons.calendar_view_week, "Working Days", _getWorkingDays(), isDark),
+          if (widget.job['is_fully_remote'] == true) ...[
+            const Divider(height: 16),
+            _buildKeyInfoRow(Icons.home, "Remote", "Fully Remote", isDark,
+                color: Colors.green),
+          ],
+          if (widget.job['is_hybrid'] == true) ...[
+            const Divider(height: 16),
+            _buildKeyInfoRow(Icons.sync, "Hybrid", "Hybrid Work", isDark,
+                color: Colors.orange),
+          ],
         ],
       ),
       isDark,
@@ -3389,7 +3258,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // BENEFITS
+  // BENEFITS SECTION
   // ============================================================
   Widget _buildBenefitsSection(List<dynamic> benefits, bool isDark) {
     return _buildGlassCard(
@@ -3397,21 +3266,44 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionHeader("Benefits & Perks", Icons.card_giftcard,
-              color: Colors.green),
+              color: Colors.pink),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: benefits
-                .map((benefit) => Chip(
-                      label: Text(benefit.toString()),
-                      backgroundColor: isDark
-                          ? Colors.grey.shade700
-                          : Colors.green.shade50,
-                      avatar: const Icon(Icons.card_giftcard,
-                          size: 16, color: Colors.green),
-                    ))
-                .toList(),
+            children: benefits.map((benefit) {
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.pink.shade900 : Colors.pink.shade50,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color:
+                        isDark ? Colors.pink.shade700 : Colors.pink.shade200,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle,
+                        size: 14,
+                        color: isDark ? Colors.pink.shade300 : Colors.pink),
+                    const SizedBox(width: 4),
+                    Text(
+                      benefit.toString(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: isDark
+                            ? Colors.pink.shade200
+                            : Colors.pink.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
@@ -3420,7 +3312,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // LANGUAGES
+  // LANGUAGES SECTION
   // ============================================================
   Widget _buildLanguagesSection(List<dynamic> languages, bool isDark) {
     return _buildGlassCard(
@@ -3428,34 +3320,49 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionHeader("Languages Required", Icons.language,
-              color: Colors.blue),
+              color: Colors.indigo),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: languages
-                .map((lang) => Chip(
-                      label: Text(lang.toString()),
-                      backgroundColor: isDark
-                          ? Colors.grey.shade700
-                          : Colors.blue.shade50,
-                      avatar: const Icon(Icons.language,
-                          size: 16, color: Colors.blue),
-                    ))
-                .toList(),
+            children: languages.map((lang) {
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color:
+                      isDark ? Colors.indigo.shade900 : Colors.indigo.shade50,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.indigo.shade700
+                        : Colors.indigo.shade200,
+                  ),
+                ),
+                child: Text(
+                  lang.toString(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isDark
+                        ? Colors.indigo.shade200
+                        : Colors.indigo.shade800,
+                  ),
+                ),
+              );
+            }).toList(),
           ),
           if (widget.job['other_languages'] != null &&
-              widget.job['other_languages'].toString().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                "Other: ${widget.job['other_languages']}",
-                style: TextStyle(
-                    fontSize: 12,
-                    color:
-                        isDark ? Colors.grey.shade400 : Colors.grey),
+              widget.job['other_languages'].toString().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              "Other: ${widget.job['other_languages']}",
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
               ),
             ),
+          ],
         ],
       ),
       isDark,
@@ -3463,79 +3370,29 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // EDUCATION DETAILS
+  // EDUCATION DETAILS SECTION
   // ============================================================
-  Widget _buildEducationDetailsSection(
-      dynamic educationDetails, bool isDark) {
+  Widget _buildEducationDetailsSection(String details, bool isDark) {
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader("Education Requirements", Icons.school,
-              color: Colors.teal),
-          const SizedBox(height: 8),
-          Text(
-            educationDetails.toString(),
-            style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: isDark ? Colors.grey.shade300 : Colors.black87),
-          ),
-          if (widget.job['required_qualification'] != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.teal.shade900.withOpacity(0.3)
-                      : Colors.teal.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.school, size: 16, color: Colors.teal),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        widget.job['required_qualification'].toString(),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? Colors.teal.shade200
-                              : Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+          _sectionHeader("Education Details", Icons.school, color: Colors.teal),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              details,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.6,
+                color: isDark ? Colors.grey.shade300 : Colors.black87,
               ),
             ),
-        ],
-      ),
-      isDark,
-    );
-  }
-
-  // ============================================================
-  // EXPERIENCE DETAILS
-  // ============================================================
-  Widget _buildExperienceDetailsSection(
-      dynamic experienceDetails, bool isDark) {
-    return _buildGlassCard(
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionHeader("Experience Requirements", Icons.work_history,
-              color: Colors.orange),
-          const SizedBox(height: 8),
-          Text(
-            experienceDetails.toString(),
-            style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: isDark ? Colors.grey.shade300 : Colors.black87),
           ),
         ],
       ),
@@ -3544,39 +3401,81 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // PHYSICAL ELIGIBILITY
+  // EXPERIENCE DETAILS SECTION
   // ============================================================
-  Widget _buildPhysicalEligibilitySection(
-      Map<String, dynamic> physical, bool isDark) {
+  Widget _buildExperienceDetailsSection(String details, bool isDark) {
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("Experience Details", Icons.work_history,
+              color: Colors.deepOrange),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              details,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.6,
+                color: isDark ? Colors.grey.shade300 : Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+      isDark,
+    );
+  }
+
+  // ============================================================
+  // PHYSICAL ELIGIBILITY SECTION
+  // ============================================================
+  Widget _buildPhysicalEligibilitySection(Map physical, bool isDark) {
     List<Widget> children = [];
 
     if (physical['min_height_cm'] != null) {
-      children.add(_buildKeyInfoRow(Icons.height, "Min Height",
-          "${physical['min_height_cm']} cm", isDark));
+      children.add(_buildInfoRow(Icons.height, "Min Height (Male)",
+          "${physical['min_height_cm']} cm"));
     }
-
     if (physical['min_height_female_cm'] != null) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.height, "Min Height (Female)",
-          "${physical['min_height_female_cm']} cm", isDark));
+      children.add(const SizedBox(height: 6));
+      children.add(_buildInfoRow(Icons.height, "Min Height (Female)",
+          "${physical['min_height_female_cm']} cm"));
     }
-
     if (physical['min_chest_cm'] != null) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.fitness_center, "Min Chest",
-          "${physical['min_chest_cm']} cm", isDark));
+      children.add(const SizedBox(height: 6));
+      children.add(
+          _buildInfoRow(Icons.straighten, "Min Chest", "${physical['min_chest_cm']} cm"));
     }
-
     if (physical['max_weight_kg'] != null) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.monitor_weight, "Max Weight",
-          "${physical['max_weight_kg']} kg", isDark));
+      children.add(const SizedBox(height: 6));
+      children.add(
+          _buildInfoRow(Icons.monitor_weight, "Max Weight", "${physical['max_weight_kg']} kg"));
     }
-
-    if (physical['relaxation'] != null) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.extension, "Relaxation",
-          physical['relaxation'].toString(), isDark));
+    if (physical['relaxation'] != null &&
+        physical['relaxation'].toString().isNotEmpty) {
+      children.add(const SizedBox(height: 12));
+      children.add(
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            "Relaxation: ${physical['relaxation']}",
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+            ),
+          ),
+        ),
+      );
     }
 
     return _buildGlassCard(
@@ -3594,62 +3493,75 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // INTERVIEW
+  // INTERVIEW SECTION
   // ============================================================
   Widget _buildInterviewSection(bool isDark) {
-    final interviewVenue = widget.job['interview_venue'];
-    final interviewLink = widget.job['interview_link'];
-    final interviewDate = widget.job['interview_date'];
-    final interviewTime = widget.job['interview_time'];
-    final interviewDocuments = widget.job['interview_documents'];
+    final job = widget.job;
+    final venue = job['interview_venue'];
+    final link = job['interview_link'];
+    final date = job['interview_date'];
+    final time = job['interview_time'];
+    final documents = job['interview_documents'];
+    final isOnline = job['is_interview_online'] == true;
 
     List<Widget> children = [];
 
-    if (interviewVenue != null && interviewVenue.toString().isNotEmpty) {
-      children.add(_buildKeyInfoRow(
-          Icons.location_on, "Venue", interviewVenue.toString(), isDark));
+    if (isOnline && link != null) {
+      children.add(_buildInfoRow(Icons.video_call, "Mode", "Online Interview",
+          color: Colors.green));
+      children.add(const SizedBox(height: 6));
+      children.add(_buildInfoRow(Icons.link, "Link", link.toString(),
+          isLink: true, color: Colors.blue));
+    } else if (venue != null && venue.toString().isNotEmpty) {
+      children.add(_buildInfoRow(Icons.location_on, "Venue", venue.toString()));
     }
 
-    if (interviewLink != null && interviewLink.toString().isNotEmpty) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.link, "Online Link",
-          interviewLink.toString(), isDark,
-          isLink: true));
+    if (date != null && date.toString().isNotEmpty) {
+      children.add(const SizedBox(height: 6));
+      children.add(_buildInfoRow(Icons.calendar_today, "Date", _formatDate(date.toString())));
     }
 
-    if (interviewDate != null && interviewDate.toString().isNotEmpty) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(
-          Icons.event, "Date", _formatDate(interviewDate), isDark));
+    if (time != null && time.toString().isNotEmpty) {
+      children.add(const SizedBox(height: 6));
+      children.add(_buildInfoRow(Icons.access_time, "Time", time.toString()));
     }
 
-    if (interviewTime != null && interviewTime.toString().isNotEmpty) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(
-          Icons.access_time, "Time", interviewTime.toString(), isDark));
-    }
-
-    if (interviewDocuments != null &&
-        interviewDocuments is List &&
-        interviewDocuments.isNotEmpty) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(const Text("Required Documents:",
-          style: TextStyle(fontWeight: FontWeight.bold)));
+    if (documents != null && documents is List && documents.isNotEmpty) {
+      children.add(const SizedBox(height: 12));
+      children.add(
+        const Text(
+          "Documents Required:",
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey,
+          ),
+        ),
+      );
       children.add(const SizedBox(height: 8));
       children.add(
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: interviewDocuments
-              .map((doc) => Chip(
-                    label: Text(doc.toString()),
-                    backgroundColor: isDark
-                        ? Colors.grey.shade700
-                        : Colors.orange.shade50,
-                    avatar: const Icon(Icons.description,
-                        size: 16, color: Colors.orange),
-                  ))
-              .toList(),
+          children: documents.map((doc) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.amber.shade900 : Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? Colors.amber.shade700 : Colors.amber.shade200,
+                ),
+              ),
+              child: Text(
+                doc.toString(),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
+                ),
+              ),
+            );
+          }).toList(),
         ),
       );
     }
@@ -3658,61 +3570,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader("Interview Details", Icons.people,
-              color: Colors.orange),
-          const SizedBox(height: 12),
-          ...children,
-        ],
-      ),
-      isDark,
-    );
-  }
-
-  // ============================================================
-  // SELECTION PROCESS
-  // ============================================================
-  Widget _buildSelectionProcessSection(
-      List<dynamic> stages, String? details, bool isDark) {
-    List<Widget> children = [
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: stages
-            .map((stage) => Chip(
-                  label: Text(stage.toString()),
-                  backgroundColor: isDark
-                      ? Colors.grey.shade700
-                      : Colors.purple.shade50,
-                  avatar: const Icon(Icons.timeline,
-                      size: 16, color: Colors.purple),
-                ))
-            .toList(),
-      ),
-    ];
-
-    if (details != null && details.isNotEmpty) {
-      children.add(const SizedBox(height: 12));
-      children.add(
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(details,
-              style: TextStyle(
-                  fontSize: 13,
-                  color:
-                      isDark ? Colors.grey.shade300 : Colors.black87)),
-        ),
-      );
-    }
-
-    return _buildGlassCard(
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionHeader("Selection Process", Icons.timeline,
+          _sectionHeader("Interview Details", Icons.people_alt,
               color: Colors.purple),
           const SizedBox(height: 12),
           ...children,
@@ -3723,48 +3581,119 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // CONTACT
+  // SELECTION PROCESS SECTION
+  // ============================================================
+  Widget _buildSelectionProcessSection(
+      List<dynamic> stages, dynamic details, bool isDark) {
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("Selection Process", Icons.timeline,
+              color: Colors.deepPurple),
+          const SizedBox(height: 12),
+          ...stages.asMap().entries.map((entry) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Colors.deepPurple, Colors.purple],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        "${entry.key + 1}",
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      entry.value.toString(),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          if (details != null && details.toString().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                details.toString(),
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.5,
+                  color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      isDark,
+    );
+  }
+
+  // ============================================================
+  // CONTACT INFORMATION SECTION
   // ============================================================
   Widget _buildContactInformationSection(bool isDark) {
-    final contactPerson = widget.job['contact_person'];
-    final contactDesignation = widget.job['contact_designation'];
-    final contactEmail = widget.job['contact_email'];
-    final contactPhone = widget.job['contact_phone'];
-
+    final job = widget.job;
     List<Widget> children = [];
 
-    if (contactPerson != null && contactPerson.toString().isNotEmpty) {
-      children.add(_buildKeyInfoRow(Icons.person, "Contact Person",
-          contactPerson.toString(), isDark));
+    if (job['contact_person'] != null &&
+        job['contact_person'].toString().isNotEmpty) {
+      children.add(_buildInfoRow(
+          Icons.person, "Contact Person", job['contact_person'].toString()));
     }
-
-    if (contactDesignation != null &&
-        contactDesignation.toString().isNotEmpty) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.badge, "Designation",
-          contactDesignation.toString(), isDark));
+    if (job['contact_designation'] != null &&
+        job['contact_designation'].toString().isNotEmpty) {
+      children.add(const SizedBox(height: 6));
+      children.add(_buildInfoRow(Icons.badge, "Designation",
+          job['contact_designation'].toString()));
     }
-
-    if (contactEmail != null && contactEmail.toString().isNotEmpty) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.email, "Email",
-          contactEmail.toString(), isDark,
+    if (job['contact_email'] != null &&
+        job['contact_email'].toString().isNotEmpty) {
+      children.add(const SizedBox(height: 6));
+      children.add(_buildInfoRow(
+          Icons.email, "Email", job['contact_email'].toString(),
           isLink: true));
     }
-
-    if (contactPhone != null && contactPhone.toString().isNotEmpty) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.phone, "Phone",
-          contactPhone.toString(), isDark,
-          isLink: true));
+    if (job['contact_phone'] != null &&
+        job['contact_phone'].toString().isNotEmpty) {
+      children.add(const SizedBox(height: 6));
+      children.add(_buildInfoRow(
+          Icons.phone, "Phone", job['contact_phone'].toString()));
     }
 
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader("Contact Information", Icons.contact_mail,
-              color: Colors.blue),
+          _sectionHeader("Contact Information", Icons.contact_phone,
+              color: Colors.cyan),
           const SizedBox(height: 12),
           ...children,
         ],
@@ -3774,32 +3703,31 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // IMPORTANT NOTES
+  // IMPORTANT NOTES SECTION
   // ============================================================
-  Widget _buildImportantNotesSection(dynamic notes, bool isDark) {
+  Widget _buildImportantNotesSection(String notes, bool isDark) {
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader("Important Notes", Icons.warning,
-              color: Colors.red),
-          const SizedBox(height: 8),
+          _sectionHeader("Important Notes", Icons.note, color: Colors.amber),
+          const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.red.shade900.withOpacity(0.3)
-                  : Colors.red.shade50,
+              color: isDark ? Colors.amber.shade900 : Colors.amber.shade50,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.amber.shade700 : Colors.amber.shade200,
+              ),
             ),
             child: Text(
-              notes.toString(),
+              notes,
               style: TextStyle(
-                  fontSize: 13,
-                  height: 1.5,
-                  color: isDark
-                      ? Colors.red.shade200
-                      : Colors.black87),
+                fontSize: 13,
+                height: 1.6,
+                color: isDark ? Colors.amber.shade100 : Colors.amber.shade900,
+              ),
             ),
           ),
         ],
@@ -3809,16 +3737,16 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // TERMS
+  // TERMS & CONDITIONS SECTION
   // ============================================================
-  Widget _buildTermsConditionsSection(dynamic terms, bool isDark) {
+  Widget _buildTermsConditionsSection(String terms, bool isDark) {
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader("Terms & Conditions", Icons.description,
-              color: Colors.grey),
-          const SizedBox(height: 8),
+          _sectionHeader("Terms & Conditions", Icons.gavel,
+              color: Colors.brown),
+          const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -3826,12 +3754,12 @@ class _JobDetailScreenState extends State<JobDetailScreen>
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              terms.toString(),
+              terms,
               style: TextStyle(
-                  fontSize: 13,
-                  height: 1.5,
-                  color:
-                      isDark ? Colors.grey.shade300 : Colors.black87),
+                fontSize: 13,
+                height: 1.6,
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+              ),
             ),
           ),
         ],
@@ -3841,39 +3769,35 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // IMPORTANT DATES
+  // IMPORTANT DATES SECTION
   // ============================================================
   Widget _buildImportantDatesSection(
-    String? admitCardDate,
-    String? examDate,
-    String? resultDate,
-    bool isDark,
-  ) {
+      dynamic admitCardDate, dynamic examDate, dynamic resultDate, bool isDark) {
     List<Widget> children = [];
 
     if (admitCardDate != null && admitCardDate.toString().isNotEmpty) {
-      children.add(_buildKeyInfoRow(Icons.download, "Admit Card",
-          _formatDate(admitCardDate), isDark));
+      children.add(_buildInfoRow(Icons.confirmation_number, "Admit Card",
+          _formatDate(admitCardDate.toString()),
+          color: Colors.blue));
     }
-
     if (examDate != null && examDate.toString().isNotEmpty) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.edit_calendar, "Exam Date",
-          _formatDate(examDate), isDark));
+      if (children.isNotEmpty) children.add(const SizedBox(height: 6));
+      children.add(_buildInfoRow(
+          Icons.event, "Exam Date", _formatDate(examDate.toString()),
+          color: Colors.red));
     }
-
     if (resultDate != null && resultDate.toString().isNotEmpty) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.assignment_turned_in, "Result",
-          _formatDate(resultDate), isDark));
+      if (children.isNotEmpty) children.add(const SizedBox(height: 6));
+      children.add(_buildInfoRow(
+          Icons.emoji_events, "Result Date", _formatDate(resultDate.toString()),
+          color: Colors.green));
     }
 
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader("Important Dates", Icons.event,
-              color: Colors.blue),
+          _sectionHeader("Important Dates", Icons.event, color: Colors.indigo),
           const SizedBox(height: 12),
           ...children,
         ],
@@ -3883,48 +3807,35 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // HELPLINE
+  // HELPLINE SECTION
   // ============================================================
   Widget _buildHelplineSection(bool isDark) {
-    final helplineNumber = widget.job['helpline_number'];
-    final helplineEmail = widget.job['helpline_email'];
-    final whatsappNumber = widget.job['whatsapp_number'];
-    final telegramChannel = widget.job['telegram_channel'];
-    final officialWebsite = widget.job['official_website'];
-
+    final job = widget.job;
     List<Widget> children = [];
 
-    if (helplineNumber != null && helplineNumber.toString().isNotEmpty) {
-      children.add(_buildKeyInfoRow(Icons.support_agent, "Helpline",
-          helplineNumber.toString(), isDark,
+    if (job['helpline_number'] != null &&
+        job['helpline_number'].toString().isNotEmpty) {
+      children.add(_buildInfoRow(
+          Icons.support_agent, "Helpline", job['helpline_number'].toString()));
+    }
+    if (job['helpline_email'] != null &&
+        job['helpline_email'].toString().isNotEmpty) {
+      if (children.isNotEmpty) children.add(const SizedBox(height: 6));
+      children.add(_buildInfoRow(
+          Icons.email, "Email", job['helpline_email'].toString(),
           isLink: true));
     }
-
-    if (helplineEmail != null && helplineEmail.toString().isNotEmpty) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.email, "Helpline Email",
-          helplineEmail.toString(), isDark,
-          isLink: true));
+    if (job['whatsapp_number'] != null &&
+        job['whatsapp_number'].toString().isNotEmpty) {
+      if (children.isNotEmpty) children.add(const SizedBox(height: 6));
+      children.add(_buildInfoRow(
+          Icons.chat, "WhatsApp", job['whatsapp_number'].toString()));
     }
-
-    if (whatsappNumber != null && whatsappNumber.toString().isNotEmpty) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.chat, "WhatsApp",
-          whatsappNumber.toString(), isDark,
-          isLink: true));
-    }
-
-    if (telegramChannel != null && telegramChannel.toString().isNotEmpty) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.telegram, "Telegram",
-          telegramChannel.toString(), isDark,
-          isLink: true));
-    }
-
-    if (officialWebsite != null && officialWebsite.toString().isNotEmpty) {
-      if (children.isNotEmpty) children.add(const Divider(height: 16));
-      children.add(_buildKeyInfoRow(Icons.public, "Website",
-          officialWebsite.toString(), isDark,
+    if (job['telegram_channel'] != null &&
+        job['telegram_channel'].toString().isNotEmpty) {
+      if (children.isNotEmpty) children.add(const SizedBox(height: 6));
+      children.add(_buildInfoRow(
+          Icons.telegram, "Telegram", job['telegram_channel'].toString(),
           isLink: true));
     }
 
@@ -3932,8 +3843,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader("Helpline & Resources", Icons.support,
-              color: Colors.teal),
+          _sectionHeader("Helpline & Support", Icons.headset_mic,
+              color: Colors.green),
           const SizedBox(height: 12),
           ...children,
         ],
@@ -3943,22 +3854,29 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // DESCRIPTION
+  // DESCRIPTION SECTION
   // ============================================================
-  Widget _buildDescriptionSection(dynamic description, bool isDark) {
+  Widget _buildDescriptionSection(String description, bool isDark) {
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader("Job Description", Icons.description,
-              color: Colors.blue),
+          _sectionHeader("Job Description", Icons.description),
           const SizedBox(height: 12),
-          Text(
-            description.toString(),
-            style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: isDark ? Colors.grey.shade300 : Colors.black87),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade800 : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              description,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.6,
+                color: isDark ? Colors.grey.shade300 : Colors.black87,
+              ),
+            ),
           ),
         ],
       ),
@@ -3967,29 +3885,61 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // SKILLS
+  // SKILLS SECTION
   // ============================================================
   Widget _buildSkillsSection(List<dynamic> skills, bool isDark) {
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader("Required Skills", Icons.build,
-              color: Colors.blue),
+          _sectionHeader("Required Skills", Icons.build, color: Colors.blue),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: skills.map((skill) {
-              final skillName = skill is Map ? skill['name'] : skill;
-              return Chip(
-                label: Text(skillName.toString(),
-                    style: const TextStyle(fontSize: 13)),
-                backgroundColor: isDark
-                    ? Colors.grey.shade700
-                    : Colors.blue.shade50,
-                avatar: const Icon(Icons.check_circle,
-                    size: 16, color: Colors.blue),
+              final skillName = skill is Map
+                  ? (skill['name'] ?? skill['skill'] ?? skill.toString())
+                  : skill.toString();
+              final minProf = skill is Map ? skill['min_proficiency'] : null;
+
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.blue.shade900 : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color:
+                        isDark ? Colors.blue.shade700 : Colors.blue.shade200,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      skillName.toString(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? Colors.blue.shade200
+                            : Colors.blue.shade800,
+                      ),
+                    ),
+                    if (minProf != null)
+                      Text(
+                        minProf.toString().toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: isDark
+                              ? Colors.blue.shade400
+                              : Colors.blue.shade600,
+                        ),
+                      ),
+                  ],
+                ),
               );
             }).toList(),
           ),
@@ -4003,194 +3953,261 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   // MULTIPLE POSTS TABLE
   // ============================================================
   Widget _buildMultiplePostsTable(
-      Map<String, dynamic> job, List<dynamic> multiplePosts, bool isDark) {
+      Map<String, dynamic> job, List<dynamic> posts, bool isDark) {
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.green.shade900
-                      : Colors.green.shade100,
-                  borderRadius: BorderRadius.circular(10),
+          _sectionHeader("Multiple Posts Details", Icons.list_alt,
+              color: Colors.teal),
+          const SizedBox(height: 12),
+          ...posts.asMap().entries.map((entry) {
+            final index = entry.key;
+            final post = entry.value as Map;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey.shade800 : Colors.teal.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? Colors.grey.shade700 : Colors.teal.shade200,
                 ),
-                child: const Icon(Icons.table_chart,
-                    color: Colors.green, size: 20),
               ),
-              const SizedBox(width: 12),
-              const Text(
-                "Post-wise Vacancy Details",
-                style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              if (job['total_posts'] != null)
-                Container(
-                  margin: const EdgeInsets.only(left: 12),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.green.shade900
-                        : Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    "Total: ${job['total_posts']}",
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: isDark
-                            ? Colors.green.shade200
-                            : Colors.black87),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 16,
-              headingRowColor: WidgetStateProperty.resolveWith(
-                (states) =>
-                    isDark ? Colors.grey.shade700 : Colors.blue.shade50,
-              ),
-              columns: const [
-                DataColumn(
-                    label: Text("S.No",
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text("Post Name",
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text("Vacancies",
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text("Qualification",
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text("Experience",
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text("Age Limit",
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-              ],
-              rows: multiplePosts.asMap().entries.map((entry) {
-                final index = entry.key;
-                final post = entry.value;
-                final postAgeMin = post['age_min'];
-                final postAgeMax = post['age_max'];
-                final experienceDetails = post['experience_details'] ?? '';
-
-                String qualificationDisplay = '—';
-                final degreeName = post['degree_name'];
-                final degreeStream = post['degree_stream'];
-                final qualMain = post['qualification_main'];
-                final qualSub = post['qualification_sub'];
-                final otherQual = post['other_qualification_details'];
-                final qualification = post['qualification'];
-
-                if (degreeName != null && degreeName.toString().isNotEmpty) {
-                  if (degreeStream != null &&
-                      degreeStream.toString().isNotEmpty) {
-                    qualificationDisplay = "$degreeName - $degreeStream";
-                  } else {
-                    qualificationDisplay = degreeName.toString();
-                  }
-                } else if (degreeStream != null &&
-                    degreeStream.toString().isNotEmpty) {
-                  qualificationDisplay = degreeStream.toString();
-                } else if (qualMain != null &&
-                    qualMain.toString().isNotEmpty) {
-                  qualificationDisplay = qualMain.toString();
-                } else if (qualSub != null && qualSub.toString().isNotEmpty) {
-                  qualificationDisplay = qualSub.toString();
-                } else if (qualification != null &&
-                    qualification.toString().isNotEmpty) {
-                  qualificationDisplay = qualification.toString();
-                }
-
-                String experienceDisplay = experienceDetails.isNotEmpty
-                    ? experienceDetails
-                    : 'Not specified';
-                String ageLimit = 'Not specified';
-                if (postAgeMin != null && postAgeMax != null) {
-                  ageLimit = '$postAgeMin - $postAgeMax years';
-                } else if (postAgeMin != null) {
-                  ageLimit = '$postAgeMin+ years';
-                } else if (postAgeMax != null) {
-                  ageLimit = 'Up to $postAgeMax years';
-                }
-
-                return DataRow(
-                  cells: [
-                    DataCell(Text("${index + 1}")),
-                    DataCell(Text(post['post_name'] ?? 'Post Name')),
-                    DataCell(Text("${post['total_posts'] ?? 1}")),
-                    DataCell(
-                      Tooltip(
-                        message: qualificationDisplay,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? Colors.grey.shade700
-                                : Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            qualificationDisplay,
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: isDark
-                                    ? Colors.white
-                                    : Colors.black87),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.teal,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          "Post ${index + 1}",
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          post['post_name']?.toString() ?? 'Untitled',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 6,
+                    children: [
+                      if (post['total_posts'] != null)
+                        _buildMiniInfoChip(
+                          Icons.people,
+                          "${post['total_posts']} posts",
+                          isDark,
+                          color: Colors.blue,
+                        ),
+                      if (post['qualification'] != null)
+                        _buildMiniInfoChip(
+                          Icons.school,
+                          post['qualification'].toString(),
+                          isDark,
+                          color: Colors.purple,
+                        ),
+                      if (post['age_min'] != null || post['age_max'] != null)
+                        _buildMiniInfoChip(
+                          Icons.cake,
+                          "${post['age_min'] ?? '—'}-${post['age_max'] ?? '—'} yrs",
+                          isDark,
+                          color: Colors.orange,
+                        ),
+                    ],
+                  ),
+                  if (post['pay_scales'] != null &&
+                      (post['pay_scales'] as List).isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    const Divider(height: 1),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Pay Scales:",
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
                     ),
-                    DataCell(
-                      experienceDisplay != 'Not specified'
-                          ? Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.grey.shade700
-                                    : Colors.orange.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                experienceDisplay,
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.orange),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            )
-                          : Text(experienceDisplay,
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark
-                                      ? Colors.grey.shade400
-                                      : Colors.grey)),
-                    ),
-                    DataCell(Text(ageLimit,
-                        style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black87))),
+                    ...((post['pay_scales'] as List).map((ps) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          ps['pay_scale'] ?? 'N/A',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                isDark ? Colors.grey.shade300 : Colors.black87,
+                          ),
+                        ),
+                      );
+                    })),
                   ],
-                );
-              }).toList(),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+      isDark,
+    );
+  }
+
+  Widget _buildMiniInfoChip(
+      IconData icon, String text, bool isDark, {Color? color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: (color ?? Colors.grey).withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color ?? Colors.grey),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              color: color ?? Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // OFFICIAL NOTIFICATION SECTION
+  // ============================================================
+  Widget _buildOfficialNotificationSection(bool isDark) {
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("Official Notification", Icons.notifications,
+              color: Colors.blue),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [Colors.blue.shade900, Colors.blue.shade800]
+                    : [Colors.blue.shade50, Colors.blue.shade100],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.blue.shade700 : Colors.blue.shade300,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.blue.shade700 : Colors.blue,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    _isOfficialNotificationPdf
+                        ? Icons.picture_as_pdf
+                        : Icons.link,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Official Notification",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color:
+                              isDark ? Colors.white : Colors.blue.shade900,
+                        ),
+                      ),
+                      Text(
+                        _isOfficialNotificationPdf
+                            ? "PDF Document - Click to view"
+                            : "External Link - Click to open",
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark
+                              ? Colors.blue.shade200
+                              : Colors.blue.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: _viewOfficialNotification,
+                  icon: const Icon(Icons.open_in_new, color: Colors.white),
+                  style: IconButton.styleFrom(
+                    backgroundColor: isDark
+                        ? Colors.blue.shade700
+                        : Colors.blue.shade600,
+                  ),
+                  tooltip: "View Notification",
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _viewOfficialNotification,
+              icon: Icon(
+                _isOfficialNotificationPdf
+                    ? Icons.picture_as_pdf
+                    : Icons.open_in_new,
+              ),
+              label: Text(
+                _isOfficialNotificationPdf
+                    ? "View Official Notification PDF"
+                    : "Open Official Notification",
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
         ],
@@ -4200,246 +4217,109 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // OFFICIAL NOTIFICATION
-  // ============================================================
-  Widget _buildOfficialNotificationSection(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark
-              ? [
-                  Colors.blue.shade900.withOpacity(0.3),
-                  Colors.blue.shade800.withOpacity(0.1)
-                ]
-              : [Colors.blue.shade50, Colors.blue.shade100],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color:
-                isDark ? Colors.blue.shade700 : Colors.blue.shade300,
-            width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.blue.shade800
-                      : Colors.blue.shade200,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  _isOfficialNotificationPdf
-                      ? Icons.picture_as_pdf
-                      : Icons.link,
-                  color: isDark
-                      ? Colors.blue.shade200
-                      : Colors.blue.shade800,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "📄 Official Notification",
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue),
-                    ),
-                    Text(
-                      _isOfficialNotificationPdf
-                          ? "PDF Document"
-                          : "External Link",
-                      style: const TextStyle(
-                          fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.grey.shade800 : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, size: 16, color: Colors.blue),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    "Click the button below to view the official job notification",
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _viewOfficialNotification,
-              icon: Icon(
-                  _isOfficialNotificationPdf
-                      ? Icons.picture_as_pdf
-                      : Icons.open_in_new,
-                  size: 20,
-                  color: Colors.white),
-              label: Text(
-                _isOfficialNotificationPdf
-                    ? "View Notification PDF"
-                    : "Open Link",
-                style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w600),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                elevation: 2,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // ADVERTISEMENT
+  // ADVERTISEMENT SECTION
   // ============================================================
   Widget _buildAdvertisementSection(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark
-              ? [
-                  Colors.orange.shade900.withOpacity(0.3),
-                  Colors.orange.shade800.withOpacity(0.1)
-                ]
-              : [Colors.orange.shade50, Colors.orange.shade100],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: isDark
-                ? Colors.orange.shade700
-                : Colors.orange.shade300,
-            width: 1.5),
-      ),
-      child: Column(
+    return _buildGlassCard(
+      Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.orange.shade800
-                      : Colors.orange.shade200,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  _getAdvertisementIcon(),
-                  color: isDark
-                      ? Colors.orange.shade200
-                      : Colors.orange.shade800,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "📢 Official Advertisement",
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange),
-                    ),
-                    Text(
-                      _getAdvertisementSubtitle(),
-                      style: const TextStyle(
-                          fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+          _sectionHeader("Job Advertisement", Icons.campaign,
+              color: Colors.orange),
+          const SizedBox(height: 12),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: isDark ? Colors.grey.shade800 : Colors.white,
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [Colors.orange.shade900, Colors.orange.shade800]
+                    : [Colors.orange.shade50, Colors.orange.shade100],
+              ),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.orange.shade700 : Colors.orange.shade300,
+              ),
             ),
             child: Row(
               children: [
-                Icon(Icons.info_outline,
-                    size: 16, color: Colors.orange),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    "Click the button below to view the official job advertisement",
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.orange.shade700 : Colors.orange,
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  child: Icon(
+                    _getAdvertisementIcon(),
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Advertisement",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isDark
+                              ? Colors.white
+                              : Colors.orange.shade900,
+                        ),
+                      ),
+                      Text(
+                        _getAdvertisementSubtitle(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark
+                              ? Colors.orange.shade200
+                              : Colors.orange.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: _viewAdvertisement,
+                  icon: const Icon(Icons.open_in_new, color: Colors.white),
+                  style: IconButton.styleFrom(
+                    backgroundColor: isDark
+                        ? Colors.orange.shade700
+                        : Colors.orange.shade600,
+                  ),
+                  tooltip: "View Advertisement",
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             height: 48,
             child: ElevatedButton.icon(
               onPressed: _viewAdvertisement,
-              icon: const Icon(Icons.open_in_new,
-                  size: 20, color: Colors.white),
+              icon: Icon(_getAdvertisementIcon()),
               label: Text(
                 _getAdvertisementButtonText(),
                 style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w600),
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                elevation: 2,
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
         ],
       ),
+      isDark,
     );
   }
 
@@ -4450,29 +4330,23 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark
-            ? Colors.blue.shade900.withOpacity(0.3)
-            : Colors.blue.shade50,
+        color: isDark ? Colors.amber.shade900 : Colors.amber.shade50,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Colors.amber.shade700 : Colors.amber.shade200,
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, size: 20, color: Colors.blue),
+          const Icon(Icons.info_outline, color: Colors.amber, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              _hasOfficialNotification && _hasAdvertisement
-                  ? "This job has both Official Notification and Advertisement available."
-                  : _hasOfficialNotification
-                      ? "Official Notification PDF available."
-                      : _hasAdvertisement && _isPrivateCloudinaryFile
-                          ? "🔒 Secure PDF advertisement available."
-                          : "Advertisement file available.",
+              "Click on the buttons above to view official documents",
               style: TextStyle(
-                  fontSize: 12,
-                  color: isDark
-                      ? Colors.blue.shade200
-                      : Colors.blue),
+                fontSize: 12,
+                color: isDark ? Colors.amber.shade100 : Colors.amber.shade900,
+              ),
             ),
           ),
         ],
@@ -4481,91 +4355,57 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // APPLICATION TIMELINE
-  // ============================================================
-  Widget _buildApplicationTimelineSection(bool isDark) {
-    List<Widget> children = [];
-
-    if (_getApplicationStartDate().isNotEmpty) {
-      children.add(_buildKeyInfoRow(Icons.play_circle, "Start Date",
-          _getApplicationStartDate(), isDark));
-      children.add(const Divider(height: 16));
-    }
-
-    if (_getApplicationEndDate().isNotEmpty) {
-      children.add(_buildKeyInfoRow(Icons.stop_circle, "End Date",
-          _getApplicationEndDate(), isDark));
-      children.add(const Divider(height: 16));
-    }
-
-    children.add(_buildKeyInfoRow(
-        Icons.devices, "Mode", _getApplicationMode(), isDark));
-
-    return _buildGlassCard(
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionHeader("Application Timeline", Icons.timeline,
-              color: Colors.blue),
-          const SizedBox(height: 12),
-          ...children,
-        ],
-      ),
-      isDark,
-    );
-  }
-
-  // ============================================================
-  // SAVE / SHARE
+  // SAVE & SHARE BUTTONS
   // ============================================================
   Widget _buildSaveAndShareButtons(bool isDark) {
     return Row(
       children: [
         Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _toggleSaveJob,
-            icon: Icon(
-                _isSaved ? Icons.bookmark : Icons.bookmark_border,
-                size: 20,
-                color: _isSaved
+          child: SizedBox(
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _toggleSaveJob,
+              icon: Icon(_isSaved ? Icons.bookmark : Icons.bookmark_border),
+              label: Text(_isSaved ? "Saved" : "Save Job"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _isSaved
                     ? Colors.green
-                    : const Color(0xFF6C63FF)),
-            label: Text(
-              _isSaved ? "Saved" : "Save Job",
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                    : (isDark ? Colors.grey.shade700 : Colors.white),
+                foregroundColor:
+                    _isSaved ? Colors.white : (isDark ? Colors.white : Colors.grey.shade700),
+                side: BorderSide(
                   color: _isSaved
                       ? Colors.green
-                      : const Color(0xFF6C63FF)),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(
-                  color: _isSaved
-                      ? Colors.green
-                      : const Color(0xFF6C63FF),
-                  width: 1.5),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                      : (isDark ? Colors.grey.shade600 : Colors.grey.shade300),
+                  width: 2,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _shareJob,
-            icon: const Icon(Icons.share, size: 20, color: Colors.teal),
-            label: const Text("Share Job",
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.teal)),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.teal, width: 1.5),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+          child: SizedBox(
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _shareJob,
+              icon: const Icon(Icons.share),
+              label: const Text("Share"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? Colors.grey.shade700 : Colors.white,
+                foregroundColor:
+                    isDark ? Colors.white : Colors.grey.shade700,
+                side: BorderSide(
+                  color: isDark ? Colors.grey.shade600 : Colors.grey.shade300,
+                  width: 2,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
         ),
@@ -4574,344 +4414,96 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // ✅ UPDATED: APPLY BUTTONS - Shows Total Fee Breakdown
+  // APPLY BUTTONS
   // ============================================================
   Widget _buildApplyButtons(
-    bool hasApplyWithUsLink,
-    bool hasValidWebsiteUrl,
+    bool hasApplyWithUs,
+    bool hasWebsiteUrl,
     FeeBreakdown feeBreakdown,
     bool isDark,
   ) {
     if (_hasApplied) {
-      return SizedBox(
+      return Container(
         width: double.infinity,
-        height: 52,
-        child: ElevatedButton.icon(
-          onPressed: null,
-          icon: const Icon(Icons.check_circle, size: 20),
-          label: const Text("Already Applied",
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.green.shade900 : Colors.green.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.green),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 24),
+            const SizedBox(width: 12),
+            Text(
+              "Already Applied",
               style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.grey,
-            foregroundColor: Colors.white,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            elevation: 0,
-          ),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.green.shade300 : Colors.green.shade800,
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    // ✅ Show user's effective category and total fee in apply button area
-    final hasFees = _hasApplicationFees();
-    final effectiveDisplay = _getEffectivePaymentCategoryDisplay();
-    final isPwd = _isPayingAsPwd();
-    final totalFee = feeBreakdown.totalFee;
-
     return Column(
       children: [
-        // ✅ Show fee info (always show if service charge or app fee exists)
-        if (totalFee > 0)
-          Container(
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isPwd
-                    ? [Colors.orange.shade50, Colors.amber.shade50]
-                    : [Colors.green.shade50, Colors.teal.shade50],
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isPwd
-                    ? Colors.orange.shade300
-                    : Colors.green.shade200,
-                width: isPwd ? 2 : 1,
-              ),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isPwd
-                              ? [Colors.orange, Colors.amber]
-                              : [Colors.green, Colors.lightGreen],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        isPwd ? Icons.accessible : Icons.payment,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                "Total Payable",
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: isPwd
-                                      ? Colors.orange
-                                      : Colors.green,
-                                ),
-                              ),
-                              if (isPwd) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Text(
-                                    "PWD PRIORITY",
-                                    style: TextStyle(
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          Text(
-                            isPwd
-                                ? "PWD Fee: ₹${feeBreakdown.applicationFee} + GST ₹${feeBreakdown.gstAmount} + Service ₹${feeBreakdown.serviceCharge}"
-                                : "$effectiveDisplay Fee: ₹${feeBreakdown.applicationFee} + GST ₹${feeBreakdown.gstAmount} + Service ₹${feeBreakdown.serviceCharge}",
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isPwd
-                              ? [Colors.orange, Colors.amber]
-                              : [Colors.green, Colors.lightGreen],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        "₹$totalFee",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                // ✅ Breakdown line below
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "₹${feeBreakdown.applicationFee}",
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal),
-                      ),
-                      const Text(" + ",
-                          style:
-                              TextStyle(fontSize: 12, color: Colors.grey)),
-                      Text(
-                        "₹${feeBreakdown.gstAmount}",
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange),
-                      ),
-                      const Text(" + ",
-                          style:
-                              TextStyle(fontSize: 12, color: Colors.grey)),
-                      Text(
-                        "₹${feeBreakdown.serviceCharge}",
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.purple),
-                      ),
-                      const Text(" = ",
-                          style:
-                              TextStyle(fontSize: 12, color: Colors.grey)),
-                      Text(
-                        "₹${feeBreakdown.totalFee}",
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green.shade700),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildSmallFeeLabel(
-                        "App Fee", Colors.teal, isDark),
-                    const SizedBox(width: 8),
-                    _buildSmallFeeLabel(
-                        "GST ${GST_PERCENT.toInt()}%", Colors.orange, isDark),
-                    const SizedBox(width: 8),
-                    _buildSmallFeeLabel(
-                        "Service", Colors.purple, isDark),
-                  ],
-                ),
-              ],
+        // APPLY WITH US BUTTON
+        if (hasApplyWithUs)
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: _buildGradientButton(
+              text: _isApplyingWithUs
+                  ? "Processing..."
+                  : (feeBreakdown.totalFee > 0
+                      ? "Apply with Us (₹${feeBreakdown.totalFee})"
+                      : "Apply with Us"),
+              icon: _isApplyingWithUs
+                  ? Icons.hourglass_empty
+                  : Icons.send,
+              onTap: _isApplyingWithUs ? () {} : _applyWithUs,
             ),
           ),
-        Row(
-          children: [
-            if (hasApplyWithUsLink)
-              Expanded(
-                child: SizedBox(
-                  height: 52,
-                  child: ElevatedButton.icon(
-                    onPressed: (_isApplyingWithUs || _isPaymentProcessing)
-                        ? null
-                        : _applyWithUs,
-                    icon: (_isApplyingWithUs || _isPaymentProcessing)
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.payment, size: 20),
-                    label: Text(
-                      (_isApplyingWithUs || _isPaymentProcessing)
-                          ? "Processing..."
-                          : "Apply with Us",
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6C63FF),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      elevation: 3,
-                    ),
-                  ),
-                ),
-              ),
-            if (hasApplyWithUsLink && hasValidWebsiteUrl)
-              const SizedBox(width: 12),
-            if (hasValidWebsiteUrl)
-              Expanded(
-                child: SizedBox(
-                  height: 52,
-                  child: OutlinedButton.icon(
-                    onPressed:
-                        _isApplyingOnWebsite ? null : _applyOnWebsite,
-                    icon: _isApplyingOnWebsite
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2))
-                        : const Icon(Icons.open_in_browser, size: 20),
-                    label: Text(
-                      _isApplyingOnWebsite
-                          ? "Opening..."
-                          : "Apply on Website",
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue,
-                      side:
-                          const BorderSide(color: Colors.blue, width: 2),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: OutlinedButton.icon(
-            onPressed: _toggleSaveJob,
-            icon: Icon(
-                _isSaved ? Icons.bookmark : Icons.bookmark_border,
-                size: 20),
-            label: Text(_isSaved ? "Saved" : "Save Job",
-                style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w600)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor:
-                  _isSaved ? Colors.green : const Color(0xFF6C63FF),
-              side: BorderSide(
-                  color: _isSaved
-                      ? Colors.green
-                      : const Color(0xFF6C63FF),
-                  width: 1.5),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
-  // ✅ NEW: Small fee label helper
-  Widget _buildSmallFeeLabel(String label, Color color, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.circle, size: 6, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              color: color,
+        // Divider if both buttons
+        if (hasApplyWithUs && hasWebsiteUrl) const SizedBox(height: 12),
+
+        // APPLY ON WEBSITE BUTTON
+        if (hasWebsiteUrl)
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton.icon(
+              onPressed: _isApplyingOnWebsite ? null : _applyOnWebsite,
+              icon: _isApplyingOnWebsite
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.open_in_new),
+              label: Text(
+                _isApplyingOnWebsite ? "Opening..." : "Apply on Website",
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? Colors.grey.shade700 : Colors.white,
+                foregroundColor: isDark ? Colors.white : const Color(0xFF6C63FF),
+                side: BorderSide(
+                  color: isDark ? Colors.grey.shade600 : const Color(0xFF6C63FF),
+                  width: 2,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }

@@ -300,6 +300,10 @@ class JobService:
 
     # ====================== LIST JOBS (OPTIMIZED - FAST LOADING) ======================
 
+    # app/modules/jobs/service.py - COMPLETE FIXED list_jobs METHOD
+    # ✅ FIXED: Added ALL advertisement and apply fields to projection
+    # ✅ This ensures JobDetailScreen receives complete data
+
     async def list_jobs(
         self,
         skip: int = 0,
@@ -313,11 +317,12 @@ class JobService:
         """
         ✅ OPTIMIZED: List jobs with filters - FAST LOADING
         
-        Key optimizations:
-        1. Uses projection to fetch only needed fields initially
-        2. Parallel count + fetch
-        3. Minimal distance calculation
-        4. No blocking operations
+        ✅ FIXED: Now includes ALL fields needed by JobDetailScreen:
+        - advertisement_url, advertisement_download_url, advertisement_is_pdf
+        - has_advertisement_file, advertisement_is_public
+        - apply_with_us_url, has_apply_with_us
+        - official_notification_url, has_official_notification
+        - website_url, apply_link
         """
         query = {"status": "open"}
 
@@ -344,8 +349,9 @@ class JobService:
         # ✅ OPTIMIZATION: Run count and fetch in parallel
         count_task = self.jobs.count_documents(query)
         
-        # ✅ OPTIMIZATION: Use projection to only fetch needed fields for list view
+        # ✅ FIXED PROJECTION: Include ALL fields needed by frontend
         projection = {
+            # ==================== BASIC INFO ====================
             "_id": 1,
             "post_name": 1,
             "organization": 1,
@@ -357,22 +363,128 @@ class JobService:
             "color_type": 1,
             "post_date": 1,
             "last_date": 1,
+            "description": 1,
+            
+            # ==================== SALARY & VACANCY ====================
             "salary_min": 1,
             "salary_max": 1,
+            "salary_currency": 1,
             "total_posts": 1,
+            "multiple_posts": 1,
+            
+            # ==================== EXPERIENCE & QUALIFICATION ====================
             "experience_min_years": 1,
             "experience_max_years": 1,
             "required_qualification": 1,
-            "has_apply_with_us": 1,
-            "has_official_notification": 1,
+            "qualification": 1,
+            "education_details": 1,
+            "experience_details": 1,
+            
+            # ==================== AGE LIMIT ====================
+            "age_min_years": 1,
+            "age_max_years": 1,
+            "age_calculation_date": 1,
+            "age_relaxation_details": 1,
+            "age_relaxation_by_category": 1,
+            
+            # ==================== APPLICATION FEES ====================
             "has_application_fees": 1,
             "application_fees": 1,
-            "created_at": 1,
-            "urgency_level": 1,
+            
+            # ==================== ✅ APPLY WITH US (CRITICAL FIX) ====================
+            "has_apply_with_us": 1,
+            "apply_with_us_url": 1,
+            
+            # ==================== ✅ OFFICIAL NOTIFICATION (CRITICAL FIX) ====================
+            "has_official_notification": 1,
+            "official_notification_url": 1,
+            "official_notification_link": 1,  # ✅ Added fallback field
+            
+            # ==================== ✅ ADVERTISEMENT FIELDS (CRITICAL FIX) ====================
+            "advertisement_url": 1,
+            "advertisement_download_url": 1,
+            "advertisement_name": 1,
+            "advertisement_storage": 1,
+            "advertisement_public_id": 1,
+            "advertisement_resource_type": 1,
+            "advertisement_is_public": 1,
+            "advertisement_is_pdf": 1,
+            "advertisement_folder_path": 1,
+            "advertisement_file_size": 1,
+            "has_advertisement_file": 1,
+            
+            # ==================== WEBSITE & APPLY LINKS ====================
+            "website_url": 1,
+            "apply_link": 1,
+            "action": 1,
+            
+            # ==================== WORK DETAILS ====================
+            "work_schedule": 1,
+            "shift": 1,
+            "working_days": 1,
             "is_fully_remote": 1,
             "is_hybrid": 1,
-            "tags": 1,
+            
+            # ==================== BENEFITS & SKILLS ====================
+            "benefits": 1,
             "required_skills": 1,
+            "nice_to_have_skills": 1,
+            "tags": 1,
+            
+            # ==================== LANGUAGES ====================
+            "languages_required": 1,
+            "other_languages": 1,
+            
+            # ==================== TIMELINE DATES ====================
+            "application_start_date": 1,
+            "application_end_date": 1,
+            "admit_card_date": 1,
+            "exam_date": 1,
+            "result_date": 1,
+            
+            # ==================== INTERVIEW DETAILS ====================
+            "interview_venue": 1,
+            "interview_link": 1,
+            "interview_date": 1,
+            "interview_time": 1,
+            "interview_documents": 1,
+            "is_interview_online": 1,
+            
+            # ==================== SELECTION PROCESS ====================
+            "selection_stages": 1,
+            "selection_process_details": 1,
+            
+            # ==================== PHYSICAL & MEDICAL ====================
+            "physical_eligibility": 1,
+            "medical_standards": 1,
+            "has_medical_requirement": 1,
+            
+            # ==================== CONTACT INFO ====================
+            "contact_person": 1,
+            "contact_designation": 1,
+            "contact_email": 1,
+            "contact_phone": 1,
+            "helpline_number": 1,
+            "helpline_email": 1,
+            "whatsapp_number": 1,
+            "telegram_channel": 1,
+            
+            # ==================== ADDITIONAL ====================
+            "important_notes": 1,
+            "terms_conditions": 1,
+            "urgency_level": 1,
+            "gender_preference": 1,
+            "application_mode": 1,
+            "exam_cities": 1,
+            
+            # ==================== TIMESTAMPS ====================
+            "created_at": 1,
+            "updated_at": 1,
+            
+            # ==================== PUBLISHER INFO ====================
+            "added_by": 1,
+            "added_by_name": 1,
+            "publisher_role": 1,
         }
         
         jobs_task = self.jobs.find(query, projection).skip(skip).limit(limit).sort("created_at", -1).to_list(limit)
@@ -385,6 +497,12 @@ class JobService:
             job["_id"] = str(job["_id"])
             job.setdefault("color_type", "blue")
             
+            # ✅ Ensure boolean flags are set correctly
+            job.setdefault("has_apply_with_us", False)
+            job.setdefault("has_official_notification", False)
+            job.setdefault("has_application_fees", False)
+            job.setdefault("has_advertisement_file", False)
+            
             # ✅ Fast distance calculation (only if user has location)
             distance_km = None
             if user_location and user_location.get("latitude") and user_location.get("longitude"):
@@ -393,7 +511,7 @@ class JobService:
                 job_lon = job_loc.get("longitude")
 
                 if job_lat is not None and job_lon is not None and (job_lat != 0 or job_lon != 0):
-                    # ✅ Fast Haversine formula inline (avoid function call overhead)
+                    # ✅ Fast Haversine formula inline
                     import math
                     lat1, lon1 = user_location["latitude"], user_location["longitude"]
                     lat2, lon2 = job_lat, job_lon

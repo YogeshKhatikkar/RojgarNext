@@ -1,11 +1,15 @@
 // lib/features/auth/presentation/screens/change_password_screen.dart
-// ✅ AI‑BASED MODERN DESIGN (gradient, glass containers, loading animation)
+// ✅ AI-BASED MODERN DESIGN (gradient, glass containers, loading animation)
 // ✅ FIXED: Email OTP + Mobile OTP are both sent on initial load
 // ✅ FIXED: Manual mobile entry triggers mobile OTP sending
-// ✅ FULLY UPDATED – no logic skipped
+// ✅ NEW: CUSTOM OTP BOXES — Bold, large, clearly visible digits
+// ✅ NEW: NO WHITE LINE — clean borders, high contrast input text
+// ✅ FIXED: Added flutter/services.dart import for input formatters
+// ✅ FULLY UPDATED — no logic skipped
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ FIXED: Required for input formatters
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
 import 'package:rojgarnext/features/auth/services/auth_service.dart';
@@ -105,7 +109,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       setState(() => _isLoading = false);
       return;
     }
-    await _sendOtps(); // renamed from _sendOtp
+    await _sendOtps();
   }
 
   // ============================================================
@@ -113,7 +117,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   // ============================================================
   Future<void> _sendOtps() async {
     try {
-      // 1. Trigger email OTP via forgotPassword
       final result = await AuthService.forgotPassword(_email!);
       final mobileFromBackend = result['mobile']?.toString();
 
@@ -122,11 +125,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         _mobile = mobileFromBackend;
         _mobileMissing = false;
 
-        // 2. Immediately send mobile OTP
         try {
           await AuthService.resendResetMobileOtp(_mobile!);
         } catch (e) {
-          // Mobile OTP send failed – show warning but continue
           if (mounted) {
             _showSnack('Mobile OTP send failed: $e', isError: true);
           }
@@ -134,7 +135,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       } else {
         _mobileMissing = true;
         _mobile = null;
-        // Email OTP was already sent; we'll ask user to enter mobile manually
         if (mounted) {
           _showSnack(
             'Mobile number not found. Please enter it manually to receive OTP.',
@@ -147,7 +147,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       setState(() {});
     } catch (e) {
       if (e.toString().contains('Mobile number not found')) {
-        // Backend returned a specific error – treat as missing mobile
         _mobileMissing = true;
         _mobile = null;
         _startTimer();
@@ -244,7 +243,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   Future<void> _verifyOtp() async {
     if (_emailOtp.length != 6 || _mobileOtp.length != 6) {
-      _showSnack('Enter both 6‑digit OTPs', isError: true);
+      _showSnack('Enter both 6-digit OTPs', isError: true);
       return;
     }
 
@@ -671,11 +670,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   )
                 : null,
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             filled: true,
             fillColor: Colors.transparent,
           ),
-          validator: (value) => required && (value == null || value.isEmpty) ? "Required" : null,
+          validator: (value) =>
+              required && (value == null || value.isEmpty) ? "Required" : null,
         ),
       ),
     );
@@ -734,7 +735,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   // ============================================================
-  // OTP SECTION
+  // OTP SECTION — CUSTOM OTP BOXES (BOLD, CLEARLY VISIBLE)
   // ============================================================
   Widget _buildOtpSection() {
     final busy = _isVerifying || _isUpdating;
@@ -802,7 +803,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
                           ),
                           child: const Text('Save'),
                         ),
@@ -840,17 +842,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             children: [
               _sectionHeader("Enter OTP", Icons.verified,
                   subtitle: "We sent OTPs to your email and mobile"),
-              const Text('Email OTP', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              _buildPinCodeField(
+              const Text('Email OTP',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                    fontSize: 14,
+                  )),
+              const SizedBox(height: 10),
+              _buildCustomOtpRow(
                 key: _emailPinKey,
                 onChanged: (v) => setState(() => _emailOtp = v),
                 enabled: !busy && !_mobileMissing,
               ),
-              const SizedBox(height: 16),
-              const Text('Mobile OTP', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              _buildPinCodeField(
+              const SizedBox(height: 20),
+              const Text('Mobile OTP',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                    fontSize: 14,
+                  )),
+              const SizedBox(height: 10),
+              _buildCustomOtpRow(
                 key: _mobilePinKey,
                 onChanged: (v) => setState(() => _mobileOtp = v),
                 enabled: !busy && !_mobileMissing,
@@ -934,29 +946,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  Widget _buildPinCodeField({
+  // ✅ CUSTOM OTP ROW — 6 bold, high-contrast TextField boxes
+  Widget _buildCustomOtpRow({
     required GlobalKey key,
     required ValueChanged<String> onChanged,
     required bool enabled,
   }) {
-    return PinCodeTextField(
+    return _CustomOtpRow(
       key: key,
-      appContext: context,
-      length: 6,
-      keyboardType: TextInputType.number,
       enabled: enabled,
-      pinTheme: PinTheme(
-        shape: PinCodeFieldShape.box,
-        borderRadius: BorderRadius.circular(12),
-        fieldHeight: 54,
-        fieldWidth: 46,
-        activeColor: const Color(0xFF6C63FF),
-        selectedColor: const Color(0xFF6C63FF),
-        inactiveColor: Colors.grey.shade400,
-        activeFillColor: Colors.white,
-        inactiveFillColor: Colors.transparent,
-        selectedFillColor: Colors.white,
-      ),
       onChanged: onChanged,
     );
   }
@@ -1092,6 +1090,116 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ============================================================
+// ✅ CUSTOM OTP ROW WIDGET
+// Bold, large, crystal-clear digits — no white line
+// ============================================================
+class _CustomOtpRow extends StatefulWidget {
+  final bool enabled;
+  final ValueChanged<String> onChanged;
+
+  const _CustomOtpRow({
+    super.key,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  @override
+  State<_CustomOtpRow> createState() => _CustomOtpRowState();
+}
+
+class _CustomOtpRowState extends State<_CustomOtpRow> {
+  final List<TextEditingController> _controllers =
+      List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+
+  @override
+  void dispose() {
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    for (final n in _focusNodes) {
+      n.dispose();
+    }
+    super.dispose();
+  }
+
+  String get _combined => _controllers.map((c) => c.text).join();
+
+  void _notify() {
+    widget.onChanged(_combined);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: List.generate(6, (index) {
+        return SizedBox(
+          width: 46,
+          height: 56,
+          child: TextField(
+            controller: _controllers[index],
+            focusNode: _focusNodes[index],
+            enabled: widget.enabled,
+            textAlign: TextAlign.center,
+            keyboardType: TextInputType.number,
+            maxLength: 1,
+            obscureText: false,
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+              letterSpacing: 1,
+            ),
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(1),
+            ],
+            decoration: InputDecoration(
+              counterText: '',
+              filled: true,
+              fillColor: _controllers[index].text.isNotEmpty
+                  ? const Color(0xFF6C63FF).withOpacity(0.08)
+                  : Colors.grey.shade50,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: _focusNodes[index].hasFocus
+                      ? const Color(0xFF6C63FF)
+                      : Colors.grey.shade300,
+                  width: _focusNodes[index].hasFocus ? 2.5 : 1.5,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Color(0xFF6C63FF),
+                  width: 2.5,
+                ),
+              ),
+              contentPadding: EdgeInsets.zero,
+            ),
+            onChanged: (value) {
+              setState(() {});
+              if (value.length == 1 && index < 5) {
+                FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
+              } else if (value.isEmpty && index > 0) {
+                FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
+              }
+              _notify();
+            },
+          ),
+        );
+      }),
     );
   }
 }

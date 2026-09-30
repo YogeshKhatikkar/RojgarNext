@@ -1,10 +1,13 @@
 // lib/features/auth/presentation/screens/verify_otp_page.dart
 // ✅ AI‑BASED MODERN DESIGN (same as other screens)
-// ✅ CUSTOM OTP FIELDS – NO WHITE LINE EVER
+// ✅ NEW: CUSTOM OTP FIELDS — Bold, large, crystal-clear digits
+// ✅ FIXED: NO WHITE LINE — clean borders, high contrast text
+// ✅ FIXED: Added flutter/services.dart import for input formatters
 // ✅ ALL ORIGINAL LOGIC PRESERVED (timer, resend, verification)
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ FIXED: Required for input formatters
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
@@ -397,7 +400,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
   }
 
   // ============================================================
-  // OTP SECTION – CUSTOM FIELDS (NO WHITE LINE EVER)
+  // OTP SECTION – CUSTOM FIELDS (BOLD, CRYSTAL-CLEAR DIGITS)
   // ============================================================
   Widget _buildOtpSection({
     required String title,
@@ -411,13 +414,19 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
       children: [
         _sectionHeader(title, Icons.pin),
         const SizedBox(height: 12),
-        // CUSTOM OTP FIELD – NO WHITE LINE
         Container(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.05),
+                blurRadius: 5,
+                spreadRadius: 1,
+              ),
+            ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -426,6 +435,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                 controller: controllers[index],
                 focusNode: focusNodes[index],
                 onChanged: (value) {
+                  setState(() {});
                   if (value.length == 1 && index < 5) {
                     FocusScope.of(context).requestFocus(focusNodes[index + 1]);
                   } else if (value.isEmpty && index > 0) {
@@ -438,11 +448,14 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
           ),
         ),
         const SizedBox(height: 6),
-        Text(
-          hint,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade600,
+        Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Text(
+            hint,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
           ),
         ),
       ],
@@ -478,6 +491,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     );
   }
 
+  // ✅ Custom OTP Box — Large, Bold, Crystal-Clear digits
   Widget _buildOtpBox({
     required TextEditingController controller,
     required FocusNode focusNode,
@@ -494,17 +508,23 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
         textAlign: TextAlign.center,
         keyboardType: TextInputType.number,
         maxLength: 1,
+        obscureText: false,
         style: const TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          fontSize: 26,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF0F172A),
+          letterSpacing: 1,
         ),
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(1),
+        ],
         decoration: InputDecoration(
           counterText: '',
           filled: true,
           fillColor: controller.text.isNotEmpty
-              ? const Color(0xFF6C63FF).withOpacity(0.1)
-              : Colors.grey.shade100,
+              ? const Color(0xFF6C63FF).withOpacity(0.08)
+              : Colors.grey.shade50,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
