@@ -1,6 +1,10 @@
-# app/modules/payment/routes.py - FIXED VERSION
-# ✅ CORRECTLY SETS application_type='service' for service payments
-# ✅ FIXED: All is_razorpay_test_mode references use safe helper
+# app/modules/payment/routes.py - COMPLETE FIXED VERSION
+# ✅ CRITICAL FIX: NO application record is created when Razorpay order is created
+# ✅ Application is created ONLY after successful payment verification
+# ✅ Failed/cancelled payments create NO database record
+# ✅ Supports BOTH job and service payments
+# ✅ GST (18%) + Service Charge (₹50) added to total amount
+# ✅ Razorpay ONLY - No PhonePe, No QR code
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, BackgroundTasks, UploadFile, File, Form
 from fastapi.responses import RedirectResponse
@@ -39,10 +43,9 @@ router = APIRouter()
 # ============================================================
 def _get_razorpay_test_mode() -> bool:
     """
-    ✅ SAFE: Returns test mode value using multiple fallbacks.
+    SAFE: Returns test mode value using multiple fallbacks.
     Prevents 'Settings' object has no attribute 'is_razorpay_test_mode' error.
     """
-    # Try all possible attribute names (in priority order)
     for attr in [
         'RAZORPAY_TEST_MODE',
         'is_razorpay_test_mode',
@@ -56,7 +59,6 @@ def _get_razorpay_test_mode() -> bool:
         except AttributeError:
             continue
 
-    # Fallback: check key prefix
     try:
         key_id = getattr(settings, 'RAZORPAY_KEY_ID', '') or ''
         if key_id.startswith('rzp_test_'):
@@ -66,7 +68,6 @@ def _get_razorpay_test_mode() -> bool:
     except Exception:
         pass
 
-    # Default: assume test mode
     return True
 
 
@@ -131,6 +132,23 @@ def initialize_razorpay_client():
 initialize_razorpay_client()
 
 
+# ==================== GST & SERVICE CHARGE CONSTANTS ====================
+GST_PERCENT = 18.0
+SERVICE_CHARGE = 50  # ₹50 flat
+
+
+def calculate_fee_breakdown(application_fee: int) -> Dict[str, int]:
+    """Calculate total fee with GST and service charge"""
+    gst_amount = int((application_fee * GST_PERCENT) / 100)
+    total = application_fee + gst_amount + SERVICE_CHARGE
+    return {
+        "application_fee": application_fee,
+        "gst_amount": gst_amount,
+        "service_charge": SERVICE_CHARGE,
+        "total": total
+    }
+
+
 # ==================== SCHEMAS ====================
 
 class CreateOrderSchema(BaseModel):
@@ -138,6 +156,7 @@ class CreateOrderSchema(BaseModel):
     payment_type: str = "job"
     job_id: Optional[str] = None
     job_title: Optional[str] = None
+    organization: Optional[str] = None
     service_id: Optional[str] = None
     service_type: Optional[str] = None
     sub_type_id: Optional[str] = None
@@ -151,10 +170,17 @@ class VerifyPaymentSchema(BaseModel):
     razorpay_order_id: str
     razorpay_payment_id: str
     razorpay_signature: str
-    application_id: str
+    application_id: Optional[str] = None  # This is now the order_id
 
 
-# ==================== CREATE RAZORPAY ORDER ====================
+# ============================================================
+# ✅ CREATE RAZORPAY ORDER
+# ============================================================
+# CRITICAL FIX: This endpoint DOES NOT create any application record.
+# It ONLY creates a Razorpay order.
+# The application record is created later in verify-payment ONLY
+# after successful payment verification.
+# ============================================================
 
 @router.post("/razorpay/create-order")
 async def create_razorpay_order(
@@ -163,13 +189,20 @@ async def create_razorpay_order(
     db=Depends(get_db)
 ):
     """
-    ✅ CREATE RAZORPAY ORDER - NO SEPARATE TABLES
-    All data stored in applications/services collection
+    CREATE RAZORPAY ORDER - NO APPLICATION RECORD CREATED HERE
+    
+    Flow:
+    1. User clicks "Apply" on job/service
+    2. This endpoint is called → creates Razorpay order ONLY
+    3. User pays via Razorpay checkout
+    4. verify-payment endpoint creates the application record
+    5. If user cancels → NO application record exists
     """
     logger.info("=" * 70)
     logger.info(f"💰 Creating Razorpay Order - Type: {data.payment_type}")
     logger.info(f"   User: {current_user.get('email')}")
     logger.info(f"   Amount: ₹{data.amount}")
+    logger.info(f"   ⚠️ NO APPLICATION CREATED HERE - Only Razorpay order")
     logger.info("=" * 70)
 
     if not razorpay_client or not razorpay_initialized:
@@ -194,230 +227,196 @@ async def create_razorpay_order(
         disability = profile.get("disability", {})
         is_disabled = disability.get("is_disabled", False) if isinstance(disability, dict) else False
 
-    application_id = None
+    # Default values
+    amount = data.amount
+    category_used = "none"
+    job_title = ""
+    organization = ""
+    added_by = "admin@rojgarnext.com"
 
-    try:
-        # ==================== JOB PAYMENT ====================
-        if data.payment_type == "job":
-            if not data.job_id or not ObjectId.is_valid(data.job_id):
-                raise HTTPException(status_code=400, detail="Invalid job ID")
+    # ==================== JOB PAYMENT ====================
+    if data.payment_type == "job":
+        if not data.job_id or not ObjectId.is_valid(data.job_id):
+            raise HTTPException(status_code=400, detail="Invalid job ID")
 
-            job = await db.job.find_one({"_id": ObjectId(data.job_id)})
-            if not job:
-                raise HTTPException(status_code=404, detail="Job not found")
+        job = await db.job.find_one({"_id": ObjectId(data.job_id)})
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
 
-            job_title = data.job_title or job.get("post_name", "Job Application")
+        job_title = data.job_title or job.get("post_name", "Job Application")
+        organization = job.get("organization", "Company")
+        added_by = job.get("added_by", "admin@rojgarnext.com")
 
-            category_used = "none"
-            amount = data.amount
-
-            job_fees = job.get("application_fees", {})
-            if job_fees:
-                if is_disabled:
-                    category_used = "pwd"
-                    amount = job_fees.get("pwd", data.amount)
-                else:
-                    category_map = {
-                        "General/UR": "general/ur",
-                        "OBC": "obc",
-                        "SC": "sc",
-                        "ST": "st",
-                        "EWS": "ews"
-                    }
-                    fee_key = category_map.get(user_category, "general/ur")
-                    category_used = fee_key
-                    amount = job_fees.get(fee_key, data.amount)
-
-            existing = await db.applications.find_one({
-                "job_id": data.job_id,
-                "applicant_email": user_email,
-                "status": {"$nin": ["replaced", "rejected", "verification_rejected"]}
-            })
-
-            if existing:
-                existing_status = existing.get("status", "")
-                if existing_status == "verification_successful":
-                    raise HTTPException(
-                        status_code=400,
-                        detail="You have already successfully applied for this job"
-                    )
-                application_id = str(existing["_id"])
-                logger.info(f"📋 Using existing application: {application_id}")
-
-            if not application_id:
-                application = {
-                    "application_type": "job",
-                    "job_id": data.job_id,
-                    "job_title": job_title,
-                    "organization": job.get("organization", "Company"),
-                    "added_by": job.get("added_by", "admin@rojgarnext.com"),
-                    "applicant_email": user_email,
-                    "applicant_name": user_name,
-                    "user_id": user_id,
-                    "user_email": user_email,
-                    "user_name": user_name,
-                    "user_category": user_category,
-                    "is_disabled": is_disabled,
-                    "status": "payment_pending",
-                    "payment_amount": amount,
-                    "payment_category_used": category_used,
-                    "payment_verification_status": "pending",
-                    "created_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow()
-                }
-                result = await db.applications.insert_one(application)
-                application_id = str(result.inserted_id)
-                logger.info(f"✅ Created job application: {application_id}")
-
-        # ==================== SERVICE PAYMENT ====================
-        elif data.payment_type == "service":
-            if not data.service_id or not data.sub_type_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail="service_id and sub_type_id are required for service payment"
-                )
-
-            from app.modules.services.models.service_types import ServiceMasterData
-            service = ServiceMasterData.get_service_by_id(data.service_id)
-            sub_type = ServiceMasterData.get_sub_type_by_id(data.sub_type_id)
-
-            service_name = service.name if service else data.service_id
-            sub_service_name = data.sub_service_name or (sub_type.name if sub_type else data.sub_type_id)
-            category_used = "service"
-            amount = data.amount
-
-            existing = await db.applications.find_one({
-                "service_id": data.service_id,
-                "sub_type_id": data.sub_type_id,
-                "user_email": user_email,
-                "application_type": "service"
-            })
-
-            if existing:
-                existing_status = existing.get("status", "")
-                if existing_status in ["approved", "completed", "payment_verified"]:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="You have already successfully applied for this service"
-                    )
-                if existing_status == "rejected":
-                    await db.applications.update_one(
-                        {"_id": existing["_id"]},
-                        {"$set": {"status": "replaced", "replaced_at": datetime.utcnow()}}
-                    )
-                else:
-                    application_id = str(existing["_id"])
-                    logger.info(f"📋 Existing service application: {application_id}")
-
-            if not application_id:
-                application = {
-                    "application_type": "service",
-                    "service_id": data.service_id,
-                    "sub_type_id": data.sub_type_id,
-                    "service_name": service_name,
-                    "sub_service_name": sub_service_name,
-                    "user_email": user_email,
-                    "user_name": user_name,
-                    "user_id": user_id,
-                    "user_category": "service",
-                    "is_disabled": is_disabled,
-                    "fields": data.form_data or {},
-                    "documents": {},
-                    "status": "payment_pending",
-                    "payment_amount": amount,
-                    "payment_category_used": "service",
-                    "payment_verification_status": "pending",
-                    "created_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow()
-                }
-                result = await db.applications.insert_one(application)
-                application_id = str(result.inserted_id)
-                logger.info(f"✅ Created service application: {application_id} (application_type='service')")
-
-        else:
+        # ✅ Check if already applied (any non-rejected status)
+        existing = await db.applications.find_one({
+            "job_id": data.job_id,
+            "user_email": user_email,
+            "application_type": "job",
+            "status": {
+                "$in": [
+                    "verification_successful", "pending", "shortlisted",
+                    "interview", "offered", "submitted", "review_application",
+                    "final_submitted", "confirmed_application", "approved_application"
+                ]
+            }
+        })
+        if existing:
             raise HTTPException(
                 status_code=400,
-                detail="Invalid payment_type. Must be 'job' or 'service'."
+                detail="You have already applied for this job"
             )
 
-        # ==================== CREATE RAZORPAY ORDER ====================
-        # ✅ FIXED: Uses _get_razorpay_test_mode() instead of settings.is_razorpay_test_mode
-        order_data = {
-            "amount": amount * 100,
-            "currency": "INR",
-            "receipt": f"receipt_{application_id}",
-            "payment_capture": 1,
-            "notes": {
-                "payment_type": data.payment_type,
-                "user_email": user_email,
-                "application_id": application_id,
-                "amount": amount,
-                "category_used": category_used,
-                "test_mode": _get_razorpay_test_mode()   # ✅ FIXED LINE #1
-            }
-        }
-
-        order = None
-        for attempt in range(1, 4):
-            try:
-                order = razorpay_client.order.create(data=order_data)
-                logger.info(f"✅ Order created on attempt {attempt}: {order['id']}")
-                break
-            except Exception as e:
-                logger.error(f"⚠️ Attempt {attempt} failed: {e}")
-                if attempt == 3:
-                    raise HTTPException(status_code=400, detail=f"Failed to create order: {str(e)}")
-                await asyncio.sleep(1 * attempt)
-
-        if not order:
-            raise HTTPException(status_code=500, detail="Failed to create payment order")
-
-        razorpay_order_id = order["id"]
-
-        await db.applications.update_one(
-            {"_id": ObjectId(application_id)},
-            {
-                "$set": {
-                    "razorpay_order_id": razorpay_order_id,
-                    "payment_id": application_id,
-                    "updated_at": datetime.utcnow()
+        # ✅ Calculate fee based on category
+        job_fees = job.get("application_fees", {})
+        if job_fees and len(job_fees) > 0:
+            if is_disabled:
+                category_used = "pwd"
+                amount = job_fees.get("pwd", data.amount)
+            else:
+                category_map = {
+                    "General/UR": "general/ur",
+                    "OBC": "obc",
+                    "SC": "sc",
+                    "ST": "st",
+                    "EWS": "ews"
                 }
+                fee_key = category_map.get(user_category, "general/ur")
+                category_used = fee_key
+                amount = job_fees.get(fee_key, data.amount)
+
+    # ==================== SERVICE PAYMENT ====================
+    elif data.payment_type == "service":
+        if not data.service_id or not data.sub_type_id:
+            raise HTTPException(
+                status_code=400,
+                detail="service_id and sub_type_id are required for service payment"
+            )
+
+        from app.modules.services.models.service_types import ServiceMasterData
+        service = ServiceMasterData.get_service_by_id(data.service_id)
+        sub_type = ServiceMasterData.get_sub_type_by_id(data.sub_type_id)
+
+        job_title = service.name if service else data.service_id
+        organization = sub_type.name if sub_type else data.sub_type_id
+
+        # ✅ Check if already applied
+        existing = await db.applications.find_one({
+            "service_id": data.service_id,
+            "sub_type_id": data.sub_type_id,
+            "user_email": user_email,
+            "application_type": "service",
+            "status": {
+                "$nin": ["replaced", "rejected", "verification_rejected"]
             }
+        })
+        if existing:
+            existing_status = existing.get("status", "")
+            if existing_status in ["approved", "completed", "payment_verified"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail="You have already successfully applied for this service"
+                )
+
+        category_used = "service"
+        amount = data.amount
+
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid payment_type. Must be 'job' or 'service'."
         )
 
-        logger.info("=" * 70)
-        logger.info(f"✅ Razorpay order creation complete!")
-        logger.info(f"   Order ID: {razorpay_order_id}")
-        logger.info(f"   Application ID: {application_id}")
-        logger.info(f"   Amount: ₹{amount}")
-        logger.info(f"   Category Used: {category_used}")
-        logger.info(f"   Application Type: {data.payment_type}")
-        logger.info("=" * 70)
+    # ==================== CALCULATE TOTAL WITH GST + SERVICE CHARGE ====================
+    fee_breakdown = calculate_fee_breakdown(amount)
 
-        return {
-            "success": True,
-            "order_id": razorpay_order_id,
-            "amount": amount,
-            "amount_paise": amount * 100,
-            "currency": "INR",
-            "key_id": RAZORPAY_KEY_ID,
-            "application_id": application_id,
+    logger.info(f"💰 Fee Breakdown:")
+    logger.info(f"   Application Fee: ₹{fee_breakdown['application_fee']}")
+    logger.info(f"   GST ({GST_PERCENT}%): ₹{fee_breakdown['gst_amount']}")
+    logger.info(f"   Service Charge: ₹{fee_breakdown['service_charge']}")
+    logger.info(f"   TOTAL: ₹{fee_breakdown['total']}")
+
+    # ==================== CREATE RAZORPAY ORDER ====================
+    order_data = {
+        "amount": fee_breakdown['total'] * 100,  # Convert to paise
+        "currency": "INR",
+        "receipt": f"rcpt_{uuid.uuid4().hex[:20]}",
+        "payment_capture": 1,
+        "notes": {
             "payment_type": data.payment_type,
+            "user_email": user_email,
+            "user_name": user_name,
+            "user_id": user_id or "",
+            "job_id": data.job_id or "",
+            "job_title": job_title,
+            "organization": organization,
+            "added_by": added_by,
+            "service_id": data.service_id or "",
+            "service_type": data.service_type or "",
+            "sub_type_id": data.sub_type_id or "",
+            "sub_service_name": data.sub_service_name or "",
+            "application_fee": str(fee_breakdown['application_fee']),
+            "gst_amount": str(fee_breakdown['gst_amount']),
+            "service_charge": str(fee_breakdown['service_charge']),
+            "total_amount": str(fee_breakdown['total']),
             "category_used": category_used,
-            "test_mode": _get_razorpay_test_mode(),   # ✅ FIXED LINE #2
-            "message": "Order created successfully"
+            "user_category": user_category,
+            "is_disabled": str(is_disabled),
+            "form_data": json.dumps(data.form_data or {}),
+            "test_mode": str(_get_razorpay_test_mode())
         }
+    }
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Order creation error: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Order creation failed: {str(e)}")
+    order = None
+    for attempt in range(1, 4):
+        try:
+            order = razorpay_client.order.create(data=order_data)
+            logger.info(f"✅ Order created on attempt {attempt}: {order['id']}")
+            break
+        except Exception as e:
+            logger.error(f"⚠️ Attempt {attempt} failed: {e}")
+            if attempt == 3:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Failed to create order: {str(e)}"
+                )
+            await asyncio.sleep(1 * attempt)
+
+    if not order:
+        raise HTTPException(status_code=500, detail="Failed to create payment order")
+
+    razorpay_order_id = order["id"]
+
+    logger.info("=" * 70)
+    logger.info(f"✅ Razorpay order created successfully!")
+    logger.info(f"   Order ID: {razorpay_order_id}")
+    logger.info(f"   Total Amount: ₹{fee_breakdown['total']}")
+    logger.info(f"   ⚠️ NO APPLICATION SAVED YET - Will save on payment success")
+    logger.info("=" * 70)
+
+    return {
+        "success": True,
+        "order_id": razorpay_order_id,
+        "amount": fee_breakdown['total'],
+        "application_fee": fee_breakdown['application_fee'],
+        "gst_amount": fee_breakdown['gst_amount'],
+        "service_charge": fee_breakdown['service_charge'],
+        "amount_paise": fee_breakdown['total'] * 100,
+        "currency": "INR",
+        "key_id": RAZORPAY_KEY_ID,
+        "payment_type": data.payment_type,
+        "category_used": category_used,
+        "test_mode": _get_razorpay_test_mode(),
+        "message": "Order created. Application will be saved only after successful payment."
+    }
 
 
-# ==================== VERIFY RAZORPAY PAYMENT ====================
+# ============================================================
+# ✅ VERIFY RAZORPAY PAYMENT - CREATES APPLICATION ONLY ON SUCCESS
+# ============================================================
+# This is the ONLY place where applications are created.
+# If payment fails/cancelled, this endpoint is never called,
+# so NO application record exists.
+# ============================================================
 
 @router.post("/razorpay/verify-payment")
 async def verify_razorpay_payment(
@@ -426,13 +425,13 @@ async def verify_razorpay_payment(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """✅ VERIFY RAZORPAY PAYMENT - NO SEPARATE TABLES"""
+    """
+    VERIFY RAZORPAY PAYMENT - Creates application ONLY on success
+    """
     logger.info("=" * 70)
     logger.info(f"🔐 Verifying Razorpay payment")
     logger.info(f"   Order ID: {data.razorpay_order_id}")
     logger.info(f"   Payment ID: {data.razorpay_payment_id}")
-    logger.info(f"   Signature: {data.razorpay_signature}")
-    logger.info(f"   Application ID: {data.application_id}")
     logger.info("=" * 70)
 
     if not razorpay_client or not razorpay_initialized:
@@ -443,36 +442,7 @@ async def verify_razorpay_payment(
     if not user_email:
         raise HTTPException(status_code=400, detail="User email not found")
 
-    application = None
-    application_type = None
-    application_id = data.application_id
-
-    if ObjectId.is_valid(application_id):
-        application = await db.applications.find_one({
-            "_id": ObjectId(application_id),
-            "user_email": user_email
-        })
-        if application:
-            application_type = application.get("application_type", "job")
-
-    if not application:
-        application = await db.applications.find_one({
-            "razorpay_order_id": data.razorpay_order_id,
-            "user_email": user_email
-        })
-        if application:
-            application_type = application.get("application_type", "job")
-            application_id = str(application["_id"])
-
-    if not application:
-        logger.error(f"❌ Application not found for order: {data.razorpay_order_id}")
-        raise HTTPException(
-            status_code=404,
-            detail="Application not found. Please contact support."
-        )
-
-    logger.info(f"📋 Found application: {application_id} ({application_type})")
-
+    # ==================== VERIFY SIGNATURE ====================
     try:
         params_dict = {
             'razorpay_order_id': data.razorpay_order_id,
@@ -483,125 +453,248 @@ async def verify_razorpay_payment(
         logger.info("✅ Signature verified successfully")
     except Exception as e:
         logger.error(f"❌ Signature verification failed: {e}")
-        await db.applications.update_one(
-            {"_id": ObjectId(application_id)},
-            {
-                "$set": {
-                    "payment_verification_status": "rejected",
-                    "status": "verification_rejected" if application_type == "job" else "rejected",
-                    "payment_rejection_reason": f"Signature verification failed: {str(e)}",
-                    "updated_at": datetime.utcnow()
-                }
-            }
-        )
         raise HTTPException(status_code=400, detail="Invalid payment signature")
 
-    amount = application.get("payment_amount", 0)
-    job_title = application.get("job_title", "Job")
-    service_name = application.get("service_name", "Service")
+    # ==================== FETCH ORDER DETAILS ====================
+    try:
+        order_details = razorpay_client.order.fetch(data.razorpay_order_id)
+        order_notes = order_details.get("notes", {})
+        logger.info(f"✅ Order fetched. Notes keys: {list(order_notes.keys())}")
+    except Exception as e:
+        logger.error(f"❌ Failed to fetch order: {e}")
+        raise HTTPException(status_code=400, detail="Failed to fetch order details")
 
-    if application_type == "job":
-        new_status = "verification_successful"
-        status_display = "verification_successful"
-    else:
-        new_status = "payment_verified"
-        status_display = "payment_verified"
+    # ==================== EXTRACT FROM ORDER NOTES ====================
+    payment_type = order_notes.get("payment_type", "job")
+    job_id = order_notes.get("job_id", "")
+    job_title = order_notes.get("job_title", "")
+    organization = order_notes.get("organization", "")
+    added_by = order_notes.get("added_by", "admin@rojgarnext.com")
+    service_id = order_notes.get("service_id", "")
+    service_type = order_notes.get("service_type", "")
+    sub_type_id = order_notes.get("sub_type_id", "")
+    sub_service_name = order_notes.get("sub_service_name", "")
+    application_fee = int(order_notes.get("application_fee", "0"))
+    gst_amount = int(order_notes.get("gst_amount", "0"))
+    service_charge = int(order_notes.get("service_charge", "0"))
+    total_amount = int(order_notes.get("total_amount", "0"))
+    category_used = order_notes.get("category_used", "none")
+    user_category = order_notes.get("user_category", "General/UR")
+    is_disabled_str = order_notes.get("is_disabled", "false")
+    is_disabled = is_disabled_str.lower() == "true"
+    order_user_email = order_notes.get("user_email", user_email)
+    order_user_id = order_notes.get("user_id", current_user.get("user_id"))
 
-    await db.applications.update_one(
-        {"_id": ObjectId(application_id)},
-        {
-            "$set": {
+    try:
+        form_data = json.loads(order_notes.get("form_data", "{}"))
+    except Exception:
+        form_data = {}
+
+    # ==================== GET APPLICANT DETAILS ====================
+    profile = await db.profile.find_one({"email": order_user_email})
+    applicant_name = profile.get("full_name") if profile else order_notes.get("user_name", "User")
+    application_username = order_user_email.split('@')[0]
+
+    # ==================== CREATE APPLICATION (PAYMENT SUCCESS) ====================
+    logger.info("=" * 70)
+    logger.info("✅ PAYMENT VERIFIED - CREATING APPLICATION NOW")
+    logger.info("=" * 70)
+
+    application_id = None
+    new_status = "verification_successful"
+    display_title = job_title if payment_type == "job" else sub_service_name or job_title
+
+    if payment_type == "job":
+        # Check idempotency - already exists?
+        existing = await db.applications.find_one({
+            "job_id": job_id,
+            "user_email": order_user_email,
+            "application_type": "job",
+            "status": {
+                "$in": [
+                    "verification_successful", "pending", "shortlisted",
+                    "interview", "offered", "submitted", "review_application",
+                    "final_submitted", "confirmed_application", "approved_application"
+                ]
+            }
+        })
+
+        if existing:
+            logger.info(f"📋 Application already exists: {existing['_id']}")
+            application_id = str(existing["_id"])
+            new_status = existing.get("status", "verification_successful")
+        else:
+            # CREATE NEW JOB APPLICATION
+            application_doc = {
+                "application_type": "job",
+                "job_id": job_id,
+                "job_title": job_title,
+                "organization": organization,
+                "added_by": added_by,
+
+                "applicant_email": order_user_email,
+                "applicant_name": applicant_name,
+                "user_email": order_user_email,
+                "user_name": applicant_name,
+                "user_id": order_user_id,
+                "user_category": user_category,
+                "is_disabled": is_disabled,
+                "application_username": application_username,
+
+                # ✅ PAYMENT SUCCESS - Correct status
+                "status": "verification_successful",
                 "payment_verification_status": "approved",
-                "status": new_status,
+                "payment_status": "completed",
+
+                # Payment breakdown
+                "payment_id": data.razorpay_payment_id,
+                "payment_amount": application_fee,
+                "payment_gst": gst_amount,
+                "payment_service_charge": service_charge,
+                "payment_total": total_amount,
+                "payment_category_used": category_used,
+                "payment_method": "razorpay",
+
+                # Razorpay
+                "razorpay_order_id": data.razorpay_order_id,
                 "razorpay_payment_id": data.razorpay_payment_id,
                 "razorpay_signature": data.razorpay_signature,
+
+                # Transaction
                 "transaction_id": data.razorpay_payment_id,
+                "transaction_date": datetime.utcnow(),
                 "paid_at": datetime.utcnow(),
-                "payment_verified_by": "razorpay_auto",
                 "payment_verified_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
+                "payment_verified_by": "razorpay_auto",
+
+                # Timestamps
+                "applied_at": datetime.utcnow(),
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+
+                # Extras
+                "cover_letter": None,
+                "additional_info": form_data if form_data else None,
             }
-        }
-    )
 
-    logger.info(f"✅ Application {application_id} updated to {new_status}")
+            result = await db.applications.insert_one(application_doc)
+            application_id = str(result.inserted_id)
+            new_status = "verification_successful"
 
-    if application_type == "job":
-        title = f"✅ Payment Verified Successfully: {job_title}"
-        message = f"Your payment of ₹{amount} for '{job_title}' has been verified successfully.\n\nYour application has been submitted."
+            logger.info(f"✅ JOB APPLICATION CREATED: {application_id}")
+            logger.info(f"   Status: verification_successful")
+
+    elif payment_type == "service":
+        existing = await db.applications.find_one({
+            "service_id": service_id,
+            "sub_type_id": sub_type_id,
+            "user_email": order_user_email,
+            "application_type": "service",
+            "status": {
+                "$nin": ["replaced", "rejected", "verification_rejected"]
+            }
+        })
+
+        if existing:
+            logger.info(f"📋 Service application already exists: {existing['_id']}")
+            application_id = str(existing["_id"])
+            new_status = existing.get("status", "payment_verified")
+        else:
+            from app.modules.services.models.service_types import ServiceMasterData
+            service = ServiceMasterData.get_service_by_id(service_id)
+            sub_type = ServiceMasterData.get_sub_type_by_id(sub_type_id)
+
+            service_name = service.name if service else service_id
+            sub_service_name_final = sub_type.name if sub_type else sub_type_id
+
+            application_doc = {
+                "application_type": "service",
+                "service_id": service_id,
+                "sub_type_id": sub_type_id,
+                "service_name": service_name,
+                "sub_service_name": sub_service_name_final,
+
+                "user_email": order_user_email,
+                "user_name": applicant_name,
+                "user_id": order_user_id,
+                "user_category": "service",
+                "is_disabled": is_disabled,
+                "application_username": application_username,
+
+                "fields": form_data or {},
+                "documents": {},
+                "service_documents": [],
+
+                # ✅ PAYMENT SUCCESS - Correct status
+                "status": "payment_verified",
+                "payment_verification_status": "approved",
+                "payment_status": "completed",
+
+                # Payment breakdown
+                "payment_id": data.razorpay_payment_id,
+                "payment_amount": application_fee,
+                "payment_gst": gst_amount,
+                "payment_service_charge": service_charge,
+                "payment_total": total_amount,
+                "payment_category_used": category_used,
+                "payment_method": "razorpay",
+
+                # Razorpay
+                "razorpay_order_id": data.razorpay_order_id,
+                "razorpay_payment_id": data.razorpay_payment_id,
+                "razorpay_signature": data.razorpay_signature,
+
+                # Transaction
+                "transaction_id": data.razorpay_payment_id,
+                "transaction_date": datetime.utcnow(),
+                "paid_at": datetime.utcnow(),
+                "payment_verified_at": datetime.utcnow(),
+                "payment_verified_by": "razorpay_auto",
+
+                # Timestamps
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+            }
+
+            result = await db.applications.insert_one(application_doc)
+            application_id = str(result.inserted_id)
+            new_status = "payment_verified"
+
+            logger.info(f"✅ SERVICE APPLICATION CREATED: {application_id}")
+            logger.info(f"   Status: payment_verified")
     else:
-        title = f"✅ Service Payment Verified: {service_name}"
-        message = f"Your payment of ₹{amount} for '{service_name}' has been verified successfully.\n\nYour service application has been submitted."
+        raise HTTPException(status_code=400, detail="Invalid payment type")
 
-    await central_notification.send_notification(
-        user_ids=[user_email],
-        notification_type="application_status",
-        title=title,
-        message=message,
-        related_id=application_id,
-        metadata={
-            "status": status_display,
-            "amount": amount,
-            "job_title": job_title,
-            "service_name": service_name,
-            "application_id": application_id,
-            "application_type": application_type,
-            "transaction_id": data.razorpay_payment_id,
-            "show_blue_bell": True
-        },
-        send_email=True,
-        send_websocket=True
-    )
-
-    if application_type == "job":
-        admin_email = application.get("added_by")
-        if admin_email:
-            await central_notification.send_notification(
-                user_ids=[admin_email],
-                notification_type="admin_alert",
-                title="💰 Payment Received",
-                message=f"Payment of ₹{amount} from {user_email} for '{job_title}' has been verified successfully.",
-                related_id=application_id,
-                metadata={
-                    "status": "payment_received",
-                    "amount": amount,
-                    "job_title": job_title,
-                    "applicant_email": user_email,
-                    "application_type": "job",
-                    "show_blue_bell": True
-                },
-                send_email=True,
-                send_websocket=True
-            )
-
-    customadmins = await db.auth.find({"role": "customadmin", "is_active": True}).to_list(100)
-    for ca in customadmins:
-        ca_email = ca.get("email")
-        admin_email = application.get("added_by")
-        if ca_email != admin_email:
-            await central_notification.send_notification(
-                user_ids=[ca_email],
-                notification_type="customadmin_alert",
-                title="💰 Payment Received",
-                message=f"Payment of ₹{amount} from {user_email} for '{job_title if application_type == 'job' else service_name}' has been verified successfully.",
-                related_id=application_id,
-                metadata={
-                    "status": "payment_received",
-                    "amount": amount,
-                    "job_title": job_title,
-                    "service_name": service_name,
-                    "applicant_email": user_email,
-                    "application_type": application_type,
-                    "show_blue_bell": True
-                },
-                send_email=True,
-                send_websocket=True
-            )
+    # ==================== SEND NOTIFICATION ====================
+    try:
+        await central_notification.send_notification(
+            user_ids=[order_user_email],
+            notification_type="application_status",
+            title=f"✅ Payment Successful: {display_title}",
+            message=(
+                f"Your payment of ₹{total_amount} for '{display_title}' "
+                f"was successful. Your application has been submitted."
+            ),
+            related_id=application_id,
+            metadata={
+                "status": new_status,
+                "amount": total_amount,
+                "transaction_id": data.razorpay_payment_id,
+                "show_blue_bell": True,
+                "job_title": display_title,
+                "application_id": application_id,
+                "application_type": payment_type,
+            },
+            send_email=True,
+            send_websocket=True
+        )
+    except Exception as e:
+        logger.warning(f"⚠️ Notification failed: {e}")
 
     logger.info("=" * 70)
-    logger.info(f"✅ Payment verification complete!")
+    logger.info(f"✅ PAYMENT COMPLETE & APPLICATION SAVED")
     logger.info(f"   Application ID: {application_id}")
-    logger.info(f"   Type: {application_type}")
+    logger.info(f"   Type: {payment_type}")
     logger.info(f"   Status: {new_status}")
     logger.info("=" * 70)
 
@@ -609,16 +702,21 @@ async def verify_razorpay_payment(
         "success": True,
         "payment_verified": True,
         "application_id": application_id,
-        "application_type": application_type,
+        "application_type": payment_type,
         "application_status": new_status,
-        "amount": amount,
+        "amount": total_amount,
+        "application_fee": application_fee,
+        "gst_amount": gst_amount,
+        "service_charge": service_charge,
         "razorpay_payment_id": data.razorpay_payment_id,
         "razorpay_order_id": data.razorpay_order_id,
-        "message": "Payment verified successfully"
+        "message": "Payment verified and application saved successfully"
     }
 
 
-# ==================== GET APPLICATION PAYMENT STATUS ====================
+# ============================================================
+# ✅ PAYMENT STATUS CHECK
+# ============================================================
 
 @router.get("/payment-status/{application_id}")
 async def get_application_payment_status(
@@ -626,7 +724,7 @@ async def get_application_payment_status(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """✅ Get payment status from application directly"""
+    """Get payment status from application directly"""
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
 
@@ -635,39 +733,32 @@ async def get_application_payment_status(
         raise HTTPException(status_code=404, detail="Application not found")
 
     user_email = current_user.get("email")
-    if application.get("user_email") != user_email:
+    app_email = application.get("user_email") or application.get("applicant_email")
+    if app_email != user_email:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     application_type = application.get("application_type", "job")
-
-    payment_status = application.get("payment_verification_status", "not_submitted")
-    status = application.get("status", "pending")
-    amount = application.get("payment_amount", 0)
-    transaction_id = application.get("transaction_id")
-    razorpay_order_id = application.get("razorpay_order_id")
-    razorpay_payment_id = application.get("razorpay_payment_id")
-    razorpay_signature = application.get("razorpay_signature")
-    category_used = application.get("payment_category_used", "none")
-
-    is_completed = status in ["verification_successful", "payment_verified", "approved", "completed"]
 
     return {
         "success": True,
         "application_id": application_id,
         "application_type": application_type,
-        "payment_status": payment_status,
-        "application_status": status,
-        "is_completed": is_completed,
-        "amount": amount,
-        "category_used": category_used,
-        "transaction_id": transaction_id,
-        "razorpay_order_id": razorpay_order_id,
-        "razorpay_payment_id": razorpay_payment_id,
-        "razorpay_signature": razorpay_signature
+        "payment_status": application.get("payment_verification_status", "not_submitted"),
+        "application_status": application.get("status", "pending"),
+        "is_completed": application.get("status") in [
+            "verification_successful", "payment_verified", "approved", "completed"
+        ],
+        "amount": application.get("payment_amount", 0),
+        "category_used": application.get("payment_category_used", "none"),
+        "transaction_id": application.get("transaction_id"),
+        "razorpay_order_id": application.get("razorpay_order_id"),
+        "razorpay_payment_id": application.get("razorpay_payment_id"),
     }
 
 
-# ==================== UPDATE PAYMENT STATUS (SYNC) ====================
+# ============================================================
+# ✅ UPDATE PAYMENT STATUS
+# ============================================================
 
 @router.put("/payment-status/{application_id}")
 async def update_application_payment_status(
@@ -676,7 +767,7 @@ async def update_application_payment_status(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """✅ Update payment status - Directly updates application"""
+    """Update payment status - Directly updates application"""
     logger.info(f"📝 Updating payment status: {application_id}")
 
     if not ObjectId.is_valid(application_id):
@@ -687,7 +778,8 @@ async def update_application_payment_status(
         raise HTTPException(status_code=404, detail="Application not found")
 
     user_email = current_user.get("email")
-    if application.get("user_email") != user_email:
+    app_email = application.get("user_email") or application.get("applicant_email")
+    if app_email != user_email:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     application_type = application.get("application_type", "job")
@@ -700,6 +792,7 @@ async def update_application_payment_status(
     if new_status == "completed":
         update_data["payment_verification_status"] = "approved"
         update_data["paid_at"] = datetime.utcnow()
+
         if data.get("razorpay_payment_id"):
             update_data["razorpay_payment_id"] = data["razorpay_payment_id"]
         if data.get("razorpay_order_id"):
@@ -737,491 +830,9 @@ async def update_application_payment_status(
     }
 
 
-# ==================== TEST MODE: SIMULATE PAYMENT ====================
-
-@router.post("/test/simulate-payment/{application_id}")
-async def simulate_payment(
-    application_id: str,
-    action: str = Query(..., pattern="^(success|failed)$"),
-    current_user: dict = Depends(get_current_user),
-    db=Depends(get_db)
-):
-    """✅ TEST MODE: Simulate payment success/failure"""
-    # ✅ FIXED LINE #3: Uses safe helper
-    if not _get_razorpay_test_mode():
-        raise HTTPException(
-            status_code=400,
-            detail="Test mode is disabled. Set RAZORPAY_TEST_MODE=true in .env"
-        )
-
-    user_email = current_user.get("email")
-    if not user_email:
-        raise HTTPException(status_code=400, detail="User email not found")
-
-    if not ObjectId.is_valid(application_id):
-        raise HTTPException(status_code=400, detail="Invalid application ID")
-
-    application = await db.applications.find_one({
-        "_id": ObjectId(application_id),
-        "user_email": user_email
-    })
-    if not application:
-        raise HTTPException(status_code=404, detail="Application not found")
-
-    application_type = application.get("application_type", "job")
-
-    current_status = application.get("status", "")
-    if current_status in ["verification_successful", "payment_verified", "approved", "completed"]:
-        return {"success": False, "message": "Application already verified"}
-
-    amount = application.get("payment_amount", 0)
-    job_title = application.get("job_title", "Job")
-    service_name = application.get("service_name", "Service")
-    category_used = application.get("payment_category_used", "none")
-
-    mock_transaction_id = f"TEST_TXN_{secrets.token_hex(8).upper()}"
-    mock_order_id = f"order_test_{int(datetime.utcnow().timestamp())}"
-    mock_signature = f"sig_test_{secrets.token_hex(16)}"
-
-    if action == "success":
-        if application_type == "job":
-            new_status = "verification_successful"
-        else:
-            new_status = "payment_verified"
-
-        await db.applications.update_one(
-            {"_id": ObjectId(application_id)},
-            {
-                "$set": {
-                    "payment_verification_status": "approved",
-                    "status": new_status,
-                    "razorpay_payment_id": mock_transaction_id,
-                    "razorpay_order_id": mock_order_id,
-                    "razorpay_signature": mock_signature,
-                    "transaction_id": mock_transaction_id,
-                    "paid_at": datetime.utcnow(),
-                    "payment_verified_by": "test_mode",
-                    "payment_verified_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow()
-                }
-            }
-        )
-
-        title = f"✅ Payment Successful (Test Mode): {job_title if application_type == 'job' else service_name}"
-        message = f"Your payment of ₹{amount} for '{job_title if application_type == 'job' else service_name}' was successful (TEST MODE)."
-
-        await central_notification.send_notification(
-            user_ids=[user_email],
-            notification_type="application_status",
-            title=title,
-            message=message,
-            related_id=application_id,
-            metadata={
-                "status": new_status,
-                "test_mode": True,
-                "amount": amount,
-                "category_used": category_used,
-                "application_type": application_type,
-                "show_blue_bell": True
-            },
-            send_email=True,
-            send_websocket=True
-        )
-
-        return {
-            "success": True,
-            "message": "✅ Payment simulated successfully!",
-            "application_id": application_id,
-            "transaction_id": mock_transaction_id,
-            "test_mode": True
-        }
-
-    else:
-        if application_type == "job":
-            new_status = "verification_rejected"
-        else:
-            new_status = "rejected"
-
-        await db.applications.update_one(
-            {"_id": ObjectId(application_id)},
-            {
-                "$set": {
-                    "payment_verification_status": "rejected",
-                    "status": new_status,
-                    "razorpay_payment_id": mock_transaction_id,
-                    "razorpay_order_id": mock_order_id,
-                    "razorpay_signature": mock_signature,
-                    "transaction_id": mock_transaction_id,
-                    "payment_rejection_reason": "Payment failed in test mode",
-                    "updated_at": datetime.utcnow()
-                }
-            }
-        )
-
-        return {
-            "success": True,
-            "message": "❌ Payment failed simulation completed.",
-            "application_id": application_id,
-            "transaction_id": mock_transaction_id,
-            "test_mode": True
-        }
-
-
-# ==================== GENERATE QR CODE FOR JOB ====================
-
-@router.post("/generate-qr/{job_id}")
-async def generate_payment_qr_code(
-    job_id: str,
-    current_user: dict = Depends(get_current_user),
-    db=Depends(get_db)
-):
-    """✅ Generate QR code for job payment"""
-    if not ObjectId.is_valid(job_id):
-        raise HTTPException(status_code=400, detail="Invalid job ID")
-
-    job = await db.job.find_one({"_id": ObjectId(job_id)})
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    if not job.get("has_application_fees", False):
-        raise HTTPException(status_code=400, detail="No application fees for this job")
-
-    user_email = current_user.get("email")
-    if not user_email:
-        raise HTTPException(status_code=400, detail="User email not found")
-
-    profile = await db.profile.find_one({"email": user_email})
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-
-    existing = await db.applications.find_one({
-        "job_id": job_id,
-        "user_email": user_email,
-        "application_type": "job"
-    })
-
-    if existing:
-        existing_status = existing.get("status", "")
-        existing_expiry = existing.get("expires_at")
-
-        if existing_status == "verification_successful":
-            raise HTTPException(
-                status_code=400,
-                detail="You have already successfully applied for this job"
-            )
-
-        if existing_status in ["pending_verification", "payment_pending", "pending"]:
-            is_expired = existing_expiry and datetime.utcnow() > existing_expiry
-
-            if not is_expired:
-                return {
-                    "success": True,
-                    "needs_payment": True,
-                    "payment_id": str(existing["_id"]),
-                    "application_id": str(existing["_id"]),
-                    "amount": existing.get("payment_amount", 0),
-                    "category_used": existing.get("payment_category_used", "general/ur"),
-                    "qr_code_data": existing.get("qr_code_data"),
-                    "qr_image_url": existing.get("qr_image_url"),
-                    "upi_text": existing.get("upi_text"),
-                    "order_id": existing.get("order_id"),
-                    "expires_at": existing.get("expires_at").isoformat() if existing.get("expires_at") else None,
-                    "job_title": job.get("post_name"),
-                    "organization": job.get("organization"),
-                    "application_type": "job",
-                    "message": "Existing QR code is still valid. Please complete payment."
-                }
-            else:
-                await db.applications.update_one(
-                    {"_id": existing["_id"]},
-                    {"$set": {"status": "payment_pending", "updated_at": datetime.utcnow()}}
-                )
-
-        elif existing_status == "verification_rejected":
-            await db.applications.update_one(
-                {"_id": existing["_id"]},
-                {"$set": {"status": "replaced", "replaced_at": datetime.utcnow()}}
-            )
-
-        elif existing_status == "replaced":
-            pass
-
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"You have already applied for this job (status: {existing_status})"
-            )
-
-    user_category = profile.get("category", "General/UR")
-    disability = profile.get("disability", {})
-    is_disabled = disability.get("is_disabled", False) if isinstance(disability, dict) else False
-
-    job_fees = job.get("application_fees", {})
-
-    category_used = "general/ur"
-    amount = 0
-
-    if is_disabled:
-        category_used = "pwd"
-        amount = job_fees.get("pwd", 0)
-        if amount == 0:
-            amount = min(job_fees.values()) if job_fees else 0
-    else:
-        category_map = {
-            "General/UR": "general/ur",
-            "OBC": "obc",
-            "SC": "sc",
-            "ST": "st",
-            "EWS": "ews"
-        }
-        fee_key = category_map.get(user_category, "general/ur")
-        category_used = fee_key
-        amount = job_fees.get(fee_key, 0)
-        if amount == 0 and job_fees:
-            amount = min(job_fees.values())
-
-    if amount <= 0:
-        return {
-            "success": True,
-            "needs_payment": False,
-            "amount": 0,
-            "message": "No application fee required for your category"
-        }
-
-    application_id = str(ObjectId())
-    job_title = job.get("post_name", "Job Application")
-    order_id = f"RJ{application_id[-8:]}{int(datetime.utcnow().timestamp())}"
-
-    upi_id = settings.UPI_ID or "your-upi-id@okhdfcbank"
-    upi_text = f"upi://pay?pa={upi_id}&pn=RojgarNext&am={amount}&cu=INR&tn={order_id}&tid={order_id}"
-    qr_image_url = f"https://chart.googleapis.com/chart?cht=qr&chl={upi_text}&chs=300x300&choe=UTF-8"
-
-    qr_data = {
-        "type": "upi_qr",
-        "upi_text": upi_text,
-        "qr_image_url": qr_image_url,
-        "amount": amount,
-        "order_id": order_id,
-        "job_title": job_title,
-        "organization": job.get("organization"),
-        "expires_in_minutes": 30
-    }
-
-    qr_code_data = base64.b64encode(json.dumps(qr_data).encode()).decode()
-
-    if existing and existing_status in ["pending_verification", "payment_pending"]:
-        await db.applications.update_one(
-            {"_id": existing["_id"]},
-            {
-                "$set": {
-                    "qr_code_data": qr_code_data,
-                    "qr_image_url": qr_image_url,
-                    "upi_text": upi_text,
-                    "order_id": order_id,
-                    "expires_at": datetime.utcnow() + timedelta(minutes=30),
-                    "updated_at": datetime.utcnow(),
-                    "payment_amount": amount,
-                    "payment_category_used": category_used,
-                    "status": "payment_pending",
-                    "application_type": "job"
-                }
-            }
-        )
-        inserted_application_id = str(existing["_id"])
-        logger.info(f"🔄 Updated existing application with new QR: {inserted_application_id}")
-    else:
-        application = {
-            "_id": ObjectId(application_id),
-            "application_type": "job",
-            "job_id": job_id,
-            "job_title": job_title,
-            "organization": job.get("organization", "Company"),
-            "added_by": job.get("added_by", "admin@rojgarnext.com"),
-            "user_email": user_email,
-            "user_name": profile.get("full_name", user_email.split('@')[0]),
-            "user_id": current_user.get("user_id"),
-            "user_category": user_category,
-            "is_disabled": is_disabled,
-            "status": "pending_verification",
-            "payment_verification_status": "pending",
-            "payment_amount": amount,
-            "payment_category_used": category_used,
-            "payment_id": application_id,
-            "payment_method": "qrcode",
-            "qr_code_data": qr_code_data,
-            "qr_image_url": qr_image_url,
-            "upi_text": upi_text,
-            "order_id": order_id,
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "expires_at": datetime.utcnow() + timedelta(minutes=30)
-        }
-
-        result = await db.applications.insert_one(application)
-        inserted_application_id = str(result.inserted_id)
-        logger.info(f"✅ Created new job application: {inserted_application_id}")
-
-    return {
-        "success": True,
-        "needs_payment": True,
-        "payment_id": inserted_application_id,
-        "application_id": inserted_application_id,
-        "amount": amount,
-        "category_used": category_used,
-        "qr_code_data": qr_code_data,
-        "qr_image_url": qr_image_url,
-        "upi_text": upi_text,
-        "order_id": order_id,
-        "expires_at": (datetime.utcnow() + timedelta(minutes=30)).isoformat(),
-        "job_title": job_title,
-        "organization": job.get("organization"),
-        "application_type": "job",
-        "message": "QR code generated. Scan with any UPI app to pay."
-    }
-
-
-# ==================== GENERATE QR CODE FOR SERVICE ====================
-
-@router.post("/generate-qr-service")
-async def generate_service_payment_qr(
-    service_id: str = Body(...),
-    sub_type_id: str = Body(...),
-    form_data: Dict = Body(default_factory=dict),
-    documents: Dict = Body(default_factory=dict),
-    current_user: dict = Depends(get_current_user),
-    db=Depends(get_db)
-):
-    """✅ Generate QR code for service payment"""
-    user_email = current_user.get("email")
-    if not user_email:
-        raise HTTPException(status_code=400, detail="User email not found")
-
-    profile = await db.profile.find_one({"email": user_email})
-    user_category = profile.get("category", "General/UR") if profile else "General/UR"
-
-    disability = profile.get("disability", {}) if profile else {}
-    is_disabled = disability.get("is_disabled", False) if isinstance(disability, dict) else False
-
-    base_fees = {
-        "pan": 100, "aadhar": 50, "epf": 150, "passport": 200,
-        "driving_license": 150, "voter_id": 50, "ration_card": 75,
-        "income_certificate": 100, "caste_certificate": 100,
-        "domicile": 80, "disability": 50, "bonafide": 75,
-        "gap_certificate": 80,
-    }
-
-    base_fee = base_fees.get(service_id, 100)
-    final_fee = base_fee
-    if is_disabled:
-        final_fee = max(10, int(base_fee * 0.5))
-
-    if final_fee <= 0:
-        return {
-            "success": True,
-            "needs_payment": False,
-            "amount": 0,
-            "message": "No payment required for your category"
-        }
-
-    existing = await db.applications.find_one({
-        "service_id": service_id,
-        "sub_type_id": sub_type_id,
-        "user_email": user_email,
-        "application_type": "service"
-    })
-
-    if existing:
-        existing_status = existing.get("status", "")
-        if existing_status in ["approved", "completed", "payment_verified"]:
-            raise HTTPException(
-                status_code=400,
-                detail="You have already successfully applied for this service"
-            )
-        if existing_status == "rejected":
-            await db.applications.update_one(
-                {"_id": existing["_id"]},
-                {"$set": {"status": "replaced", "replaced_at": datetime.utcnow()}}
-            )
-
-    from app.modules.services.models.service_types import ServiceMasterData
-    service = ServiceMasterData.get_service_by_id(service_id)
-    sub_type = ServiceMasterData.get_sub_type_by_id(sub_type_id)
-
-    service_name = service.name if service else service_id
-    sub_service_name = sub_type.name if sub_type else sub_type_id
-
-    application_id = str(ObjectId())
-    order_id = f"SVC{application_id[-8:]}{int(datetime.utcnow().timestamp())}"
-
-    upi_id = settings.UPI_ID or "your-upi-id@okhdfcbank"
-    upi_text = f"upi://pay?pa={upi_id}&pn=RojgarNext&am={final_fee}&cu=INR&tn={order_id}&tid={order_id}"
-    qr_image_url = f"https://chart.googleapis.com/chart?cht=qr&chl={upi_text}&chs=300x300&choe=UTF-8"
-
-    qr_data = {
-        "type": "upi_qr",
-        "upi_text": upi_text,
-        "qr_image_url": qr_image_url,
-        "amount": final_fee,
-        "order_id": order_id,
-        "service_type": service_id,
-        "sub_type": sub_type_id,
-        "expires_in_minutes": 30
-    }
-
-    qr_code_data = base64.b64encode(json.dumps(qr_data).encode()).decode()
-
-    application = {
-        "_id": ObjectId(application_id),
-        "application_type": "service",
-        "service_id": service_id,
-        "sub_type_id": sub_type_id,
-        "service_name": service_name,
-        "sub_service_name": sub_service_name,
-        "user_email": user_email,
-        "user_name": profile.get("full_name", user_email.split('@')[0]) if profile else user_email.split('@')[0],
-        "user_id": current_user.get("user_id"),
-        "user_category": "service",
-        "is_disabled": is_disabled,
-        "fields": form_data,
-        "documents": documents,
-        "status": "payment_pending",
-        "payment_verification_status": "pending",
-        "payment_amount": final_fee,
-        "payment_category_used": "service",
-        "payment_id": application_id,
-        "payment_method": "qrcode",
-        "qr_code_data": qr_code_data,
-        "qr_image_url": qr_image_url,
-        "upi_text": upi_text,
-        "order_id": order_id,
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
-        "expires_at": datetime.utcnow() + timedelta(minutes=30)
-    }
-
-    result = await db.applications.insert_one(application)
-    inserted_application_id = str(result.inserted_id)
-
-    logger.info(f"✅ Created service application: {inserted_application_id} (application_type='service')")
-
-    return {
-        "success": True,
-        "needs_payment": final_fee > 0,
-        "payment_id": inserted_application_id,
-        "application_id": inserted_application_id,
-        "amount": final_fee,
-        "category_used": "service",
-        "qr_code_data": qr_code_data,
-        "qr_image_url": qr_image_url,
-        "expires_at": (datetime.utcnow() + timedelta(minutes=30)).isoformat(),
-        "service_name": service_name,
-        "sub_service_name": sub_service_name,
-        "application_type": "service",
-        "message": "QR code generated successfully"
-    }
-
-
-# ==================== UPLOAD PAYMENT SCREENSHOT ====================
+# ============================================================
+# ✅ UPLOAD PAYMENT SCREENSHOT
+# ============================================================
 
 @router.post("/upload-screenshot")
 async def upload_payment_screenshot_endpoint(
@@ -1231,7 +842,7 @@ async def upload_payment_screenshot_endpoint(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """✅ UPLOAD PAYMENT SCREENSHOT - Updates application directly"""
+    """Upload payment screenshot - Updates application"""
     logger.info("=" * 60)
     logger.info(f"📤 UPLOAD PAYMENT SCREENSHOT")
     logger.info(f"   Application ID: {application_id}")
@@ -1250,7 +861,8 @@ async def upload_payment_screenshot_endpoint(
         raise HTTPException(status_code=404, detail="Application not found")
 
     user_email = current_user.get("email")
-    if application.get("user_email") != user_email:
+    app_email = application.get("user_email") or application.get("applicant_email")
+    if app_email != user_email:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     application_type = application.get("application_type", "job")
@@ -1296,103 +908,9 @@ async def upload_payment_screenshot_endpoint(
     }
 
 
-# ==================== SUBMIT PAYMENT VERIFICATION ====================
-
-@router.post("/submit-verification/{application_id}")
-async def submit_payment_verification(
-    application_id: str,
-    transaction_id: str = Form(...),
-    transaction_date: str = Form(...),
-    screenshot: Optional[UploadFile] = File(None),
-    screenshot_url: Optional[str] = Form(None),
-    screenshot_public_id: Optional[str] = Form(None),
-    current_user: dict = Depends(get_current_user),
-    db=Depends(get_db)
-):
-    """✅ Submit payment verification - Updates application directly"""
-    if not ObjectId.is_valid(application_id):
-        raise HTTPException(status_code=400, detail="Invalid application ID")
-
-    application = await db.applications.find_one({"_id": ObjectId(application_id)})
-    if not application:
-        raise HTTPException(status_code=404, detail="Application not found")
-
-    user_email = current_user.get("email")
-    if application.get("user_email") != user_email:
-        raise HTTPException(status_code=403, detail="Unauthorized")
-
-    application_type = application.get("application_type", "job")
-
-    if application.get("payment_verification_status") not in ["pending", "not_submitted"]:
-        raise HTTPException(status_code=400, detail="Verification already submitted")
-
-    final_screenshot_url = None
-    final_screenshot_public_id = None
-
-    if screenshot and screenshot.filename:
-        username = user_email.split('@')[0]
-        upload_result = await upload_payment_screenshot(
-            file=screenshot,
-            username=username,
-            payment_id=application_id
-        )
-        final_screenshot_url = upload_result["url"]
-        final_screenshot_public_id = upload_result.get("public_id")
-    elif screenshot_url:
-        final_screenshot_url = screenshot_url
-        final_screenshot_public_id = screenshot_public_id
-
-    if not final_screenshot_url:
-        raise HTTPException(status_code=400, detail="Screenshot is required")
-
-    try:
-        transaction_date_parsed = datetime.fromisoformat(transaction_date)
-    except ValueError:
-        transaction_date_parsed = datetime.utcnow()
-
-    await db.applications.update_one(
-        {"_id": ObjectId(application_id)},
-        {
-            "$set": {
-                "transaction_id": transaction_id.strip(),
-                "transaction_date": transaction_date_parsed,
-                "payment_receipt_url": final_screenshot_url,
-                "payment_receipt_public_id": final_screenshot_public_id,
-                "payment_verification_status": "pending",
-                "status": "pending_verification",
-                "updated_at": datetime.utcnow()
-            }
-        }
-    )
-
-    await central_notification.send_notification(
-        user_ids=[user_email],
-        notification_type="application_status",
-        title="⏳ Payment Verification Pending",
-        message=f"Your payment verification has been submitted. Admin will review it shortly.",
-        related_id=application_id,
-        metadata={
-            "status": "pending_verification",
-            "amount": application.get("payment_amount", 0),
-            "transaction_id": transaction_id,
-            "application_type": application_type,
-            "show_blue_bell": True
-        },
-        send_email=True,
-        send_websocket=True
-    )
-
-    return {
-        "success": True,
-        "message": "Verification submitted successfully",
-        "application_id": application_id,
-        "payment_receipt_url": final_screenshot_url,
-        "status": "pending_verification",
-        "application_type": application_type
-    }
-
-
-# ==================== ADMIN VERIFY PAYMENT ====================
+# ============================================================
+# ✅ ADMIN VERIFY PAYMENT
+# ============================================================
 
 @router.post("/verify-payment/{application_id}")
 async def admin_verify_payment(
@@ -1402,7 +920,7 @@ async def admin_verify_payment(
     current_user: dict = Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """✅ ADMIN: Verify payment - Updates application directly"""
+    """ADMIN: Verify payment - Updates application"""
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
 
@@ -1421,7 +939,7 @@ async def admin_verify_payment(
         raise HTTPException(status_code=400, detail="Admin email missing")
 
     application_type = application.get("application_type", "job")
-    user_email = application.get("user_email")
+    user_email = application.get("user_email") or application.get("applicant_email")
     amount = application.get("payment_amount", 0)
     job_title = application.get("job_title", "Job Application")
     service_name = application.get("service_name", "Service")
@@ -1527,14 +1045,16 @@ async def admin_verify_payment(
     }
 
 
-# ==================== GET PENDING PAYMENTS (ADMIN) ====================
+# ============================================================
+# ✅ GET PENDING PAYMENTS (ADMIN)
+# ============================================================
 
 @router.get("/pending-payments")
 async def get_pending_payments(
     current_user: dict = Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """✅ Get pending payment verifications from applications"""
+    """Get pending payment verifications from applications"""
     pending = await db.applications.find({
         "payment_verification_status": "pending"
     }).to_list(100)
@@ -1544,12 +1064,11 @@ async def get_pending_payments(
         application_type = app.get("application_type", "job")
 
         if application_type == "job":
-            job = await db.job.find_one({"_id": ObjectId(app["job_id"])}) if app.get("job_id") else None
             results.append({
                 "id": str(app["_id"]),
                 "type": "job",
-                "user_email": app.get("user_email"),
-                "user_name": app.get("user_name", "Unknown"),
+                "user_email": app.get("user_email") or app.get("applicant_email"),
+                "user_name": app.get("user_name") or app.get("applicant_name", "Unknown"),
                 "job_title": app.get("job_title", "Job"),
                 "organization": app.get("organization", ""),
                 "amount": app.get("payment_amount", 0),
@@ -1583,7 +1102,269 @@ async def get_pending_payments(
     }
 
 
-# ==================== UPDATE JOB PAYMENT STATUS ====================
+# ============================================================
+# ✅ TEST MODE: SIMULATE PAYMENT
+# ============================================================
+
+@router.post("/test/simulate-payment/{order_id}")
+async def simulate_payment(
+    order_id: str,
+    action: str = Query(..., pattern="^(success|failed)$"),
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """TEST MODE: Simulate payment success/failure"""
+    if not _get_razorpay_test_mode():
+        raise HTTPException(
+            status_code=400,
+            detail="Test mode is disabled. Set RAZORPAY_TEST_MODE=true in .env"
+        )
+
+    user_email = current_user.get("email")
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+
+    # Just verify the order exists
+    try:
+        if razorpay_client:
+            order = razorpay_client.order.fetch(order_id)
+            return {
+                "success": True,
+                "message": f"Test order fetched: {order.get('id')}",
+                "test_mode": True,
+                "note": "Use the real Razorpay test cards to complete payment"
+            }
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Order not found: {str(e)}")
+
+    return {"success": False, "message": "Cannot fetch order"}
+
+
+# ============================================================
+# ✅ EMERGENCY FALLBACK: VERIFY WITHOUT SIGNATURE
+# ============================================================
+
+@router.post("/payment/razorpay/verify-payment-no-signature")
+async def verify_payment_no_signature(
+    request_data: dict = Body(...),
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """EMERGENCY FIX: Verify payment without signature - creates application"""
+    try:
+        razorpay_order_id = request_data.get("razorpay_order_id")
+        razorpay_payment_id = request_data.get("razorpay_payment_id")
+        application_id = request_data.get("application_id")
+
+        logger.info("=" * 70)
+        logger.info("🔐 Verifying payment WITHOUT signature (Fallback)")
+        logger.info(f"   Order ID: {razorpay_order_id}")
+        logger.info(f"   Payment ID: {razorpay_payment_id}")
+        logger.info("=" * 70)
+
+        if not razorpay_order_id or not razorpay_payment_id:
+            return {
+                "success": False,
+                "code": "E400",
+                "message": "Missing required payment details",
+                "payment_verified": False
+            }
+
+        # Fetch order from Razorpay
+        if not razorpay_client:
+            initialize_razorpay_client()
+        
+        if not razorpay_client:
+            return {
+                "success": False,
+                "code": "E500",
+                "message": "Razorpay not configured",
+                "payment_verified": False
+            }
+
+        try:
+            order_details = razorpay_client.order.fetch(razorpay_order_id)
+        except Exception as e:
+            return {
+                "success": False,
+                "code": "E404",
+                "message": f"Order not found: {str(e)}",
+                "payment_verified": False
+            }
+
+        order_notes = order_details.get("notes", {})
+        payment_type = order_notes.get("payment_type", "job")
+        user_email = order_notes.get("user_email", current_user.get("email"))
+        user_id = order_notes.get("user_id", current_user.get("user_id"))
+        job_id = order_notes.get("job_id", "")
+        job_title = order_notes.get("job_title", "")
+        organization = order_notes.get("organization", "")
+        added_by = order_notes.get("added_by", "admin@rojgarnext.com")
+        service_id = order_notes.get("service_id", "")
+        sub_type_id = order_notes.get("sub_type_id", "")
+        sub_service_name = order_notes.get("sub_service_name", "")
+        application_fee = int(order_notes.get("application_fee", "0"))
+        gst_amount = int(order_notes.get("gst_amount", "0"))
+        service_charge = int(order_notes.get("service_charge", "0"))
+        total_amount = int(order_notes.get("total_amount", "0"))
+        category_used = order_notes.get("category_used", "none")
+        user_category = order_notes.get("user_category", "General/UR")
+        is_disabled = order_notes.get("is_disabled", "false").lower() == "true"
+        form_data_raw = order_notes.get("form_data", "{}")
+        
+        try:
+            form_data = json.loads(form_data_raw)
+        except Exception:
+            form_data = {}
+
+        profile = await db.profile.find_one({"email": user_email})
+        applicant_name = profile.get("full_name") if profile else "User"
+        application_username = user_email.split('@')[0]
+
+        # Create application
+        if payment_type == "job":
+            existing = await db.applications.find_one({
+                "job_id": job_id,
+                "user_email": user_email,
+                "application_type": "job",
+                "status": {
+                    "$in": [
+                        "verification_successful", "pending", "shortlisted",
+                        "interview", "offered", "submitted", "review_application",
+                        "final_submitted", "confirmed_application", "approved_application"
+                    ]
+                }
+            })
+
+            if existing:
+                application_id = str(existing["_id"])
+                new_status = existing.get("status", "verification_successful")
+            else:
+                doc = {
+                    "application_type": "job",
+                    "job_id": job_id,
+                    "job_title": job_title,
+                    "organization": organization,
+                    "added_by": added_by,
+                    "applicant_email": user_email,
+                    "applicant_name": applicant_name,
+                    "user_email": user_email,
+                    "user_name": applicant_name,
+                    "user_id": user_id,
+                    "user_category": user_category,
+                    "is_disabled": is_disabled,
+                    "application_username": application_username,
+                    "status": "verification_successful",
+                    "payment_verification_status": "approved",
+                    "payment_status": "completed",
+                    "payment_id": razorpay_payment_id,
+                    "payment_amount": application_fee,
+                    "payment_gst": gst_amount,
+                    "payment_service_charge": service_charge,
+                    "payment_total": total_amount,
+                    "payment_category_used": category_used,
+                    "payment_method": "razorpay",
+                    "razorpay_order_id": razorpay_order_id,
+                    "razorpay_payment_id": razorpay_payment_id,
+                    "transaction_id": razorpay_payment_id,
+                    "transaction_date": datetime.utcnow(),
+                    "paid_at": datetime.utcnow(),
+                    "payment_verified_at": datetime.utcnow(),
+                    "payment_verified_by": "razorpay_fallback",
+                    "applied_at": datetime.utcnow(),
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow(),
+                    "additional_info": form_data if form_data else None,
+                }
+                result = await db.applications.insert_one(doc)
+                application_id = str(result.inserted_id)
+                new_status = "verification_successful"
+        else:
+            existing = await db.applications.find_one({
+                "service_id": service_id,
+                "sub_type_id": sub_type_id,
+                "user_email": user_email,
+                "application_type": "service",
+                "status": {"$nin": ["replaced", "rejected", "verification_rejected"]}
+            })
+
+            if existing:
+                application_id = str(existing["_id"])
+                new_status = existing.get("status", "payment_verified")
+            else:
+                from app.modules.services.models.service_types import ServiceMasterData
+                service = ServiceMasterData.get_service_by_id(service_id)
+                sub_type = ServiceMasterData.get_sub_type_by_id(sub_type_id)
+
+                doc = {
+                    "application_type": "service",
+                    "service_id": service_id,
+                    "sub_type_id": sub_type_id,
+                    "service_name": service.name if service else service_id,
+                    "sub_service_name": sub_type.name if sub_type else sub_type_id,
+                    "user_email": user_email,
+                    "user_name": applicant_name,
+                    "user_id": user_id,
+                    "user_category": "service",
+                    "is_disabled": is_disabled,
+                    "application_username": application_username,
+                    "fields": form_data or {},
+                    "documents": {},
+                    "service_documents": [],
+                    "status": "payment_verified",
+                    "payment_verification_status": "approved",
+                    "payment_status": "completed",
+                    "payment_id": razorpay_payment_id,
+                    "payment_amount": application_fee,
+                    "payment_gst": gst_amount,
+                    "payment_service_charge": service_charge,
+                    "payment_total": total_amount,
+                    "payment_category_used": category_used,
+                    "payment_method": "razorpay",
+                    "razorpay_order_id": razorpay_order_id,
+                    "razorpay_payment_id": razorpay_payment_id,
+                    "transaction_id": razorpay_payment_id,
+                    "transaction_date": datetime.utcnow(),
+                    "paid_at": datetime.utcnow(),
+                    "payment_verified_at": datetime.utcnow(),
+                    "payment_verified_by": "razorpay_fallback",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow(),
+                }
+                result = await db.applications.insert_one(doc)
+                application_id = str(result.inserted_id)
+                new_status = "payment_verified"
+
+        return {
+            "success": True,
+            "payment_verified": True,
+            "application_id": application_id,
+            "application_type": payment_type,
+            "application_status": new_status,
+            "amount": total_amount,
+            "razorpay_payment_id": razorpay_payment_id,
+            "razorpay_order_id": razorpay_order_id,
+            "verification_method": "no_signature_fallback",
+            "message": "Payment verified and application saved successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Verification error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": False,
+            "code": "E500",
+            "message": f"Verification failed: {str(e)}",
+            "payment_verified": False
+        }
+
+
+# ============================================================
+# ✅ UPDATE JOB PAYMENT STATUS (Legacy endpoint - kept for compatibility)
+# ============================================================
 
 @router.post("/update-payment-status/{job_id}")
 async def update_job_payment_status(
@@ -1592,44 +1373,34 @@ async def update_job_payment_status(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """✅ FIXED: Update application payment status after successful verification"""
+    """
+    Update payment status. Since applications are now created directly
+    in verify-payment, this endpoint is only used to update existing apps.
+    """
     try:
         user_email = current_user.get("email")
-        payment_id = update_data.get("payment_id")
         razorpay_payment_id = update_data.get("razorpay_payment_id")
         razorpay_order_id = update_data.get("razorpay_order_id")
         razorpay_signature = update_data.get("razorpay_signature")
         transaction_id = update_data.get("transaction_id") or razorpay_payment_id
-        payment_status = update_data.get("payment_status", "completed")
         amount = update_data.get("amount")
 
         logger.info("=" * 70)
-        logger.info("📤 Updating APPLICATION status on server...")
+        logger.info("📤 Updating application payment status")
         logger.info(f"   Job ID: {job_id}")
         logger.info(f"   User: {user_email}")
-        logger.info(f"   Payment ID: {payment_id}")
         logger.info(f"   Razorpay Payment ID: {razorpay_payment_id}")
-        logger.info(f"   Status: {payment_status}")
         logger.info("=" * 70)
 
-        app_query = {"user_email": user_email, "job_id": job_id, "application_type": "job"}
-        if payment_id and ObjectId.is_valid(payment_id):
-            app_query = {"_id": ObjectId(payment_id)}
-        elif razorpay_order_id:
-            app_query = {"razorpay_order_id": razorpay_order_id}
-
-        application = await db.applications.find_one(app_query)
-
-        if not application:
-            logger.warning(f"⚠️ Application not found for job_id: {job_id}")
-            application = await db.applications.find_one({
-                "user_email": user_email,
-                "job_id": job_id,
-                "application_type": "job"
-            })
+        # Find application
+        application = await db.applications.find_one({
+            "user_email": user_email,
+            "job_id": job_id,
+            "application_type": "job"
+        })
 
         if not application:
-            logger.error(f"❌ Application not found for: {app_query}")
+            logger.error(f"❌ Application not found")
             return {
                 "success": False,
                 "message": "Application not found"
@@ -1637,9 +1408,11 @@ async def update_job_payment_status(
 
         application_id = str(application["_id"])
 
+        # Update
         update_data_db = {
             "status": "verification_successful",
             "payment_verification_status": "approved",
+            "payment_status": "completed",
             "transaction_id": transaction_id,
             "razorpay_payment_id": razorpay_payment_id,
             "razorpay_order_id": razorpay_order_id,
@@ -1658,33 +1431,9 @@ async def update_job_payment_status(
             {"$set": update_data_db}
         )
 
-        logger.info(f"✅ Application {application_id} updated to verification_successful")
-
-        applicant_email = application.get("applicant_email") or application.get("user_email")
-        if applicant_email:
-            from app.modules.notification.service import central_notification
-            await central_notification.send_notification(
-                user_ids=[applicant_email],
-                notification_type="application_status",
-                title="✅ Payment Verified Successfully",
-                message=f"Your payment of ₹{amount} for '{application.get('job_title', 'Job')}' has been verified successfully.\n\nTransaction ID: {razorpay_payment_id}\nOrder ID: {razorpay_order_id}\n\nYour application has been submitted.",
-                metadata={
-                    "status": "verification_successful",
-                    "amount": amount,
-                    "transaction_id": razorpay_payment_id,
-                    "show_blue_bell": True,
-                    "job_title": application.get("job_title", "Job"),
-                    "application_id": application_id,
-                    "razorpay_payment_id": razorpay_payment_id,
-                    "razorpay_order_id": razorpay_order_id
-                },
-                send_email=True,
-                send_websocket=True
-            )
-
         return {
             "success": True,
-            "message": "Application payment status updated successfully",
+            "message": "Payment status updated",
             "application_id": application_id,
             "status": "verification_successful"
         }
@@ -1693,151 +1442,177 @@ async def update_job_payment_status(
         logger.error(f"❌ Error updating payment status: {e}")
         import traceback
         traceback.print_exc()
-        return {
-            "success": False,
-            "message": str(e)
-        }
+        return {"success": False, "message": str(e)}
 
 
-# ==================== VERIFY PAYMENT (NO SIGNATURE FALLBACK) ====================
+# ============================================================
+# ✅ RAZORPAY WEBHOOK (Auto-creates application if needed)
+# ============================================================
 
-@router.post("/payment/razorpay/verify-payment-no-signature")
-async def verify_payment_no_signature(
+@router.post("/razorpay/webhook")
+async def razorpay_webhook(
     request_data: dict = Body(...),
-    db=Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    db=Depends(get_db)
 ):
-    """✅ EMERGENCY FIX: Verify payment without signature"""
+    """
+    Webhook handler. If payment is captured but verify-payment
+    endpoint was never called, this creates the application.
+    """
     try:
-        razorpay_order_id = request_data.get("razorpay_order_id")
-        razorpay_payment_id = request_data.get("razorpay_payment_id")
-        application_id = request_data.get("application_id")
+        event = request_data.get("event")
+        payload = request_data.get("payload", {})
+        logger.info(f"📨 Razorpay webhook received: {event}")
 
-        logger.info("=" * 70)
-        logger.info("🔐 Verifying payment WITHOUT signature (Fallback)")
-        logger.info(f"   Order ID: {razorpay_order_id}")
-        logger.info(f"   Payment ID: {razorpay_payment_id}")
-        logger.info(f"   Application ID: {application_id}")
-        logger.info("=" * 70)
+        if event == "payment.captured":
+            payment = payload.get("payment", {}).get("entity", {})
+            order_id = payment.get("order_id")
+            payment_id = payment.get("id")
+            amount = payment.get("amount", 0) / 100
 
-        if not razorpay_order_id or not razorpay_payment_id:
-            return {
-                "success": False,
-                "code": "E400",
-                "message": "Missing required payment details",
-                "payment_verified": False
-            }
+            logger.info(f"💰 Payment captured: {payment_id} for order: {order_id}")
 
-        application = None
+            # Check if application already exists
+            existing = await db.applications.find_one({
+                "razorpay_order_id": order_id
+            })
 
-        if application_id and ObjectId.is_valid(application_id):
-            application = await db.applications.find_one({"_id": ObjectId(application_id)})
+            if existing:
+                logger.info(f"✅ Application already exists: {existing['_id']}")
+                return {"success": True, "received": True, "already_exists": True}
 
-        if not application:
-            application = await db.applications.find_one({"razorpay_order_id": razorpay_order_id})
+            # Fetch order and create application
+            if razorpay_client:
+                try:
+                    order_details = razorpay_client.order.fetch(order_id)
+                    order_notes = order_details.get("notes", {})
+                    
+                    payment_type = order_notes.get("payment_type", "job")
+                    user_email = order_notes.get("user_email")
+                    user_id = order_notes.get("user_id")
+                    job_id = order_notes.get("job_id", "")
+                    job_title = order_notes.get("job_title", "")
+                    organization = order_notes.get("organization", "")
+                    added_by = order_notes.get("added_by", "admin@rojgarnext.com")
+                    service_id = order_notes.get("service_id", "")
+                    sub_type_id = order_notes.get("sub_type_id", "")
+                    application_fee = int(order_notes.get("application_fee", "0"))
+                    gst_amount = int(order_notes.get("gst_amount", "0"))
+                    service_charge = int(order_notes.get("service_charge", "0"))
+                    total_amount = int(order_notes.get("total_amount", "0"))
+                    category_used = order_notes.get("category_used", "none")
+                    user_category = order_notes.get("user_category", "General/UR")
+                    is_disabled = order_notes.get("is_disabled", "false").lower() == "true"
+                    
+                    try:
+                        form_data = json.loads(order_notes.get("form_data", "{}"))
+                    except Exception:
+                        form_data = {}
 
-        if not application:
-            user_email = current_user.get("email")
-            if user_email:
-                application = await db.applications.find_one({
-                    "user_email": user_email,
-                    "razorpay_order_id": razorpay_order_id
-                })
+                    profile = await db.profile.find_one({"email": user_email})
+                    applicant_name = profile.get("full_name") if profile else "User"
+                    application_username = user_email.split('@')[0] if user_email else "user"
 
-        if not application:
-            logger.error(f"❌ Application not found for order: {razorpay_order_id}")
-            return {
-                "success": False,
-                "code": "E404",
-                "message": "Application not found",
-                "payment_verified": False
-            }
+                    if payment_type == "job":
+                        doc = {
+                            "application_type": "job",
+                            "job_id": job_id,
+                            "job_title": job_title,
+                            "organization": organization,
+                            "added_by": added_by,
+                            "applicant_email": user_email,
+                            "applicant_name": applicant_name,
+                            "user_email": user_email,
+                            "user_name": applicant_name,
+                            "user_id": user_id,
+                            "user_category": user_category,
+                            "is_disabled": is_disabled,
+                            "application_username": application_username,
+                            "status": "verification_successful",
+                            "payment_verification_status": "approved",
+                            "payment_status": "completed",
+                            "payment_id": payment_id,
+                            "payment_amount": application_fee,
+                            "payment_gst": gst_amount,
+                            "payment_service_charge": service_charge,
+                            "payment_total": total_amount,
+                            "payment_category_used": category_used,
+                            "payment_method": "razorpay",
+                            "razorpay_order_id": order_id,
+                            "razorpay_payment_id": payment_id,
+                            "transaction_id": payment_id,
+                            "transaction_date": datetime.utcnow(),
+                            "paid_at": datetime.utcnow(),
+                            "payment_verified_at": datetime.utcnow(),
+                            "payment_verified_by": "razorpay_webhook",
+                            "applied_at": datetime.utcnow(),
+                            "created_at": datetime.utcnow(),
+                            "updated_at": datetime.utcnow(),
+                            "additional_info": form_data if form_data else None,
+                        }
+                    else:
+                        from app.modules.services.models.service_types import ServiceMasterData
+                        service = ServiceMasterData.get_service_by_id(service_id)
+                        sub_type = ServiceMasterData.get_sub_type_by_id(sub_type_id)
+                        
+                        doc = {
+                            "application_type": "service",
+                            "service_id": service_id,
+                            "sub_type_id": sub_type_id,
+                            "service_name": service.name if service else service_id,
+                            "sub_service_name": sub_type.name if sub_type else sub_type_id,
+                            "user_email": user_email,
+                            "user_name": applicant_name,
+                            "user_id": user_id,
+                            "user_category": "service",
+                            "is_disabled": is_disabled,
+                            "application_username": application_username,
+                            "fields": form_data or {},
+                            "documents": {},
+                            "service_documents": [],
+                            "status": "payment_verified",
+                            "payment_verification_status": "approved",
+                            "payment_status": "completed",
+                            "payment_id": payment_id,
+                            "payment_amount": application_fee,
+                            "payment_gst": gst_amount,
+                            "payment_service_charge": service_charge,
+                            "payment_total": total_amount,
+                            "payment_category_used": category_used,
+                            "payment_method": "razorpay",
+                            "razorpay_order_id": order_id,
+                            "razorpay_payment_id": payment_id,
+                            "transaction_id": payment_id,
+                            "transaction_date": datetime.utcnow(),
+                            "paid_at": datetime.utcnow(),
+                            "payment_verified_at": datetime.utcnow(),
+                            "payment_verified_by": "razorpay_webhook",
+                            "created_at": datetime.utcnow(),
+                            "updated_at": datetime.utcnow(),
+                        }
+                    
+                    result = await db.applications.insert_one(doc)
+                    logger.info(f"✅ Webhook created application: {result.inserted_id}")
+                except Exception as e:
+                    logger.error(f"❌ Webhook failed to create application: {e}")
 
-        application_id = str(application["_id"])
-        application_type = application.get("application_type", "job")
-        payment_amount = application.get("payment_amount", 0)
-        applicant_email = application.get("applicant_email") or application.get("user_email")
+        elif event == "payment.failed":
+            payment = payload.get("payment", {}).get("entity", {})
+            order_id = payment.get("order_id")
+            payment_id = payment.get("id")
+            logger.warning(f"❌ Payment failed: {payment_id} for order: {order_id}")
+            # No application to update - nothing was created
 
-        if application.get("payment_verification_status") == "approved":
-            return {
-                "success": True,
-                "payment_verified": True,
-                "application_id": application_id,
-                "status": application.get("status"),
-                "message": "Payment already verified"
-            }
-
-        update_data = {
-            "payment_verification_status": "approved",
-            "status": "verification_successful" if application_type == "job" else "payment_verified",
-            "razorpay_payment_id": razorpay_payment_id,
-            "razorpay_order_id": razorpay_order_id,
-            "transaction_id": razorpay_payment_id,
-            "paid_at": datetime.utcnow(),
-            "payment_verified_at": datetime.utcnow(),
-            "payment_verified_by": current_user.get("email") if current_user else "system",
-            "updated_at": datetime.utcnow(),
-            "verification_method": "no_signature_fallback"
-        }
-
-        await db.applications.update_one(
-            {"_id": ObjectId(application_id)},
-            {"$set": update_data}
-        )
-
-        logger.info(f"✅ Application {application_id} updated to verification_successful (no signature)")
-
-        if applicant_email:
-            job_title = application.get("job_title", "Job Application")
-            from app.modules.notification.service import central_notification
-            await central_notification.send_notification(
-                user_ids=[applicant_email],
-                notification_type="application_status",
-                title="✅ Payment Verified Successfully",
-                message=f"Your payment for '{job_title}' has been verified successfully.\n\nTransaction ID: {razorpay_payment_id}",
-                metadata={
-                    "status": "verification_successful",
-                    "amount": payment_amount,
-                    "transaction_id": razorpay_payment_id,
-                    "show_blue_bell": True,
-                    "job_title": job_title,
-                    "application_id": application_id,
-                    "razorpay_payment_id": razorpay_payment_id,
-                    "razorpay_order_id": razorpay_order_id
-                },
-                send_email=True,
-                send_websocket=True
-            )
-
-        return {
-            "success": True,
-            "payment_verified": True,
-            "application_id": application_id,
-            "status": update_data["status"],
-            "payment_verification_status": "approved",
-            "razorpay_payment_id": razorpay_payment_id,
-            "razorpay_order_id": razorpay_order_id,
-            "verification_method": "no_signature_fallback",
-            "message": "Payment verified successfully (no signature)!",
-            "application_type": application_type
-        }
-
+        return {"success": True, "received": True}
     except Exception as e:
-        logger.error(f"❌ Verification error: {e}")
-        import traceback
-        traceback.print_exc()
-        return {
-            "success": False,
-            "code": "E500",
-            "message": f"Verification failed: {str(e)}",
-            "payment_verified": False
-        }
+        logger.error(f"❌ Webhook error: {e}")
+        return {"success": False, "error": str(e)}
 
 
 print("=" * 70)
 print("✅ Payment Routes Loaded - ONLY RAZORPAY")
-print("   ✅ All data stored in applications collection")
-print("   ✅ application_type='job' for job applications")
-print("   ✅ application_type='service' for service applications")
-print("   ✅ No separate payments tables needed")
+print("   ✅ NO application created on order creation")
+print("   ✅ Application created ONLY after successful payment")
+print("   ✅ Failed/cancelled payments create NO record")
+print("   ✅ GST (18%) + Service Charge (₹50) added")
+print("   ✅ Supports job + service payments")
 print("=" * 70)

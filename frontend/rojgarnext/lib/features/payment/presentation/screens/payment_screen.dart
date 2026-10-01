@@ -1,6 +1,8 @@
 // lib/features/payment/presentation/screens/payment_screen.dart
 // ✅ COMPLETE - Works on both Web and Mobile
 // ✅ NEW: Shows full fee breakdown (App Fee + GST + Service Charge = Total)
+// ✅ FIXED: Application is ONLY saved after payment success
+// ✅ FIXED: No application record created on payment cancellation/failure
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -303,14 +305,26 @@ class _PaymentScreenState extends State<PaymentScreen>
         "razorpay_signature": _razorpaySignature,
         "application_id": _applicationId ?? widget.paymentId,
         "amount": widget.amount,
+        // ✅ CRITICAL: Send ALL application data so backend creates record ONLY on success
+        "payment_type": widget.paymentType == PaymentType.job ? "job" : "service",
       };
 
       if (widget.paymentType == PaymentType.job) {
         requestData["job_id"] = widget.jobId;
+        requestData["job_title"] = widget.jobTitle;
+        requestData["organization"] = widget.organization;
+        requestData["category_used"] = widget.categoryUsed;
+        requestData["application_fee"] = widget.applicationFee;
+        requestData["gst_amount"] = widget.gstAmount;
+        requestData["service_charge"] = widget.serviceCharge;
       } else {
         requestData["service_id"] = widget.serviceId;
         requestData["service_type"] = widget.serviceType;
         requestData["sub_type_id"] = widget.serviceSubType;
+        requestData["sub_service_name"] = widget.subServiceName;
+        requestData["form_data"] = widget.formData;
+        requestData["user_email"] = widget.userEmail;
+        requestData["user_name"] = widget.userName;
       }
 
       final response = await DioClient.dio.post(

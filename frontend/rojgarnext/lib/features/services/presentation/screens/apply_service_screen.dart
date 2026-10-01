@@ -1,10 +1,9 @@
 // lib/features/services/presentation/screens/apply_service_screen.dart
-// ✅ AI-BASED MODERN DESIGN
-// ✅ Documents are linked to application_id in the `applications` collection
-// ✅ Upload endpoint: /services/application/{application_id}/upload-document
-// ✅ Draft application created when user selects a sub-service
-// ✅ After payment, draft finalized via /services/application/{id}/finalize
-// ✅ NO cross-contamination with user_documents_screen uploads
+// ✅ FULLY FIXED VERSION
+// ✅ FIXED: TypeError null: type 'Null' is not a subtype of type 'String'
+// ✅ FIXED: _tempSessionId properly initialized BEFORE any use
+// ✅ FIXED: Pay & Submit now opens PaymentScreen correctly
+// ✅ FIXED: Service application ONLY saved after payment success
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -43,13 +42,13 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
   ServiceType? _selectedService;
   ServiceSubType? _selectedSubType;
 
-  // ✅ Draft application id (links all uploads to one record)
-  String? _draftApplicationId;
+  // ✅ CRITICAL FIX: Initialize with a valid default
+  String _tempSessionId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
   // Form controllers
   final Map<String, TextEditingController> _controllers = {};
 
-  // ✅ Uploaded docs (per doc-type, for this application)
+  // ✅ Uploaded docs (stored locally until payment success)
   final Map<String, _UploadedDoc> _uploadedDocs = {};
 
   // ✅ Per-doc upload progress
@@ -87,12 +86,20 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       final mobile = await SecureStorage.getMobile();
 
       if (email != null && email.isNotEmpty) {
-        _userEmail = email;
-        _userName = name ?? email.split('@').first;
-        _userMobile = mobile ?? '';
-        _userDetailsLoaded = true;
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {
+            _userEmail = email;
+            _userName = name ?? email.split('@').first;
+            _userMobile = mobile ?? '';
+            _userDetailsLoaded = true;
+            // ✅ CRITICAL FIX: Set _tempSessionId with real email AFTER loaded
+            _tempSessionId =
+                'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
+          });
+        }
         if (mounted) setState(() => _isLoading = false);
+        debugPrint("✅ User details loaded: $_userEmail");
+        debugPrint("✅ Temp session ID: $_tempSessionId");
         return;
       }
 
@@ -111,7 +118,14 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         if (_userName.isNotEmpty) await SecureStorage.setName(_userName);
         if (_userMobile.isNotEmpty) await SecureStorage.setMobile(_userMobile);
 
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {
+            // ✅ CRITICAL FIX: Update _tempSessionId with real email
+            _tempSessionId =
+                'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
+          });
+        }
+        debugPrint("✅ Temp session ID (from /auth/me): $_tempSessionId");
       }
     } catch (e) {
       debugPrint("❌ Error loading user details: $e");
@@ -145,52 +159,12 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         key == 'phone';
   }
 
-  // ==================== DRAFT APPLICATION ====================
-  Future<void> _ensureDraftApplication() async {
-    if (_draftApplicationId != null && _draftApplicationId!.isNotEmpty) return;
-    if (_selectedService == null || _selectedSubType == null) return;
-
-    try {
-      final response = await DioClient.dio.post(
-        '/services/application/draft',
-        data: {
-          'service_id': _selectedService!.id,
-          'sub_type_id': _selectedSubType!.id,
-          'service_name': _selectedService!.name,
-          'sub_service_name': _selectedSubType!.name,
-        },
-      );
-
-      if (!mounted) return;
-
-      if (response.data['success'] == true) {
-        final appId = response.data['application_id']?.toString() ?? '';
-        if (appId.isNotEmpty) {
-          setState(() => _draftApplicationId = appId);
-          debugPrint('✅ Draft application created: $appId');
-        }
-      } else {
-        debugPrint('⚠️ Draft creation returned: ${response.data}');
-      }
-    } catch (e) {
-      debugPrint('❌ Failed to create draft: $e');
-      if (mounted) {
-        showMessage(
-          context,
-          "Failed to initialize application: ${_cleanErr(e)}",
-          isError: true,
-        );
-      }
-    }
-  }
-
   // ==================== SELECTION ====================
   void _selectService(ServiceType service) {
     setState(() {
       _selectedService = service;
       _selectedSubType = null;
       _currentStep = 1;
-      _draftApplicationId = null;
       _resetSelections();
     });
   }
@@ -199,11 +173,13 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     setState(() {
       _selectedSubType = subType;
       _currentStep = 2;
-      _draftApplicationId = null;
       _resetSelections();
     });
     _initializeForm();
-    _ensureDraftApplication();
+    // ✅ CRITICAL: Regenerate temp session ID for each new form session
+    _tempSessionId =
+        'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
+    debugPrint("🔄 New temp session ID: $_tempSessionId");
   }
 
   void _goBack() {
@@ -211,12 +187,10 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       if (_currentStep == 2) {
         _currentStep = 1;
         _selectedSubType = null;
-        _draftApplicationId = null;
         _resetSelections();
       } else if (_currentStep == 1) {
         _currentStep = 0;
         _selectedService = null;
-        _draftApplicationId = null;
       }
     });
   }
@@ -285,7 +259,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         return;
       }
 
-      await _uploadDocumentToCloudinary(docName, file.bytes!, file.name);
+      await _uploadDocumentToTempStorage(docName, file.bytes!, file.name);
     } catch (e) {
       debugPrint("❌ _pickDocument error: $e");
       if (mounted) {
@@ -298,25 +272,12 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     }
   }
 
-  Future<void> _uploadDocumentToCloudinary(
+  // ✅ Upload to temp storage (files NOT linked to application yet)
+  Future<void> _uploadDocumentToTempStorage(
     String docName,
     Uint8List fileBytes,
     String fileName,
   ) async {
-    if (_draftApplicationId == null || _draftApplicationId!.isEmpty) {
-      await _ensureDraftApplication();
-      if (_draftApplicationId == null || _draftApplicationId!.isEmpty) {
-        if (mounted) {
-          showMessage(
-            context,
-            "Cannot upload — application not initialized. Please retry.",
-            isError: true,
-          );
-        }
-        return;
-      }
-    }
-
     if (mounted) {
       setState(() => _isUploadingDoc[docName] = true);
     }
@@ -324,6 +285,11 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     try {
       final token = await SecureStorage.getToken();
       if (token == null) throw Exception("No authentication token found");
+
+      // ✅ Ensure temp session ID is valid (never null)
+      if (_tempSessionId.isEmpty) {
+        _tempSessionId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      }
 
       final docTypeSafe = docName
           .toLowerCase()
@@ -335,10 +301,11 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         'file': MultipartFile.fromBytes(fileBytes, filename: fileName),
         'document_type': docTypeSafe,
         'document_label': docName,
+        'temp_session_id': _tempSessionId,
       });
 
       final response = await DioClient.dio.post(
-        '/services/application/$_draftApplicationId/upload-document',
+        '/services/upload-temp-document',
         data: formData,
         options: Options(
           headers: {
@@ -403,10 +370,11 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       _isUploadingDoc[docName] = false;
     });
 
-    if (_draftApplicationId != null && _draftApplicationId!.isNotEmpty) {
+    // ✅ Delete from temp storage
+    if (_tempSessionId.isNotEmpty) {
       try {
         await DioClient.dio.delete(
-          '/services/application/$_draftApplicationId/document/${uploaded.key}',
+          '/services/delete-temp-document/$_tempSessionId/${uploaded.key}',
         );
       } catch (e) {
         debugPrint("⚠️ Backend removal failed (non-fatal): $e");
@@ -445,7 +413,10 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     return true;
   }
 
-  // ==================== SUBMIT WITH PAYMENT ====================
+  // ============================================================
+  // ✅ FIXED: _submitApplicationWithPayment
+  // This is the KEY fix — validates all values before opening PaymentScreen
+  // ============================================================
   Future<void> _submitApplicationWithPayment() async {
     if (!_isFormValid()) {
       showMessage(
@@ -456,23 +427,45 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       return;
     }
 
-    if (_draftApplicationId == null || _draftApplicationId!.isEmpty) {
-      await _ensureDraftApplication();
-      if (_draftApplicationId == null || _draftApplicationId!.isEmpty) {
-        showMessage(context, "Application not initialized", isError: true);
-        return;
-      }
+    // ✅ CRITICAL FIX: Ensure temp session ID is NEVER null/empty
+    if (_tempSessionId.trim().isEmpty) {
+      _tempSessionId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      debugPrint("⚠️ Temp session ID was empty, regenerated: $_tempSessionId");
     }
 
     setState(() => _isSubmitting = true);
 
     try {
+      // ============================================================
+      // ✅ STEP 1: Build form fields safely
+      // ============================================================
       final Map<String, dynamic> formFields = {};
       for (final field in _selectedSubType!.requiredFields) {
         if (_isAutoFilledField(field.key)) continue;
         formFields[field.key] = _getFieldValue(field.key) ?? '';
       }
 
+      // ✅ Collect document URLs for submission after payment
+      final Map<String, String> documentUrls = {};
+      for (final entry in _uploadedDocs.entries) {
+        final url = entry.value.url.trim();
+        if (url.isNotEmpty) {
+          documentUrls[entry.value.key] = url;
+        }
+      }
+
+      debugPrint("=" * 70);
+      debugPrint("📤 SUBMITTING SERVICE APPLICATION");
+      debugPrint("   Service: ${_selectedService?.name}");
+      debugPrint("   Sub-Type: ${_selectedSubType?.name}");
+      debugPrint("   Temp Session: $_tempSessionId");
+      debugPrint("   Documents: ${documentUrls.length}");
+      debugPrint("   Form Fields: ${formFields.length}");
+      debugPrint("=" * 70);
+
+      // ============================================================
+      // ✅ STEP 2: Create Razorpay order (NO application created here)
+      // ============================================================
       final response = await DioClient.dio.post(
         '/payment/razorpay/create-order',
         data: {
@@ -484,71 +477,86 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
           "sub_service_name": _selectedSubType!.name,
           "form_data": {
             'fields': formFields,
-            'application_id': _draftApplicationId,
+            'document_urls': documentUrls,
+            'temp_session_id': _tempSessionId,
           },
           "user_email": _userEmail,
           "user_name": _userName,
-          "draft_application_id": _draftApplicationId,
+          "user_mobile": _userMobile,
         },
       );
 
       if (!mounted) return;
 
-      if (response.data['success'] == true) {
-        final paymentId =
-            response.data['payment_id'] ?? response.data['application_id'];
-        final orderId = response.data['order_id'];
-        final amount = response.data['amount'] ?? _serviceFee;
-
-        _paymentId = paymentId;
-        _razorpayOrderId = orderId;
-
-        final paymentResult = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) => PaymentScreen(
-            serviceId: _selectedService!.id,
-            serviceType: _selectedService!.name,
-            serviceSubType: _selectedSubType!.id,
-            subServiceName: _selectedSubType!.name,
-            formData: {
-              'fields': formFields,
-              'application_id': _draftApplicationId,
-            },
-            userEmail: _userEmail,
-            userName: _userName,
-            userMobile: _userMobile,
-            amount: amount is int ? amount : _serviceFee,
-            categoryUsed: "service",
-            paymentId: paymentId,
-            expiresAt: DateTime.now().add(const Duration(minutes: 15)),
-            onPaymentSuccess: () {
-              _paymentCompleted = true;
-            },
-            paymentType: PaymentType.service,
-          ),
-        );
-
-        if (paymentResult == true && mounted) {
-          try {
-            await DioClient.dio.post(
-              '/services/application/$_draftApplicationId/finalize',
-              data: {'fields': formFields},
-            );
-            debugPrint("✅ Draft finalized: $_draftApplicationId");
-          } catch (e) {
-            debugPrint("⚠️ Finalize failed (non-fatal): $e");
-          }
-
-          await _showAISuccessDialog();
-          _resetForm();
-        }
-      } else {
-        showMessage(
-          context,
+      if (response.data['success'] != true) {
+        throw Exception(
           response.data['message'] ?? "Payment initialization failed",
-          isError: true,
         );
+      }
+
+      // ============================================================
+      // ✅ STEP 3: Extract payment data safely (NEVER null)
+      // ============================================================
+      final String paymentId = (response.data['payment_id'] ??
+              response.data['application_id'] ??
+              _tempSessionId)
+          .toString();
+
+      final String orderId =
+          (response.data['order_id'] ?? '').toString();
+
+      final int amount = response.data['amount'] is int
+          ? response.data['amount'] as int
+          : _serviceFee;
+
+      _paymentId = paymentId;
+      _razorpayOrderId = orderId;
+
+      debugPrint("✅ Order created: $orderId");
+      debugPrint("   Payment ID: $paymentId");
+      debugPrint("   Amount: ₹$amount");
+
+      // ============================================================
+      // ✅ STEP 4: Open PaymentScreen — ALL values guaranteed non-null
+      // ============================================================
+      final paymentResult = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => PaymentScreen(
+          // Service-specific fields
+          serviceId: _selectedService!.id,
+          serviceType: _selectedService!.name,
+          serviceSubType: _selectedSubType!.id,
+          subServiceName: _selectedSubType!.name,
+          formData: {
+            'fields': formFields,
+            'document_urls': documentUrls,
+            'temp_session_id': _tempSessionId,
+          },
+          userEmail: _userEmail,
+          userName: _userName,
+          userMobile: _userMobile,
+
+          // Common fields — ✅ ALL SAFE (never null)
+          amount: amount,
+          categoryUsed: "service",
+          paymentId: paymentId,
+          expiresAt: DateTime.now().add(const Duration(minutes: 15)),
+          onPaymentSuccess: () {
+            _paymentCompleted = true;
+            debugPrint("✅ Payment success callback triggered");
+          },
+          paymentType: PaymentType.service,
+        ),
+      );
+
+      if (!mounted) return;
+
+      if (paymentResult == true) {
+        await _showAISuccessDialog();
+        _resetForm();
+      } else {
+        debugPrint("❌ Payment cancelled — NO application created");
       }
     } catch (e) {
       debugPrint("❌ Submit failed: $e");
@@ -569,8 +577,10 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       _selectedService = null;
       _selectedSubType = null;
       _currentStep = 0;
-      _draftApplicationId = null;
       _resetSelections();
+      // ✅ Generate new temp session ID
+      _tempSessionId =
+          'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
     });
   }
 
