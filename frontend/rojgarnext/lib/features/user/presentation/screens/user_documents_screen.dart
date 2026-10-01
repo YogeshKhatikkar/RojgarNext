@@ -3,8 +3,9 @@
 // ✅ FIXED: Dropdown list with white background and black text
 // ✅ FIXED: Loading animation on page load
 // ✅ FIXED: Works on Mobile and Web
-// ✅ NEW: Profile photo upload/delete syncs to UserProfileProvider
-//         → Sidebar + all Resume formats update WITHOUT page reload
+// ✅ FIXED: Profile photo upload/delete now syncs to BOTH providers
+//         → ProfileStateService (global source of truth)
+//         → UserProfileProvider (ResumeScreen)
 // ✅ Complete file — no lines skipped
 
 import 'dart:typed_data';
@@ -17,6 +18,7 @@ import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/core/widgets/file_viewer_screen.dart';
+import 'package:rojgarnext/core/services/profile_state_service.dart';
 import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 
 class UserDocumentsScreen extends StatefulWidget {
@@ -310,9 +312,10 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
   }
 
   // ============================================================
-  // ✅ UPLOAD DOCUMENT — with immediate provider sync
-  // ✅ FIXED: Provider updated BEFORE setState (guaranteed order)
-  // ✅ FIXED: Uses normalized URL for provider
+  // ✅ UPLOAD DOCUMENT — with immediate sync to BOTH providers
+  // ✅ FIXED: ProfileStateService updated FIRST (global source of truth)
+  // ✅ FIXED: UserProfileProvider also updated (ResumeScreen)
+  // ✅ FIXED: Uses normalized URL for both providers
   // ============================================================
   Future<void> _uploadDocument() async {
     if (_selectedDocumentType == null || _selectedDocumentKey == null) {
@@ -364,22 +367,36 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
         debugPrint("✅ Upload OK → $fileUrl");
 
         // ========================================================
-        // ✅ STEP 1: Update provider FIRST (before any setState)
-        //    → this triggers all listeners (sidebar, resume, etc.)
+        // ✅ STEP 1: Update ProfileStateService FIRST
+        //    → this is the GLOBAL source of truth
+        //    → Sidebar, Dashboard, BuildResume all listen to this
+        // ========================================================
+        if (_selectedDocumentKey == 'profile_photo_url') {
+          ProfileStateService().setPhoto(
+            url: fileUrl,
+            publicId: publicId,
+          );
+          debugPrint("✅ ProfileStateService updated → $fileUrl");
+        }
+
+        // ========================================================
+        // ✅ STEP 2: Update UserProfileProvider
+        //    → ResumeScreen listens to this
+        //    → Also auto-syncs to ProfileStateService (via listener)
         // ========================================================
         if (_selectedDocumentKey == 'profile_photo_url' && mounted) {
           Provider.of<UserProfileProvider>(context, listen: false)
               .setProfilePhoto(url: fileUrl, publicId: publicId);
-          debugPrint("✅ Provider updated with profile photo → $fileUrl");
+          debugPrint("✅ UserProfileProvider updated → $fileUrl");
         }
 
         // ========================================================
-        // ✅ STEP 2: Persist to profile DB
+        // ✅ STEP 3: Persist to profile DB
         // ========================================================
         await _updateProfileDocument(_selectedDocumentKey!, fileUrl);
 
         // ========================================================
-        // ✅ STEP 3: Update local state
+        // ✅ STEP 4: Update local state
         // ========================================================
         if (mounted) {
           setState(() {
@@ -434,7 +451,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
   }
 
   // ============================================================
-  // ✅ DELETE DOCUMENT — with provider sync for profile photo
+  // ✅ DELETE DOCUMENT — with sync to BOTH providers
   // ============================================================
   Future<void> _deleteDocument(String key, String docName) async {
     final confirm = await showDialog<bool>(
@@ -469,12 +486,20 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
           setState(() => _documents.remove(key));
         }
 
-        // ✅ CRITICAL: If profile photo deleted → clear from provider too
-        if (key == 'profile_photo_url' && mounted) {
-          Provider.of<UserProfileProvider>(context, listen: false)
-              .clearProfilePhoto();
+        // ✅ CRITICAL: If profile photo deleted → clear from BOTH providers
+        if (key == 'profile_photo_url') {
+          // Clear from ProfileStateService (global source)
+          ProfileStateService().clearPhoto();
           debugPrint(
-              "🗑️ Profile photo cleared from provider → sidebar + resume updated");
+              "🗑️ Profile photo cleared from ProfileStateService");
+
+          // Clear from UserProfileProvider (ResumeScreen)
+          if (mounted) {
+            Provider.of<UserProfileProvider>(context, listen: false)
+                .clearProfilePhoto();
+            debugPrint(
+                "🗑️ Profile photo cleared from UserProfileProvider");
+          }
         }
 
         if (mounted) {

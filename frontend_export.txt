@@ -1,7 +1,7 @@
 ================================================================================
 ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-Generated: 2026-10-01 06:47:45
+Generated: 2026-10-01 21:44:27
 Source: E:\yogesh\website\rojgarnext\frontend
 Total Files: 142
 Total Size: 3.2 MB
@@ -3332,47 +3332,329 @@ class PermissionService {
 
 ================================================================================
 [  14/ 142] 🎯 rojgarnext/lib/core/services/profile_state_service.dart
-📏 SIZE: 1.4 KB
-🕐 MODIFIED: 2026-09-25 09:30:35
+📏 SIZE: 11.0 KB
+🕐 MODIFIED: 2026-10-01 20:42:59
 ================================================================================
 
 // lib/core/services/profile_state_service.dart
-// ✅ GLOBAL PROFILE STATE — Broadcasts photo changes app-wide instantly
+// ✅ GLOBAL PROFILE STATE — SINGLE SOURCE OF TRUTH FOR PHOTO
+// ✅ Broadcasts photo changes app-wide instantly
+// ✅ Loads photo from backend on app startup AND after login
 // ✅ No page reload needed when photo is added/removed
+// ✅ Persistent across all screens
+// ✅ FIXED: Now syncs with UserProfileProvider automatically
 
 import 'package:flutter/foundation.dart';
+import 'package:rojgarnext/core/network/dio_client.dart';
 
 class ProfileStateService {
-  static final ProfileStateService _instance = ProfileStateService._internal();
+  // ============================================================
+  // SINGLETON PATTERN
+  // ============================================================
+  static final ProfileStateService _instance =
+      ProfileStateService._internal();
   factory ProfileStateService() => _instance;
   ProfileStateService._internal();
 
-  /// Current profile photo URL — null / empty means NO photo
-  final ValueNotifier<String?> profilePhotoUrl = ValueNotifier<String?>(null);
+  // ============================================================
+  // NOTIFIERS
+  // ============================================================
 
-  /// Bumped whenever ANY profile data changes (triggers resume re-fetch/re-render)
+  /// Current profile photo URL — null / empty means NO photo
+  final ValueNotifier<String?> profilePhotoUrl =
+      ValueNotifier<String?>(null);
+
+  /// Current profile photo public_id (for deletion tracking)
+  final ValueNotifier<String?> profilePhotoPublicId =
+      ValueNotifier<String?>(null);
+
+  /// Bumped whenever ANY profile data changes
   final ValueNotifier<int> profileDataVersion = ValueNotifier<int>(0);
 
-  /// True once the initial load has completed (prevents popup before data arrives)
-  final ValueNotifier<bool> hasInitialPhotoLoaded = ValueNotifier<bool>(false);
+  /// True once the initial load has completed
+  final ValueNotifier<bool> hasInitialPhotoLoaded =
+      ValueNotifier<bool>(false);
 
-  void updatePhotoUrl(String? url) {
-    final normalized = (url == null || url.trim().isEmpty) ? null : url.trim();
-    profilePhotoUrl.value = normalized;
-    hasInitialPhotoLoaded.value = true;
+  /// Loading state for async fetch
+  final ValueNotifier<bool> isLoadingPhoto = ValueNotifier<bool>(false);
+
+  // ============================================================
+  // PRIVATE FLAGS
+  // ============================================================
+  bool _isFetching = false;
+
+  // ============================================================
+  // PUBLIC GETTERS
+  // ============================================================
+  String? get currentPhotoUrl => profilePhotoUrl.value;
+  String? get currentPublicId => profilePhotoPublicId.value;
+  bool get hasPhoto => (profilePhotoUrl.value ?? '').isNotEmpty;
+
+  // ============================================================
+  // ✅ VALIDATE URL — reject garbage / non-image URLs
+  // ============================================================
+  bool _isValidUrl(String? url) {
+    if (url == null) return false;
+
+    final trimmed = url.trim();
+
+    if (trimmed.isEmpty) return false;
+    if (trimmed.length < 10) return false;
+
+    if (!trimmed.startsWith('http://') &&
+        !trimmed.startsWith('https://') &&
+        !trimmed.startsWith('file:') &&
+        !trimmed.startsWith('blob:')) {
+      return false;
+    }
+
+    final lower = trimmed.toLowerCase();
+
+    if (lower == 'null' ||
+        lower == 'undefined' ||
+        lower == 'n/a' ||
+        lower == 'na' ||
+        lower == 'none' ||
+        lower == '-' ||
+        lower == 'false' ||
+        lower == 'true' ||
+        lower == '0' ||
+        lower == 'not found' ||
+        lower == 'notfound' ||
+        lower == 'not_found' ||
+        lower == 'deleted' ||
+        lower == 'removed' ||
+        lower == 'empty' ||
+        lower == '{}' ||
+        lower == '[]') {
+      return false;
+    }
+
+    if (lower.contains('placeholder') ||
+        lower.contains('not-found') ||
+        lower.contains('notfound') ||
+        lower.contains('example.com/dummy') ||
+        lower.contains('undefined')) {
+      return false;
+    }
+
+    return true;
   }
 
+  // ============================================================
+  // ✅ NORMALIZE CLOUDINARY URL
+  // Converts raw/upload → image/upload so image is renderable
+  // ============================================================
+  String _normalizeCloudinaryUrl(String url) {
+    try {
+      final lower = url.toLowerCase();
+
+      // Only touch Cloudinary URLs
+      if (!lower.contains('cloudinary.com')) return url;
+
+      // Skip if already image/upload or video/upload
+      if (lower.contains('/image/upload/') ||
+          lower.contains('/video/upload/')) {
+        return url;
+      }
+
+      // Convert raw/upload → image/upload
+      if (lower.contains('/raw/upload/')) {
+        final fixed = url.replaceFirst('/raw/upload/', '/image/upload/');
+        debugPrint('🔄 ProfileStateService: Converted raw URL → image URL');
+        return fixed;
+      }
+
+      return url;
+    } catch (e) {
+      debugPrint('⚠️ ProfileStateService: URL normalize error: $e');
+      return url;
+    }
+  }
+
+  // ============================================================
+  // ✅ UPDATE PHOTO URL — central update method
+  // ============================================================
+  void updatePhotoUrl(String? url, {String? publicId}) {
+    String? normalized;
+
+    if (url != null && url.trim().isNotEmpty && _isValidUrl(url)) {
+      normalized = _normalizeCloudinaryUrl(url.trim());
+    } else {
+      normalized = null;
+    }
+
+    final changed = profilePhotoUrl.value != normalized ||
+        profilePhotoPublicId.value != publicId;
+
+    if (!changed) {
+      debugPrint("📸 ProfileStateService: URL unchanged, skipping update");
+      hasInitialPhotoLoaded.value = true;
+      return;
+    }
+
+    profilePhotoUrl.value = normalized;
+    profilePhotoPublicId.value = publicId;
+    hasInitialPhotoLoaded.value = true;
+
+    debugPrint("=" * 70);
+    debugPrint("📸 ProfileStateService: ✅ Photo updated");
+    debugPrint("   New URL: $normalized");
+    debugPrint("   Public ID: $publicId");
+    debugPrint("=" * 70);
+  }
+
+  // ============================================================
+  // ✅ LOAD PHOTO FROM BACKEND
+  // Called on:
+  //   - App startup (SplashPage)
+  //   - After login (AuthService.loadProfilePhotoAfterLogin)
+  //   - After photo upload (UserDocumentsScreen)
+  //   - Manual refresh (ResumeScreen, BuildResumeScreen)
+  // ============================================================
+  Future<void> loadPhotoFromBackend({bool forceRefresh = false}) async {
+    // Prevent duplicate concurrent calls
+    if (_isFetching) {
+      debugPrint("📸 ProfileStateService: Already fetching, skipping");
+      return;
+    }
+
+    // If already loaded and not forced, skip
+    if (!forceRefresh && hasInitialPhotoLoaded.value) {
+      debugPrint("📸 ProfileStateService: Already loaded, skipping");
+      return;
+    }
+
+    _isFetching = true;
+    isLoadingPhoto.value = true;
+
+    try {
+      debugPrint("=" * 70);
+      debugPrint("📸 ProfileStateService: Loading photo from backend...");
+      debugPrint("=" * 70);
+
+      final response = await DioClient.dio.get('/user/full-profile');
+
+      String? photoUrl;
+      String? publicId;
+
+      if (response.data is Map) {
+        final data = response.data;
+
+        Map<String, dynamic> profile;
+
+        if (data.containsKey('data') && data['data'] is Map) {
+          profile = Map<String, dynamic>.from(data['data'] as Map);
+        } else {
+          profile = Map<String, dynamic>.from(data);
+        }
+
+        debugPrint(
+            "📸 ProfileStateService: Profile keys = ${profile.keys.toList()}");
+
+        // ✅ Check additional_details FIRST (this is where upload saves)
+        final additional = profile['additional_details'] as Map?;
+        if (additional != null) {
+          debugPrint(
+              "📸 ProfileStateService: additional_details keys = ${additional.keys.toList()}");
+
+          // Check profile_photo_url
+          final addPhotoUrl = additional['profile_photo_url']?.toString();
+          if (addPhotoUrl != null && addPhotoUrl.trim().isNotEmpty) {
+            photoUrl = addPhotoUrl;
+          }
+
+          // Check profile_picture_url (alternative key)
+          if (photoUrl == null || photoUrl.trim().isEmpty) {
+            final addPictureUrl =
+                additional['profile_picture_url']?.toString();
+            if (addPictureUrl != null && addPictureUrl.trim().isNotEmpty) {
+              photoUrl = addPictureUrl;
+            }
+          }
+
+          // Get public_id
+          publicId = additional['profile_photo_public_id']?.toString() ??
+              additional['public_id']?.toString();
+        }
+
+        // ✅ Fallback to top-level keys
+        if (photoUrl == null || photoUrl.trim().isEmpty) {
+          photoUrl = profile['profile_photo_url']?.toString() ??
+              profile['photo_url']?.toString();
+        }
+
+        if (publicId == null) {
+          publicId = profile['profile_photo_public_id']?.toString();
+        }
+      }
+
+      debugPrint("=" * 70);
+      debugPrint("📸 ProfileStateService: FINAL photo URL = $photoUrl");
+      debugPrint("=" * 70);
+
+      updatePhotoUrl(photoUrl, publicId: publicId);
+    } catch (e) {
+      debugPrint("❌ ProfileStateService: Failed to load photo: $e");
+      // Don't clear existing photo on error — keep what we have
+      hasInitialPhotoLoaded.value = true;
+    } finally {
+      _isFetching = false;
+      isLoadingPhoto.value = false;
+    }
+  }
+
+  // ============================================================
+  // ✅ SET PHOTO FROM EXTERNAL SOURCE (upload, etc.)
+  // This is the KEY method that makes everything sync
+  // ============================================================
+  void setPhoto({required String url, String? publicId}) {
+    debugPrint("📸 ProfileStateService: setPhoto called → $url");
+    updatePhotoUrl(url, publicId: publicId);
+    bumpVersion();
+  }
+
+  // ============================================================
+  // CLEAR PHOTO
+  // ============================================================
   void clearPhoto() {
     profilePhotoUrl.value = null;
+    profilePhotoPublicId.value = null;
     hasInitialPhotoLoaded.value = true;
+    bumpVersion();
+    debugPrint("📸 ProfileStateService: Photo cleared");
   }
 
+  // ============================================================
+  // BUMP VERSION (triggers re-fetch of resume data)
+  // ============================================================
   void bumpVersion() {
     profileDataVersion.value = profileDataVersion.value + 1;
+    debugPrint(
+        "📸 ProfileStateService: Version bumped to ${profileDataVersion.value}");
   }
 
-  String? get currentPhotoUrl => profilePhotoUrl.value;
-  bool get hasPhoto => (profilePhotoUrl.value ?? '').isNotEmpty;
+  // ============================================================
+  // RESET (on logout)
+  // ============================================================
+  void reset() {
+    profilePhotoUrl.value = null;
+    profilePhotoPublicId.value = null;
+    hasInitialPhotoLoaded.value = false;
+    isLoadingPhoto.value = false;
+    profileDataVersion.value = 0;
+    _isFetching = false;
+    debugPrint("📸 ProfileStateService: Reset complete");
+  }
+
+  // ============================================================
+  // FORCE REFRESH
+  // ============================================================
+  Future<void> forceRefresh() async {
+    debugPrint("📸 ProfileStateService: Force refresh requested");
+    hasInitialPhotoLoaded.value = false;
+    await loadPhotoFromBackend(forceRefresh: true);
+  }
 }
 
 ================================================================================
@@ -9780,15 +10062,15 @@ class AdminSidebar extends StatelessWidget {
 
 ================================================================================
 [  47/ 142] 🎯 rojgarnext/lib/features/auth/presentation/controllers/auth_controller.dart
-📏 SIZE: 31.1 KB
-🕐 MODIFIED: 2026-09-30 08:25:40
+📏 SIZE: 33.5 KB
+🕐 MODIFIED: 2026-10-01 20:09:15
 ================================================================================
 
 // lib/features/auth/presentation/controllers/auth_controller.dart
 // ✅ COMPLETE PRODUCTION-READY VERSION
 // ✅ AUTO-UNLOCK: Locked account automatically unlocks after countdown
 // ✅ Live countdown timer shown to user
-// ✅ No more silent failures
+// ✅ Profile photo loaded after every login type
 // ✅ All original functionality preserved
 
 import 'dart:async';
@@ -9802,13 +10084,15 @@ import 'package:local_auth/local_auth.dart';
 
 import 'package:rojgarnext/core/storage/secure_storage.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
+import 'package:rojgarnext/core/services/profile_state_service.dart';
 import 'package:rojgarnext/features/auth/services/auth_service.dart';
 import 'package:rojgarnext/core/routes/app_routes.dart';
 import 'package:rojgarnext/core/services/unified_location_service.dart';
 import 'package:rojgarnext/core/utils/platform_utils.dart';
 import 'package:rojgarnext/features/auth/presentation/screens/fingerprint_setup_page.dart';
 
-typedef MessageCallback = void Function(String message, {bool isError});
+typedef MessageCallback = void Function(String message,
+    {bool isError});
 
 class AuthController extends ChangeNotifier {
   bool isLoading = false;
@@ -9818,7 +10102,7 @@ class AuthController extends ChangeNotifier {
   bool _isResetMobileVerified = false;
 
   // ============================================================
-  // ✅ ACCOUNT LOCK STATE
+  // ACCOUNT LOCK STATE
   // ============================================================
   bool _isAccountLocked = false;
   int _lockSecondsRemaining = 0;
@@ -9832,7 +10116,7 @@ class AuthController extends ChangeNotifier {
   String? get lockedEmail => _lockedEmail;
 
   // ============================================================
-  // ✅ LOCATION STATE
+  // LOCATION STATE
   // ============================================================
   Map<String, dynamic>? _currentLocation;
   DateTime? _lastLocationUpdate;
@@ -9847,7 +10131,7 @@ class AuthController extends ChangeNotifier {
   String get lastLocationError => _lastLocationError;
 
   // ============================================================
-  // ✅ INTERNET STATE
+  // INTERNET STATE
   // ============================================================
   bool _isConnected = true;
   bool get isConnected => _isConnected;
@@ -9875,24 +10159,23 @@ class AuthController extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ ACCOUNT LOCK HANDLING
+  // ACCOUNT LOCK HANDLING
   // ============================================================
-  
-  /// Start lock countdown timer
   void _startLockCountdown({
     required int secondsRemaining,
     required String email,
     DateTime? lockUntil,
   }) {
-    // Cancel any existing timer
     _lockCountdownTimer?.cancel();
 
     _isAccountLocked = true;
     _lockSecondsRemaining = secondsRemaining;
     _lockedEmail = email;
-    _lockUntil = lockUntil ?? DateTime.now().add(Duration(seconds: secondsRemaining));
+    _lockUntil = lockUntil ??
+        DateTime.now().add(Duration(seconds: secondsRemaining));
 
-    debugPrint("🔒 Account locked for $secondsRemaining seconds");
+    debugPrint(
+        "🔒 Account locked for $secondsRemaining seconds");
     notifyListeners();
 
     _lockCountdownTimer = Timer.periodic(
@@ -9909,7 +10192,6 @@ class AuthController extends ChangeNotifier {
     );
   }
 
-  /// Called when countdown reaches 0
   void _onLockExpired() {
     debugPrint("✅ Account lock expired - auto-unlocking");
     _isAccountLocked = false;
@@ -9927,7 +10209,6 @@ class AuthController extends ChangeNotifier {
     debugPrint("✅ Auto-unlocked for: $unlockedEmail");
   }
 
-  /// Stop lock countdown (e.g., when user navigates away)
   void stopLockCountdown() {
     _lockCountdownTimer?.cancel();
     _lockCountdownTimer = null;
@@ -9938,26 +10219,24 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Format seconds to "MM:SS" or "Xm Ys"
   String get lockCountdownDisplay {
     if (_lockSecondsRemaining <= 0) return "0:00";
-    
+
     final minutes = _lockSecondsRemaining ~/ 60;
     final seconds = _lockSecondsRemaining % 60;
-    
+
     if (minutes > 0) {
       return "$minutes:${seconds.toString().padLeft(2, '0')}";
     }
     return "${seconds}s";
   }
 
-  /// Full human-readable countdown
   String get lockCountdownHumanReadable {
     if (_lockSecondsRemaining <= 0) return "0 seconds";
-    
+
     final minutes = _lockSecondsRemaining ~/ 60;
     final seconds = _lockSecondsRemaining % 60;
-    
+
     if (minutes > 0) {
       return "$minutes minute${minutes > 1 ? 's' : ''} ${seconds > 0 ? '$seconds second${seconds > 1 ? 's' : ''}' : ''}";
     }
@@ -9965,7 +10244,7 @@ class AuthController extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ HELPER: Get Stored Email
+  // GET STORED EMAIL
   // ============================================================
   Future<String?> _getStoredEmail() async {
     try {
@@ -9979,33 +10258,41 @@ class AuthController extends ChangeNotifier {
           await SecureStorage.setEmail(email);
           return email;
         }
-      } catch (e) {}
+      } catch (e) {
+        debugPrint("SharedPreferences email read error: $e");
+      }
 
       try {
         final box = await Hive.openBox('user_data');
         final hiveEmail = box.get('email');
-        if (hiveEmail != null && hiveEmail.toString().isNotEmpty) {
+        if (hiveEmail != null &&
+            hiveEmail.toString().isNotEmpty) {
           email = hiveEmail.toString();
           await SecureStorage.setEmail(email);
           return email;
         }
-      } catch (e) {}
+      } catch (e) {
+        debugPrint("Hive email read error: $e");
+      }
 
       return null;
     } catch (e) {
+      debugPrint("Error getting stored email: $e");
       return null;
     }
   }
 
   // ============================================================
-  // ✅ LOCATION METHODS
+  // LOCATION METHODS
   // ============================================================
-  Future<Map<String, dynamic>?> getCurrentLocationWithDetails() async {
+  Future<Map<String, dynamic>?>
+      getCurrentLocationWithDetails() async {
     _setLoading(true);
     _lastLocationError = '';
 
     try {
-      final location = await UnifiedLocationService.getCurrentLocation();
+      final location =
+          await UnifiedLocationService.getCurrentLocation();
       _currentLocation = location;
       _hasLocation = true;
       _locationSource = location['source'];
@@ -10025,15 +10312,17 @@ class AuthController extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ REGISTER
+  // REGISTER
   // ============================================================
-  Future<void> register(Map<String, dynamic> data, BuildContext context) async {
+  Future<void> register(
+      Map<String, dynamic> data, BuildContext context) async {
     _setLoading(true);
     try {
       await AuthService.register(data);
       await SecureStorage.setEmail(data['email'] ?? '');
       await SecureStorage.setMobile(data['mobile'] ?? '');
-      _showMessage("OTP sent to Email & Mobile 📩\nMobile OTP: 123456 (Dev Mode)");
+      _showMessage(
+          "OTP sent to Email & Mobile 📩\nMobile OTP: 123456 (Dev Mode)");
       if (context.mounted) {
         GoRouter.of(context).push(
           AppRoutes.verifyOtp,
@@ -10054,10 +10343,11 @@ class AuthController extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ LOGIN - WITH AUTO-UNLOCK SUPPORT
+  // LOGIN - WITH AUTO-UNLOCK SUPPORT + PHOTO LOAD
   // ============================================================
-  Future<void> login(String email, String password, BuildContext context) async {
-    // ✅ Prevent login if still locked
+  Future<void> login(
+      String email, String password, BuildContext context) async {
+    // Prevent login if still locked
     if (_isAccountLocked) {
       _showMessage(
         "🔒 Account is locked. Please wait ${lockCountdownHumanReadable}.",
@@ -10068,7 +10358,8 @@ class AuthController extends ChangeNotifier {
 
     // Input validation
     if (email.isEmpty) {
-      _showMessage("Please enter your email address", isError: true);
+      _showMessage("Please enter your email address",
+          isError: true);
       return;
     }
     if (password.isEmpty) {
@@ -10076,33 +10367,56 @@ class AuthController extends ChangeNotifier {
       return;
     }
     if (!email.contains('@') || !email.contains('.')) {
-      _showMessage("Please enter a valid email address", isError: true);
+      _showMessage("Please enter a valid email address",
+          isError: true);
       return;
     }
     if (password.length < 6) {
-      _showMessage("Password must be at least 6 characters", isError: true);
+      _showMessage(
+          "Password must be at least 6 characters",
+          isError: true);
       return;
     }
 
     _setLoading(true);
 
     try {
-      final Map<String, dynamic> res = await AuthService.login(
-        <String, dynamic>{"email": email, "password": password},
-      );
+      final Map<String, dynamic> res =
+          await AuthService.login(<String, dynamic>{
+        "email": email,
+        "password": password,
+      });
 
-      if (res['access_token'] == null || res['access_token'].isEmpty) {
+      if (res['access_token'] == null ||
+          res['access_token'].isEmpty) {
         throw ApiException(
           statusCode: 500,
           code: 'NO_TOKEN',
-          message: "Login failed. Please check your credentials.",
+          message:
+              "Login failed. Please check your credentials.",
         );
       }
 
-      // ✅ Clear any lock state on success
+      // Clear any lock state on success
       stopLockCountdown();
 
-      final String role = (res["role"] ?? "user").toString().toLowerCase();
+      final String role =
+          (res["role"] ?? "user").toString().toLowerCase();
+
+      // ✅ Load profile photo (already loaded by AuthService,
+      // but ensure it's done)
+      try {
+        if (!ProfileStateService()
+            .hasInitialPhotoLoaded
+            .value) {
+          await ProfileStateService().loadPhotoFromBackend();
+        }
+        debugPrint(
+            "📸 Login: Photo = ${ProfileStateService().profilePhotoUrl.value}");
+      } catch (photoError) {
+        debugPrint(
+            "⚠️ Login: Photo load failed: $photoError");
+      }
 
       notifyListeners();
       _showMessage("Login Successful! ✅");
@@ -10110,32 +10424,35 @@ class AuthController extends ChangeNotifier {
       if (context.mounted) {
         switch (role) {
           case "superadmin":
-            GoRouter.of(context).pushReplacement(AppRoutes.superAdminDashboard);
+            GoRouter.of(context)
+                .pushReplacement(AppRoutes.superAdminDashboard);
             break;
           case "admin":
-            GoRouter.of(context).pushReplacement(AppRoutes.adminDashboard);
+            GoRouter.of(context)
+                .pushReplacement(AppRoutes.adminDashboard);
             break;
           case "customadmin":
-            GoRouter.of(context).pushReplacement(AppRoutes.customAdminDashboard);
+            GoRouter.of(context)
+                .pushReplacement(AppRoutes.customAdminDashboard);
             break;
           default:
-            GoRouter.of(context).pushReplacement(AppRoutes.userDashboard);
+            GoRouter.of(context)
+                .pushReplacement(AppRoutes.userDashboard);
         }
       }
     } catch (e) {
-      String errorMessage = e.toString().replaceAll("Exception:", "").trim();
-      
-      // ✅ Handle ApiException with full lock info
+      String errorMessage =
+          e.toString().replaceAll("Exception:", "").trim();
+
       if (e is ApiException) {
         if (e.isAccountLocked) {
-          // ✅ START AUTO-UNLOCK COUNTDOWN
           final seconds = e.secondsRemaining ?? 1800;
           _startLockCountdown(
             secondsRemaining: seconds,
             email: email,
             lockUntil: e.lockUntil,
           );
-          
+
           _showMessage(
             "🔒 Account locked for ${lockCountdownHumanReadable}. Auto-unlock in progress...",
             isError: true,
@@ -10145,29 +10462,29 @@ class AuthController extends ChangeNotifier {
             e.code == 'MOBILE_NOT_VERIFIED') {
           _showMessage(e.message, isError: true);
         } else if (e.statusCode == 400) {
-          // Wrong password with remaining attempts
           _showMessage(e.message, isError: true);
         } else {
           _showMessage(e.message, isError: true);
         }
       } else {
-        // Non-ApiException fallback
         final lowerError = errorMessage.toLowerCase();
-        
-        if (lowerError.contains("locked") || 
+
+        if (lowerError.contains("locked") ||
             lowerError.contains("temporarily locked")) {
-          // Try to extract seconds from message
           int seconds = 1800;
-          final match = RegExp(r'(\d+)\s*second').firstMatch(lowerError);
+          final match = RegExp(r'(\d+)\s*second')
+              .firstMatch(lowerError);
           if (match != null) {
-            seconds = int.tryParse(match.group(1) ?? '1800') ?? 1800;
+            seconds =
+                int.tryParse(match.group(1) ?? '1800') ??
+                    1800;
           }
-          
+
           _startLockCountdown(
             secondsRemaining: seconds,
             email: email,
           );
-          
+
           _showMessage(
             "🔒 Account locked. Auto-unlock in progress...",
             isError: true,
@@ -10182,23 +10499,26 @@ class AuthController extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ UPDATE LOCATION
+  // UPDATE LOCATION
   // ============================================================
   Future<bool> updateUserLocation() async {
     _setLoading(true);
     final location = await getCurrentLocationWithDetails();
     if (location == null) {
-      _showMessage("Could not get current location. Please enable GPS.",
+      _showMessage(
+          "Could not get current location. Please enable GPS.",
           isError: true);
       _setLoading(false);
       return false;
     }
 
     try {
-      final Map<String, dynamic> result = await AuthService.updateLocation(
+      final Map<String, dynamic> result =
+          await AuthService.updateLocation(
         latitude: location['latitude'] as double,
         longitude: location['longitude'] as double,
-        locationName: location['location_name'] as String?,
+        locationName:
+            location['location_name'] as String?,
       );
       _showMessage("Location updated successfully!");
       _currentLocation = result['current_location'];
@@ -10206,7 +10526,8 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
       return result['success'] == true;
     } catch (e) {
-      _showMessage("Failed to update location: $e", isError: true);
+      _showMessage("Failed to update location: $e",
+          isError: true);
       return false;
     } finally {
       _setLoading(false);
@@ -10228,7 +10549,7 @@ class AuthController extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ OTP METHODS
+  // OTP METHODS
   // ============================================================
   Future<void> resendEmailOtp(String email) async {
     try {
@@ -10247,17 +10568,21 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> verifyEmailOtp(String email, String otp) async {
-    await AuthService.verifyEmail(<String, dynamic>{"email": email, "otp": otp});
+    await AuthService.verifyEmail(
+        <String, dynamic>{"email": email, "otp": otp});
   }
 
-  Future<void> verifyMobileOtp(String mobile, String otp) async {
-    await AuthService.verifyMobile(<String, dynamic>{"mobile": mobile, "otp": otp});
+  Future<void> verifyMobileOtp(
+      String mobile, String otp) async {
+    await AuthService.verifyMobile(
+        <String, dynamic>{"mobile": mobile, "otp": otp});
   }
 
   // ============================================================
-  // ✅ FORGOT PASSWORD
+  // FORGOT PASSWORD
   // ============================================================
-  Future<Map<String, dynamic>?> sendResetOtp(String email) async {
+  Future<Map<String, dynamic>?> sendResetOtp(
+      String email) async {
     if (email.isEmpty) {
       _showMessage("Email is required", isError: true);
       return null;
@@ -10298,8 +10623,8 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  Future<bool> verifyResetOtp(
-      String email, String mobile, String emailOtp, String mobileOtp) async {
+  Future<bool> verifyResetOtp(String email, String mobile,
+      String emailOtp, String mobileOtp) async {
     _setLoading(true);
     try {
       await AuthService.verifyResetEmail(
@@ -10326,17 +10651,22 @@ class AuthController extends ChangeNotifier {
   bool get isResetOtpVerified =>
       _isResetEmailVerified && _isResetMobileVerified;
 
-  Future<bool> resetPassword(String email, String newPassword) async {
+  Future<bool> resetPassword(
+      String email, String newPassword) async {
     if (!isResetOtpVerified) {
-      _showMessage("Please verify OTP first", isError: true);
+      _showMessage("Please verify OTP first",
+          isError: true);
       return false;
     }
     _setLoading(true);
     try {
-      await AuthService.resetPassword(
-          <String, dynamic>{"email": email, "new_password": newPassword});
+      await AuthService.resetPassword(<String, dynamic>{
+        "email": email,
+        "new_password": newPassword,
+      });
       await SecureStorage.logout();
-      _showMessage("Password changed! 🎉 Please login with your new password.");
+      _showMessage(
+          "Password changed! 🎉 Please login with your new password.");
       _isResetEmailVerified = false;
       _isResetMobileVerified = false;
       clearLocationCache();
@@ -10352,20 +10682,23 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  Future<bool> changePassword(String email, String newPassword) async {
+  Future<bool> changePassword(
+      String email, String newPassword) async {
     return await resetPassword(email, newPassword);
   }
 
   // ============================================================
-  // ✅ MPIN SETUP
+  // MPIN SETUP
   // ============================================================
   Future<void> setupMpin(String email, String pin) async {
-    if (pin.length != 6 || !RegExp(r'^\d{6}$').hasMatch(pin)) {
+    if (pin.length != 6 ||
+        !RegExp(r'^\d{6}$').hasMatch(pin)) {
       _showMessage("MPIN must be 6 digits", isError: true);
       return;
     }
     if (email.isEmpty || !email.contains('@')) {
-      _showMessage("Invalid email. Please login again with email & password.",
+      _showMessage(
+          "Invalid email. Please login again with email & password.",
           isError: true);
       return;
     }
@@ -10376,7 +10709,10 @@ class AuthController extends ChangeNotifier {
         _showMessage("Please login again", isError: true);
         return;
       }
-      final requestData = <String, String>{"email": email.trim(), "pin": pin};
+      final requestData = <String, String>{
+        "email": email.trim(),
+        "pin": pin,
+      };
       await AuthService.setupMpin(requestData);
       await SecureStorage.saveMpin(pin);
       await SecureStorage.setMpinEnabled(true);
@@ -10392,11 +10728,13 @@ class AuthController extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ BIOMETRIC
+  // BIOMETRIC
   // ============================================================
   Future<void> enableBiometric(String email) async {
     if (email.isEmpty || !email.contains('@')) {
-      _showMessage("Invalid email. Please login again.", isError: true);
+      _showMessage(
+          "Invalid email. Please login again.",
+          isError: true);
       return;
     }
     _setLoading(true);
@@ -10418,7 +10756,8 @@ class AuthController extends ChangeNotifier {
       await AuthService.enableBiometric(requestData);
       await SecureStorage.setBiometricEnabled(true);
       await SecureStorage.setBiometricType(biometricType);
-      _showMessage("🔐 Fingerprint Login Enabled Successfully!");
+      _showMessage(
+          "🔐 Fingerprint Login Enabled Successfully!");
     } catch (e) {
       _showMessage(
         e.toString().replaceAll("Exception:", "").trim(),
@@ -10433,12 +10772,20 @@ class AuthController extends ChangeNotifier {
     try {
       if (PlatformUtils.isWeb) return "fingerprint";
       final localAuth = LocalAuthentication();
-      final isSupported = await localAuth.isDeviceSupported();
+      final isSupported =
+          await localAuth.isDeviceSupported();
       if (!isSupported) return "fingerprint";
-      final available = await localAuth.getAvailableBiometrics();
-      if (available.contains(BiometricType.fingerprint)) return "fingerprint";
-      if (available.contains(BiometricType.face)) return "face";
-      if (available.contains(BiometricType.iris)) return "iris";
+      final available =
+          await localAuth.getAvailableBiometrics();
+      if (available.contains(BiometricType.fingerprint)) {
+        return "fingerprint";
+      }
+      if (available.contains(BiometricType.face)) {
+        return "face";
+      }
+      if (available.contains(BiometricType.iris)) {
+        return "iris";
+      }
       return "fingerprint";
     } catch (e) {
       return "fingerprint";
@@ -10484,41 +10831,67 @@ class AuthController extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ MPIN LOGIN
+  // MPIN LOGIN - WITH PHOTO LOAD
   // ============================================================
   Future<void> loginWithMpin(
       String email, String pin, BuildContext context) async {
-    if (pin.length != 6 || !RegExp(r'^\d{6}$').hasMatch(pin)) {
-      _showMessage("Enter valid 6-digit MPIN", isError: true);
+    if (pin.length != 6 ||
+        !RegExp(r'^\d{6}$').hasMatch(pin)) {
+      _showMessage("Enter valid 6-digit MPIN",
+          isError: true);
       return;
     }
     _setLoading(true);
     try {
-      final Map<String, dynamic> requestData = {"email": email, "pin": pin};
+      final Map<String, dynamic> requestData = {
+        "email": email,
+        "pin": pin,
+      };
       final res = await AuthService.loginPin(requestData);
-      if (res['success'] == false || res['access_token'] == null) {
+      if (res['success'] == false ||
+          res['access_token'] == null) {
         throw ApiException(
           statusCode: 400,
           code: 'MPIN_FAILED',
           message: res['message'] ?? 'MPIN login failed.',
         );
       }
-      final String role = (res["role"] ?? "user").toString().toLowerCase();
+      final String role =
+          (res["role"] ?? "user").toString().toLowerCase();
+
+      // ✅ Load profile photo (already loaded by AuthService)
+      try {
+        if (!ProfileStateService()
+            .hasInitialPhotoLoaded
+            .value) {
+          await ProfileStateService().loadPhotoFromBackend();
+        }
+        debugPrint(
+            "📸 MPIN Login: Photo = ${ProfileStateService().profilePhotoUrl.value}");
+      } catch (photoError) {
+        debugPrint(
+            "⚠️ MPIN Login: Photo load failed: $photoError");
+      }
+
       notifyListeners();
       _showMessage("MPIN Login Successful ✅");
       if (context.mounted) {
         switch (role) {
           case "superadmin":
-            GoRouter.of(context).pushReplacement(AppRoutes.superAdminDashboard);
+            GoRouter.of(context)
+                .pushReplacement(AppRoutes.superAdminDashboard);
             break;
           case "admin":
-            GoRouter.of(context).pushReplacement(AppRoutes.adminDashboard);
+            GoRouter.of(context)
+                .pushReplacement(AppRoutes.adminDashboard);
             break;
           case "customadmin":
-            GoRouter.of(context).pushReplacement(AppRoutes.customAdminDashboard);
+            GoRouter.of(context)
+                .pushReplacement(AppRoutes.customAdminDashboard);
             break;
           default:
-            GoRouter.of(context).pushReplacement(AppRoutes.userDashboard);
+            GoRouter.of(context)
+                .pushReplacement(AppRoutes.userDashboard);
         }
       }
     } catch (e) {
@@ -10532,7 +10905,7 @@ class AuthController extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ BIOMETRIC LOGIN
+  // BIOMETRIC LOGIN - WITH PHOTO LOAD
   // ============================================================
   Future<void> biometricLogin(BuildContext context) async {
     _setLoading(true);
@@ -10545,16 +10918,19 @@ class AuthController extends ChangeNotifier {
         _setLoading(false);
         return;
       }
-      final isBiometricEnabled = await SecureStorage.isBiometricEnabled();
+      final isBiometricEnabled =
+          await SecureStorage.isBiometricEnabled();
       if (!isBiometricEnabled) {
-        final shouldEnable = await _showEnableBiometricDialog(context);
+        final shouldEnable =
+            await _showEnableBiometricDialog(context);
         if (shouldEnable == true && context.mounted) {
           final email = await _getStoredEmail();
           if (email != null && email.isNotEmpty) {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => FingerprintSetupPage(email: email),
+                builder: (_) =>
+                    FingerprintSetupPage(email: email),
               ),
             );
           } else {
@@ -10568,7 +10944,8 @@ class AuthController extends ChangeNotifier {
         return;
       }
       final localAuth = LocalAuthentication();
-      final isDeviceSupported = await localAuth.isDeviceSupported();
+      final isDeviceSupported =
+          await localAuth.isDeviceSupported();
       if (!isDeviceSupported) {
         _showMessage(
           '📱 Fingerprint authentication is not supported on this device.',
@@ -10577,7 +10954,8 @@ class AuthController extends ChangeNotifier {
         _setLoading(false);
         return;
       }
-      final canCheckBiometrics = await localAuth.canCheckBiometrics;
+      final canCheckBiometrics =
+          await localAuth.canCheckBiometrics;
       if (!canCheckBiometrics) {
         _showMessage(
           '❌ No fingerprint enrolled.\nPlease enable fingerprint in device settings.',
@@ -10596,7 +10974,8 @@ class AuthController extends ChangeNotifier {
         return;
       }
       final didAuthenticate = await localAuth.authenticate(
-        localizedReason: 'Login to RojgarNext with your fingerprint',
+        localizedReason:
+            'Login to RojgarNext with your fingerprint',
         options: AuthenticationOptions(
           biometricOnly: true,
           stickyAuth: true,
@@ -10616,35 +10995,56 @@ class AuthController extends ChangeNotifier {
         "device_id": await _getDeviceId(),
       };
       final res = await AuthService.biometricLogin(requestData);
-      if (res['success'] == false || res['access_token'] == null) {
+      if (res['success'] == false ||
+          res['access_token'] == null) {
         throw ApiException(
           statusCode: 400,
           code: 'BIOMETRIC_FAILED',
           message: res['message'] ?? 'Biometric login failed.',
         );
       }
-      final String role = (res["role"] ?? "user").toString().toLowerCase();
+      final String role =
+          (res["role"] ?? "user").toString().toLowerCase();
       await SecureStorage.setToken(res['access_token']);
       await SecureStorage.setRole(role);
       await SecureStorage.setEmail(res['email'] ?? email);
       await SecureStorage.setName(res['name'] ?? '');
       await SecureStorage.setMobile(res['mobile'] ?? '');
       await SecureStorage.setBiometricEnabled(true);
+
+      // ✅ Load profile photo (already loaded by AuthService)
+      try {
+        if (!ProfileStateService()
+            .hasInitialPhotoLoaded
+            .value) {
+          await ProfileStateService().loadPhotoFromBackend();
+        }
+        debugPrint(
+            "📸 Biometric Login: Photo = ${ProfileStateService().profilePhotoUrl.value}");
+      } catch (photoError) {
+        debugPrint(
+            "⚠️ Biometric Login: Photo load failed: $photoError");
+      }
+
       notifyListeners();
       _showMessage("✅ Fingerprint Login Successful! 🎉");
       if (context.mounted) {
         switch (role) {
           case "superadmin":
-            GoRouter.of(context).pushReplacement(AppRoutes.superAdminDashboard);
+            GoRouter.of(context)
+                .pushReplacement(AppRoutes.superAdminDashboard);
             break;
           case "admin":
-            GoRouter.of(context).pushReplacement(AppRoutes.adminDashboard);
+            GoRouter.of(context)
+                .pushReplacement(AppRoutes.adminDashboard);
             break;
           case "customadmin":
-            GoRouter.of(context).pushReplacement(AppRoutes.customAdminDashboard);
+            GoRouter.of(context)
+                .pushReplacement(AppRoutes.customAdminDashboard);
             break;
           default:
-            GoRouter.of(context).pushReplacement(AppRoutes.userDashboard);
+            GoRouter.of(context)
+                .pushReplacement(AppRoutes.userDashboard);
         }
       }
     } catch (e) {
@@ -10657,15 +11057,18 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  Future<bool?> _showEnableBiometricDialog(BuildContext context) async {
+  Future<bool?> _showEnableBiometricDialog(
+      BuildContext context) async {
     return showDialog<bool>(
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.fingerprint, color: Colors.blue, size: 28),
+            Icon(Icons.fingerprint,
+                color: Colors.blue, size: 28),
             SizedBox(width: 12),
             Text("Enable Fingerprint Login"),
           ],
@@ -10678,11 +11081,13 @@ class AuthController extends ChangeNotifier {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
+            onPressed: () =>
+                Navigator.pop(dialogContext, false),
             child: const Text("Cancel"),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
+            onPressed: () =>
+                Navigator.pop(dialogContext, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
               shape: RoundedRectangleBorder(
@@ -10692,7 +11097,8 @@ class AuthController extends ChangeNotifier {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.fingerprint, size: 18, color: Colors.white),
+                Icon(Icons.fingerprint,
+                    size: 18, color: Colors.white),
                 SizedBox(width: 8),
                 Text("Enable Now"),
               ],
@@ -10703,22 +11109,29 @@ class AuthController extends ChangeNotifier {
     );
   }
 
-  Future<void> checkAndHandleBiometricLogin(BuildContext context) async {
+  Future<void> checkAndHandleBiometricLogin(
+      BuildContext context) async {
     return await biometricLogin(context);
   }
 
   // ============================================================
-  // ✅ LOGOUT
+  // LOGOUT - WITH PHOTO RESET
   // ============================================================
   Future<void> logout() async {
     stopLockCountdown();
     await SecureStorage.logout();
+
+    // ✅ Reset profile photo state
+    ProfileStateService().reset();
+
     _currentLocation = null;
     _lastLocationUpdate = null;
     _hasLocation = false;
     _locationSource = null;
     _lastLocationError = '';
     notifyListeners();
+
+    debugPrint("👋 AuthController: Logout complete");
   }
 
   void clearLocationCache() {
@@ -10730,8 +11143,10 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<String?> getCurrentEmail() async => await SecureStorage.getEmail();
-  Future<String?> getCurrentRole() async => await SecureStorage.getRole();
+  Future<String?> getCurrentEmail() async =>
+      await SecureStorage.getEmail();
+  Future<String?> getCurrentRole() async =>
+      await SecureStorage.getRole();
 
   Future<Map<String, String>> getUserDetails() async {
     return <String, String>{
@@ -17137,19 +17552,21 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 
 ================================================================================
 [  53/ 142] 🎯 rojgarnext/lib/features/auth/services/auth_service.dart
-📏 SIZE: 14.5 KB
-🕐 MODIFIED: 2026-09-30 08:25:05
+📏 SIZE: 18.3 KB
+🕐 MODIFIED: 2026-10-01 20:45:02
 ================================================================================
 
 // lib/features/auth/services/auth_service.dart
 // ✅ COMPLETE PRODUCTION-READY VERSION
 // ✅ Login throws ApiException with FULL lock info
 // ✅ Token ONLY saved on success
+// ✅ Profile photo loaded after successful login — into GLOBAL service
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
+import 'package:rojgarnext/core/services/profile_state_service.dart';
 
 class AuthService {
   static const String _auth = "/auth";
@@ -17162,14 +17579,45 @@ class AuthService {
 
   static dynamic _unwrap(dynamic responseData) {
     if (responseData is Map<String, dynamic>) {
-      if (responseData.containsKey('data') && responseData['data'] != null) {
+      if (responseData.containsKey('data') &&
+          responseData['data'] != null) {
         return responseData['data'];
       }
     }
     return responseData;
   }
 
-  // ================= REGISTER =================
+  // ============================================================
+  // ✅ LOAD PROFILE PHOTO AFTER LOGIN — FIXED
+  // Loads into GLOBAL ProfileStateService (source of truth)
+  // UserProfileProvider auto-syncs via listener
+  // ============================================================
+  static Future<void> loadProfilePhotoAfterLogin() async {
+    try {
+      _log("📸 AuthService: Loading profile photo after login...");
+
+      // ✅ STEP 1: Force refresh ProfileStateService (GLOBAL SOURCE)
+      await ProfileStateService().loadPhotoFromBackend(forceRefresh: true);
+
+      final photoUrl = ProfileStateService().profilePhotoUrl.value;
+      final publicId = ProfileStateService().profilePhotoPublicId.value;
+
+      _log("📸 AuthService: ProfileStateService photo = $photoUrl");
+      _log("📸 AuthService: ProfileStateService publicId = $publicId");
+
+      // ✅ STEP 2: UserProfileProvider automatically syncs via its
+      //    listener on ProfileStateService. No manual call needed here.
+
+      _log("📸 AuthService: Profile photo load complete → $photoUrl");
+    } catch (e) {
+      _log("⚠️ AuthService: Failed to load profile photo: $e");
+      // Don't fail login if photo load fails
+    }
+  }
+
+  // ============================================================
+  // REGISTER
+  // ============================================================
   static Future<dynamic> register(
     Map<String, dynamic> data, {
     double? latitude,
@@ -17191,16 +17639,17 @@ class AuthService {
       }
 
       _log("📤 Register: ${data['email']}");
-      final Response res = await _dio.post("$_auth/register", data: requestData);
+      final Response res =
+          await _dio.post("$_auth/register", data: requestData);
       return _unwrap(res.data);
     } on DioException catch (e) {
       throw DioClient.toApiException(e);
     }
   }
 
-  // ================= LOGIN =================
-  // ✅ Token ONLY saved on TRUE success
-  // ✅ Throws ApiException on ANY error (including lock)
+  // ============================================================
+  // LOGIN
+  // ============================================================
   static Future<Map<String, dynamic>> login(
     Map<String, dynamic> data, {
     double? latitude,
@@ -17225,12 +17674,11 @@ class AuthService {
 
       debugPrint("📤 Login request: ${data['email']}");
 
-      // ✅ Will THROW on 4xx/5xx
-      final Response res = await _dio.post("$_auth/login", data: requestData);
+      final Response res =
+          await _dio.post("$_auth/login", data: requestData);
 
-      // ✅ Safely unwrap
       dynamic unwrapped = _unwrap(res.data);
-      
+
       if (unwrapped is! Map<String, dynamic>) {
         throw ApiException(
           statusCode: 500,
@@ -17241,7 +17689,6 @@ class AuthService {
 
       final Map<String, dynamic> result = unwrapped;
 
-      // ✅ Verify token exists BEFORE saving
       final String? accessToken = result["access_token"]?.toString();
       if (accessToken == null || accessToken.isEmpty) {
         throw ApiException(
@@ -17251,11 +17698,11 @@ class AuthService {
         );
       }
 
-      // ✅ NOW save auth data
+      // Save auth data
       await SecureStorage.setToken(accessToken);
       await SecureStorage.setRole(result["role"]?.toString() ?? "user");
       await SecureStorage.setEmail(
-        result['email']?.toString() ?? data['email']?.toString() ?? ""
+        result['email']?.toString() ?? data['email']?.toString() ?? "",
       );
       await SecureStorage.setMobile(result['mobile']?.toString() ?? "");
       await SecureStorage.setName(result['name']?.toString() ?? "");
@@ -17263,11 +17710,13 @@ class AuthService {
 
       debugPrint("✅ Login successful: ${result["role"]}");
 
+      // ✅ Load profile photo AFTER login (into global service)
+      await loadProfilePhotoAfterLogin();
+
       return result;
     } on DioException catch (e) {
-      // ✅ Convert to ApiException with full lock info
       final apiEx = DioClient.toApiException(e);
-      
+
       debugPrint("=" * 60);
       debugPrint("❌ LOGIN FAILED");
       debugPrint("   Status: ${apiEx.statusCode}");
@@ -17277,12 +17726,14 @@ class AuthService {
       debugPrint("   Seconds Remaining: ${apiEx.secondsRemaining}");
       debugPrint("   Lock Until: ${apiEx.lockUntil}");
       debugPrint("=" * 60);
-      
+
       throw apiEx;
     }
   }
 
-  // ================= UPDATE LOCATION =================
+  // ============================================================
+  // UPDATE LOCATION
+  // ============================================================
   static Future<Map<String, dynamic>> updateLocation({
     required double latitude,
     required double longitude,
@@ -17298,15 +17749,17 @@ class AuthService {
         requestData['location_name'] = locationName;
       }
 
-      final Response res =
-          await _dio.post("$_auth/update-location", data: requestData);
+      final Response res = await _dio
+          .post("$_auth/update-location", data: requestData);
       return _unwrap(res.data);
     } on DioException catch (e) {
       throw DioClient.toApiException(e);
     }
   }
 
-  // ================= GET MY LOCATION =================
+  // ============================================================
+  // GET MY LOCATION
+  // ============================================================
   static Future<Map<String, dynamic>> getMyLocation() async {
     try {
       final Response res = await _dio.get("$_auth/my-location");
@@ -17316,12 +17769,15 @@ class AuthService {
     }
   }
 
-  // ================= MPIN LOGIN =================
+  // ============================================================
+  // MPIN LOGIN
+  // ============================================================
   static Future<Map<String, dynamic>> loginPin(
       Map<String, dynamic> data) async {
     try {
-      final Response res = await _dio.post("$_auth/login-pin", data: data);
-      
+      final Response res =
+          await _dio.post("$_auth/login-pin", data: data);
+
       dynamic unwrapped = _unwrap(res.data);
       if (unwrapped is! Map<String, dynamic>) {
         throw ApiException(
@@ -17330,7 +17786,7 @@ class AuthService {
           message: 'Invalid response',
         );
       }
-      
+
       final Map<String, dynamic> result = unwrapped;
 
       final String? token = result["access_token"]?.toString();
@@ -17349,14 +17805,20 @@ class AuthService {
       await SecureStorage.setMobile(result["mobile"]?.toString() ?? "");
       await SecureStorage.saveIsLoggedIn(true);
 
+      // ✅ Load profile photo AFTER MPIN login
+      await loadProfilePhotoAfterLogin();
+
       return result;
     } on DioException catch (e) {
       throw DioClient.toApiException(e);
     }
   }
 
-  // ================= MPIN SETUP =================
-  static Future<dynamic> setupMpin(Map<String, dynamic> data) async {
+  // ============================================================
+  // MPIN SETUP
+  // ============================================================
+  static Future<dynamic> setupMpin(
+      Map<String, dynamic> data) async {
     try {
       final String email = data["email"]?.toString().trim() ?? "";
 
@@ -17383,15 +17845,19 @@ class AuthService {
         "pin": pin,
       };
 
-      final Response res = await _dio.post("$_auth/set-pin", data: requestData);
+      final Response res =
+          await _dio.post("$_auth/set-pin", data: requestData);
       return _unwrap(res.data);
     } on DioException catch (e) {
       throw DioClient.toApiException(e);
     }
   }
 
-  // ================= ENABLE BIOMETRIC =================
-  static Future<dynamic> enableBiometric(Map<String, dynamic> data) async {
+  // ============================================================
+  // ENABLE BIOMETRIC
+  // ============================================================
+  static Future<dynamic> enableBiometric(
+      Map<String, dynamic> data) async {
     try {
       final String email = data["email"]?.toString().trim() ?? "";
 
@@ -17403,10 +17869,16 @@ class AuthService {
         );
       }
 
-      final String biometricType = data["biometric_type"] ?? "fingerprint";
-      final allowedTypes = ["fingerprint", "face", "iris", "none"];
-      final String validType = allowedTypes.contains(biometricType) 
-          ? biometricType 
+      final String biometricType =
+          data["biometric_type"] ?? "fingerprint";
+      final allowedTypes = [
+        "fingerprint",
+        "face",
+        "iris",
+        "none"
+      ];
+      final String validType = allowedTypes.contains(biometricType)
+          ? biometricType
           : "fingerprint";
 
       final Map<String, dynamic> requestData = {
@@ -17416,8 +17888,8 @@ class AuthService {
         "biometric_type": validType,
       };
 
-      final Response res =
-          await _dio.post("$_auth/enable-biometric", data: requestData);
+      final Response res = await _dio
+          .post("$_auth/enable-biometric", data: requestData);
 
       return _unwrap(res.data);
     } on DioException catch (e) {
@@ -17425,7 +17897,9 @@ class AuthService {
     }
   }
 
-  // ================= BIOMETRIC LOGIN =================
+  // ============================================================
+  // BIOMETRIC LOGIN
+  // ============================================================
   static Future<Map<String, dynamic>> biometricLogin(
       Map<String, dynamic> data) async {
     try {
@@ -17450,9 +17924,9 @@ class AuthService {
         requestData['location_name'] = data['location_name'];
       }
 
-      final Response res =
-          await _dio.post("$_auth/biometric-login", data: requestData);
-      
+      final Response res = await _dio
+          .post("$_auth/biometric-login", data: requestData);
+
       dynamic unwrapped = _unwrap(res.data);
       if (unwrapped is! Map<String, dynamic>) {
         throw ApiException(
@@ -17461,7 +17935,7 @@ class AuthService {
           message: 'Invalid response',
         );
       }
-      
+
       final Map<String, dynamic> result = unwrapped;
 
       final String? token = result["access_token"]?.toString();
@@ -17475,10 +17949,14 @@ class AuthService {
 
       await SecureStorage.setToken(token);
       await SecureStorage.setRole(result["role"]?.toString() ?? "user");
-      await SecureStorage.setEmail(result["email"]?.toString() ?? email);
+      await SecureStorage.setEmail(
+          result["email"]?.toString() ?? email);
       await SecureStorage.setName(result["name"]?.toString() ?? "");
       await SecureStorage.setMobile(result["mobile"]?.toString() ?? "");
       await SecureStorage.saveIsLoggedIn(true);
+
+      // ✅ Load profile photo AFTER biometric login
+      await loadProfilePhotoAfterLogin();
 
       return result;
     } on DioException catch (e) {
@@ -17486,8 +17964,11 @@ class AuthService {
     }
   }
 
-  // ================= OTHER METHODS =================
-  static Future<Map<String, dynamic>> forgotPassword(String email) async {
+  // ============================================================
+  // FORGOT PASSWORD
+  // ============================================================
+  static Future<Map<String, dynamic>> forgotPassword(
+      String email) async {
     try {
       final Response res = await _dio.post("$_auth/forgot-password",
           data: <String, dynamic>{"email": email});
@@ -17503,6 +17984,9 @@ class AuthService {
     }
   }
 
+  // ============================================================
+  // RESEND RESET EMAIL OTP
+  // ============================================================
   static Future<dynamic> resendResetEmailOtp(String email) async {
     try {
       final Response res = await _dio.post("$_auth/resend-reset-email-otp",
@@ -17513,6 +17997,9 @@ class AuthService {
     }
   }
 
+  // ============================================================
+  // RESEND RESET MOBILE OTP
+  // ============================================================
   static Future<dynamic> resendResetMobileOtp(String mobile) async {
     try {
       final Response res = await _dio.post("$_auth/resend-reset-mobile-otp",
@@ -17523,53 +18010,79 @@ class AuthService {
     }
   }
 
-  static Future<dynamic> verifyResetEmail(Map<String, dynamic> data) async {
+  // ============================================================
+  // VERIFY RESET EMAIL
+  // ============================================================
+  static Future<dynamic> verifyResetEmail(
+      Map<String, dynamic> data) async {
+    try {
+      final Response res = await _dio
+          .post("$_auth/verify-reset-email", data: data);
+      return _unwrap(res.data);
+    } on DioException catch (e) {
+      throw DioClient.toApiException(e);
+    }
+  }
+
+  // ============================================================
+  // VERIFY RESET MOBILE
+  // ============================================================
+  static Future<dynamic> verifyResetMobile(
+      Map<String, dynamic> data) async {
+    try {
+      final Response res = await _dio
+          .post("$_auth/verify-reset-mobile", data: data);
+      return _unwrap(res.data);
+    } on DioException catch (e) {
+      throw DioClient.toApiException(e);
+    }
+  }
+
+  // ============================================================
+  // RESET PASSWORD
+  // ============================================================
+  static Future<dynamic> resetPassword(
+      Map<String, dynamic> data) async {
     try {
       final Response res =
-          await _dio.post("$_auth/verify-reset-email", data: data);
+          await _dio.post("$_auth/reset-password", data: data);
       return _unwrap(res.data);
     } on DioException catch (e) {
       throw DioClient.toApiException(e);
     }
   }
 
-  static Future<dynamic> verifyResetMobile(Map<String, dynamic> data) async {
+  // ============================================================
+  // VERIFY EMAIL
+  // ============================================================
+  static Future<dynamic> verifyEmail(
+      Map<String, dynamic> data) async {
     try {
       final Response res =
-          await _dio.post("$_auth/verify-reset-mobile", data: data);
+          await _dio.post("$_auth/verify-email", data: data);
       return _unwrap(res.data);
     } on DioException catch (e) {
       throw DioClient.toApiException(e);
     }
   }
 
-  static Future<dynamic> resetPassword(Map<String, dynamic> data) async {
+  // ============================================================
+  // VERIFY MOBILE
+  // ============================================================
+  static Future<dynamic> verifyMobile(
+      Map<String, dynamic> data) async {
     try {
-      final Response res = await _dio.post("$_auth/reset-password", data: data);
+      final Response res =
+          await _dio.post("$_auth/verify-mobile", data: data);
       return _unwrap(res.data);
     } on DioException catch (e) {
       throw DioClient.toApiException(e);
     }
   }
 
-  static Future<dynamic> verifyEmail(Map<String, dynamic> data) async {
-    try {
-      final Response res = await _dio.post("$_auth/verify-email", data: data);
-      return _unwrap(res.data);
-    } on DioException catch (e) {
-      throw DioClient.toApiException(e);
-    }
-  }
-
-  static Future<dynamic> verifyMobile(Map<String, dynamic> data) async {
-    try {
-      final Response res = await _dio.post("$_auth/verify-mobile", data: data);
-      return _unwrap(res.data);
-    } on DioException catch (e) {
-      throw DioClient.toApiException(e);
-    }
-  }
-
+  // ============================================================
+  // RESEND EMAIL OTP
+  // ============================================================
   static Future<dynamic> resendEmailOtp(String email) async {
     try {
       final Response res = await _dio.post("$_auth/resend-email-otp",
@@ -17580,6 +18093,9 @@ class AuthService {
     }
   }
 
+  // ============================================================
+  // RESEND MOBILE OTP
+  // ============================================================
   static Future<dynamic> resendMobileOtp(String mobile) async {
     try {
       final Response res = await _dio.post("$_auth/resend-mobile-otp",
@@ -54383,8 +54899,8 @@ class ResumeAIService {
 
 ================================================================================
 [  96/ 142] 🎯 rojgarnext/lib/features/resume/presentation/screens/build_resume_screen.dart
-📏 SIZE: 42.5 KB
-🕐 MODIFIED: 2026-09-24 23:34:59
+📏 SIZE: 45.0 KB
+🕐 MODIFIED: 2026-10-01 21:32:48
 ================================================================================
 
 // lib/features/resume/presentation/screens/build_resume_screen.dart
@@ -54393,8 +54909,10 @@ class ResumeAIService {
 // ✅ FIXED: Print / Download / Share now exports the EXACT format that was clicked
 // ✅ FIXED: Prevents double-tap, shows clear success/failure messages
 // ✅ FIXED: _selectedCategory now updates via setState so Quick Actions use the right format
-// ✅ NEW: Profile photo integration — upload popup, header photo, format preview photo
-// ✅ NEW: UserProfileProvider watch → auto-update photo everywhere without refresh
+// ✅ FIXED: Profile photo integration — upload popup, header photo, format preview photo
+// ✅ FIXED: UserProfileProvider watch → auto-update photo everywhere without refresh
+// ✅ FIXED: No more floating ValueListenableBuilder — properly wrapped
+// ✅ FIXED: Syncs with ProfileStateService (global source of truth)
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
@@ -54404,6 +54922,7 @@ import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/features/resume/services/resume_pdf_service.dart';
 import 'package:rojgarnext/features/resume/services/resume_profile_service.dart';
+import 'package:rojgarnext/core/services/profile_state_service.dart';
 import 'package:rojgarnext/features/resume/presentation/widgets/profile_photo_upload_dialog.dart';
 import 'package:rojgarnext/features/resume/presentation/screens/format/resume_format_manager.dart';
 import 'package:rojgarnext/features/resume/presentation/screens/format/resume_format_popup.dart';
@@ -54462,6 +54981,9 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
     _pulseAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    // ✅ Load from ProfileStateService FIRST, then load resume data
+    _loadProfilePhoto();
     _loadResumeData();
   }
 
@@ -54472,14 +54994,22 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
   }
 
   // ==================== EFFECTIVE PHOTO URL ====================
-  /// ✅ Priority: local state (just-uploaded) → global provider → null
-  /// This makes photo updates from ANY screen show up here instantly.
+  /// ✅ Priority: local state → ProfileStateService → UserProfileProvider → null
   String? get _effectivePhotoUrl {
-    // 1. Local state (if user uploaded from this screen)
+    // 1. Local state (just-uploaded from this screen)
     if (_profilePhotoUrl != null && _profilePhotoUrl!.trim().isNotEmpty) {
       return _profilePhotoUrl;
     }
-    // 2. Global provider (if uploaded from sidebar / another screen)
+
+    // 2. ProfileStateService (global source of truth)
+    try {
+      final globalUrl = ProfileStateService().profilePhotoUrl.value;
+      if (globalUrl != null && globalUrl.trim().isNotEmpty) {
+        return globalUrl;
+      }
+    } catch (_) {}
+
+    // 3. UserProfileProvider
     try {
       final providerUrl =
           Provider.of<UserProfileProvider>(context, listen: false)
@@ -54487,10 +55017,40 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
       if (providerUrl != null && providerUrl.trim().isNotEmpty) {
         return providerUrl;
       }
-    } catch (_) {
-      // Provider not available (should not happen in normal flow)
-    }
+    } catch (_) {}
+
     return null;
+  }
+
+  // ==================== LOAD PROFILE PHOTO ====================
+  Future<void> _loadProfilePhoto() async {
+    try {
+      final service = ProfileStateService();
+
+      if (!service.hasInitialPhotoLoaded.value) {
+        debugPrint("📸 BuildResume: Loading profile photo...");
+        await service.loadPhotoFromBackend();
+      }
+
+      final photoUrl = service.profilePhotoUrl.value;
+      debugPrint("📸 BuildResume: Photo = $photoUrl");
+
+      if (mounted) {
+        setState(() {
+          _profilePhotoUrl = photoUrl;
+        });
+
+        // Also push to UserProfileProvider
+        try {
+          if (photoUrl != null && photoUrl.isNotEmpty) {
+            Provider.of<UserProfileProvider>(context, listen: false)
+                .setProfilePhoto(url: photoUrl);
+          }
+        } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint("⚠️ BuildResume: Photo load failed: $e");
+    }
   }
 
   // ==================== LOAD RESUME DATA ====================
@@ -54503,22 +55063,32 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
     });
 
     try {
-      // ✅ Fetch profile photo URL first
-      try {
-        final photoUrl = await ResumeProfileService.getProfilePhotoUrl();
-        if (photoUrl != null && photoUrl.isNotEmpty) {
-          _profilePhotoUrl = photoUrl;
-          // Also push to provider so other screens see it
-          if (mounted) {
-            Provider.of<UserProfileProvider>(context, listen: false)
-                .updateProfilePhotoFromUrl(photoUrl);
-          }
-        }
-        debugPrint('📸 BuildResume profile photo: $photoUrl');
-      } catch (e) {
-        debugPrint('⚠️ Could not fetch profile photo: $e');
+      // ✅ STEP 1: Ensure ProfileStateService is loaded
+      final globalService = ProfileStateService();
+      if (!globalService.hasInitialPhotoLoaded.value) {
+        debugPrint("📸 BuildResume: Loading profile photo from backend...");
+        await globalService.loadPhotoFromBackend();
       }
 
+      // ✅ STEP 2: Read the photo URL from global service
+      _profilePhotoUrl = globalService.profilePhotoUrl.value;
+      debugPrint("📸 BuildResume: Global photo = $_profilePhotoUrl");
+
+      // ✅ STEP 3: Also sync UserProfileProvider
+      if (mounted) {
+        try {
+          final provider =
+              Provider.of<UserProfileProvider>(context, listen: false);
+          if (_profilePhotoUrl != null &&
+              _profilePhotoUrl!.isNotEmpty) {
+            provider.setProfilePhoto(url: _profilePhotoUrl!);
+          } else {
+            provider.clearProfilePhoto();
+          }
+        } catch (_) {}
+      }
+
+      // ✅ STEP 4: Fetch resume profile data
       final response = await DioClient.dio.get('/resume/profile-resume');
 
       if (!mounted) return;
@@ -54535,7 +55105,8 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
             '';
         _gender = userInfo['gender']?.toString() ?? '';
 
-        final contactInfo = data['contact_info'] as Map<String, dynamic>? ?? {};
+        final contactInfo =
+            data['contact_info'] as Map<String, dynamic>? ?? {};
         _email = contactInfo['email']?.toString() ?? '';
         _phone = contactInfo['phone']?.toString() ?? '';
 
@@ -54623,6 +55194,14 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
 
     if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
       setState(() => _profilePhotoUrl = uploadedUrl);
+
+      // ✅ Sync to BOTH providers
+      ProfileStateService().setPhoto(url: uploadedUrl);
+      try {
+        Provider.of<UserProfileProvider>(context, listen: false)
+            .setProfilePhoto(url: uploadedUrl);
+      } catch (_) {}
+
       _buildResumeData();
       showMessage(context, "✅ Profile photo uploaded successfully!");
     }
@@ -54975,7 +55554,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
   // ==================== BUILD UI ====================
   @override
   Widget build(BuildContext context) {
-    // ✅ Watch provider → any photo upload anywhere triggers rebuild
+    // ✅ Watch provider — any photo upload anywhere triggers rebuild
     context.watch<UserProfileProvider>();
 
     if (_isLoading) {
@@ -55272,9 +55851,6 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
   // ==================== UI COMPONENTS ====================
 
   Widget _buildProfileSummaryCard() {
-    final photoUrl = _effectivePhotoUrl;
-    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -55294,86 +55870,94 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
       ),
       child: Row(
         children: [
-          // ✅ Photo with camera overlay
-          Stack(
-            children: [
-              Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                ),
-                child: ClipOval(
-                  child: hasPhoto
-                      ? CachedNetworkImage(
-                          key: ValueKey(photoUrl),
-                          imageUrl: photoUrl,
-                          width: 70,
-                          height: 70,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(
-                            color: Colors.white24,
-                            child: const Center(
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+          // ✅ CRITICAL FIX: Wrap in ValueListenableBuilder properly
+          ValueListenableBuilder<String?>(
+            valueListenable: ProfileStateService().profilePhotoUrl,
+            builder: (context, photoUrl, child) {
+              final hasPhoto =
+                  photoUrl != null && photoUrl.trim().isNotEmpty;
+
+              return Stack(
+                children: [
+                  Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                    ),
+                    child: ClipOval(
+                      child: hasPhoto
+                          ? CachedNetworkImage(
+                              key: ValueKey(photoUrl),
+                              imageUrl: photoUrl,
+                              width: 70,
+                              height: 70,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(
+                                color: Colors.white24,
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (_, __, ___) => Center(
+                                child: Text(
+                                  _fullName.isNotEmpty
+                                      ? _fullName[0].toUpperCase()
+                                      : 'U',
+                                  style: const TextStyle(
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF6C63FF),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                _fullName.isNotEmpty
+                                    ? _fullName[0].toUpperCase()
+                                    : 'U',
+                                style: const TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF6C63FF),
                                 ),
                               ),
                             ),
-                          ),
-                          errorWidget: (_, __, ___) => Center(
-                            child: Text(
-                              _fullName.isNotEmpty
-                                  ? _fullName[0].toUpperCase()
-                                  : 'U',
-                              style: const TextStyle(
-                                fontSize: 30,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF6C63FF),
-                              ),
-                            ),
-                          ),
-                        )
-                      : Center(
-                          child: Text(
-                            _fullName.isNotEmpty
-                                ? _fullName[0].toUpperCase()
-                                : 'U',
-                            style: const TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF6C63FF),
-                            ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Material(
+                      color: Colors.white,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: _showProfilePhotoDialog,
+                        child: const Padding(
+                          padding: EdgeInsets.all(5),
+                          child: Icon(
+                            Icons.camera_alt,
+                            size: 14,
+                            color: Color(0xFF6C63FF),
                           ),
                         ),
-                ),
-              ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Material(
-                  color: Colors.white,
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: _showProfilePhotoDialog,
-                    child: const Padding(
-                      padding: EdgeInsets.all(5),
-                      child: Icon(
-                        Icons.camera_alt,
-                        size: 14,
-                        color: Color(0xFF6C63FF),
                       ),
                     ),
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -55418,7 +56002,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
                     ),
                   ],
                 ),
-                if (!hasPhoto) ...[
+                if (_effectivePhotoUrl == null) ...[
                   const SizedBox(height: 6),
                   Container(
                     padding:
@@ -60521,14 +61105,16 @@ class ResumeFormatWidget extends StatelessWidget {
 
 ================================================================================
 [ 107/ 142] 🎯 rojgarnext/lib/features/resume/presentation/screens/resume_screen.dart
-📏 SIZE: 59.4 KB
-🕐 MODIFIED: 2026-09-25 09:35:46
+📏 SIZE: 62.0 KB
+🕐 MODIFIED: 2026-10-01 20:49:05
 ================================================================================
 
 // lib/features/resume/presentation/screens/resume_screen.dart
 // ✅ Provider is SINGLE SOURCE OF TRUTH for photo
 // ✅ Auto-popup if no photo (once per screen session)
 // ✅ Live sync — upload/delete anywhere updates here instantly
+// ✅ FIXED: Now syncs with ProfileStateService (global source of truth)
+// ✅ FIXED: Photo displays correctly after login
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -60542,6 +61128,7 @@ import 'package:rojgarnext/features/resume/presentation/widgets/profile_photo_up
 import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:rojgarnext/core/services/profile_state_service.dart';
 
 class ResumeScreen extends StatefulWidget {
   const ResumeScreen({super.key});
@@ -60589,10 +61176,16 @@ class _ResumeScreenState extends State<ResumeScreen>
     // Ensure provider is loaded fresh
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        Provider.of<UserProfileProvider>(context, listen: false)
-            .fetchProfile()
-            .then((_) {
-          if (mounted) _loadResumeData();
+        // ✅ First, ensure ProfileStateService is loaded
+        ProfileStateService().loadPhotoFromBackend().then((_) {
+          if (mounted) {
+            // Then load UserProfileProvider
+            Provider.of<UserProfileProvider>(context, listen: false)
+                .fetchProfile()
+                .then((_) {
+              if (mounted) _loadResumeData();
+            });
+          }
         });
       }
     });
@@ -60606,14 +61199,25 @@ class _ResumeScreenState extends State<ResumeScreen>
   }
 
   // ============================================================
-  // ✅ SINGLE SOURCE OF TRUTH — read directly from provider
+  // ✅ SINGLE SOURCE OF TRUTH — read from ProfileStateService
+  //    Falls back to UserProfileProvider if needed
   // ============================================================
   String? get _effectivePhotoUrl {
+    // 1. Try ProfileStateService (global source of truth)
     try {
-      final url =
-          Provider.of<UserProfileProvider>(context, listen: false).profilePhotoUrl;
+      final globalUrl = ProfileStateService().profilePhotoUrl.value;
+      if (globalUrl != null && globalUrl.trim().isNotEmpty) {
+        return globalUrl;
+      }
+    } catch (_) {}
+
+    // 2. Fallback to UserProfileProvider
+    try {
+      final url = Provider.of<UserProfileProvider>(context, listen: false)
+          .profilePhotoUrl;
       if (url != null && url.trim().isNotEmpty) return url;
     } catch (_) {}
+
     return null;
   }
 
@@ -60683,21 +61287,29 @@ class _ResumeScreenState extends State<ResumeScreen>
 
   Future<void> _fetchFreshData() async {
     try {
-      // ✅ First, sync provider with server truth
+      // ✅ CRITICAL: Sync BOTH providers with server truth
       try {
         final photoUrl = await ResumeProfileService.getProfilePhotoUrl();
         final publicId = await ResumeProfileService.getProfilePhotoPublicId();
+
         if (!mounted) return;
+
         final provider =
             Provider.of<UserProfileProvider>(context, listen: false);
+
         if (photoUrl != null && photoUrl.isNotEmpty) {
+          // Update BOTH
           provider.setProfilePhoto(url: photoUrl, publicId: publicId);
+          ProfileStateService().setPhoto(url: photoUrl, publicId: publicId);
+          debugPrint('📸 ResumeScreen: Synced photo → $photoUrl');
         } else {
+          // Clear BOTH
           provider.clearProfilePhoto();
+          ProfileStateService().clearPhoto();
+          debugPrint('📸 ResumeScreen: No photo found, cleared');
         }
-        debugPrint('📸 ResumeScreen synced photo: $photoUrl');
       } catch (e) {
-        debugPrint('⚠️ Could not sync profile photo: $e');
+        debugPrint('⚠️ ResumeScreen: Could not sync profile photo: $e');
       }
 
       final response = await DioClient.dio.get('/resume/profile-resume');
@@ -60715,6 +61327,17 @@ class _ResumeScreenState extends State<ResumeScreen>
         data['languages'] = data['languages'] ?? [];
         data['social_links'] = data['social_links'] ?? {};
         data['statistics'] = data['statistics'] ?? {};
+
+        // ✅ Inject current photo URL into resume data
+        final photoUrl = _effectivePhotoUrl;
+        if (photoUrl != null && photoUrl.isNotEmpty) {
+          final userInfo = data['user_info'] as Map<String, dynamic>;
+          userInfo['profile_photo_url'] = photoUrl;
+          final additional =
+              data['additional_details'] as Map<String, dynamic>? ?? {};
+          additional['profile_photo_url'] = photoUrl;
+          data['additional_details'] = additional;
+        }
 
         setState(() {
           _resumeData = data;
@@ -60753,7 +61376,13 @@ class _ResumeScreenState extends State<ResumeScreen>
       currentPhotoUrl: _effectivePhotoUrl,
     );
     if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
-      // Provider already notified → resume + all screens rebuild
+      // ✅ Sync to BOTH providers
+      ProfileStateService().setPhoto(url: uploadedUrl);
+      try {
+        Provider.of<UserProfileProvider>(context, listen: false)
+            .setProfilePhoto(url: uploadedUrl);
+      } catch (_) {}
+
       debugPrint('✅ Photo uploaded via dialog: $uploadedUrl');
     }
   }
@@ -60767,6 +61396,10 @@ class _ResumeScreenState extends State<ResumeScreen>
     _animationController.reset();
     _pulseController.repeat(reverse: true);
     _photoDialogShown = false; // allow popup again on manual refresh
+
+    // ✅ Force refresh ProfileStateService too
+    await ProfileStateService().forceRefresh();
+
     await _loadResumeData();
   }
 
@@ -61104,6 +61737,9 @@ class _ResumeScreenState extends State<ResumeScreen>
     );
   }
 
+  // ============================================================
+  // HEADER CARD WITH PHOTO — FIXED
+  // ============================================================
   Widget _buildHeaderCard(
       Map<String, dynamic> userInfo, Map<String, dynamic> contactInfo) {
     final fullName = userInfo['full_name'] ?? 'User';
@@ -61117,9 +61753,6 @@ class _ResumeScreenState extends State<ResumeScreen>
         'India';
     final age = userInfo['age'];
     final gender = userInfo['gender'] ?? '';
-
-    final photoUrl = _effectivePhotoUrl;
-    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -61143,72 +61776,84 @@ class _ResumeScreenState extends State<ResumeScreen>
         children: [
           Row(
             children: [
-              if (hasPhoto)
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 10),
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: CachedNetworkImage(
-                      key: ValueKey(photoUrl),
-                      imageUrl: photoUrl,
+              // ✅ CRITICAL: Use ValueListenableBuilder to react to photo changes
+              ValueListenableBuilder<String?>(
+                valueListenable: ProfileStateService().profilePhotoUrl,
+                builder: (context, photoUrl, child) {
+                  final hasPhoto =
+                      photoUrl != null && photoUrl.trim().isNotEmpty;
+
+                  if (hasPhoto) {
+                    return Container(
                       width: 80,
                       height: 80,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: Colors.white24,
-                        child: const Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 10),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: CachedNetworkImage(
+                          key: ValueKey(photoUrl),
+                          imageUrl: photoUrl,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(
+                            color: Colors.white24,
+                            child: const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            color: Colors.white24,
+                            child: const Icon(Icons.person,
+                                color: Colors.white, size: 40),
                           ),
                         ),
                       ),
-                      errorWidget: (_, __, ___) => Container(
-                        color: Colors.white24,
-                        child: const Icon(Icons.person,
-                            color: Colors.white, size: 40),
+                    );
+                  }
+
+                  return Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Colors.white, Colors.white70],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 10),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        fullName.isNotEmpty
+                            ? fullName[0].toUpperCase()
+                            : 'U',
+                        style: const TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF6C63FF),
+                        ),
                       ),
                     ),
-                  ),
-                )
-              else
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Colors.white, Colors.white70],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 10),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U',
-                      style: const TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6C63FF),
-                      ),
-                    ),
-                  ),
-                ),
+                  );
+                },
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -61254,9 +61899,11 @@ class _ResumeScreenState extends State<ResumeScreen>
             ),
             child: Column(
               children: [
-                if (email.isNotEmpty) _buildHeaderInfoRow(Icons.email, email),
+                if (email.isNotEmpty)
+                  _buildHeaderInfoRow(Icons.email, email),
                 if (email.isNotEmpty) const SizedBox(height: 8),
-                if (phone.isNotEmpty) _buildHeaderInfoRow(Icons.phone, phone),
+                if (phone.isNotEmpty)
+                  _buildHeaderInfoRow(Icons.phone, phone),
                 if (phone.isNotEmpty) const SizedBox(height: 8),
                 _buildHeaderInfoRow(Icons.location_on, location),
               ],
@@ -63849,14 +64496,16 @@ class ServiceMasterData {
 
 ================================================================================
 [ 114/ 142] 🎯 rojgarnext/lib/features/services/presentation/screens/apply_service_screen.dart
-📏 SIZE: 63.2 KB
-🕐 MODIFIED: 2026-09-30 18:20:29
+📏 SIZE: 66.0 KB
+🕐 MODIFIED: 2026-10-01 08:05:16
 ================================================================================
 
 // lib/features/services/presentation/screens/apply_service_screen.dart
-// ✅ AI-BASED MODERN DESIGN
-// ✅ FIXED: Service application is ONLY saved after payment success
-// ✅ FIXED: No draft application created on payment failure/cancel
+// ✅ FULLY FIXED VERSION
+// ✅ FIXED: TypeError null: type 'Null' is not a subtype of type 'String'
+// ✅ FIXED: _tempSessionId properly initialized BEFORE any use
+// ✅ FIXED: Pay & Submit now opens PaymentScreen correctly
+// ✅ FIXED: Service application ONLY saved after payment success
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -63895,8 +64544,8 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
   ServiceType? _selectedService;
   ServiceSubType? _selectedSubType;
 
-  // ✅ Temp session ID for uploading docs before payment (not saved to DB)
-  String? _tempSessionId;
+  // ✅ CRITICAL FIX: Initialize with a valid default
+  String _tempSessionId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
 
   // Form controllers
   final Map<String, TextEditingController> _controllers = {};
@@ -63920,8 +64569,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
   void initState() {
     super.initState();
     _loadUserDetails();
-    // ✅ Generate temp session ID for this form session
-    _tempSessionId = 'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
   }
 
   @override
@@ -63941,14 +64588,20 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       final mobile = await SecureStorage.getMobile();
 
       if (email != null && email.isNotEmpty) {
-        _userEmail = email;
-        _userName = name ?? email.split('@').first;
-        _userMobile = mobile ?? '';
-        _userDetailsLoaded = true;
-        // ✅ Update temp session ID with real email
-        _tempSessionId = 'temp_${DateTime.now().millisecondsSinceEpoch}_${email.hashCode}';
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {
+            _userEmail = email;
+            _userName = name ?? email.split('@').first;
+            _userMobile = mobile ?? '';
+            _userDetailsLoaded = true;
+            // ✅ CRITICAL FIX: Set _tempSessionId with real email AFTER loaded
+            _tempSessionId =
+                'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
+          });
+        }
         if (mounted) setState(() => _isLoading = false);
+        debugPrint("✅ User details loaded: $_userEmail");
+        debugPrint("✅ Temp session ID: $_tempSessionId");
         return;
       }
 
@@ -63967,7 +64620,14 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         if (_userName.isNotEmpty) await SecureStorage.setName(_userName);
         if (_userMobile.isNotEmpty) await SecureStorage.setMobile(_userMobile);
 
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {
+            // ✅ CRITICAL FIX: Update _tempSessionId with real email
+            _tempSessionId =
+                'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
+          });
+        }
+        debugPrint("✅ Temp session ID (from /auth/me): $_tempSessionId");
       }
     } catch (e) {
       debugPrint("❌ Error loading user details: $e");
@@ -64018,7 +64678,10 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       _resetSelections();
     });
     _initializeForm();
-    // ✅ NO draft creation - docs stored locally until payment success
+    // ✅ CRITICAL: Regenerate temp session ID for each new form session
+    _tempSessionId =
+        'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
+    debugPrint("🔄 New temp session ID: $_tempSessionId");
   }
 
   void _goBack() {
@@ -64125,6 +64788,11 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       final token = await SecureStorage.getToken();
       if (token == null) throw Exception("No authentication token found");
 
+      // ✅ Ensure temp session ID is valid (never null)
+      if (_tempSessionId.isEmpty) {
+        _tempSessionId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      }
+
       final docTypeSafe = docName
           .toLowerCase()
           .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
@@ -64138,7 +64806,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         'temp_session_id': _tempSessionId,
       });
 
-      // ✅ Upload to temp storage endpoint (not linked to application)
       final response = await DioClient.dio.post(
         '/services/upload-temp-document',
         data: formData,
@@ -64206,7 +64873,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     });
 
     // ✅ Delete from temp storage
-    if (_tempSessionId != null) {
+    if (_tempSessionId.isNotEmpty) {
       try {
         await DioClient.dio.delete(
           '/services/delete-temp-document/$_tempSessionId/${uploaded.key}',
@@ -64248,7 +64915,10 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     return true;
   }
 
-  // ==================== SUBMIT WITH PAYMENT ====================
+  // ============================================================
+  // ✅ FIXED: _submitApplicationWithPayment
+  // This is the KEY fix — validates all values before opening PaymentScreen
+  // ============================================================
   Future<void> _submitApplicationWithPayment() async {
     if (!_isFormValid()) {
       showMessage(
@@ -64259,9 +64929,18 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       return;
     }
 
+    // ✅ CRITICAL FIX: Ensure temp session ID is NEVER null/empty
+    if (_tempSessionId.trim().isEmpty) {
+      _tempSessionId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      debugPrint("⚠️ Temp session ID was empty, regenerated: $_tempSessionId");
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
+      // ============================================================
+      // ✅ STEP 1: Build form fields safely
+      // ============================================================
       final Map<String, dynamic> formFields = {};
       for (final field in _selectedSubType!.requiredFields) {
         if (_isAutoFilledField(field.key)) continue;
@@ -64271,10 +64950,24 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       // ✅ Collect document URLs for submission after payment
       final Map<String, String> documentUrls = {};
       for (final entry in _uploadedDocs.entries) {
-        documentUrls[entry.value.key] = entry.value.url;
+        final url = entry.value.url.trim();
+        if (url.isNotEmpty) {
+          documentUrls[entry.value.key] = url;
+        }
       }
 
-      // ✅ Create Razorpay order (NO application record created here)
+      debugPrint("=" * 70);
+      debugPrint("📤 SUBMITTING SERVICE APPLICATION");
+      debugPrint("   Service: ${_selectedService?.name}");
+      debugPrint("   Sub-Type: ${_selectedSubType?.name}");
+      debugPrint("   Temp Session: $_tempSessionId");
+      debugPrint("   Documents: ${documentUrls.length}");
+      debugPrint("   Form Fields: ${formFields.length}");
+      debugPrint("=" * 70);
+
+      // ============================================================
+      // ✅ STEP 2: Create Razorpay order (NO application created here)
+      // ============================================================
       final response = await DioClient.dio.post(
         '/payment/razorpay/create-order',
         data: {
@@ -64297,53 +64990,75 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
 
       if (!mounted) return;
 
-      if (response.data['success'] == true) {
-        final paymentId =
-            response.data['payment_id'] ?? response.data['application_id'];
-        final orderId = response.data['order_id'];
-        final amount = response.data['amount'] ?? _serviceFee;
-
-        _paymentId = paymentId;
-        _razorpayOrderId = orderId;
-
-        // ✅ Show payment screen - application will be created ONLY on success
-        final paymentResult = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) => PaymentScreen(
-            serviceId: _selectedService!.id,
-            serviceType: _selectedService!.name,
-            serviceSubType: _selectedSubType!.id,
-            subServiceName: _selectedSubType!.name,
-            formData: {
-              'fields': formFields,
-              'document_urls': documentUrls,
-              'temp_session_id': _tempSessionId,
-            },
-            userEmail: _userEmail,
-            userName: _userName,
-            userMobile: _userMobile,
-            amount: amount is int ? amount : _serviceFee,
-            categoryUsed: "service",
-            paymentId: paymentId,
-            expiresAt: DateTime.now().add(const Duration(minutes: 15)),
-            onPaymentSuccess: () {
-              _paymentCompleted = true;
-            },
-            paymentType: PaymentType.service,
-          ),
-        );
-
-        if (paymentResult == true && mounted) {
-          await _showAISuccessDialog();
-          _resetForm();
-        }
-      } else {
-        showMessage(
-          context,
+      if (response.data['success'] != true) {
+        throw Exception(
           response.data['message'] ?? "Payment initialization failed",
-          isError: true,
         );
+      }
+
+      // ============================================================
+      // ✅ STEP 3: Extract payment data safely (NEVER null)
+      // ============================================================
+      final String paymentId = (response.data['payment_id'] ??
+              response.data['application_id'] ??
+              _tempSessionId)
+          .toString();
+
+      final String orderId =
+          (response.data['order_id'] ?? '').toString();
+
+      final int amount = response.data['amount'] is int
+          ? response.data['amount'] as int
+          : _serviceFee;
+
+      _paymentId = paymentId;
+      _razorpayOrderId = orderId;
+
+      debugPrint("✅ Order created: $orderId");
+      debugPrint("   Payment ID: $paymentId");
+      debugPrint("   Amount: ₹$amount");
+
+      // ============================================================
+      // ✅ STEP 4: Open PaymentScreen — ALL values guaranteed non-null
+      // ============================================================
+      final paymentResult = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => PaymentScreen(
+          // Service-specific fields
+          serviceId: _selectedService!.id,
+          serviceType: _selectedService!.name,
+          serviceSubType: _selectedSubType!.id,
+          subServiceName: _selectedSubType!.name,
+          formData: {
+            'fields': formFields,
+            'document_urls': documentUrls,
+            'temp_session_id': _tempSessionId,
+          },
+          userEmail: _userEmail,
+          userName: _userName,
+          userMobile: _userMobile,
+
+          // Common fields — ✅ ALL SAFE (never null)
+          amount: amount,
+          categoryUsed: "service",
+          paymentId: paymentId,
+          expiresAt: DateTime.now().add(const Duration(minutes: 15)),
+          onPaymentSuccess: () {
+            _paymentCompleted = true;
+            debugPrint("✅ Payment success callback triggered");
+          },
+          paymentType: PaymentType.service,
+        ),
+      );
+
+      if (!mounted) return;
+
+      if (paymentResult == true) {
+        await _showAISuccessDialog();
+        _resetForm();
+      } else {
+        debugPrint("❌ Payment cancelled — NO application created");
       }
     } catch (e) {
       debugPrint("❌ Submit failed: $e");
@@ -64366,7 +65081,8 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       _currentStep = 0;
       _resetSelections();
       // ✅ Generate new temp session ID
-      _tempSessionId = 'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
+      _tempSessionId =
+          'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
     });
   }
 
@@ -74671,14 +75387,15 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 
 ================================================================================
 [ 117/ 142] 🎯 rojgarnext/lib/features/splash/splash_page.dart
-📏 SIZE: 10.9 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+📏 SIZE: 11.5 KB
+🕐 MODIFIED: 2026-10-01 21:39:03
 ================================================================================
 
 // lib/features/splash/splash_page.dart
 // ✅ ULTRA-FAST – loads in <200ms on all platforms
 // ✅ AI‑BASED MODERN DESIGN (light gradient, glass, brand colors)
 // ✅ Pre‑loads dashboard data in background without blocking navigation
+// ✅ FIXED: Now pre-loads profile photo BEFORE navigating
 // ✅ Works seamlessly on mobile, web, and desktop
 
 import 'package:flutter/material.dart';
@@ -74688,6 +75405,7 @@ import 'dart:convert';
 import '../../core/routes/app_routes.dart';
 import '../../core/storage/secure_storage.dart';
 import '../../core/widgets/platform_aware.dart';
+import '../../core/services/profile_state_service.dart';
 import '../../features/user/data/user_service.dart';
 import '../../features/user/AI/user_ai_service.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -74747,6 +75465,17 @@ class _SplashPageState extends State<SplashPage>
       }
       if (mounted) context.go(AppRoutes.home);
       return;
+    }
+
+    // ✅ CRITICAL: Load profile photo BEFORE navigating
+    // This ensures sidebar/resume have the photo ready on first render
+    try {
+      debugPrint("📸 SplashPage: Pre-loading profile photo...");
+      await ProfileStateService().loadPhotoFromBackend(forceRefresh: true);
+      debugPrint(
+          "📸 SplashPage: Photo loaded = ${ProfileStateService().profilePhotoUrl.value}");
+    } catch (e) {
+      debugPrint("⚠️ SplashPage: Photo pre-load failed: $e");
     }
 
     // ✅ Start background pre‑loading immediately (non‑blocking)
@@ -74815,7 +75544,8 @@ class _SplashPageState extends State<SplashPage>
           final profileData = profileWithApps['profile'] ?? {};
           final appliedCount = profileWithApps['total_applications'] ?? 0;
           final completion = careerAnalysis['profile_completion_percentage'] ??
-              careerAnalysis['overall_score'] ?? 0;
+              careerAnalysis['overall_score'] ??
+              0;
 
           final cacheData = {
             'profile': profileData,
@@ -90460,7 +91190,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 ================================================================================
 [ 132/ 142] 🎯 rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
 📏 SIZE: 39.6 KB
-🕐 MODIFIED: 2026-09-27 08:43:57
+🕐 MODIFIED: 2026-10-01 21:32:19
 ================================================================================
 
 // lib/features/user/presentation/screens/user_dashboard.dart
@@ -91620,8 +92350,8 @@ class _UserDashboardState extends State<UserDashboard> {
 
 ================================================================================
 [ 133/ 142] 🎯 rojgarnext/lib/features/user/presentation/screens/user_documents_screen.dart
-📏 SIZE: 66.5 KB
-🕐 MODIFIED: 2026-09-25 13:40:26
+📏 SIZE: 67.5 KB
+🕐 MODIFIED: 2026-10-01 20:46:58
 ================================================================================
 
 // lib/features/user/presentation/screens/user_documents_screen.dart
@@ -91629,8 +92359,9 @@ class _UserDashboardState extends State<UserDashboard> {
 // ✅ FIXED: Dropdown list with white background and black text
 // ✅ FIXED: Loading animation on page load
 // ✅ FIXED: Works on Mobile and Web
-// ✅ NEW: Profile photo upload/delete syncs to UserProfileProvider
-//         → Sidebar + all Resume formats update WITHOUT page reload
+// ✅ FIXED: Profile photo upload/delete now syncs to BOTH providers
+//         → ProfileStateService (global source of truth)
+//         → UserProfileProvider (ResumeScreen)
 // ✅ Complete file — no lines skipped
 
 import 'dart:typed_data';
@@ -91643,6 +92374,7 @@ import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/core/widgets/file_viewer_screen.dart';
+import 'package:rojgarnext/core/services/profile_state_service.dart';
 import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 
 class UserDocumentsScreen extends StatefulWidget {
@@ -91936,9 +92668,10 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
   }
 
   // ============================================================
-  // ✅ UPLOAD DOCUMENT — with immediate provider sync
-  // ✅ FIXED: Provider updated BEFORE setState (guaranteed order)
-  // ✅ FIXED: Uses normalized URL for provider
+  // ✅ UPLOAD DOCUMENT — with immediate sync to BOTH providers
+  // ✅ FIXED: ProfileStateService updated FIRST (global source of truth)
+  // ✅ FIXED: UserProfileProvider also updated (ResumeScreen)
+  // ✅ FIXED: Uses normalized URL for both providers
   // ============================================================
   Future<void> _uploadDocument() async {
     if (_selectedDocumentType == null || _selectedDocumentKey == null) {
@@ -91990,22 +92723,36 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
         debugPrint("✅ Upload OK → $fileUrl");
 
         // ========================================================
-        // ✅ STEP 1: Update provider FIRST (before any setState)
-        //    → this triggers all listeners (sidebar, resume, etc.)
+        // ✅ STEP 1: Update ProfileStateService FIRST
+        //    → this is the GLOBAL source of truth
+        //    → Sidebar, Dashboard, BuildResume all listen to this
+        // ========================================================
+        if (_selectedDocumentKey == 'profile_photo_url') {
+          ProfileStateService().setPhoto(
+            url: fileUrl,
+            publicId: publicId,
+          );
+          debugPrint("✅ ProfileStateService updated → $fileUrl");
+        }
+
+        // ========================================================
+        // ✅ STEP 2: Update UserProfileProvider
+        //    → ResumeScreen listens to this
+        //    → Also auto-syncs to ProfileStateService (via listener)
         // ========================================================
         if (_selectedDocumentKey == 'profile_photo_url' && mounted) {
           Provider.of<UserProfileProvider>(context, listen: false)
               .setProfilePhoto(url: fileUrl, publicId: publicId);
-          debugPrint("✅ Provider updated with profile photo → $fileUrl");
+          debugPrint("✅ UserProfileProvider updated → $fileUrl");
         }
 
         // ========================================================
-        // ✅ STEP 2: Persist to profile DB
+        // ✅ STEP 3: Persist to profile DB
         // ========================================================
         await _updateProfileDocument(_selectedDocumentKey!, fileUrl);
 
         // ========================================================
-        // ✅ STEP 3: Update local state
+        // ✅ STEP 4: Update local state
         // ========================================================
         if (mounted) {
           setState(() {
@@ -92060,7 +92807,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
   }
 
   // ============================================================
-  // ✅ DELETE DOCUMENT — with provider sync for profile photo
+  // ✅ DELETE DOCUMENT — with sync to BOTH providers
   // ============================================================
   Future<void> _deleteDocument(String key, String docName) async {
     final confirm = await showDialog<bool>(
@@ -92095,12 +92842,20 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
           setState(() => _documents.remove(key));
         }
 
-        // ✅ CRITICAL: If profile photo deleted → clear from provider too
-        if (key == 'profile_photo_url' && mounted) {
-          Provider.of<UserProfileProvider>(context, listen: false)
-              .clearProfilePhoto();
+        // ✅ CRITICAL: If profile photo deleted → clear from BOTH providers
+        if (key == 'profile_photo_url') {
+          // Clear from ProfileStateService (global source)
+          ProfileStateService().clearPhoto();
           debugPrint(
-              "🗑️ Profile photo cleared from provider → sidebar + resume updated");
+              "🗑️ Profile photo cleared from ProfileStateService");
+
+          // Clear from UserProfileProvider (ResumeScreen)
+          if (mounted) {
+            Provider.of<UserProfileProvider>(context, listen: false)
+                .clearProfilePhoto();
+            debugPrint(
+                "🗑️ Profile photo cleared from UserProfileProvider");
+          }
         }
 
         if (mounted) {
@@ -93966,7 +94721,7 @@ This message was sent from RojgarNext App
 ================================================================================
 [ 135/ 142] 🎯 rojgarnext/lib/features/user/presentation/utils/menu_types.dart
 📏 SIZE: 462 B
-🕐 MODIFIED: 2026-09-27 08:43:45
+🕐 MODIFIED: 2026-10-01 20:08:14
 ================================================================================
 
 // lib/features/user/presentation/utils/menu_types.dart
@@ -93999,7 +94754,7 @@ enum MenuType {
 ================================================================================
 [ 136/ 142] 🎯 rojgarnext/lib/features/user/presentation/widgets/user_sidebar.dart
 📏 SIZE: 15.3 KB
-🕐 MODIFIED: 2026-09-27 08:43:51
+🕐 MODIFIED: 2026-10-01 21:32:26
 ================================================================================
 
 // lib/features/user/presentation/widgets/user_sidebar.dart
@@ -94459,18 +95214,20 @@ class _UserSidebarState extends State<UserSidebar> {
 
 ================================================================================
 [ 137/ 142] 🎯 rojgarnext/lib/features/user/providers/user_profile_provider.dart
-📏 SIZE: 7.4 KB
-🕐 MODIFIED: 2026-09-25 13:36:45
+📏 SIZE: 9.4 KB
+🕐 MODIFIED: 2026-10-01 20:43:38
 ================================================================================
 
 // lib/features/user/providers/user_profile_provider.dart
 // ✅ SINGLE SOURCE OF TRUTH for profile photo across entire app
+// ✅ FIXED: Now syncs with ProfileStateService automatically
 // ✅ FIXED: Image URL validation, force notify, version tracking
 // ✅ FIXED: Cloudinary raw → image URL conversion
 // ✅ FIXED: Added loadProfile() + clear() methods
 
 import 'package:flutter/foundation.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
+import 'package:rojgarnext/core/services/profile_state_service.dart';
 
 class UserProfileProvider extends ChangeNotifier {
   Map<String, dynamic>? _profile;
@@ -94485,6 +95242,42 @@ class UserProfileProvider extends ChangeNotifier {
   int _version = 0;
 
   // ============================================================
+  // CONSTRUCTOR — auto-sync with ProfileStateService
+  // ============================================================
+  UserProfileProvider() {
+    // Listen to ProfileStateService changes and mirror them
+    ProfileStateService().profilePhotoUrl.addListener(_onGlobalPhotoChanged);
+    ProfileStateService()
+        .profilePhotoPublicId
+        .addListener(_onGlobalPublicIdChanged);
+
+    // Initial sync
+    _profilePhotoUrl = ProfileStateService().profilePhotoUrl.value;
+    _profilePhotoPublicId =
+        ProfileStateService().profilePhotoPublicId.value;
+  }
+
+  void _onGlobalPhotoChanged() {
+    final newUrl = ProfileStateService().profilePhotoUrl.value;
+    if (_profilePhotoUrl != newUrl) {
+      _profilePhotoUrl = newUrl;
+      _version++;
+      notifyListeners();
+      debugPrint(
+          '✅ UserProfileProvider: Synced from ProfileStateService → $_profilePhotoUrl');
+    }
+  }
+
+  void _onGlobalPublicIdChanged() {
+    final newId = ProfileStateService().profilePhotoPublicId.value;
+    if (_profilePhotoPublicId != newId) {
+      _profilePhotoPublicId = newId;
+      _version++;
+      notifyListeners();
+    }
+  }
+
+  // ============================================================
   // GETTERS
   // ============================================================
   Map<String, dynamic>? get profile => _profile;
@@ -94494,7 +95287,7 @@ class UserProfileProvider extends ChangeNotifier {
   int get version => _version;
 
   // ============================================================
-  // ✅ URL VALIDATOR — rejects garbage / non-image / raw-type URLs
+  // ✅ URL VALIDATOR
   // ============================================================
   bool _isValidImageUrl(String? url) {
     if (url == null) return false;
@@ -94514,9 +95307,6 @@ class UserProfileProvider extends ChangeNotifier {
   }
 
   /// ✅ Converts Cloudinary raw upload URL → image-renderable URL.
-  /// Example:
-  ///   https://res.cloudinary.com/demo/raw/upload/v1/folder/photo.jpg
-  ///   → https://res.cloudinary.com/demo/image/upload/v1/folder/photo.jpg
   String _normalizeCloudinaryUrl(String url) {
     try {
       final lower = url.toLowerCase();
@@ -94533,19 +95323,19 @@ class UserProfileProvider extends ChangeNotifier {
       // Convert raw/upload → image/upload
       if (lower.contains('/raw/upload/')) {
         final fixed = url.replaceFirst('/raw/upload/', '/image/upload/');
-        debugPrint('🔄 Converted raw URL → image URL: $fixed');
+        debugPrint('🔄 Provider: Converted raw URL → image URL');
         return fixed;
       }
 
       return url;
     } catch (e) {
-      debugPrint('⚠️ URL normalize error: $e');
+      debugPrint('⚠️ Provider: URL normalize error: $e');
       return url;
     }
   }
 
   // ============================================================
-  // ✅ SET PROFILE PHOTO (from any upload source)
+  // ✅ SET PROFILE PHOTO — syncs BOTH providers
   // ============================================================
   void setProfilePhoto({required String url, String? publicId}) {
     if (!_isValidImageUrl(url)) {
@@ -94555,18 +95345,16 @@ class UserProfileProvider extends ChangeNotifier {
 
     final normalized = _normalizeCloudinaryUrl(url.trim());
 
-    // ✅ Only notify if URL actually changed
-    final changed = _profilePhotoUrl != normalized ||
-        _profilePhotoPublicId != publicId;
-
+    // Update local
     _profilePhotoUrl = normalized;
     _profilePhotoPublicId = publicId;
+    _version++;
+    notifyListeners();
 
-    if (changed) {
-      _version++;
-      notifyListeners();
-      debugPrint('✅ Provider photo set (v$_version): $_profilePhotoUrl');
-    }
+    // ✅ Also update ProfileStateService (keeps both in sync)
+    ProfileStateService().setPhoto(url: normalized, publicId: publicId);
+
+    debugPrint('✅ Provider photo set (v$_version): $_profilePhotoUrl');
   }
 
   /// Alias — used by some screens
@@ -94575,17 +95363,18 @@ class UserProfileProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ CLEAR PROFILE PHOTO
+  // ✅ CLEAR PROFILE PHOTO — syncs BOTH providers
   // ============================================================
   void clearProfilePhoto() {
-    final hadPhoto = (_profilePhotoUrl ?? '').isNotEmpty;
     _profilePhotoUrl = null;
     _profilePhotoPublicId = null;
-    if (hadPhoto) {
-      _version++;
-      notifyListeners();
-      debugPrint('🗑️ Provider photo cleared (v$_version)');
-    }
+    _version++;
+    notifyListeners();
+
+    // ✅ Also clear in ProfileStateService
+    ProfileStateService().clearPhoto();
+
+    debugPrint('🗑️ Provider photo cleared (v$_version)');
   }
 
   // ============================================================
@@ -94604,6 +95393,10 @@ class UserProfileProvider extends ChangeNotifier {
     _profilePhotoPublicId = null;
     _version++;
     notifyListeners();
+
+    // ✅ Also reset ProfileStateService
+    ProfileStateService().reset();
+
     debugPrint('🗑️ Provider: Full profile state cleared (logout)');
   }
 
@@ -94640,13 +95433,21 @@ class UserProfileProvider extends ChangeNotifier {
         final changed = _profilePhotoUrl != normalized;
         _profilePhotoUrl = normalized;
         if (changed) _version++;
+
+        // ✅ Sync to ProfileStateService
+        ProfileStateService()
+            .setPhoto(url: normalized, publicId: _profilePhotoPublicId);
       } else {
         _profilePhotoUrl = null;
         _profilePhotoPublicId = null;
+
+        // ✅ Sync to ProfileStateService
+        ProfileStateService().clearPhoto();
       }
 
       notifyListeners();
-      debugPrint('✅ Provider profile fetched (v$_version) — photo: $_profilePhotoUrl');
+      debugPrint(
+          '✅ Provider profile fetched (v$_version) — photo: $_profilePhotoUrl');
     } catch (e) {
       debugPrint('❌ Provider fetchProfile failed: $e');
     }
@@ -94672,11 +95473,29 @@ class UserProfileProvider extends ChangeNotifier {
 
     if (_isValidImageUrl(rawUrl)) {
       _profilePhotoUrl = _normalizeCloudinaryUrl(rawUrl);
+      ProfileStateService().setPhoto(url: _profilePhotoUrl!);
     } else {
       _profilePhotoUrl = null;
+      ProfileStateService().clearPhoto();
     }
     _version++;
     notifyListeners();
+  }
+
+  // ============================================================
+  // DISPOSE — remove listeners
+  // ============================================================
+  @override
+  void dispose() {
+    try {
+      ProfileStateService()
+          .profilePhotoUrl
+          .removeListener(_onGlobalPhotoChanged);
+      ProfileStateService()
+          .profilePhotoPublicId
+          .removeListener(_onGlobalPublicIdChanged);
+    } catch (_) {}
+    super.dispose();
   }
 }
 
@@ -95083,5 +95902,5 @@ flutter:
 🎉 EXPORT COMPLETED!
 ================================================================================
 Total Files: 142
-Generated: 2026-10-01 06:47:47
+Generated: 2026-10-01 21:44:28
 ================================================================================

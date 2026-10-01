@@ -4,8 +4,10 @@
 // ✅ FIXED: Print / Download / Share now exports the EXACT format that was clicked
 // ✅ FIXED: Prevents double-tap, shows clear success/failure messages
 // ✅ FIXED: _selectedCategory now updates via setState so Quick Actions use the right format
-// ✅ NEW: Profile photo integration — upload popup, header photo, format preview photo
-// ✅ NEW: UserProfileProvider watch → auto-update photo everywhere without refresh
+// ✅ FIXED: Profile photo integration — upload popup, header photo, format preview photo
+// ✅ FIXED: UserProfileProvider watch → auto-update photo everywhere without refresh
+// ✅ FIXED: No more floating ValueListenableBuilder — properly wrapped
+// ✅ FIXED: Syncs with ProfileStateService (global source of truth)
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
@@ -15,6 +17,7 @@ import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/features/resume/services/resume_pdf_service.dart';
 import 'package:rojgarnext/features/resume/services/resume_profile_service.dart';
+import 'package:rojgarnext/core/services/profile_state_service.dart';
 import 'package:rojgarnext/features/resume/presentation/widgets/profile_photo_upload_dialog.dart';
 import 'package:rojgarnext/features/resume/presentation/screens/format/resume_format_manager.dart';
 import 'package:rojgarnext/features/resume/presentation/screens/format/resume_format_popup.dart';
@@ -73,6 +76,9 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
     _pulseAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    // ✅ Load from ProfileStateService FIRST, then load resume data
+    _loadProfilePhoto();
     _loadResumeData();
   }
 
@@ -83,14 +89,22 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
   }
 
   // ==================== EFFECTIVE PHOTO URL ====================
-  /// ✅ Priority: local state (just-uploaded) → global provider → null
-  /// This makes photo updates from ANY screen show up here instantly.
+  /// ✅ Priority: local state → ProfileStateService → UserProfileProvider → null
   String? get _effectivePhotoUrl {
-    // 1. Local state (if user uploaded from this screen)
+    // 1. Local state (just-uploaded from this screen)
     if (_profilePhotoUrl != null && _profilePhotoUrl!.trim().isNotEmpty) {
       return _profilePhotoUrl;
     }
-    // 2. Global provider (if uploaded from sidebar / another screen)
+
+    // 2. ProfileStateService (global source of truth)
+    try {
+      final globalUrl = ProfileStateService().profilePhotoUrl.value;
+      if (globalUrl != null && globalUrl.trim().isNotEmpty) {
+        return globalUrl;
+      }
+    } catch (_) {}
+
+    // 3. UserProfileProvider
     try {
       final providerUrl =
           Provider.of<UserProfileProvider>(context, listen: false)
@@ -98,10 +112,40 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
       if (providerUrl != null && providerUrl.trim().isNotEmpty) {
         return providerUrl;
       }
-    } catch (_) {
-      // Provider not available (should not happen in normal flow)
-    }
+    } catch (_) {}
+
     return null;
+  }
+
+  // ==================== LOAD PROFILE PHOTO ====================
+  Future<void> _loadProfilePhoto() async {
+    try {
+      final service = ProfileStateService();
+
+      if (!service.hasInitialPhotoLoaded.value) {
+        debugPrint("📸 BuildResume: Loading profile photo...");
+        await service.loadPhotoFromBackend();
+      }
+
+      final photoUrl = service.profilePhotoUrl.value;
+      debugPrint("📸 BuildResume: Photo = $photoUrl");
+
+      if (mounted) {
+        setState(() {
+          _profilePhotoUrl = photoUrl;
+        });
+
+        // Also push to UserProfileProvider
+        try {
+          if (photoUrl != null && photoUrl.isNotEmpty) {
+            Provider.of<UserProfileProvider>(context, listen: false)
+                .setProfilePhoto(url: photoUrl);
+          }
+        } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint("⚠️ BuildResume: Photo load failed: $e");
+    }
   }
 
   // ==================== LOAD RESUME DATA ====================
@@ -114,22 +158,32 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
     });
 
     try {
-      // ✅ Fetch profile photo URL first
-      try {
-        final photoUrl = await ResumeProfileService.getProfilePhotoUrl();
-        if (photoUrl != null && photoUrl.isNotEmpty) {
-          _profilePhotoUrl = photoUrl;
-          // Also push to provider so other screens see it
-          if (mounted) {
-            Provider.of<UserProfileProvider>(context, listen: false)
-                .updateProfilePhotoFromUrl(photoUrl);
-          }
-        }
-        debugPrint('📸 BuildResume profile photo: $photoUrl');
-      } catch (e) {
-        debugPrint('⚠️ Could not fetch profile photo: $e');
+      // ✅ STEP 1: Ensure ProfileStateService is loaded
+      final globalService = ProfileStateService();
+      if (!globalService.hasInitialPhotoLoaded.value) {
+        debugPrint("📸 BuildResume: Loading profile photo from backend...");
+        await globalService.loadPhotoFromBackend();
       }
 
+      // ✅ STEP 2: Read the photo URL from global service
+      _profilePhotoUrl = globalService.profilePhotoUrl.value;
+      debugPrint("📸 BuildResume: Global photo = $_profilePhotoUrl");
+
+      // ✅ STEP 3: Also sync UserProfileProvider
+      if (mounted) {
+        try {
+          final provider =
+              Provider.of<UserProfileProvider>(context, listen: false);
+          if (_profilePhotoUrl != null &&
+              _profilePhotoUrl!.isNotEmpty) {
+            provider.setProfilePhoto(url: _profilePhotoUrl!);
+          } else {
+            provider.clearProfilePhoto();
+          }
+        } catch (_) {}
+      }
+
+      // ✅ STEP 4: Fetch resume profile data
       final response = await DioClient.dio.get('/resume/profile-resume');
 
       if (!mounted) return;
@@ -146,7 +200,8 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
             '';
         _gender = userInfo['gender']?.toString() ?? '';
 
-        final contactInfo = data['contact_info'] as Map<String, dynamic>? ?? {};
+        final contactInfo =
+            data['contact_info'] as Map<String, dynamic>? ?? {};
         _email = contactInfo['email']?.toString() ?? '';
         _phone = contactInfo['phone']?.toString() ?? '';
 
@@ -234,6 +289,14 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
 
     if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
       setState(() => _profilePhotoUrl = uploadedUrl);
+
+      // ✅ Sync to BOTH providers
+      ProfileStateService().setPhoto(url: uploadedUrl);
+      try {
+        Provider.of<UserProfileProvider>(context, listen: false)
+            .setProfilePhoto(url: uploadedUrl);
+      } catch (_) {}
+
       _buildResumeData();
       showMessage(context, "✅ Profile photo uploaded successfully!");
     }
@@ -586,7 +649,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
   // ==================== BUILD UI ====================
   @override
   Widget build(BuildContext context) {
-    // ✅ Watch provider → any photo upload anywhere triggers rebuild
+    // ✅ Watch provider — any photo upload anywhere triggers rebuild
     context.watch<UserProfileProvider>();
 
     if (_isLoading) {
@@ -883,9 +946,6 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
   // ==================== UI COMPONENTS ====================
 
   Widget _buildProfileSummaryCard() {
-    final photoUrl = _effectivePhotoUrl;
-    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -905,86 +965,94 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
       ),
       child: Row(
         children: [
-          // ✅ Photo with camera overlay
-          Stack(
-            children: [
-              Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                ),
-                child: ClipOval(
-                  child: hasPhoto
-                      ? CachedNetworkImage(
-                          key: ValueKey(photoUrl),
-                          imageUrl: photoUrl,
-                          width: 70,
-                          height: 70,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(
-                            color: Colors.white24,
-                            child: const Center(
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+          // ✅ CRITICAL FIX: Wrap in ValueListenableBuilder properly
+          ValueListenableBuilder<String?>(
+            valueListenable: ProfileStateService().profilePhotoUrl,
+            builder: (context, photoUrl, child) {
+              final hasPhoto =
+                  photoUrl != null && photoUrl.trim().isNotEmpty;
+
+              return Stack(
+                children: [
+                  Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                    ),
+                    child: ClipOval(
+                      child: hasPhoto
+                          ? CachedNetworkImage(
+                              key: ValueKey(photoUrl),
+                              imageUrl: photoUrl,
+                              width: 70,
+                              height: 70,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(
+                                color: Colors.white24,
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (_, __, ___) => Center(
+                                child: Text(
+                                  _fullName.isNotEmpty
+                                      ? _fullName[0].toUpperCase()
+                                      : 'U',
+                                  style: const TextStyle(
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF6C63FF),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                _fullName.isNotEmpty
+                                    ? _fullName[0].toUpperCase()
+                                    : 'U',
+                                style: const TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF6C63FF),
                                 ),
                               ),
                             ),
-                          ),
-                          errorWidget: (_, __, ___) => Center(
-                            child: Text(
-                              _fullName.isNotEmpty
-                                  ? _fullName[0].toUpperCase()
-                                  : 'U',
-                              style: const TextStyle(
-                                fontSize: 30,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF6C63FF),
-                              ),
-                            ),
-                          ),
-                        )
-                      : Center(
-                          child: Text(
-                            _fullName.isNotEmpty
-                                ? _fullName[0].toUpperCase()
-                                : 'U',
-                            style: const TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF6C63FF),
-                            ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Material(
+                      color: Colors.white,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: _showProfilePhotoDialog,
+                        child: const Padding(
+                          padding: EdgeInsets.all(5),
+                          child: Icon(
+                            Icons.camera_alt,
+                            size: 14,
+                            color: Color(0xFF6C63FF),
                           ),
                         ),
-                ),
-              ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Material(
-                  color: Colors.white,
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: _showProfilePhotoDialog,
-                    child: const Padding(
-                      padding: EdgeInsets.all(5),
-                      child: Icon(
-                        Icons.camera_alt,
-                        size: 14,
-                        color: Color(0xFF6C63FF),
                       ),
                     ),
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -1029,7 +1097,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
                     ),
                   ],
                 ),
-                if (!hasPhoto) ...[
+                if (_effectivePhotoUrl == null) ...[
                   const SizedBox(height: 6),
                   Container(
                     padding:

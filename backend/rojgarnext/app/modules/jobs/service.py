@@ -1,12 +1,9 @@
 # app/modules/jobs/service.py - COMPLETE FIXED VERSION
-# ✅ No duplicate applications
-# ✅ Proper application_type filtering
-# ✅ Idempotent payment handling
-# ✅ NO payment_pending status in database
-# ✅ NEW: color_type filter support
-# ✅ FIXED: real_time_market_ai import added
-# ✅ FIXED: get_ai_enhanced_jobs() moved INSIDE the class
-# ✅ NEW: Optimized list_jobs with faster queries
+# ✅ NO HARD DELETES of applications/jobs — ONLY soft-delete & archive
+# ✅ delete_job() → archives applications, soft-deletes job
+# ✅ unsave_job() → archives (not deletes) saved bookmark
+# ✅ No TTL, no drop, no delete_many on user data
+# ✅ 100% DATA RETENTION
 
 from fastapi import HTTPException, BackgroundTasks, UploadFile
 from typing import Optional, List, Dict, Any, Union
@@ -33,7 +30,7 @@ from app.core.ai.ai_service import compute_ai_match
 from app.core.location.distance_calculator import DistanceCalculator
 from app.modules.notification.service import central_notification
 
-# ✅ FIX: Import real_time_market_ai
+# ✅ Import real_time_market_ai
 from app.core.ai.real_time_market_ai import real_time_market_ai
 
 logger = logging.getLogger(__name__)
@@ -49,8 +46,11 @@ class PaymentStatus:
 
 class JobService:
     """
-    CENTRALIZED JOB SERVICE - Uses unified applications collection
-    All job applications have application_type='job'
+    CENTRALIZED JOB SERVICE — Uses unified applications collection.
+
+    ✅ All job applications have application_type='job'
+    ✅ NO HARD DELETES — only soft-delete (is_archived=True)
+    ✅ Applications are NEVER physically removed
     """
 
     def __init__(self, db):
@@ -94,8 +94,9 @@ class JobService:
             raise HTTPException(status_code=400, detail="User email not found")
         return email, name
 
-    # ====================== ADD JOB ======================
-
+    # ==========================================================
+    # ADD JOB
+    # ==========================================================
     async def add_job(
         self,
         job_data: JobCreateSchema,
@@ -103,7 +104,7 @@ class JobService:
         attachments: Optional[List[UploadFile]] = None,
         current_user: dict = None
     ):
-        """ADD JOB - Saves job and sends notifications"""
+        """ADD JOB — Saves job and sends notifications"""
         try:
             logger.info("=" * 70)
             logger.info(f"📝 ADDING JOB: {job_data.post_name}")
@@ -264,6 +265,8 @@ class JobService:
             job_dict["created_at"] = datetime.utcnow()
             job_dict["updated_at"] = datetime.utcnow()
             job_dict["source"] = "manual"
+            job_dict["is_deleted"] = False
+            job_dict["is_archived"] = False
 
             job_dict = {k: v for k, v in job_dict.items() if v is not None}
 
@@ -298,12 +301,9 @@ class JobService:
             traceback.print_exc()
             raise HTTPException(status_code=400, detail=f"Failed to add job: {str(e)}")
 
-    # ====================== LIST JOBS (OPTIMIZED - FAST LOADING) ======================
-
-    # app/modules/jobs/service.py - COMPLETE FIXED list_jobs METHOD
-    # ✅ FIXED: Added ALL advertisement and apply fields to projection
-    # ✅ This ensures JobDetailScreen receives complete data
-
+    # ==========================================================
+    # LIST JOBS (OPTIMIZED)
+    # ==========================================================
     async def list_jobs(
         self,
         skip: int = 0,
@@ -315,16 +315,13 @@ class JobService:
         color_type: Optional[str] = None,
     ) -> dict:
         """
-        ✅ OPTIMIZED: List jobs with filters - FAST LOADING
-        
-        ✅ FIXED: Now includes ALL fields needed by JobDetailScreen:
-        - advertisement_url, advertisement_download_url, advertisement_is_pdf
-        - has_advertisement_file, advertisement_is_public
-        - apply_with_us_url, has_apply_with_us
-        - official_notification_url, has_official_notification
-        - website_url, apply_link
+        ✅ List jobs with filters.
+        ✅ Excludes soft-deleted jobs (is_deleted=True).
         """
-        query = {"status": "open"}
+        query = {
+            "status": "open",
+            "is_deleted": {"$ne": True}   # ✅ Never show deleted jobs
+        }
 
         if job_type and job_type != 'all' and job_type != 'null' and job_type != '':
             query["job_type"] = job_type
@@ -346,12 +343,9 @@ class JobService:
                 {"description": {"$regex": search_term, "$options": "i"}}
             ]
 
-        # ✅ OPTIMIZATION: Run count and fetch in parallel
         count_task = self.jobs.count_documents(query)
-        
-        # ✅ FIXED PROJECTION: Include ALL fields needed by frontend
+
         projection = {
-            # ==================== BASIC INFO ====================
             "_id": 1,
             "post_name": 1,
             "organization": 1,
@@ -364,43 +358,29 @@ class JobService:
             "post_date": 1,
             "last_date": 1,
             "description": 1,
-            
-            # ==================== SALARY & VACANCY ====================
             "salary_min": 1,
             "salary_max": 1,
             "salary_currency": 1,
             "total_posts": 1,
             "multiple_posts": 1,
-            
-            # ==================== EXPERIENCE & QUALIFICATION ====================
             "experience_min_years": 1,
             "experience_max_years": 1,
             "required_qualification": 1,
             "qualification": 1,
             "education_details": 1,
             "experience_details": 1,
-            
-            # ==================== AGE LIMIT ====================
             "age_min_years": 1,
             "age_max_years": 1,
             "age_calculation_date": 1,
             "age_relaxation_details": 1,
             "age_relaxation_by_category": 1,
-            
-            # ==================== APPLICATION FEES ====================
             "has_application_fees": 1,
             "application_fees": 1,
-            
-            # ==================== ✅ APPLY WITH US (CRITICAL FIX) ====================
             "has_apply_with_us": 1,
             "apply_with_us_url": 1,
-            
-            # ==================== ✅ OFFICIAL NOTIFICATION (CRITICAL FIX) ====================
             "has_official_notification": 1,
             "official_notification_url": 1,
-            "official_notification_link": 1,  # ✅ Added fallback field
-            
-            # ==================== ✅ ADVERTISEMENT FIELDS (CRITICAL FIX) ====================
+            "official_notification_link": 1,
             "advertisement_url": 1,
             "advertisement_download_url": 1,
             "advertisement_name": 1,
@@ -412,54 +392,36 @@ class JobService:
             "advertisement_folder_path": 1,
             "advertisement_file_size": 1,
             "has_advertisement_file": 1,
-            
-            # ==================== WEBSITE & APPLY LINKS ====================
             "website_url": 1,
             "apply_link": 1,
             "action": 1,
-            
-            # ==================== WORK DETAILS ====================
             "work_schedule": 1,
             "shift": 1,
             "working_days": 1,
             "is_fully_remote": 1,
             "is_hybrid": 1,
-            
-            # ==================== BENEFITS & SKILLS ====================
             "benefits": 1,
             "required_skills": 1,
             "nice_to_have_skills": 1,
             "tags": 1,
-            
-            # ==================== LANGUAGES ====================
             "languages_required": 1,
             "other_languages": 1,
-            
-            # ==================== TIMELINE DATES ====================
             "application_start_date": 1,
             "application_end_date": 1,
             "admit_card_date": 1,
             "exam_date": 1,
             "result_date": 1,
-            
-            # ==================== INTERVIEW DETAILS ====================
             "interview_venue": 1,
             "interview_link": 1,
             "interview_date": 1,
             "interview_time": 1,
             "interview_documents": 1,
             "is_interview_online": 1,
-            
-            # ==================== SELECTION PROCESS ====================
             "selection_stages": 1,
             "selection_process_details": 1,
-            
-            # ==================== PHYSICAL & MEDICAL ====================
             "physical_eligibility": 1,
             "medical_standards": 1,
             "has_medical_requirement": 1,
-            
-            # ==================== CONTACT INFO ====================
             "contact_person": 1,
             "contact_designation": 1,
             "contact_email": 1,
@@ -468,42 +430,31 @@ class JobService:
             "helpline_email": 1,
             "whatsapp_number": 1,
             "telegram_channel": 1,
-            
-            # ==================== ADDITIONAL ====================
             "important_notes": 1,
             "terms_conditions": 1,
             "urgency_level": 1,
             "gender_preference": 1,
             "application_mode": 1,
             "exam_cities": 1,
-            
-            # ==================== TIMESTAMPS ====================
             "created_at": 1,
             "updated_at": 1,
-            
-            # ==================== PUBLISHER INFO ====================
             "added_by": 1,
             "added_by_name": 1,
             "publisher_role": 1,
         }
-        
+
         jobs_task = self.jobs.find(query, projection).skip(skip).limit(limit).sort("created_at", -1).to_list(limit)
 
-        # Wait for both to complete
         total, jobs_list = await asyncio.gather(count_task, jobs_task)
 
-        # ✅ OPTIMIZATION: Process jobs efficiently
         for job in jobs_list:
             job["_id"] = str(job["_id"])
             job.setdefault("color_type", "blue")
-            
-            # ✅ Ensure boolean flags are set correctly
             job.setdefault("has_apply_with_us", False)
             job.setdefault("has_official_notification", False)
             job.setdefault("has_application_fees", False)
             job.setdefault("has_advertisement_file", False)
-            
-            # ✅ Fast distance calculation (only if user has location)
+
             distance_km = None
             if user_location and user_location.get("latitude") and user_location.get("longitude"):
                 job_loc = job.get("job_location", {})
@@ -511,15 +462,14 @@ class JobService:
                 job_lon = job_loc.get("longitude")
 
                 if job_lat is not None and job_lon is not None and (job_lat != 0 or job_lon != 0):
-                    # ✅ Fast Haversine formula inline
                     import math
                     lat1, lon1 = user_location["latitude"], user_location["longitude"]
                     lat2, lon2 = job_lat, job_lon
-                    
-                    R = 6371  # Earth's radius in km
+
+                    R = 6371
                     dlat = math.radians(lat2 - lat1)
                     dlon = math.radians(lon2 - lon1)
-                    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+                    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
                     c = 2 * math.asin(math.sqrt(a))
                     distance_km = round(R * c, 2)
 
@@ -527,13 +477,17 @@ class JobService:
 
         return {"jobs": jobs_list, "total": total}
 
-    # ====================== GET SINGLE JOB ======================
-
+    # ==========================================================
+    # GET SINGLE JOB
+    # ==========================================================
     async def get_job(self, job_id: str) -> dict:
         if not ObjectId.is_valid(job_id):
             raise HTTPException(status_code=400, detail="Invalid job ID")
 
-        job = await self.jobs.find_one({"_id": ObjectId(job_id)})
+        job = await self.jobs.find_one({
+            "_id": ObjectId(job_id),
+            "is_deleted": {"$ne": True}   # ✅ Exclude soft-deleted
+        })
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
 
@@ -541,8 +495,9 @@ class JobService:
         job.setdefault("color_type", "blue")
         return job
 
-    # ====================== APPLY WITH PAYMENT (IDEMPOTENT) ======================
-
+    # ==========================================================
+    # APPLY WITH PAYMENT (IDEMPOTENT)
+    # ==========================================================
     async def apply_with_payment_idempotent(
         self,
         job_id: str,
@@ -551,7 +506,7 @@ class JobService:
         payment_id: str
     ) -> Dict[str, Any]:
         """
-        ✅ FIXED: Idempotent application with payment
+        ✅ Idempotent application with payment.
         - NO duplicate applications
         - NO payment_pending status saved
         - Application created ONLY after payment success
@@ -561,7 +516,10 @@ class JobService:
             if not user_email:
                 raise HTTPException(status_code=400, detail="User email not found")
 
-            job = await self.jobs.find_one({"_id": ObjectId(job_id)})
+            job = await self.jobs.find_one({
+                "_id": ObjectId(job_id),
+                "is_deleted": {"$ne": True}
+            })
             if not job:
                 raise HTTPException(status_code=404, detail="Job not found")
 
@@ -646,6 +604,7 @@ class JobService:
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
 
+                "is_archived": False,
                 "cover_letter": application_data.cover_letter if application_data else None,
                 "additional_info": application_data.additional_info if application_data else None,
             }
@@ -711,13 +670,17 @@ class JobService:
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=f"Application failed: {str(e)}")
 
-    # ====================== APPLY TO JOB WITHOUT PAYMENT ======================
-
+    # ==========================================================
+    # APPLY TO JOB WITHOUT PAYMENT
+    # ==========================================================
     async def apply_to_job(self, job_id: str, application_data: ApplicationCreateSchema, current_user: dict):
         if not ObjectId.is_valid(job_id):
             raise HTTPException(status_code=400, detail="Invalid job ID")
 
-        job = await self.jobs.find_one({"_id": ObjectId(job_id)})
+        job = await self.jobs.find_one({
+            "_id": ObjectId(job_id),
+            "is_deleted": {"$ne": True}
+        })
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
 
@@ -764,6 +727,7 @@ class JobService:
 
         app_dict = application.to_dict()
         app_dict["color_type"] = job.get("color_type", "blue")
+        app_dict["is_archived"] = False
 
         result = await self.applications.insert_one(app_dict)
         application_id = str(result.inserted_id)
@@ -803,19 +767,9 @@ class JobService:
             "status": "pending"
         }
 
-    # ====================== DEPRECATED ======================
-
-    async def apply_with_payment(
-        self,
-        job_id: str,
-        application_data: ApplicationCreateSchema,
-        current_user: dict,
-        payment_id: str
-    ) -> dict:
-        return await self.apply_with_payment_idempotent(job_id, application_data, current_user, payment_id)
-
-    # ====================== UPDATE APPLICATION STATUS ======================
-
+    # ==========================================================
+    # UPDATE APPLICATION STATUS
+    # ==========================================================
     async def update_application_status(self, application_id: str, status_data: ApplicationStatusUpdateSchema, current_user: dict):
         if not ObjectId.is_valid(application_id):
             raise HTTPException(status_code=400, detail="Invalid application ID")
@@ -863,13 +817,17 @@ class JobService:
 
         return {"message": f"Status updated to {new_status}"}
 
-    # ====================== SAVE JOB (BOOKMARK) ======================
-
+    # ==========================================================
+    # SAVE JOB (BOOKMARK)
+    # ==========================================================
     async def save_job(self, job_id: str, current_user: dict) -> Dict[str, Any]:
         if not ObjectId.is_valid(job_id):
             raise HTTPException(status_code=400, detail="Invalid job ID")
 
-        job = await self.jobs.find_one({"_id": ObjectId(job_id)})
+        job = await self.jobs.find_one({
+            "_id": ObjectId(job_id),
+            "is_deleted": {"$ne": True}
+        })
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
 
@@ -914,6 +872,7 @@ class JobService:
 
         app_dict = application.to_dict()
         app_dict["color_type"] = job.get("color_type", "blue")
+        app_dict["is_archived"] = False
 
         result = await self.applications.insert_one(app_dict)
 
@@ -925,44 +884,66 @@ class JobService:
             "status": "saved"
         }
 
-    # ====================== UNSAVE JOB ======================
-
+    # ==========================================================
+    # ✅ FIXED: UNSAVE JOB — ARCHIVES instead of DELETES
+    # ==========================================================
     async def unsave_job(self, job_id: str, current_user: dict) -> Dict[str, Any]:
+        """
+        ✅ FIXED: Unsave job — ARCHIVES the saved bookmark.
+        NEVER physically removes the record.
+        """
         if not ObjectId.is_valid(job_id):
             raise HTTPException(status_code=400, detail="Invalid job ID")
 
         applicant_email, _ = await self._get_user_email(current_user)
+        now = datetime.utcnow()
 
-        result = await self.applications.delete_many({
-            "job_id": job_id,
-            "user_email": applicant_email,
-            "application_type": "job",
-            "status": "saved"
-        })
+        # ✅ ARCHIVE instead of DELETE
+        result = await self.applications.update_many(
+            {
+                "job_id": job_id,
+                "user_email": applicant_email,
+                "application_type": "job",
+                "status": "saved"
+            },
+            {"$set": {
+                "status": "unsaved",
+                "is_archived": True,
+                "archived_at": now,
+                "archived_reason": "user_unsaved",
+                "updated_at": now
+            }}
+        )
 
-        if result.deleted_count == 0:
+        if result.modified_count == 0:
             raise HTTPException(status_code=404, detail="Saved job not found")
 
         return {
             "success": True,
-            "message": "Job removed from saved",
-            "deleted_count": result.deleted_count
+            "message": "Job removed from saved (archived, not deleted)",
+            "archived_count": result.modified_count,
+            "data_preserved": True
         }
 
-    # ====================== GET SAVED JOBS ======================
-
+    # ==========================================================
+    # GET SAVED JOBS
+    # ==========================================================
     async def get_saved_jobs(self, current_user: dict) -> Dict[str, Any]:
         applicant_email, _ = await self._get_user_email(current_user)
 
         saved_applications = await self.applications.find({
             "user_email": applicant_email,
             "application_type": "job",
-            "status": "saved"
+            "status": "saved",
+            "is_archived": {"$ne": True}
         }).sort("saved_at", -1).to_list(100)
 
         saved_jobs = []
         for app in saved_applications:
-            job = await self.jobs.find_one({"_id": ObjectId(app["job_id"])})
+            job = await self.jobs.find_one({
+                "_id": ObjectId(app["job_id"]),
+                "is_deleted": {"$ne": True}
+            })
             if job:
                 job["_id"] = str(job["_id"])
                 job.setdefault("color_type", "blue")
@@ -977,15 +958,17 @@ class JobService:
             "total": len(saved_jobs)
         }
 
-    # ====================== GET APPLIED JOBS ======================
-
+    # ==========================================================
+    # GET APPLIED JOBS
+    # ==========================================================
     async def get_applied_jobs(self, current_user: dict) -> Dict[str, Any]:
         applicant_email, _ = await self._get_user_email(current_user)
 
         applied_applications = await self.applications.find({
             "user_email": applicant_email,
             "application_type": "job",
-            "status": {"$ne": "saved"}
+            "status": {"$nin": ["saved", "unsaved"]},
+            "is_archived": {"$ne": True}
         }).sort("applied_at", -1).to_list(100)
 
         applied_jobs = []
@@ -1007,8 +990,9 @@ class JobService:
             "total": len(applied_jobs)
         }
 
-    # ====================== GET MY APPLICATIONS BY MODE ======================
-
+    # ==========================================================
+    # GET MY APPLICATIONS BY MODE
+    # ==========================================================
     async def get_my_applications_by_mode(
         self,
         current_user: dict,
@@ -1018,13 +1002,14 @@ class JobService:
 
         query = {
             "user_email": applicant_email,
-            "application_type": "job"
+            "application_type": "job",
+            "is_archived": {"$ne": True}
         }
 
         if filter_mode == "saved":
             query["status"] = "saved"
         elif filter_mode == "applied":
-            query["status"] = {"$ne": "saved"}
+            query["status"] = {"$nin": ["saved", "unsaved"]}
 
         applications = await self.applications.find(query).sort("created_at", -1).to_list(100)
 
@@ -1060,7 +1045,7 @@ class JobService:
                 "final_document_url": app.get("final_document_url"),
                 "final_submitted_at": app.get("final_submitted_at").isoformat() if app.get("final_submitted_at") else None,
                 "is_saved": app.get("status") == "saved",
-                "is_applied": app.get("status") != "saved"
+                "is_applied": app.get("status") not in ["saved", "unsaved"]
             }
             result_apps.append(app_dict)
 
@@ -1075,8 +1060,9 @@ class JobService:
             "message": f"Showing {len(result_apps)} job applications"
         }
 
-    # ====================== GET ADMIN APPLICATIONS ======================
-
+    # ==========================================================
+    # GET ADMIN APPLICATIONS
+    # ==========================================================
     async def get_admin_applications(self, admin_email: str, status_filter: Optional[str] = None) -> Dict[str, Any]:
         try:
             admin_jobs = await self.jobs.find({"added_by": admin_email}, {"_id": 1}).to_list(1000)
@@ -1129,18 +1115,23 @@ class JobService:
                 "error": str(e)
             }
 
-    # ====================== GET ADMIN JOBS ======================
-
+    # ==========================================================
+    # GET ADMIN JOBS
+    # ==========================================================
     async def get_admin_jobs(self, admin_email: str) -> Dict:
         try:
-            jobs = await self.jobs.find({"added_by": admin_email}).sort("created_at", -1).to_list(1000)
+            jobs = await self.jobs.find({
+                "added_by": admin_email,
+                "is_deleted": {"$ne": True}   # ✅ exclude soft-deleted
+            }).sort("created_at", -1).to_list(1000)
 
             for job in jobs:
                 job["_id"] = str(job["_id"])
                 job.setdefault("color_type", "blue")
                 app_count = await self.applications.count_documents({
                     "job_id": str(job["_id"]),
-                    "application_type": "job"
+                    "application_type": "job",
+                    "is_archived": {"$ne": True}   # ✅ exclude archived
                 })
                 job["applications_count"] = app_count
 
@@ -1149,13 +1140,15 @@ class JobService:
             logger.error(f"Error in get_admin_jobs: {e}")
             return {"success": False, "jobs": [], "total": 0}
 
-    # ====================== GET MY APPLICATIONS (LEGACY) ======================
-
+    # ==========================================================
+    # GET MY APPLICATIONS (LEGACY)
+    # ==========================================================
     async def get_my_applications(self, current_user: dict):
         return await self.get_my_applications_by_mode(current_user, "all")
 
-    # ====================== CHECK IF JOB IS SAVED ======================
-
+    # ==========================================================
+    # CHECK IF JOB IS SAVED
+    # ==========================================================
     async def is_job_saved(self, job_id: str, current_user: dict) -> bool:
         if not ObjectId.is_valid(job_id):
             return False
@@ -1166,13 +1159,15 @@ class JobService:
             "job_id": job_id,
             "user_email": applicant_email,
             "application_type": "job",
-            "status": "saved"
+            "status": "saved",
+            "is_archived": {"$ne": True}
         })
 
         return saved_app is not None
 
-    # ====================== CHECK IF JOB IS APPLIED ======================
-
+    # ==========================================================
+    # CHECK IF JOB IS APPLIED
+    # ==========================================================
     async def is_job_applied(self, job_id: str, current_user: dict) -> bool:
         if not ObjectId.is_valid(job_id):
             return False
@@ -1183,13 +1178,15 @@ class JobService:
             "job_id": job_id,
             "user_email": applicant_email,
             "application_type": "job",
-            "status": {"$ne": "saved"}
+            "status": {"$nin": ["saved", "unsaved"]},
+            "is_archived": {"$ne": True}
         })
 
         return applied_app is not None
 
-    # ====================== CONVERT SAVED TO APPLIED ======================
-
+    # ==========================================================
+    # CONVERT SAVED TO APPLIED
+    # ==========================================================
     async def convert_saved_to_applied(
         self,
         job_id: str,
@@ -1206,7 +1203,8 @@ class JobService:
             "job_id": job_id,
             "user_email": applicant_email,
             "application_type": "job",
-            "status": "saved"
+            "status": "saved",
+            "is_archived": {"$ne": True}
         })
 
         if not saved_app:
@@ -1299,8 +1297,9 @@ class JobService:
             "is_applied": True
         }
 
-    # ====================== GET APPLICATION FEES ======================
-
+    # ==========================================================
+    # GET APPLICATION FEES
+    # ==========================================================
     async def get_application_fees(self, job_id: str) -> Dict[str, Any]:
         if not ObjectId.is_valid(job_id):
             raise HTTPException(status_code=400, detail="Invalid job ID")
@@ -1317,12 +1316,16 @@ class JobService:
             "color_type": job.get("color_type", "blue")
         }
 
-    # ====================== GET NEARBY JOBS ======================
-
+    # ==========================================================
+    # GET NEARBY JOBS
+    # ==========================================================
     async def get_nearby_jobs(self, latitude: float, longitude: float, radius_km: float = 10.0, limit: int = 50):
         radius_meters = radius_km * 1000
 
-        jobs = await self.jobs.find({"status": "open"}).to_list(500)
+        jobs = await self.jobs.find({
+            "status": "open",
+            "is_deleted": {"$ne": True}
+        }).to_list(500)
 
         nearby_jobs = []
         for job in jobs:
@@ -1343,8 +1346,9 @@ class JobService:
         nearby_jobs.sort(key=lambda x: x.get("distance_km", float('inf')))
         return {"jobs": nearby_jobs[:limit], "total": len(nearby_jobs)}
 
-    # ====================== GET APPLICATION DETAIL ======================
-
+    # ==========================================================
+    # GET APPLICATION DETAIL
+    # ==========================================================
     async def get_application_detail(self, application_id: str, current_user: dict) -> Dict[str, Any]:
         if not ObjectId.is_valid(application_id):
             raise HTTPException(status_code=400, detail="Invalid application ID")
@@ -1389,14 +1393,11 @@ class JobService:
             "application_type": "job"
         }
 
-    # ====================== ✅ GET AI-ENHANCED JOBS (MOVED INSIDE CLASS) ======================
-
+    # ==========================================================
+    # AI-ENHANCED JOBS
+    # ==========================================================
     async def get_ai_enhanced_jobs(self, current_user: dict, limit: int = 20) -> Dict:
-        """
-        Get AI-enhanced job listings with match scores.
-        ✅ FIXED: Now a proper method inside JobService class.
-        ✅ Uses self.jobs, self.db, and imported real_time_market_ai.
-        """
+        """Get AI-enhanced job listings with match scores."""
         email = current_user.get("email")
         if not email:
             return {"jobs": [], "total": 0, "message": "User not found"}
@@ -1413,14 +1414,20 @@ class JobService:
         user_exp = len(profile.get('experience', []))
         user_edu = len(profile.get('academic_records', []))
 
-        query = {"status": "open"}
+        query = {
+            "status": "open",
+            "is_deleted": {"$ne": True}
+        }
         if user_skills:
             query["required_skills.name"] = {"$in": user_skills}
 
         jobs = await self.jobs.find(query).limit(limit * 2).to_list(limit * 2)
 
         if not jobs:
-            jobs = await self.jobs.find({"status": "open"}).limit(limit).to_list(limit)
+            jobs = await self.jobs.find({
+                "status": "open",
+                "is_deleted": {"$ne": True}
+            }).limit(limit).to_list(limit)
 
         enhanced_jobs = []
         for job in jobs:
@@ -1444,7 +1451,6 @@ class JobService:
 
             total_match = (skill_match * 0.5 + exp_match * 0.3 + edu_match * 0.2)
 
-            # ✅ real_time_market_ai is now properly imported at top of file
             try:
                 market_demand = await real_time_market_ai.predict_future_demand(
                     job.get('post_name', ''), 6
@@ -1480,8 +1486,9 @@ class JobService:
             }
         }
 
-    # ====================== UPDATE JOB (ADMIN/CUSTOMADMIN/SUPERADMIN) ======================
-
+    # ==========================================================
+    # ✅ FIXED: UPDATE JOB
+    # ==========================================================
     async def update_job(
         self,
         job_id: str,
@@ -1489,21 +1496,14 @@ class JobService:
         admin_email: Optional[str] = None,
         user_role: str = "admin"
     ) -> Dict[str, Any]:
-        """
-        ✅ Update an existing job.
-        - Only the creating admin (or superadmin) can update.
-        - Handles partial updates safely.
-        - Sends notification to job poster if updated by someone else.
-        """
+        """Update an existing job."""
         if not ObjectId.is_valid(job_id):
             raise HTTPException(status_code=400, detail="Invalid job ID")
 
-        # Find job
         job = await self.jobs.find_one({"_id": ObjectId(job_id)})
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
 
-        # Permission check
         job_owner = job.get("added_by")
         user_role_lower = (user_role or "admin").lower()
         if user_role_lower == "custom_admin":
@@ -1512,7 +1512,6 @@ class JobService:
         if job_owner != admin_email and user_role_lower != "superadmin":
             raise HTTPException(status_code=403, detail="Access denied")
 
-        # Build update data — only allow known safe fields
         update_data: Dict[str, Any] = {}
         allowed_fields = {
             "post_name", "organization", "location", "location_text", "job_type",
@@ -1544,7 +1543,6 @@ class JobService:
             if field in job_data and job_data[field] is not None:
                 update_data[field] = job_data[field]
 
-        # Normalize color_type
         if "color_type" in update_data:
             ct = str(update_data["color_type"]).lower().strip()
             if ct == "gray":
@@ -1553,12 +1551,10 @@ class JobService:
                             "pink", "indigo", "amber", "cyan", "grey", "white"}
             update_data["color_type"] = ct if ct in valid_colors else "blue"
 
-        # Handle apply_with_us flag
         if "apply_with_us_url" in update_data:
             url = str(update_data["apply_with_us_url"]).strip()
             update_data["has_apply_with_us"] = bool(url and url != "#")
 
-        # Handle application fees
         if "application_fees" in update_data and isinstance(update_data["application_fees"], dict):
             cleaned_fees = {}
             for cat, fee in update_data["application_fees"].items():
@@ -1587,7 +1583,6 @@ class JobService:
             {"$set": update_data}
         )
 
-        # Fetch updated job
         updated_job = await self.jobs.find_one({"_id": ObjectId(job_id)})
         updated_job["_id"] = str(updated_job["_id"])
         updated_job.setdefault("color_type", "blue")
@@ -1603,8 +1598,10 @@ class JobService:
             "data": updated_job,
         }
 
-    # ====================== DELETE JOB ======================
-
+    # ==========================================================
+    # ✅ CRITICAL FIX: DELETE JOB — SOFT DELETE ONLY
+    # ✅ Applications are ARCHIVED, NEVER deleted
+    # ==========================================================
     async def delete_job(
         self,
         job_id: str,
@@ -1612,9 +1609,20 @@ class JobService:
         user_role: str = "admin"
     ) -> Dict[str, Any]:
         """
-        ✅ Delete a job and all its applications.
-        - Only the creating admin (or superadmin) can delete.
-        - Cleans up Cloudinary advertisement file if present.
+        ✅ SAFE JOB DELETION — NO HARD DELETE:
+
+        What it does:
+        - Soft-deletes the job (is_deleted=True, is_archived=True)
+        - Archives ALL applications for this job (is_archived=True)
+        - Deletes only the Cloudinary advertisement file (if exists)
+        - Logs everything in security collection
+
+        What it does NOT do:
+        - ❌ Never calls delete_one / delete_many on jobs
+        - ❌ Never calls delete_one / delete_many on applications
+        - ❌ No data is physically removed
+
+        Result: 100% data retention.
         """
         if not ObjectId.is_valid(job_id):
             raise HTTPException(status_code=400, detail="Invalid job ID")
@@ -1633,48 +1641,92 @@ class JobService:
         if job_owner != admin_email and user_role_lower != "superadmin":
             raise HTTPException(status_code=403, detail="Access denied")
 
-        # Delete Cloudinary advertisement if exists
+        now = datetime.utcnow()
+
+        # ✅ STEP 1: ARCHIVE all applications (NEVER DELETE!)
+        app_archive_result = await self.applications.update_many(
+            {
+                "job_id": job_id,
+                "application_type": "job"
+            },
+            {"$set": {
+                "is_archived": True,
+                "archived_at": now,
+                "archived_reason": "parent_job_deleted",
+                "archived_by": admin_email,
+                "updated_at": now
+            }}
+        )
+
+        # ✅ STEP 2: SOFT-DELETE job (NEVER physical delete!)
+        await self.jobs.update_one(
+            {"_id": ObjectId(job_id)},
+            {"$set": {
+                "is_deleted": True,
+                "is_archived": True,
+                "deleted_at": now,
+                "deleted_by": admin_email,
+                "status": "closed",
+                "updated_at": now
+            }}
+        )
+
+        # ✅ STEP 3: Delete ONLY the Cloudinary advertisement file
         adv_public_id = job.get("advertisement_public_id")
         if adv_public_id:
             try:
                 from app.core.services.cloudinary import delete_from_cloudinary
                 resource_type = job.get("advertisement_resource_type", "raw")
                 await delete_from_cloudinary(adv_public_id, resource_type)
-                logger.info(f"🗑️ Deleted Cloudinary advertisement: {adv_public_id}")
+                logger.info(f"🗑️ Deleted Cloudinary ad file: {adv_public_id}")
             except Exception as e:
                 logger.warning(f"⚠️ Could not delete Cloudinary ad: {e}")
 
-        # Delete all applications for this job
-        app_delete_result = await self.applications.delete_many({
-            "job_id": job_id,
-            "application_type": "job"
-        })
-
-        # Delete the job
-        await self.jobs.delete_one({"_id": ObjectId(job_id)})
+        # ✅ STEP 4: Log the action (never deletes)
+        try:
+            await self.db.security.insert_one({
+                "type": "security_log",
+                "event_type": "job_soft_deleted",
+                "ip_address": "internal",
+                "user_email": admin_email,
+                "severity": "medium",
+                "details": {
+                    "job_id": job_id,
+                    "job_title": job.get("post_name"),
+                    "applications_archived": app_archive_result.modified_count,
+                },
+                "action_taken": "soft_deleted_and_archived",
+                "created_at": now
+            })
+        except Exception as e:
+            logger.warning(f"⚠️ Could not log job deletion: {e}")
 
         logger.info(
-            f"🗑️ Job {job_id} deleted by {admin_email}. "
-            f"Also removed {app_delete_result.deleted_count} applications."
+            f"🔒 Job {job_id} SOFT-DELETED by {admin_email}. "
+            f"Archived {app_archive_result.modified_count} applications. "
+            f"Data preserved."
         )
 
         return {
             "success": True,
-            "message": f"Job deleted successfully. {app_delete_result.deleted_count} applications removed.",
+            "message": (
+                f"Job deleted successfully. "
+                f"{app_archive_result.modified_count} applications archived "
+                f"(data preserved, not removed)."
+            ),
             "job_id": job_id,
-            "applications_deleted": app_delete_result.deleted_count,
+            "applications_archived": app_archive_result.modified_count,
+            "applications_deleted": 0,   # ✅ NEVER any hard deletion
+            "data_preserved": True,
+            "soft_delete": True,
         }
 
 
 print("=" * 70)
-print("✅ Job Service Updated - Uses Unified Applications Collection")
+print("✅ Job Service Updated - 100% DATA RETENTION")
 print("   ✅ application_type='job' for all job applications")
-print("   ✅ All data stored in unified 'applications' collection")
-print("   ✅ All methods fully implemented")
-print("   ✅ Idempotent payment handling - No duplicate applications")
+print("   ✅ delete_job() → SOFT DELETE + ARCHIVE (no hard delete)")
+print("   ✅ unsave_job() → ARCHIVE (no hard delete)")
 print("   ✅ NO payment_pending status - Direct verification_successful")
-print("   ✅ NEW: color_type filter support in list_jobs()")
-print("   ✅ FIXED: real_time_market_ai imported at top")
-print("   ✅ FIXED: get_ai_enhanced_jobs() now inside JobService class")
-print("   ✅ OPTIMIZED: list_jobs() with projection and parallel queries")
+print("   ✅ NO TTL indexes, NO drop, NO delete_many on user data")
 print("=" * 70)

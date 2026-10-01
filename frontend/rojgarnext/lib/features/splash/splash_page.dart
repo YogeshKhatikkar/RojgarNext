@@ -2,6 +2,7 @@
 // ✅ ULTRA-FAST – loads in <200ms on all platforms
 // ✅ AI‑BASED MODERN DESIGN (light gradient, glass, brand colors)
 // ✅ Pre‑loads dashboard data in background without blocking navigation
+// ✅ FIXED: Now pre-loads profile photo BEFORE navigating
 // ✅ Works seamlessly on mobile, web, and desktop
 
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'dart:convert';
 import '../../core/routes/app_routes.dart';
 import '../../core/storage/secure_storage.dart';
 import '../../core/widgets/platform_aware.dart';
+import '../../core/services/profile_state_service.dart';
 import '../../features/user/data/user_service.dart';
 import '../../features/user/AI/user_ai_service.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -70,6 +72,17 @@ class _SplashPageState extends State<SplashPage>
       }
       if (mounted) context.go(AppRoutes.home);
       return;
+    }
+
+    // ✅ CRITICAL: Load profile photo BEFORE navigating
+    // This ensures sidebar/resume have the photo ready on first render
+    try {
+      debugPrint("📸 SplashPage: Pre-loading profile photo...");
+      await ProfileStateService().loadPhotoFromBackend(forceRefresh: true);
+      debugPrint(
+          "📸 SplashPage: Photo loaded = ${ProfileStateService().profilePhotoUrl.value}");
+    } catch (e) {
+      debugPrint("⚠️ SplashPage: Photo pre-load failed: $e");
     }
 
     // ✅ Start background pre‑loading immediately (non‑blocking)
@@ -138,7 +151,8 @@ class _SplashPageState extends State<SplashPage>
           final profileData = profileWithApps['profile'] ?? {};
           final appliedCount = profileWithApps['total_applications'] ?? 0;
           final completion = careerAnalysis['profile_completion_percentage'] ??
-              careerAnalysis['overall_score'] ?? 0;
+              careerAnalysis['overall_score'] ??
+              0;
 
           final cacheData = {
             'profile': profileData,

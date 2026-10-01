@@ -2,6 +2,8 @@
 // ✅ Provider is SINGLE SOURCE OF TRUTH for photo
 // ✅ Auto-popup if no photo (once per screen session)
 // ✅ Live sync — upload/delete anywhere updates here instantly
+// ✅ FIXED: Now syncs with ProfileStateService (global source of truth)
+// ✅ FIXED: Photo displays correctly after login
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -15,6 +17,7 @@ import 'package:rojgarnext/features/resume/presentation/widgets/profile_photo_up
 import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:rojgarnext/core/services/profile_state_service.dart';
 
 class ResumeScreen extends StatefulWidget {
   const ResumeScreen({super.key});
@@ -62,10 +65,16 @@ class _ResumeScreenState extends State<ResumeScreen>
     // Ensure provider is loaded fresh
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        Provider.of<UserProfileProvider>(context, listen: false)
-            .fetchProfile()
-            .then((_) {
-          if (mounted) _loadResumeData();
+        // ✅ First, ensure ProfileStateService is loaded
+        ProfileStateService().loadPhotoFromBackend().then((_) {
+          if (mounted) {
+            // Then load UserProfileProvider
+            Provider.of<UserProfileProvider>(context, listen: false)
+                .fetchProfile()
+                .then((_) {
+              if (mounted) _loadResumeData();
+            });
+          }
         });
       }
     });
@@ -79,14 +88,25 @@ class _ResumeScreenState extends State<ResumeScreen>
   }
 
   // ============================================================
-  // ✅ SINGLE SOURCE OF TRUTH — read directly from provider
+  // ✅ SINGLE SOURCE OF TRUTH — read from ProfileStateService
+  //    Falls back to UserProfileProvider if needed
   // ============================================================
   String? get _effectivePhotoUrl {
+    // 1. Try ProfileStateService (global source of truth)
     try {
-      final url =
-          Provider.of<UserProfileProvider>(context, listen: false).profilePhotoUrl;
+      final globalUrl = ProfileStateService().profilePhotoUrl.value;
+      if (globalUrl != null && globalUrl.trim().isNotEmpty) {
+        return globalUrl;
+      }
+    } catch (_) {}
+
+    // 2. Fallback to UserProfileProvider
+    try {
+      final url = Provider.of<UserProfileProvider>(context, listen: false)
+          .profilePhotoUrl;
       if (url != null && url.trim().isNotEmpty) return url;
     } catch (_) {}
+
     return null;
   }
 
@@ -156,21 +176,29 @@ class _ResumeScreenState extends State<ResumeScreen>
 
   Future<void> _fetchFreshData() async {
     try {
-      // ✅ First, sync provider with server truth
+      // ✅ CRITICAL: Sync BOTH providers with server truth
       try {
         final photoUrl = await ResumeProfileService.getProfilePhotoUrl();
         final publicId = await ResumeProfileService.getProfilePhotoPublicId();
+
         if (!mounted) return;
+
         final provider =
             Provider.of<UserProfileProvider>(context, listen: false);
+
         if (photoUrl != null && photoUrl.isNotEmpty) {
+          // Update BOTH
           provider.setProfilePhoto(url: photoUrl, publicId: publicId);
+          ProfileStateService().setPhoto(url: photoUrl, publicId: publicId);
+          debugPrint('📸 ResumeScreen: Synced photo → $photoUrl');
         } else {
+          // Clear BOTH
           provider.clearProfilePhoto();
+          ProfileStateService().clearPhoto();
+          debugPrint('📸 ResumeScreen: No photo found, cleared');
         }
-        debugPrint('📸 ResumeScreen synced photo: $photoUrl');
       } catch (e) {
-        debugPrint('⚠️ Could not sync profile photo: $e');
+        debugPrint('⚠️ ResumeScreen: Could not sync profile photo: $e');
       }
 
       final response = await DioClient.dio.get('/resume/profile-resume');
@@ -188,6 +216,17 @@ class _ResumeScreenState extends State<ResumeScreen>
         data['languages'] = data['languages'] ?? [];
         data['social_links'] = data['social_links'] ?? {};
         data['statistics'] = data['statistics'] ?? {};
+
+        // ✅ Inject current photo URL into resume data
+        final photoUrl = _effectivePhotoUrl;
+        if (photoUrl != null && photoUrl.isNotEmpty) {
+          final userInfo = data['user_info'] as Map<String, dynamic>;
+          userInfo['profile_photo_url'] = photoUrl;
+          final additional =
+              data['additional_details'] as Map<String, dynamic>? ?? {};
+          additional['profile_photo_url'] = photoUrl;
+          data['additional_details'] = additional;
+        }
 
         setState(() {
           _resumeData = data;
@@ -226,7 +265,13 @@ class _ResumeScreenState extends State<ResumeScreen>
       currentPhotoUrl: _effectivePhotoUrl,
     );
     if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
-      // Provider already notified → resume + all screens rebuild
+      // ✅ Sync to BOTH providers
+      ProfileStateService().setPhoto(url: uploadedUrl);
+      try {
+        Provider.of<UserProfileProvider>(context, listen: false)
+            .setProfilePhoto(url: uploadedUrl);
+      } catch (_) {}
+
       debugPrint('✅ Photo uploaded via dialog: $uploadedUrl');
     }
   }
@@ -240,6 +285,10 @@ class _ResumeScreenState extends State<ResumeScreen>
     _animationController.reset();
     _pulseController.repeat(reverse: true);
     _photoDialogShown = false; // allow popup again on manual refresh
+
+    // ✅ Force refresh ProfileStateService too
+    await ProfileStateService().forceRefresh();
+
     await _loadResumeData();
   }
 
@@ -577,6 +626,9 @@ class _ResumeScreenState extends State<ResumeScreen>
     );
   }
 
+  // ============================================================
+  // HEADER CARD WITH PHOTO — FIXED
+  // ============================================================
   Widget _buildHeaderCard(
       Map<String, dynamic> userInfo, Map<String, dynamic> contactInfo) {
     final fullName = userInfo['full_name'] ?? 'User';
@@ -590,9 +642,6 @@ class _ResumeScreenState extends State<ResumeScreen>
         'India';
     final age = userInfo['age'];
     final gender = userInfo['gender'] ?? '';
-
-    final photoUrl = _effectivePhotoUrl;
-    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -616,72 +665,84 @@ class _ResumeScreenState extends State<ResumeScreen>
         children: [
           Row(
             children: [
-              if (hasPhoto)
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 10),
-                    ],
-                  ),
-                  child: ClipOval(
-                    child: CachedNetworkImage(
-                      key: ValueKey(photoUrl),
-                      imageUrl: photoUrl,
+              // ✅ CRITICAL: Use ValueListenableBuilder to react to photo changes
+              ValueListenableBuilder<String?>(
+                valueListenable: ProfileStateService().profilePhotoUrl,
+                builder: (context, photoUrl, child) {
+                  final hasPhoto =
+                      photoUrl != null && photoUrl.trim().isNotEmpty;
+
+                  if (hasPhoto) {
+                    return Container(
                       width: 80,
                       height: 80,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: Colors.white24,
-                        child: const Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 10),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: CachedNetworkImage(
+                          key: ValueKey(photoUrl),
+                          imageUrl: photoUrl,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(
+                            color: Colors.white24,
+                            child: const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            color: Colors.white24,
+                            child: const Icon(Icons.person,
+                                color: Colors.white, size: 40),
                           ),
                         ),
                       ),
-                      errorWidget: (_, __, ___) => Container(
-                        color: Colors.white24,
-                        child: const Icon(Icons.person,
-                            color: Colors.white, size: 40),
+                    );
+                  }
+
+                  return Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Colors.white, Colors.white70],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 10),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        fullName.isNotEmpty
+                            ? fullName[0].toUpperCase()
+                            : 'U',
+                        style: const TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF6C63FF),
+                        ),
                       ),
                     ),
-                  ),
-                )
-              else
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Colors.white, Colors.white70],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 10),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      fullName.isNotEmpty ? fullName[0].toUpperCase() : 'U',
-                      style: const TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6C63FF),
-                      ),
-                    ),
-                  ),
-                ),
+                  );
+                },
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -727,9 +788,11 @@ class _ResumeScreenState extends State<ResumeScreen>
             ),
             child: Column(
               children: [
-                if (email.isNotEmpty) _buildHeaderInfoRow(Icons.email, email),
+                if (email.isNotEmpty)
+                  _buildHeaderInfoRow(Icons.email, email),
                 if (email.isNotEmpty) const SizedBox(height: 8),
-                if (phone.isNotEmpty) _buildHeaderInfoRow(Icons.phone, phone),
+                if (phone.isNotEmpty)
+                  _buildHeaderInfoRow(Icons.phone, phone),
                 if (phone.isNotEmpty) const SizedBox(height: 8),
                 _buildHeaderInfoRow(Icons.location_on, location),
               ],

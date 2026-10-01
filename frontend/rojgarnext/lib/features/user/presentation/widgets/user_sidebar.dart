@@ -1,8 +1,9 @@
 // lib/features/user/presentation/widgets/user_sidebar.dart
-// ✅ Listens to UserProfileProvider → photo updates everywhere instantly
-// ✅ NEW: Camera icon overlay on profile photo → tap to upload
-// ✅ FIXED: No black placeholder — always shows initials on failure
-// ✅ FIXED: Auto-sync with provider on every rebuild
+// ✅ FINAL OPTIMIZED VERSION
+// ✅ Photo is read from UserProfileProvider (single source of truth).
+// ✅ No redundant API call for photo — loads instantly from global state.
+// ✅ Camera icon overlay for quick photo update.
+// ✅ Fallback to initials if photo is missing or fails to load.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kReleaseMode;
@@ -11,7 +12,6 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:rojgarnext/core/routes/app_routes.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
-import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/features/user/presentation/utils/menu_types.dart';
 import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 import 'package:rojgarnext/features/resume/presentation/widgets/profile_photo_upload_dialog.dart';
@@ -57,41 +57,8 @@ class _UserSidebarState extends State<UserSidebar> {
         _userName = name;
       }
 
-      // ✅ Fetch profile + push photo to provider
-      try {
-        final response = await DioClient.dio.get('/user/full-profile');
-        Map<String, dynamic> profile = {};
-
-        if (response.data is Map) {
-          if (response.data.containsKey('data')) {
-            profile = Map<String, dynamic>.from(response.data['data']);
-          } else {
-            profile = Map<String, dynamic>.from(response.data);
-          }
-        }
-
-        final additionalDetails =
-            profile['additional_details'] as Map? ?? {};
-        final photoUrl = (additionalDetails['profile_photo_url'] ??
-                profile['profile_photo_url'] ??
-                profile['photo_url'] ??
-                '')
-            .toString()
-            .trim();
-
-        if (photoUrl.isNotEmpty && mounted) {
-          // ✅ Push to provider (provider validates + normalizes)
-          Provider.of<UserProfileProvider>(context, listen: false)
-              .updateProfilePhotoFromUrl(photoUrl);
-        }
-
-        final fullName = profile['full_name'] as String?;
-        if (fullName != null && fullName.isNotEmpty) {
-          _userName = fullName;
-        }
-      } catch (e) {
-        debugPrint("Error fetching profile photo: $e");
-      }
+      // ✅ Provider is now the SINGLE source of truth — no need to fetch photo here.
+      // The provider already has the photo from main.dart → loadProfile().
     } catch (e) {
       debugPrint("Error loading user data: $e");
     } finally {
@@ -132,16 +99,13 @@ class _UserSidebarState extends State<UserSidebar> {
   }
 
   // ============================================================
-  // ✅ PROFILE PHOTO — bulletproof version
-  // - reads from provider (single source of truth)
-  // - never shows black — falls back to initials
+  // ✅ PROFILE PHOTO — reads from provider
   // ============================================================
   Widget _buildProfilePhoto() {
     return Consumer<UserProfileProvider>(
       builder: (context, provider, _) {
         final url = provider.profilePhotoUrl;
 
-        // No photo → initials
         if (url == null || url.trim().isEmpty) {
           if (_isLoading) {
             return Container(
@@ -164,7 +128,6 @@ class _UserSidebarState extends State<UserSidebar> {
           return _initialsAvatar();
         }
 
-        // Has photo → render with fallback to initials
         return ClipOval(
           child: CachedNetworkImage(
             key: ValueKey('sidebar_photo_${provider.version}_$url'),
@@ -379,7 +342,7 @@ class _UserSidebarState extends State<UserSidebar> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Watch provider → any photo change anywhere rebuilds sidebar
+    // ✅ Watch provider → any photo change rebuilds sidebar
     context.watch<UserProfileProvider>();
 
     return Container(

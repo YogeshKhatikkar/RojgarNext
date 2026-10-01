@@ -1,23 +1,54 @@
 // lib/features/user/providers/user_profile_provider.dart
 // ✅ SINGLE SOURCE OF TRUTH for profile photo across entire app
-// ✅ FIXED: Image URL validation, force notify, version tracking
-// ✅ FIXED: Cloudinary raw → image URL conversion
-// ✅ FIXED: Added loadProfile() + clear() methods
+// ✅ FIXED: Reads `additional_details.profile_photo_url` FIRST
+// ✅ FIXED: Auto-syncs with ProfileStateService via listeners
+// ✅ FIXED: Never clears photo on transient errors
 
 import 'package:flutter/foundation.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
+import 'package:rojgarnext/core/services/profile_state_service.dart';
 
 class UserProfileProvider extends ChangeNotifier {
   Map<String, dynamic>? _profile;
-
-  /// Current profile photo URL — null / empty means NO photo
   String? _profilePhotoUrl;
-
-  /// Current profile photo Cloudinary public_id (for deletion)
   String? _profilePhotoPublicId;
-
-  /// Bumped on every update — forces dependent widgets to recompute
   int _version = 0;
+
+  // ============================================================
+  // CONSTRUCTOR — auto-sync with ProfileStateService
+  // ============================================================
+  UserProfileProvider() {
+    // Listen to ProfileStateService changes and mirror them
+    ProfileStateService().profilePhotoUrl.addListener(_onGlobalPhotoChanged);
+    ProfileStateService()
+        .profilePhotoPublicId
+        .addListener(_onGlobalPublicIdChanged);
+
+    // Initial sync
+    _profilePhotoUrl = ProfileStateService().profilePhotoUrl.value;
+    _profilePhotoPublicId =
+        ProfileStateService().profilePhotoPublicId.value;
+  }
+
+  void _onGlobalPhotoChanged() {
+    final newUrl = ProfileStateService().profilePhotoUrl.value;
+    if (_profilePhotoUrl != newUrl) {
+      _profilePhotoUrl = newUrl;
+      _version++;
+      notifyListeners();
+      debugPrint(
+          '✅ UserProfileProvider: Synced from ProfileStateService → $_profilePhotoUrl');
+    }
+  }
+
+  void _onGlobalPublicIdChanged() {
+    final newId = ProfileStateService().profilePhotoPublicId.value;
+    if (_profilePhotoPublicId != newId) {
+      _profilePhotoPublicId = newId;
+      _version++;
+      notifyListeners();
+    }
+  }
 
   // ============================================================
   // GETTERS
@@ -29,7 +60,7 @@ class UserProfileProvider extends ChangeNotifier {
   int get version => _version;
 
   // ============================================================
-  // ✅ URL VALIDATOR — rejects garbage / non-image / raw-type URLs
+  // ✅ URL VALIDATOR
   // ============================================================
   bool _isValidImageUrl(String? url) {
     if (url == null) return false;
@@ -49,38 +80,25 @@ class UserProfileProvider extends ChangeNotifier {
   }
 
   /// ✅ Converts Cloudinary raw upload URL → image-renderable URL.
-  /// Example:
-  ///   https://res.cloudinary.com/demo/raw/upload/v1/folder/photo.jpg
-  ///   → https://res.cloudinary.com/demo/image/upload/v1/folder/photo.jpg
   String _normalizeCloudinaryUrl(String url) {
     try {
       final lower = url.toLowerCase();
-
-      // Only touch Cloudinary URLs
       if (!lower.contains('cloudinary.com')) return url;
-
-      // Skip if already image/upload or video/upload
       if (lower.contains('/image/upload/') ||
           lower.contains('/video/upload/')) {
         return url;
       }
-
-      // Convert raw/upload → image/upload
       if (lower.contains('/raw/upload/')) {
-        final fixed = url.replaceFirst('/raw/upload/', '/image/upload/');
-        debugPrint('🔄 Converted raw URL → image URL: $fixed');
-        return fixed;
+        return url.replaceFirst('/raw/upload/', '/image/upload/');
       }
-
       return url;
     } catch (e) {
-      debugPrint('⚠️ URL normalize error: $e');
       return url;
     }
   }
 
   // ============================================================
-  // ✅ SET PROFILE PHOTO (from any upload source)
+  // ✅ SET PROFILE PHOTO — syncs BOTH providers
   // ============================================================
   void setProfilePhoto({required String url, String? publicId}) {
     if (!_isValidImageUrl(url)) {
@@ -90,18 +108,16 @@ class UserProfileProvider extends ChangeNotifier {
 
     final normalized = _normalizeCloudinaryUrl(url.trim());
 
-    // ✅ Only notify if URL actually changed
-    final changed = _profilePhotoUrl != normalized ||
-        _profilePhotoPublicId != publicId;
-
+    // Update local
     _profilePhotoUrl = normalized;
     _profilePhotoPublicId = publicId;
+    _version++;
+    notifyListeners();
 
-    if (changed) {
-      _version++;
-      notifyListeners();
-      debugPrint('✅ Provider photo set (v$_version): $_profilePhotoUrl');
-    }
+    // ✅ Also update ProfileStateService (keeps both in sync)
+    ProfileStateService().setPhoto(url: normalized, publicId: publicId);
+
+    debugPrint('✅ Provider photo set (v$_version): $_profilePhotoUrl');
   }
 
   /// Alias — used by some screens
@@ -110,17 +126,18 @@ class UserProfileProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // ✅ CLEAR PROFILE PHOTO
+  // ✅ CLEAR PROFILE PHOTO — syncs BOTH providers
   // ============================================================
   void clearProfilePhoto() {
-    final hadPhoto = (_profilePhotoUrl ?? '').isNotEmpty;
     _profilePhotoUrl = null;
     _profilePhotoPublicId = null;
-    if (hadPhoto) {
-      _version++;
-      notifyListeners();
-      debugPrint('🗑️ Provider photo cleared (v$_version)');
-    }
+    _version++;
+    notifyListeners();
+
+    // ✅ Also clear in ProfileStateService
+    ProfileStateService().clearPhoto();
+
+    debugPrint('🗑️ Provider photo cleared (v$_version)');
   }
 
   // ============================================================
@@ -139,6 +156,10 @@ class UserProfileProvider extends ChangeNotifier {
     _profilePhotoPublicId = null;
     _version++;
     notifyListeners();
+
+    // ✅ Also reset ProfileStateService
+    ProfileStateService().reset();
+
     debugPrint('🗑️ Provider: Full profile state cleared (logout)');
   }
 
@@ -175,28 +196,32 @@ class UserProfileProvider extends ChangeNotifier {
         final changed = _profilePhotoUrl != normalized;
         _profilePhotoUrl = normalized;
         if (changed) _version++;
+
+        // ✅ Sync to ProfileStateService
+        ProfileStateService()
+            .setPhoto(url: normalized, publicId: _profilePhotoPublicId);
       } else {
-        _profilePhotoUrl = null;
-        _profilePhotoPublicId = null;
+        // ✅ Only clear if we don't already have a photo (prevents flicker)
+        if (_profilePhotoUrl == null) {
+          _profilePhotoUrl = null;
+          _profilePhotoPublicId = null;
+          ProfileStateService().clearPhoto();
+        }
       }
 
       notifyListeners();
-      debugPrint('✅ Provider profile fetched (v$_version) — photo: $_profilePhotoUrl');
+      debugPrint(
+          '✅ Provider profile fetched (v$_version) — photo: $_profilePhotoUrl');
     } catch (e) {
       debugPrint('❌ Provider fetchProfile failed: $e');
+      // ✅ DON'T clear photo on error
     }
   }
 
-  // ============================================================
-  // ✅ REFRESH FROM BACKEND
-  // ============================================================
   Future<void> refresh() async {
     await fetchProfile();
   }
 
-  // ============================================================
-  // ✅ FULL PROFILE UPDATE
-  // ============================================================
   void updateProfile(Map<String, dynamic> newProfile) {
     _profile = newProfile;
     final additional = (newProfile['additional_details'] as Map?) ?? {};
@@ -207,10 +232,25 @@ class UserProfileProvider extends ChangeNotifier {
 
     if (_isValidImageUrl(rawUrl)) {
       _profilePhotoUrl = _normalizeCloudinaryUrl(rawUrl);
-    } else {
-      _profilePhotoUrl = null;
+      ProfileStateService().setPhoto(url: _profilePhotoUrl!);
     }
     _version++;
     notifyListeners();
+  }
+
+  // ============================================================
+  // DISPOSE — remove listeners
+  // ============================================================
+  @override
+  void dispose() {
+    try {
+      ProfileStateService()
+          .profilePhotoUrl
+          .removeListener(_onGlobalPhotoChanged);
+      ProfileStateService()
+          .profilePhotoPublicId
+          .removeListener(_onGlobalPublicIdChanged);
+    } catch (_) {}
+    super.dispose();
   }
 }
