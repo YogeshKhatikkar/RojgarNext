@@ -1,13 +1,11 @@
 // lib/features/payment/razorpay_web_service.dart
-// ✅ COMPLETE WEB VERSION - Works only on Web (dart.library.js)
-// ✅ FIXED: Robust SDK loading with better error handling
+// ✅ WEB ONLY — Uses checkout.js
+// ✅ Razorpay expects amount in PAISE (int)
+// ✅ Input `amount` is in RUPEES → multiply by 100 exactly once
 
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
-// ✅ Ye import Android build me ignore ho jayega
-import 'dart:js' if (dart.library.js) 'dart:js' as js;
-// ✅ Ye import Android build me ignore ho jayega
-import 'dart:js_util' if (dart.library.js) 'dart:js_util' as js_util;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'dart:js' as js;
 
 class RazorpayWebService {
   static RazorpayWebService? _instance;
@@ -23,42 +21,29 @@ class RazorpayWebService {
   }
 
   Future<bool> _loadRazorpaySDK() async {
-    if (!kIsWeb) {
-      return false;
-    }
-
-    // If SDK is already loaded, return true
-    if (_isSDKLoaded) {
-      return true;
-    }
-
-    // If SDK is currently loading, wait for it
-    if (_sdkLoadCompleter != null) {
-      return _sdkLoadCompleter!.future;
-    }
+    if (!kIsWeb) return false;
+    if (_isSDKLoaded) return true;
+    if (_sdkLoadCompleter != null) return _sdkLoadCompleter!.future;
 
     _sdkLoadCompleter = Completer<bool>();
 
     try {
-      // Check if Razorpay is already loaded
       try {
-        final existing = js.context.callMethod('eval', ['typeof Razorpay']);
+        final existing =
+            js.context.callMethod('eval', ['typeof Razorpay']);
         if (existing != 'undefined') {
           _isSDKLoaded = true;
           _sdkLoadCompleter!.complete(true);
           return true;
         }
-      } catch (e) {
-        // Ignore
-      }
+      } catch (_) {}
 
-      // Create script element
-      final script = js.context.callMethod('document.createElement', ['script']);
+      final script =
+          js.context.callMethod('document.createElement', ['script']);
       script['src'] = 'https://checkout.razorpay.com/v1/checkout.js';
       script['async'] = true;
       script['defer'] = true;
 
-      // Create a promise that resolves when the script loads
       script['onload'] = js.allowInterop(() {
         _isSDKLoaded = true;
         if (!_sdkLoadCompleter!.isCompleted) {
@@ -72,12 +57,13 @@ class RazorpayWebService {
         }
       });
 
-      // Append script to head or body
-      final head = js.context.callMethod('document.getElementsByTagName', ['head']);
+      final head =
+          js.context.callMethod('document.getElementsByTagName', ['head']);
       if (head != null && head.length > 0) {
         head[0].callMethod('appendChild', [script]);
       } else {
-        final body = js.context.callMethod('document.getElementsByTagName', ['body']);
+        final body =
+            js.context.callMethod('document.getElementsByTagName', ['body']);
         if (body != null && body.length > 0) {
           body[0].callMethod('appendChild', [script]);
         } else {
@@ -86,13 +72,11 @@ class RazorpayWebService {
         }
       }
 
-      // Wait for the script to load with a timeout
       await Future.any([
         _sdkLoadCompleter!.future,
         Future.delayed(const Duration(seconds: 10), () => false),
       ]);
 
-      // Double-check if Razorpay is now available
       try {
         final check = js.context.callMethod('eval', ['typeof Razorpay']);
         if (check != 'undefined') {
@@ -102,12 +86,11 @@ class RazorpayWebService {
           }
           return true;
         }
-      } catch (e) {
-        // Ignore
-      }
+      } catch (_) {}
 
       return false;
     } catch (e) {
+      debugPrint("❌ SDK load error: $e");
       if (!_sdkLoadCompleter!.isCompleted) {
         _sdkLoadCompleter!.complete(false);
       }
@@ -118,7 +101,7 @@ class RazorpayWebService {
   }
 
   Future<void> initiatePayment({
-    required int amount,
+    required int amount,           // ← RUPEES
     required String orderId,
     required String keyId,
     required String userEmail,
@@ -133,7 +116,7 @@ class RazorpayWebService {
       return;
     }
 
-    final sdkLoaded = await _loadRazorpaySDK();
+    final bool sdkLoaded = await _loadRazorpaySDK();
     if (!sdkLoaded) {
       onError("Payment service not available. Please refresh and try again.");
       return;
@@ -144,10 +127,22 @@ class RazorpayWebService {
       return;
     }
 
+    // ✅ Convert rupees → paise (EXACTLY ONCE)
+    final int amountInPaise = (amount * 100).round();
+
+    debugPrint("=" * 60);
+    debugPrint("💰 WEB RAZORPAY");
+    debugPrint("   Amount (rupees): ₹$amount");
+    debugPrint("   Amount (paise):  $amountInPaise");
+    debugPrint("   Order ID:        $orderId");
+    debugPrint("   Key ID:          $keyId");
+    debugPrint("=" * 60);
+
     try {
       final options = {
         'key': keyId,
-        'amount': amount * 100,
+        // ✅ Razorpay checkout.js requires PAISE
+        'amount': amountInPaise,
         'currency': 'INR',
         'name': 'RojgarNext',
         'description': 'Payment for service',
@@ -157,9 +152,7 @@ class RazorpayWebService {
           'email': userEmail.isNotEmpty ? userEmail : 'user@example.com',
           'name': userName.isNotEmpty ? userName : 'User',
         },
-        'theme': {
-          'color': '#1E3A8A',
-        },
+        'theme': {'color': '#1E3A8A'},
         'modal': {
           'ondismiss': js.allowInterop(() {
             _isPaymentOpen = false;
@@ -181,10 +174,11 @@ class RazorpayWebService {
             'razorpay_payment_id': paymentId,
             'razorpay_order_id': orderIdResp ?? orderId,
             'razorpay_signature': signature,
-            'payment_id': paymentId,
           });
         }),
       };
+
+      debugPrint("📤 Razorpay options sent: amount=${options['amount']} paise");
 
       final razorpayConstructor = js.context['Razorpay'];
       if (razorpayConstructor == null) {
@@ -197,7 +191,6 @@ class RazorpayWebService {
 
       _isPaymentOpen = true;
       razorpay.callMethod('open');
-
     } catch (e) {
       _isPaymentOpen = false;
       onError("Failed to open payment: ${e.toString()}");

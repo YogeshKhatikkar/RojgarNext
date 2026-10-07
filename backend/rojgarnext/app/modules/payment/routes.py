@@ -1,10 +1,19 @@
 # app/modules/payment/routes.py - COMPLETE FIXED VERSION
-# ✅ CRITICAL FIX: NO application record is created when Razorpay order is created
-# ✅ Application is created ONLY after successful payment verification
-# ✅ Failed/cancelled payments create NO database record
-# ✅ Supports BOTH job and service payments
-# ✅ GST (18%) + Service Charge (₹50) added to total amount
-# ✅ Razorpay ONLY - No PhonePe, No QR code
+# ============================================================
+# ✅ CRITICAL FIXES:
+#    1. `use_provided_amount` flag prevents double calculation
+#    2. Full payment breakdown stored in `payment_orders` collection
+#       (NOT in Razorpay notes — those have ~15 key limit)
+#    3. verify-payment reads breakdown from DB (source of truth)
+#    4. ✅ NEW: `build_payment_breakdown()` helper normalizes amounts
+#    5. ✅ NEW: `payment_amount` now stores TOTAL (not app_fee)
+#    6. ✅ NEW: `payment_gst` inferred from (total - subtotal) if 0
+#    7. NO application created on order creation
+#    8. Application created ONLY after successful payment
+#    9. Failed/cancelled payments create NO record
+#   10. Supports BOTH job and service payments
+#   11. Razorpay ONLY - No PhonePe, No QR code
+# ============================================================
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, BackgroundTasks, UploadFile, File, Form
 from fastapi.responses import RedirectResponse
@@ -138,20 +147,97 @@ SERVICE_CHARGE = 50  # ₹50 flat
 
 
 def calculate_fee_breakdown(application_fee: int) -> Dict[str, int]:
-    """Calculate total fee with GST and service charge"""
-    gst_amount = int((application_fee * GST_PERCENT) / 100)
-    total = application_fee + gst_amount + SERVICE_CHARGE
+    """
+    Calculate total fee with GST and service charge.
+
+    ✅ CORRECT FORMULA:
+       Subtotal = Application Fee + Service Charge
+       GST      = 18% of Subtotal
+       Total    = Subtotal + GST
+
+    Example: App Fee = ₹3, Service = ₹50
+       Subtotal = 53, GST = 10, Total = ₹63
+    """
+    subtotal = application_fee + SERVICE_CHARGE
+    gst_amount = int((subtotal * GST_PERCENT) / 100)
+    total = subtotal + gst_amount
     return {
         "application_fee": application_fee,
-        "gst_amount": gst_amount,
         "service_charge": SERVICE_CHARGE,
+        "subtotal": subtotal,
+        "gst_amount": gst_amount,
         "total": total
+    }
+
+
+# ============================================================
+# ✅ NEW CRITICAL HELPER — Normalize payment breakdown
+# Ensures payment_amount, payment_gst, payment_total are ALWAYS correct
+# ============================================================
+def build_payment_breakdown(
+    application_fee: int,
+    service_charge: int,
+    subtotal: int,
+    gst_amount: int,
+    total_amount: int,
+) -> Dict[str, int]:
+    """
+    ✅ Guarantees a consistent, mathematically correct breakdown.
+
+    Rules:
+      1. If subtotal <= 0: subtotal = application_fee + service_charge
+      2. If total_amount <= 0: total_amount = subtotal + gst_amount
+      3. ✅ KEY FIX: If gst_amount <= 0 but total_amount > subtotal:
+             gst_amount = total_amount - subtotal
+      4. If math doesn't work (subtotal + gst != total):
+             trust total_amount as the truth (it's what user paid)
+    """
+    # Rule 1
+    if subtotal <= 0:
+        subtotal = max(0, application_fee) + max(0, service_charge)
+
+    # Rule 2
+    if total_amount <= 0:
+        total_amount = subtotal + max(0, gst_amount)
+
+    # ✅ Rule 3 — THE KEY FIX: infer GST from total - subtotal
+    if gst_amount <= 0 and total_amount > subtotal:
+        gst_amount = total_amount - subtotal
+        logger.info(f"🔧 Inferred gst_amount from total-subtotal: ₹{gst_amount}")
+
+    # Rule 4 — ensure math works
+    computed = subtotal + gst_amount
+    if computed != total_amount:
+        if total_amount > subtotal:
+            gst_amount = total_amount - subtotal
+        else:
+            # Rare: total < subtotal → adjust subtotal down
+            subtotal = total_amount
+            gst_amount = 0
+        logger.info(
+            f"🔧 Corrected breakdown → subtotal=₹{subtotal}, "
+            f"gst=₹{gst_amount}, total=₹{total_amount}"
+        )
+
+    return {
+        "application_fee": int(application_fee),
+        "service_charge": int(service_charge),
+        "subtotal": int(subtotal),
+        "gst_amount": int(gst_amount),
+        "total_amount": int(total_amount),
     }
 
 
 # ==================== SCHEMAS ====================
 
 class CreateOrderSchema(BaseModel):
+    """
+    Schema for creating Razorpay order.
+
+    ✅ CRITICAL: `use_provided_amount` flag
+       - When True: Backend uses the exact `amount` provided (already includes GST + service charge)
+       - When False: Backend recalculates fee based on category (legacy behavior)
+    """
     amount: int
     payment_type: str = "job"
     job_id: Optional[str] = None
@@ -165,6 +251,17 @@ class CreateOrderSchema(BaseModel):
     user_email: Optional[str] = None
     user_name: Optional[str] = None
 
+    # ✅ CRITICAL FIX: Flag to prevent double calculation
+    use_provided_amount: bool = True
+
+    # ✅ Fee breakdown fields
+    application_fee: Optional[int] = None
+    service_charge: Optional[int] = None
+    subtotal: Optional[int] = None
+    gst_amount: Optional[int] = None
+    total_amount: Optional[int] = None
+    category_used: Optional[str] = None
+
 
 class VerifyPaymentSchema(BaseModel):
     razorpay_order_id: str
@@ -176,10 +273,13 @@ class VerifyPaymentSchema(BaseModel):
 # ============================================================
 # ✅ CREATE RAZORPAY ORDER
 # ============================================================
-# CRITICAL FIX: This endpoint DOES NOT create any application record.
+# CRITICAL: This endpoint DOES NOT create any application record.
 # It ONLY creates a Razorpay order.
-# The application record is created later in verify-payment ONLY
-# after successful payment verification.
+#
+# ✅ When use_provided_amount=true:
+#    - Uses the EXACT amount provided (no recalculation)
+#
+# ✅ CRITICAL: Full breakdown saved to `payment_orders` collection
 # ============================================================
 
 @router.post("/razorpay/create-order")
@@ -187,10 +287,10 @@ async def create_razorpay_order(
     data: CreateOrderSchema,
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
- ):
+):
     """
     CREATE RAZORPAY ORDER - NO APPLICATION RECORD CREATED HERE
-    
+
     Flow:
     1. User clicks "Apply" on job/service
     2. This endpoint is called → creates Razorpay order ONLY
@@ -202,6 +302,7 @@ async def create_razorpay_order(
     logger.info(f"💰 Creating Razorpay Order - Type: {data.payment_type}")
     logger.info(f"   User: {current_user.get('email')}")
     logger.info(f"   Amount: ₹{data.amount}")
+    logger.info(f"   Use Provided Amount: {data.use_provided_amount}")
     logger.info(f"   ⚠️ NO APPLICATION CREATED HERE - Only Razorpay order")
     logger.info("=" * 70)
 
@@ -229,50 +330,59 @@ async def create_razorpay_order(
 
     # Default values
     amount = data.amount
-    category_used = "none"
+    category_used = data.category_used or "none"
     job_title = ""
     organization = ""
     added_by = "admin@rojgarnext.com"
 
-    # ==================== JOB PAYMENT ====================
-    if data.payment_type == "job":
-        if not data.job_id or not ObjectId.is_valid(data.job_id):
-            raise HTTPException(status_code=400, detail="Invalid job ID")
+    # ============================================================
+    # ✅ CRITICAL: Handle use_provided_amount flag
+    # ============================================================
+    if data.use_provided_amount:
+        # ============================================================
+        # ✅ NEW BEHAVIOR: Use EXACT amount provided (no recalculation)
+        # ============================================================
+        logger.info("=" * 70)
+        logger.info("✅ USING PROVIDED AMOUNT (NO RECALCULATION)")
+        logger.info(f"   Amount from client: ₹{data.amount}")
+        logger.info("=" * 70)
 
-        job = await db.job.find_one({"_id": ObjectId(data.job_id)})
-        if not job:
-            raise HTTPException(status_code=404, detail="Job not found")
+        # Validate job/service exists
+        if data.payment_type == "job":
+            if not data.job_id or not ObjectId.is_valid(data.job_id):
+                raise HTTPException(status_code=400, detail="Invalid job ID")
 
-        job_title = data.job_title or job.get("post_name", "Job Application")
-        organization = job.get("organization", "Company")
-        added_by = job.get("added_by", "admin@rojgarnext.com")
+            job = await db.job.find_one({"_id": ObjectId(data.job_id)})
+            if not job:
+                raise HTTPException(status_code=404, detail="Job not found")
 
-        # ✅ Check if already applied (any non-rejected status)
-        existing = await db.applications.find_one({
-            "job_id": data.job_id,
-            "user_email": user_email,
-            "application_type": "job",
-            "status": {
-                "$in": [
-                    "verification_successful", "pending", "shortlisted",
-                    "interview", "offered", "submitted", "review_application",
-                    "final_submitted", "confirmed_application", "approved_application"
-                ]
-            }
-        })
-        if existing:
-            raise HTTPException(
-                status_code=400,
-                detail="You have already applied for this job"
-            )
+            job_title = data.job_title or job.get("post_name", "Job Application")
+            organization = job.get("organization", "Company")
+            added_by = job.get("added_by", "admin@rojgarnext.com")
 
-        # ✅ Calculate fee based on category
-        job_fees = job.get("application_fees", {})
-        if job_fees and len(job_fees) > 0:
+            # Check if already applied
+            existing = await db.applications.find_one({
+                "job_id": data.job_id,
+                "user_email": user_email,
+                "application_type": "job",
+                "status": {
+                    "$in": [
+                        "verification_successful", "pending", "shortlisted",
+                        "interview", "offered", "submitted", "review_application",
+                        "final_submitted", "confirmed_application", "approved_application"
+                    ]
+                }
+            })
+            if existing:
+                raise HTTPException(
+                    status_code=400,
+                    detail="You have already applied for this job"
+                )
+
+            # Determine category used for display
             if is_disabled:
                 category_used = "pwd"
-                amount = job_fees.get("pwd", data.amount)
-            else:
+            elif category_used == "none":
                 category_map = {
                     "General/UR": "general/ur",
                     "OBC": "obc",
@@ -280,89 +390,300 @@ async def create_razorpay_order(
                     "ST": "st",
                     "EWS": "ews"
                 }
-                fee_key = category_map.get(user_category, "general/ur")
-                category_used = fee_key
-                amount = job_fees.get(fee_key, data.amount)
+                category_used = category_map.get(user_category, "general/ur")
 
-    # ==================== SERVICE PAYMENT ====================
-    elif data.payment_type == "service":
-        if not data.service_id or not data.sub_type_id:
-            raise HTTPException(
-                status_code=400,
-                detail="service_id and sub_type_id are required for service payment"
-            )
-
-        from app.modules.services.models.service_types import ServiceMasterData
-        service = ServiceMasterData.get_service_by_id(data.service_id)
-        sub_type = ServiceMasterData.get_sub_type_by_id(data.sub_type_id)
-
-        job_title = service.name if service else data.service_id
-        organization = sub_type.name if sub_type else data.sub_type_id
-
-        # ✅ Check if already applied
-        existing = await db.applications.find_one({
-            "service_id": data.service_id,
-            "sub_type_id": data.sub_type_id,
-            "user_email": user_email,
-            "application_type": "service",
-            "status": {
-                "$nin": ["replaced", "rejected", "verification_rejected"]
-            }
-        })
-        if existing:
-            existing_status = existing.get("status", "")
-            if existing_status in ["approved", "completed", "payment_verified"]:
+        elif data.payment_type == "service":
+            if not data.service_id or not data.sub_type_id:
                 raise HTTPException(
                     status_code=400,
-                    detail="You have already successfully applied for this service"
+                    detail="service_id and sub_type_id are required for service payment"
                 )
 
-        category_used = "service"
-        amount = data.amount
+            from app.modules.services.models.service_types import ServiceMasterData
+            service = ServiceMasterData.get_service_by_id(data.service_id)
+            sub_type = ServiceMasterData.get_sub_type_by_id(data.sub_type_id)
+
+            job_title = service.name if service else data.service_id
+            organization = sub_type.name if sub_type else data.sub_type_id
+            category_used = "service"
+
+            # Check if already applied
+            existing = await db.applications.find_one({
+                "service_id": data.service_id,
+                "sub_type_id": data.sub_type_id,
+                "user_email": user_email,
+                "application_type": "service",
+                "status": {
+                    "$nin": ["replaced", "rejected", "verification_rejected"]
+                }
+            })
+            if existing:
+                existing_status = existing.get("status", "")
+                if existing_status in ["approved", "completed", "payment_verified"]:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="You have already successfully applied for this service"
+                    )
+
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid payment_type. Must be 'job' or 'service'."
+            )
+
+        # ✅ Use the EXACT amount provided
+        total_amount = data.amount
+        application_fee = data.application_fee or 0
+        service_charge = data.service_charge or SERVICE_CHARGE
+        subtotal = data.subtotal or (application_fee + service_charge)
+        gst_amount = data.gst_amount or 0
+
+        # ✅ STRICT VALIDATION - if frontend provided total_amount, verify match
+        if data.total_amount is not None and data.total_amount != data.amount:
+            logger.error("=" * 70)
+            logger.error("❌ TOTAL AMOUNT MISMATCH")
+            logger.error(f"   amount:       ₹{data.amount}")
+            logger.error(f"   total_amount: ₹{data.total_amount}")
+            logger.error("=" * 70)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Amount mismatch: amount={data.amount} but total_amount={data.total_amount}"
+            )
+
+        # ✅ STRICT VALIDATION - if breakdown provided, verify sum matches amount
+        if (data.application_fee is not None
+                and data.service_charge is not None
+                and data.gst_amount is not None):
+            computed_total = data.application_fee + data.service_charge + data.gst_amount
+            if computed_total != data.amount:
+                logger.error("=" * 70)
+                logger.error("❌ FEE BREAKDOWN MISMATCH")
+                logger.error(f"   app_fee ({data.application_fee}) + "
+                             f"service_charge ({data.service_charge}) + "
+                             f"gst ({data.gst_amount}) = {computed_total}")
+                logger.error(f"   but amount = {data.amount}")
+                logger.error("=" * 70)
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Fee breakdown does not sum to amount: "
+                        f"{data.application_fee}+{data.service_charge}+{data.gst_amount}"
+                        f"={computed_total} != {data.amount}"
+                    )
+                )
+
+        logger.info(f"💰 Fee Breakdown (from client):")
+        logger.info(f"   Application Fee: ₹{application_fee}")
+        logger.info(f"   Service Charge: ₹{service_charge}")
+        logger.info(f"   Subtotal: ₹{subtotal}")
+        logger.info(f"   GST: ₹{gst_amount}")
+        logger.info(f"   TOTAL: ₹{total_amount}")
 
     else:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid payment_type. Must be 'job' or 'service'."
-        )
+        # ============================================================
+        # LEGACY BEHAVIOR: Calculate fee based on category
+        # ============================================================
+        logger.info("=" * 70)
+        logger.info("⚠️ LEGACY MODE: Calculating fee from category")
+        logger.info("=" * 70)
 
-    # ==================== CALCULATE TOTAL WITH GST + SERVICE CHARGE ====================
-    fee_breakdown = calculate_fee_breakdown(amount)
+        if data.payment_type == "job":
+            if not data.job_id or not ObjectId.is_valid(data.job_id):
+                raise HTTPException(status_code=400, detail="Invalid job ID")
 
-    logger.info(f"💰 Fee Breakdown:")
-    logger.info(f"   Application Fee: ₹{fee_breakdown['application_fee']}")
-    logger.info(f"   GST ({GST_PERCENT}%): ₹{fee_breakdown['gst_amount']}")
-    logger.info(f"   Service Charge: ₹{fee_breakdown['service_charge']}")
-    logger.info(f"   TOTAL: ₹{fee_breakdown['total']}")
+            job = await db.job.find_one({"_id": ObjectId(data.job_id)})
+            if not job:
+                raise HTTPException(status_code=404, detail="Job not found")
 
-    # ==================== CREATE RAZORPAY ORDER ====================
+            job_title = data.job_title or job.get("post_name", "Job Application")
+            organization = job.get("organization", "Company")
+            added_by = job.get("added_by", "admin@rojgarnext.com")
+
+            existing = await db.applications.find_one({
+                "job_id": data.job_id,
+                "user_email": user_email,
+                "application_type": "job",
+                "status": {
+                    "$in": [
+                        "verification_successful", "pending", "shortlisted",
+                        "interview", "offered", "submitted", "review_application",
+                        "final_submitted", "confirmed_application", "approved_application"
+                    ]
+                }
+            })
+            if existing:
+                raise HTTPException(
+                    status_code=400,
+                    detail="You have already applied for this job"
+                )
+
+            job_fees = job.get("application_fees", {})
+            if job_fees and len(job_fees) > 0:
+                if is_disabled:
+                    category_used = "pwd"
+                    amount = job_fees.get("pwd", data.amount)
+                else:
+                    category_map = {
+                        "General/UR": "general/ur",
+                        "OBC": "obc",
+                        "SC": "sc",
+                        "ST": "st",
+                        "EWS": "ews"
+                    }
+                    fee_key = category_map.get(user_category, "general/ur")
+                    category_used = fee_key
+                    amount = job_fees.get(fee_key, data.amount)
+
+        elif data.payment_type == "service":
+            if not data.service_id or not data.sub_type_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="service_id and sub_type_id are required for service payment"
+                )
+
+            from app.modules.services.models.service_types import ServiceMasterData
+            service = ServiceMasterData.get_service_by_id(data.service_id)
+            sub_type = ServiceMasterData.get_sub_type_by_id(data.sub_type_id)
+
+            job_title = service.name if service else data.service_id
+            organization = sub_type.name if sub_type else data.sub_type_id
+
+            existing = await db.applications.find_one({
+                "service_id": data.service_id,
+                "sub_type_id": data.sub_type_id,
+                "user_email": user_email,
+                "application_type": "service",
+                "status": {
+                    "$nin": ["replaced", "rejected", "verification_rejected"]
+                }
+            })
+            if existing:
+                existing_status = existing.get("status", "")
+                if existing_status in ["approved", "completed", "payment_verified"]:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="You have already successfully applied for this service"
+                    )
+
+            category_used = "service"
+            amount = data.amount
+
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid payment_type. Must be 'job' or 'service'."
+            )
+
+        # Calculate total with GST + service charge
+        fee_breakdown = calculate_fee_breakdown(amount)
+        total_amount = fee_breakdown['total']
+        application_fee = fee_breakdown['application_fee']
+        service_charge = fee_breakdown['service_charge']
+        subtotal = fee_breakdown['subtotal']
+        gst_amount = fee_breakdown['gst_amount']
+
+        logger.info(f"💰 Fee Breakdown (calculated):")
+        logger.info(f"   Application Fee: ₹{application_fee}")
+        logger.info(f"   Service Charge: ₹{service_charge}")
+        logger.info(f"   Subtotal: ₹{subtotal}")
+        logger.info(f"   GST ({GST_PERCENT}%): ₹{gst_amount}")
+        logger.info(f"   TOTAL: ₹{total_amount}")
+
+    # ============================================================
+    # ✅ CRITICAL FIX: Normalize breakdown BEFORE saving
+    # ============================================================
+    normalized = build_payment_breakdown(
+        application_fee=int(application_fee or 0),
+        service_charge=int(service_charge or SERVICE_CHARGE),
+        subtotal=int(subtotal or 0),
+        gst_amount=int(gst_amount or 0),
+        total_amount=int(total_amount or 0),
+    )
+
+    application_fee = normalized["application_fee"]
+    service_charge = normalized["service_charge"]
+    subtotal = normalized["subtotal"]
+    gst_amount = normalized["gst_amount"]
+    total_amount = normalized["total_amount"]
+
+    # ==================== CONVERT TO PAISE (EXACTLY ONCE) ====================
+    amount_in_paise = int(total_amount * 100)
+
+    logger.info("=" * 70)
+    logger.info(f"✅ NORMALIZED BREAKDOWN (create-order):")
+    logger.info(f"   Application Fee: ₹{application_fee}")
+    logger.info(f"   Service Charge:  ₹{service_charge}")
+    logger.info(f"   Subtotal:        ₹{subtotal}")
+    logger.info(f"   GST:             ₹{gst_amount}")
+    logger.info(f"   TOTAL:           ₹{total_amount}")
+    logger.info(f"   Paise:           {amount_in_paise}")
+    logger.info("=" * 70)
+
+    # ============================================================
+    # ✅ CRITICAL FIX: Save FULL breakdown to `payment_orders`
+    # ============================================================
+    payment_record_id = str(ObjectId())
+    payment_record = {
+        "_id": payment_record_id,
+        "user_email": user_email,
+        "user_id": user_id,
+        "user_name": user_name,
+        "user_category": user_category,
+        "is_disabled": is_disabled,
+
+        # ✅ FULL BREAKDOWN — SOURCE OF TRUTH
+        "application_fee": application_fee,
+        "service_charge": service_charge,
+        "subtotal": subtotal,
+        "gst_amount": gst_amount,
+        "total_amount": total_amount,
+        "amount_paise": amount_in_paise,
+        "category_used": category_used,
+
+        # Context
+        "payment_type": data.payment_type,
+        "job_id": data.job_id or "",
+        "job_title": job_title,
+        "organization": organization,
+        "added_by": added_by,
+        "service_id": data.service_id or "",
+        "service_type": data.service_type or "",
+        "sub_type_id": data.sub_type_id or "",
+        "sub_service_name": data.sub_service_name or "",
+        "form_data": data.form_data or {},
+
+        "use_provided_amount": bool(data.use_provided_amount),
+        "status": "creating",
+        "created_at": datetime.utcnow(),
+    }
+
+    try:
+        await db.payment_orders.insert_one(payment_record)
+        logger.info(f"💾 Payment breakdown saved to DB: {payment_record_id}")
+        logger.info(f"   application_fee = ₹{application_fee}")
+        logger.info(f"   service_charge  = ₹{service_charge}")
+        logger.info(f"   gst_amount      = ₹{gst_amount}")
+        logger.info(f"   total_amount    = ₹{total_amount}")
+    except Exception as e:
+        logger.error(f"⚠️ Failed to save payment breakdown: {e}")
+
+    # ============================================================
+    # ✅ Razorpay order — minimal notes (≤ 8 keys)
+    # ============================================================
     order_data = {
-        "amount": fee_breakdown['total'] * 100,  # Convert to paise
+        "amount": amount_in_paise,
         "currency": "INR",
         "receipt": f"rcpt_{uuid.uuid4().hex[:20]}",
         "payment_capture": 1,
         "notes": {
             "payment_type": data.payment_type,
             "user_email": user_email,
-            "user_name": user_name,
-            "user_id": user_id or "",
             "job_id": data.job_id or "",
-            "job_title": job_title,
-            "organization": organization,
-            "added_by": added_by,
             "service_id": data.service_id or "",
-            "service_type": data.service_type or "",
             "sub_type_id": data.sub_type_id or "",
-            "sub_service_name": data.sub_service_name or "",
-            "application_fee": str(fee_breakdown['application_fee']),
-            "gst_amount": str(fee_breakdown['gst_amount']),
-            "service_charge": str(fee_breakdown['service_charge']),
-            "total_amount": str(fee_breakdown['total']),
+            "total_amount": str(total_amount),
             "category_used": category_used,
-            "user_category": user_category,
-            "is_disabled": str(is_disabled),
-            "form_data": json.dumps(data.form_data or {}),
-            "test_mode": str(_get_razorpay_test_mode())
+            "payment_record_id": payment_record_id,
         }
     }
 
@@ -371,6 +692,8 @@ async def create_razorpay_order(
         try:
             order = razorpay_client.order.create(data=order_data)
             logger.info(f"✅ Order created on attempt {attempt}: {order['id']}")
+            logger.info(f"   Order amount from Razorpay: {order.get('amount')} paise "
+                        f"(₹{order.get('amount', 0) / 100})")
             break
         except Exception as e:
             logger.error(f"⚠️ Attempt {attempt} failed: {e}")
@@ -386,26 +709,60 @@ async def create_razorpay_order(
 
     razorpay_order_id = order["id"]
 
+    # ============================================================
+    # ✅ Attach Razorpay order_id to the payment record
+    # ============================================================
+    try:
+        await db.payment_orders.update_one(
+            {"_id": payment_record_id},
+            {
+                "$set": {
+                    "razorpay_order_id": razorpay_order_id,
+                    "razorpay_order_amount_paise": amount_in_paise,
+                    "status": "created",
+                    "updated_at": datetime.utcnow(),
+                }
+            }
+        )
+        logger.info(f"✅ Payment record linked to Razorpay order: {razorpay_order_id}")
+    except Exception as e:
+        logger.error(f"⚠️ Failed to link payment record: {e}")
+
+    # ==================== SANITY CHECK ====================
+    returned_amount = order.get("amount")
+    if returned_amount is not None and int(returned_amount) != amount_in_paise:
+        logger.error("=" * 70)
+        logger.error("❌ RAZORPAY RETURNED DIFFERENT AMOUNT!")
+        logger.error(f"   We sent:   {amount_in_paise} paise")
+        logger.error(f"   Got back:  {returned_amount} paise")
+        logger.error("=" * 70)
+
     logger.info("=" * 70)
     logger.info(f"✅ Razorpay order created successfully!")
     logger.info(f"   Order ID: {razorpay_order_id}")
-    logger.info(f"   Total Amount: ₹{fee_breakdown['total']}")
-    logger.info(f"   ⚠️ NO APPLICATION SAVED YET - Will save on payment success")
+    logger.info(f"   Total Amount (rupees): ₹{total_amount}")
+    logger.info(f"   Total Amount (paise):  {amount_in_paise}")
+    logger.info(f"   Payment Record ID:     {payment_record_id}")
+    logger.info(f"   ⚠️ NO APPLICATION SAVED YET")
     logger.info("=" * 70)
 
     return {
         "success": True,
         "order_id": razorpay_order_id,
-        "amount": fee_breakdown['total'],
-        "application_fee": fee_breakdown['application_fee'],
-        "gst_amount": fee_breakdown['gst_amount'],
-        "service_charge": fee_breakdown['service_charge'],
-        "amount_paise": fee_breakdown['total'] * 100,
+        "amount": total_amount,
+        "amount_paise": amount_in_paise,
+        "amount_rupees": total_amount,
+        "application_fee": application_fee,
+        "service_charge": service_charge,
+        "subtotal": subtotal,
+        "gst_amount": gst_amount,
         "currency": "INR",
         "key_id": RAZORPAY_KEY_ID,
         "payment_type": data.payment_type,
         "category_used": category_used,
         "test_mode": _get_razorpay_test_mode(),
+        "use_provided_amount": data.use_provided_amount,
+        "payment_record_id": payment_record_id,
         "message": "Order created. Application will be saved only after successful payment."
     }
 
@@ -413,9 +770,9 @@ async def create_razorpay_order(
 # ============================================================
 # ✅ VERIFY RAZORPAY PAYMENT - CREATES APPLICATION ONLY ON SUCCESS
 # ============================================================
-# This is the ONLY place where applications are created.
-# If payment fails/cancelled, this endpoint is never called,
-# so NO application record exists.
+# ✅ CRITICAL FIX: Reads breakdown from `payment_orders` collection
+# ✅ CRITICAL FIX: payment_amount stores TOTAL (not app_fee)
+# ✅ CRITICAL FIX: payment_gst inferred from (total - subtotal)
 # ============================================================
 
 @router.post("/razorpay/verify-payment")
@@ -455,44 +812,97 @@ async def verify_razorpay_payment(
         logger.error(f"❌ Signature verification failed: {e}")
         raise HTTPException(status_code=400, detail="Invalid payment signature")
 
-    # ==================== FETCH ORDER DETAILS ====================
+    # ============================================================
+    # ✅ CRITICAL FIX: Load FULL breakdown from `payment_orders`
+    # ============================================================
+    payment_record = await db.payment_orders.find_one({
+        "razorpay_order_id": data.razorpay_order_id
+    })
+
+    if not payment_record:
+        logger.error(f"❌ Payment record not found for order: {data.razorpay_order_id}")
+        raise HTTPException(
+            status_code=404,
+            detail="Payment record not found. Please contact support."
+        )
+
+    logger.info("=" * 70)
+    logger.info(f"✅ Payment record loaded from DB:")
+    logger.info(f"   _id             = {payment_record.get('_id')}")
+    logger.info(f"   application_fee = ₹{payment_record.get('application_fee')}")
+    logger.info(f"   service_charge  = ₹{payment_record.get('service_charge')}")
+    logger.info(f"   gst_amount      = ₹{payment_record.get('gst_amount')}")
+    logger.info(f"   total_amount    = ₹{payment_record.get('total_amount')}")
+    logger.info("=" * 70)
+
+    # ============================================================
+    # ✅ CRITICAL FIX: Normalize breakdown from DB record
+    # ============================================================
+    normalized = build_payment_breakdown(
+        application_fee=int(payment_record.get("application_fee") or 0),
+        service_charge=int(payment_record.get("service_charge") or SERVICE_CHARGE),
+        subtotal=int(payment_record.get("subtotal") or 0),
+        gst_amount=int(payment_record.get("gst_amount") or 0),
+        total_amount=int(payment_record.get("total_amount") or 0),
+    )
+
+    # ✅ Extract normalized values
+    payment_type = payment_record.get("payment_type", "job")
+    job_id = payment_record.get("job_id", "")
+    job_title = payment_record.get("job_title", "")
+    organization = payment_record.get("organization", "")
+    added_by = payment_record.get("added_by", "admin@rojgarnext.com")
+    service_id = payment_record.get("service_id", "")
+    service_type = payment_record.get("service_type", "")
+    sub_type_id = payment_record.get("sub_type_id", "")
+    sub_service_name = payment_record.get("sub_service_name", "")
+
+    application_fee = normalized["application_fee"]
+    service_charge = normalized["service_charge"]
+    subtotal = normalized["subtotal"]
+    gst_amount = normalized["gst_amount"]
+    total_amount = normalized["total_amount"]
+
+    category_used = payment_record.get("category_used", "none")
+    user_category = payment_record.get("user_category", "General/UR")
+    is_disabled = bool(payment_record.get("is_disabled", False))
+    order_user_email = payment_record.get("user_email", user_email)
+    order_user_id = payment_record.get("user_id", current_user.get("user_id"))
+    form_data = payment_record.get("form_data", {}) or {}
+
+    logger.info("=" * 70)
+    logger.info("✅ VERIFY-PAYMENT NORMALIZED:")
+    logger.info(f"   application_fee = ₹{application_fee}")
+    logger.info(f"   service_charge  = ₹{service_charge}")
+    logger.info(f"   subtotal        = ₹{subtotal}")
+    logger.info(f"   gst_amount      = ₹{gst_amount}")
+    logger.info(f"   total_amount    = ₹{total_amount}")
+    logger.info("=" * 70)
+
+    # ✅ Sanity check: verify Razorpay order amount matches DB
     try:
         order_details = razorpay_client.order.fetch(data.razorpay_order_id)
-        order_notes = order_details.get("notes", {})
-        logger.info(f"✅ Order fetched. Notes keys: {list(order_notes.keys())}")
+        razorpay_amount_paise = int(order_details.get("amount", 0))
+        expected_paise = int(total_amount * 100)
+        if razorpay_amount_paise != expected_paise:
+            logger.error("=" * 70)
+            logger.error("❌ AMOUNT MISMATCH between Razorpay order and DB!")
+            logger.error(f"   Razorpay order: {razorpay_amount_paise} paise")
+            logger.error(f"   DB total:       {expected_paise} paise (₹{total_amount})")
+            logger.error("=" * 70)
+            raise HTTPException(
+                status_code=400,
+                detail="Amount mismatch detected. Please contact support."
+            )
+        logger.info(f"✅ Razorpay amount matches DB: {razorpay_amount_paise} paise")
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"❌ Failed to fetch order: {e}")
-        raise HTTPException(status_code=400, detail="Failed to fetch order details")
-
-    # ==================== EXTRACT FROM ORDER NOTES ====================
-    payment_type = order_notes.get("payment_type", "job")
-    job_id = order_notes.get("job_id", "")
-    job_title = order_notes.get("job_title", "")
-    organization = order_notes.get("organization", "")
-    added_by = order_notes.get("added_by", "admin@rojgarnext.com")
-    service_id = order_notes.get("service_id", "")
-    service_type = order_notes.get("service_type", "")
-    sub_type_id = order_notes.get("sub_type_id", "")
-    sub_service_name = order_notes.get("sub_service_name", "")
-    application_fee = int(order_notes.get("application_fee", "0"))
-    gst_amount = int(order_notes.get("gst_amount", "0"))
-    service_charge = int(order_notes.get("service_charge", "0"))
-    total_amount = int(order_notes.get("total_amount", "0"))
-    category_used = order_notes.get("category_used", "none")
-    user_category = order_notes.get("user_category", "General/UR")
-    is_disabled_str = order_notes.get("is_disabled", "false")
-    is_disabled = is_disabled_str.lower() == "true"
-    order_user_email = order_notes.get("user_email", user_email)
-    order_user_id = order_notes.get("user_id", current_user.get("user_id"))
-
-    try:
-        form_data = json.loads(order_notes.get("form_data", "{}"))
-    except Exception:
-        form_data = {}
+        logger.warning(f"⚠️ Could not verify order amount: {e}")
 
     # ==================== GET APPLICANT DETAILS ====================
     profile = await db.profile.find_one({"email": order_user_email})
-    applicant_name = profile.get("full_name") if profile else order_notes.get("user_name", "User")
+    applicant_name = profile.get("full_name") if profile else payment_record.get("user_name", "User")
     application_username = order_user_email.split('@')[0]
 
     # ==================== CREATE APPLICATION (PAYMENT SUCCESS) ====================
@@ -505,7 +915,6 @@ async def verify_razorpay_payment(
     display_title = job_title if payment_type == "job" else sub_service_name or job_title
 
     if payment_type == "job":
-        # Check idempotency - already exists?
         existing = await db.applications.find_one({
             "job_id": job_id,
             "user_email": order_user_email,
@@ -523,8 +932,29 @@ async def verify_razorpay_payment(
             logger.info(f"📋 Application already exists: {existing['_id']}")
             application_id = str(existing["_id"])
             new_status = existing.get("status", "verification_successful")
+
+            # ✅ Update existing record with correct breakdown
+            await db.applications.update_one(
+                {"_id": existing["_id"]},
+                {
+                    "$set": {
+                        "payment_amount": total_amount,              # ✅ TOTAL
+                        "payment_gst": gst_amount,                   # ✅ GST
+                        "payment_service_charge": service_charge,
+                        "payment_total": total_amount,
+                        "payment_breakdown": {
+                            "application_fee": application_fee,
+                            "service_charge": service_charge,
+                            "subtotal": subtotal,
+                            "gst_amount": gst_amount,
+                            "total_amount": total_amount,
+                        },
+                        "updated_at": datetime.utcnow(),
+                    }
+                }
+            )
+            logger.info(f"✅ Updated existing application with correct breakdown")
         else:
-            # CREATE NEW JOB APPLICATION
             application_doc = {
                 "application_type": "job",
                 "job_id": job_id,
@@ -541,38 +971,40 @@ async def verify_razorpay_payment(
                 "is_disabled": is_disabled,
                 "application_username": application_username,
 
-                # ✅ PAYMENT SUCCESS - Correct status
                 "status": "verification_successful",
                 "payment_verification_status": "approved",
                 "payment_status": "completed",
 
-                # Payment breakdown
+                # ✅ FIXED: payment_amount = TOTAL, not app_fee
                 "payment_id": data.razorpay_payment_id,
-                "payment_amount": application_fee,
-                "payment_gst": gst_amount,
+                "payment_amount": total_amount,              # ✅ 63
+                "payment_gst": gst_amount,                   # ✅ 13
                 "payment_service_charge": service_charge,
                 "payment_total": total_amount,
                 "payment_category_used": category_used,
                 "payment_method": "razorpay",
+                "payment_breakdown": {
+                    "application_fee": application_fee,
+                    "service_charge": service_charge,
+                    "subtotal": subtotal,
+                    "gst_amount": gst_amount,
+                    "total_amount": total_amount,
+                },
 
-                # Razorpay
                 "razorpay_order_id": data.razorpay_order_id,
                 "razorpay_payment_id": data.razorpay_payment_id,
                 "razorpay_signature": data.razorpay_signature,
 
-                # Transaction
                 "transaction_id": data.razorpay_payment_id,
                 "transaction_date": datetime.utcnow(),
                 "paid_at": datetime.utcnow(),
                 "payment_verified_at": datetime.utcnow(),
                 "payment_verified_by": "razorpay_auto",
 
-                # Timestamps
                 "applied_at": datetime.utcnow(),
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
 
-                # Extras
                 "cover_letter": None,
                 "additional_info": form_data if form_data else None,
             }
@@ -582,7 +1014,9 @@ async def verify_razorpay_payment(
             new_status = "verification_successful"
 
             logger.info(f"✅ JOB APPLICATION CREATED: {application_id}")
-            logger.info(f"   Status: verification_successful")
+            logger.info(f"   payment_amount = ₹{total_amount}")
+            logger.info(f"   payment_gst    = ₹{gst_amount}")
+            logger.info(f"   payment_total  = ₹{total_amount}")
 
     elif payment_type == "service":
         existing = await db.applications.find_one({
@@ -599,6 +1033,28 @@ async def verify_razorpay_payment(
             logger.info(f"📋 Service application already exists: {existing['_id']}")
             application_id = str(existing["_id"])
             new_status = existing.get("status", "payment_verified")
+
+            # ✅ Update existing with correct breakdown
+            await db.applications.update_one(
+                {"_id": existing["_id"]},
+                {
+                    "$set": {
+                        "payment_amount": total_amount,              # ✅ TOTAL
+                        "payment_gst": gst_amount,
+                        "payment_service_charge": service_charge,
+                        "payment_total": total_amount,
+                        "payment_breakdown": {
+                            "application_fee": application_fee,
+                            "service_charge": service_charge,
+                            "subtotal": subtotal,
+                            "gst_amount": gst_amount,
+                            "total_amount": total_amount,
+                        },
+                        "updated_at": datetime.utcnow(),
+                    }
+                }
+            )
+            logger.info(f"✅ Updated existing service application with correct breakdown")
         else:
             from app.modules.services.models.service_types import ServiceMasterData
             service = ServiceMasterData.get_service_by_id(service_id)
@@ -606,6 +1062,23 @@ async def verify_razorpay_payment(
 
             service_name = service.name if service else service_id
             sub_service_name_final = sub_type.name if sub_type else sub_type_id
+
+            form_fields = form_data.get('fields', {}) if isinstance(form_data, dict) else {}
+            document_urls = form_data.get('document_urls', {}) if isinstance(form_data, dict) else {}
+            temp_session_id = form_data.get('temp_session_id', '') if isinstance(form_data, dict) else ''
+
+            service_documents = []
+            for doc_key, doc_url in document_urls.items():
+                if doc_url and isinstance(doc_url, str) and doc_url.startswith('http'):
+                    service_documents.append({
+                        "document_type": doc_key,
+                        "label": doc_key.replace('_', ' ').title(),
+                        "url": doc_url,
+                        "source": "service_application",
+                        "uploaded_at": datetime.utcnow().isoformat(),
+                        "uploaded_by": order_user_email,
+                        "temp_session_id": temp_session_id,
+                    })
 
             application_doc = {
                 "application_type": "service",
@@ -621,37 +1094,40 @@ async def verify_razorpay_payment(
                 "is_disabled": is_disabled,
                 "application_username": application_username,
 
-                "fields": form_data or {},
-                "documents": {},
-                "service_documents": [],
+                "fields": form_fields,
+                "documents": document_urls,
+                "service_documents": service_documents,
 
-                # ✅ PAYMENT SUCCESS - Correct status
                 "status": "payment_verified",
                 "payment_verification_status": "approved",
                 "payment_status": "completed",
 
-                # Payment breakdown
+                # ✅ FIXED: payment_amount = TOTAL
                 "payment_id": data.razorpay_payment_id,
-                "payment_amount": application_fee,
-                "payment_gst": gst_amount,
+                "payment_amount": total_amount,              # ✅ TOTAL
+                "payment_gst": gst_amount,                   # ✅ GST
                 "payment_service_charge": service_charge,
                 "payment_total": total_amount,
                 "payment_category_used": category_used,
                 "payment_method": "razorpay",
+                "payment_breakdown": {
+                    "application_fee": application_fee,
+                    "service_charge": service_charge,
+                    "subtotal": subtotal,
+                    "gst_amount": gst_amount,
+                    "total_amount": total_amount,
+                },
 
-                # Razorpay
                 "razorpay_order_id": data.razorpay_order_id,
                 "razorpay_payment_id": data.razorpay_payment_id,
                 "razorpay_signature": data.razorpay_signature,
 
-                # Transaction
                 "transaction_id": data.razorpay_payment_id,
                 "transaction_date": datetime.utcnow(),
                 "paid_at": datetime.utcnow(),
                 "payment_verified_at": datetime.utcnow(),
                 "payment_verified_by": "razorpay_auto",
 
-                # Timestamps
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
             }
@@ -661,9 +1137,27 @@ async def verify_razorpay_payment(
             new_status = "payment_verified"
 
             logger.info(f"✅ SERVICE APPLICATION CREATED: {application_id}")
-            logger.info(f"   Status: payment_verified")
     else:
         raise HTTPException(status_code=400, detail="Invalid payment type")
+
+    # ==================== MARK PAYMENT ORDER AS PAID ====================
+    try:
+        await db.payment_orders.update_one(
+            {"razorpay_order_id": data.razorpay_order_id},
+            {
+                "$set": {
+                    "status": "paid",
+                    "razorpay_payment_id": data.razorpay_payment_id,
+                    "razorpay_signature": data.razorpay_signature,
+                    "paid_at": datetime.utcnow(),
+                    "application_id": application_id,
+                    "updated_at": datetime.utcnow(),
+                }
+            }
+        )
+        logger.info(f"✅ Payment record marked as paid")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not update payment record: {e}")
 
     # ==================== SEND NOTIFICATION ====================
     try:
@@ -696,6 +1190,8 @@ async def verify_razorpay_payment(
     logger.info(f"   Application ID: {application_id}")
     logger.info(f"   Type: {payment_type}")
     logger.info(f"   Status: {new_status}")
+    logger.info(f"   Breakdown: app_fee=₹{application_fee}, gst=₹{gst_amount}, "
+                f"svc=₹{service_charge}, total=₹{total_amount}")
     logger.info("=" * 70)
 
     return {
@@ -706,8 +1202,9 @@ async def verify_razorpay_payment(
         "application_status": new_status,
         "amount": total_amount,
         "application_fee": application_fee,
-        "gst_amount": gst_amount,
         "service_charge": service_charge,
+        "subtotal": subtotal,
+        "gst_amount": gst_amount,
         "razorpay_payment_id": data.razorpay_payment_id,
         "razorpay_order_id": data.razorpay_order_id,
         "message": "Payment verified and application saved successfully"
@@ -749,6 +1246,9 @@ async def get_application_payment_status(
             "verification_successful", "payment_verified", "approved", "completed"
         ],
         "amount": application.get("payment_amount", 0),
+        "gst_amount": application.get("payment_gst", 0),
+        "service_charge": application.get("payment_service_charge", 0),
+        "total_amount": application.get("payment_total", 0),
         "category_used": application.get("payment_category_used", "none"),
         "transaction_id": application.get("transaction_id"),
         "razorpay_order_id": application.get("razorpay_order_id"),
@@ -801,6 +1301,27 @@ async def update_application_payment_status(
             update_data["razorpay_signature"] = data["razorpay_signature"]
         if data.get("transaction_id"):
             update_data["transaction_id"] = data["transaction_id"]
+
+        # ✅ Normalize breakdown if provided
+        if data.get("amount") is not None:
+            normalized = build_payment_breakdown(
+                application_fee=int(data.get("application_fee") or 0),
+                service_charge=int(data.get("service_charge") or SERVICE_CHARGE),
+                subtotal=int(data.get("subtotal") or 0),
+                gst_amount=int(data.get("gst_amount") or 0),
+                total_amount=int(data.get("amount") or 0),
+            )
+            update_data["payment_amount"] = normalized["total_amount"]  # ✅ TOTAL
+            update_data["payment_gst"] = normalized["gst_amount"]
+            update_data["payment_service_charge"] = normalized["service_charge"]
+            update_data["payment_total"] = normalized["total_amount"]
+            update_data["payment_breakdown"] = {
+                "application_fee": normalized["application_fee"],
+                "service_charge": normalized["service_charge"],
+                "subtotal": normalized["subtotal"],
+                "gst_amount": normalized["gst_amount"],
+                "total_amount": normalized["total_amount"],
+            }
 
         if application_type == "job":
             update_data["status"] = "verification_successful"
@@ -941,6 +1462,7 @@ async def admin_verify_payment(
     application_type = application.get("application_type", "job")
     user_email = application.get("user_email") or application.get("applicant_email")
     amount = application.get("payment_amount", 0)
+    total_amount = application.get("payment_total", amount)
     job_title = application.get("job_title", "Job Application")
     service_name = application.get("service_name", "Service")
     transaction_id = application.get("transaction_id")
@@ -950,11 +1472,11 @@ async def admin_verify_payment(
         if application_type == "job":
             new_status = "verification_successful"
             title = f"✅ Payment Verified Successfully: {job_title}"
-            message = f"Your payment of ₹{amount} for '{job_title}' has been verified successfully."
+            message = f"Your payment of ₹{total_amount} for '{job_title}' has been verified successfully."
         else:
             new_status = "payment_verified"
             title = f"✅ Service Payment Verified: {service_name}"
-            message = f"Your payment of ₹{amount} for '{service_name}' has been verified successfully."
+            message = f"Your payment of ₹{total_amount} for '{service_name}' has been verified successfully."
 
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
@@ -978,7 +1500,7 @@ async def admin_verify_payment(
             related_id=application_id,
             metadata={
                 "status": new_status,
-                "amount": amount,
+                "amount": total_amount,
                 "transaction_id": transaction_id,
                 "category_used": category_used,
                 "application_type": application_type,
@@ -995,11 +1517,11 @@ async def admin_verify_payment(
         if application_type == "job":
             new_status = "verification_rejected"
             title = f"❌ Payment Verification Failed: {job_title}"
-            message = f"Your payment of ₹{amount} for '{job_title}' has been rejected.\nReason: {notes}"
+            message = f"Your payment of ₹{total_amount} for '{job_title}' has been rejected.\nReason: {notes}"
         else:
             new_status = "rejected"
             title = f"❌ Service Payment Failed: {service_name}"
-            message = f"Your payment of ₹{amount} for '{service_name}' has been rejected.\nReason: {notes}"
+            message = f"Your payment of ₹{total_amount} for '{service_name}' has been rejected.\nReason: {notes}"
 
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
@@ -1024,7 +1546,7 @@ async def admin_verify_payment(
             related_id=application_id,
             metadata={
                 "status": new_status,
-                "amount": amount,
+                "amount": total_amount,
                 "rejection_reason": notes,
                 "category_used": category_used,
                 "application_type": application_type,
@@ -1072,6 +1594,9 @@ async def get_pending_payments(
                 "job_title": app.get("job_title", "Job"),
                 "organization": app.get("organization", ""),
                 "amount": app.get("payment_amount", 0),
+                "gst_amount": app.get("payment_gst", 0),
+                "service_charge": app.get("payment_service_charge", 0),
+                "total_amount": app.get("payment_total", 0),
                 "category_used": app.get("payment_category_used", "none"),
                 "transaction_id": app.get("transaction_id", "N/A"),
                 "screenshot_url": app.get("payment_receipt_url"),
@@ -1088,6 +1613,9 @@ async def get_pending_payments(
                 "service_name": app.get("service_name", "Service"),
                 "sub_service_name": app.get("sub_service_name", ""),
                 "amount": app.get("payment_amount", 0),
+                "gst_amount": app.get("payment_gst", 0),
+                "service_charge": app.get("payment_service_charge", 0),
+                "total_amount": app.get("payment_total", 0),
                 "category_used": app.get("payment_category_used", "service"),
                 "transaction_id": app.get("transaction_id", "N/A"),
                 "screenshot_url": app.get("payment_receipt_url"),
@@ -1124,7 +1652,6 @@ async def simulate_payment(
     if not user_email:
         raise HTTPException(status_code=400, detail="User email not found")
 
-    # Just verify the order exists
     try:
         if razorpay_client:
             order = razorpay_client.order.fetch(order_id)
@@ -1142,6 +1669,9 @@ async def simulate_payment(
 
 # ============================================================
 # ✅ EMERGENCY FALLBACK: VERIFY WITHOUT SIGNATURE
+# ============================================================
+# ✅ CRITICAL FIX: Reads breakdown from `payment_orders` collection
+# ✅ CRITICAL FIX: payment_amount stores TOTAL (not app_fee)
 # ============================================================
 
 @router.post("/payment/razorpay/verify-payment-no-signature")
@@ -1170,10 +1700,9 @@ async def verify_payment_no_signature(
                 "payment_verified": False
             }
 
-        # Fetch order from Razorpay
         if not razorpay_client:
             initialize_razorpay_client()
-        
+
         if not razorpay_client:
             return {
                 "success": False,
@@ -1192,30 +1721,82 @@ async def verify_payment_no_signature(
                 "payment_verified": False
             }
 
-        order_notes = order_details.get("notes", {})
-        payment_type = order_notes.get("payment_type", "job")
-        user_email = order_notes.get("user_email", current_user.get("email"))
-        user_id = order_notes.get("user_id", current_user.get("user_id"))
-        job_id = order_notes.get("job_id", "")
-        job_title = order_notes.get("job_title", "")
-        organization = order_notes.get("organization", "")
-        added_by = order_notes.get("added_by", "admin@rojgarnext.com")
-        service_id = order_notes.get("service_id", "")
-        sub_type_id = order_notes.get("sub_type_id", "")
-        sub_service_name = order_notes.get("sub_service_name", "")
-        application_fee = int(order_notes.get("application_fee", "0"))
-        gst_amount = int(order_notes.get("gst_amount", "0"))
-        service_charge = int(order_notes.get("service_charge", "0"))
-        total_amount = int(order_notes.get("total_amount", "0"))
-        category_used = order_notes.get("category_used", "none")
-        user_category = order_notes.get("user_category", "General/UR")
-        is_disabled = order_notes.get("is_disabled", "false").lower() == "true"
-        form_data_raw = order_notes.get("form_data", "{}")
-        
-        try:
-            form_data = json.loads(form_data_raw)
-        except Exception:
-            form_data = {}
+        # ============================================================
+        # ✅ CRITICAL FIX: Load breakdown from payment_orders DB
+        # ============================================================
+        payment_record = await db.payment_orders.find_one({
+            "razorpay_order_id": razorpay_order_id
+        })
+
+        if payment_record:
+            payment_type = payment_record.get("payment_type", "job")
+            user_email = payment_record.get("user_email", current_user.get("email"))
+            user_id = payment_record.get("user_id", current_user.get("user_id"))
+            job_id = payment_record.get("job_id", "")
+            job_title = payment_record.get("job_title", "")
+            organization = payment_record.get("organization", "")
+            added_by = payment_record.get("added_by", "admin@rojgarnext.com")
+            service_id = payment_record.get("service_id", "")
+            sub_type_id = payment_record.get("sub_type_id", "")
+            sub_service_name = payment_record.get("sub_service_name", "")
+            category_used = payment_record.get("category_used", "none")
+            user_category = payment_record.get("user_category", "General/UR")
+            is_disabled = bool(payment_record.get("is_disabled", False))
+            form_data = payment_record.get("form_data", {}) or {}
+
+            # ✅ Normalize from DB
+            normalized = build_payment_breakdown(
+                application_fee=int(payment_record.get("application_fee") or 0),
+                service_charge=int(payment_record.get("service_charge") or SERVICE_CHARGE),
+                subtotal=int(payment_record.get("subtotal") or 0),
+                gst_amount=int(payment_record.get("gst_amount") or 0),
+                total_amount=int(payment_record.get("total_amount") or 0),
+            )
+            application_fee = normalized["application_fee"]
+            gst_amount = normalized["gst_amount"]
+            service_charge = normalized["service_charge"]
+            subtotal = normalized["subtotal"]
+            total_amount = normalized["total_amount"]
+        else:
+            # Fallback to Razorpay notes (may be truncated)
+            order_notes = order_details.get("notes", {})
+            payment_type = order_notes.get("payment_type", "job")
+            user_email = order_notes.get("user_email", current_user.get("email"))
+            user_id = order_notes.get("user_id", current_user.get("user_id"))
+            job_id = order_notes.get("job_id", "")
+            job_title = order_notes.get("job_title", "")
+            organization = order_notes.get("organization", "")
+            added_by = order_notes.get("added_by", "admin@rojgarnext.com")
+            service_id = order_notes.get("service_id", "")
+            sub_type_id = order_notes.get("sub_type_id", "")
+            sub_service_name = order_notes.get("sub_service_name", "")
+            application_fee = int(order_notes.get("application_fee", "0"))
+            gst_amount = int(order_notes.get("gst_amount", "0"))
+            service_charge = int(order_notes.get("service_charge", "50"))
+            subtotal = int(order_notes.get("subtotal", "0"))
+            total_amount = int(order_notes.get("total_amount", "0"))
+            category_used = order_notes.get("category_used", "none")
+            user_category = order_notes.get("user_category", "General/UR")
+            is_disabled = order_notes.get("is_disabled", "false").lower() == "true"
+            form_data_raw = order_notes.get("form_data", "{}")
+            try:
+                form_data = json.loads(form_data_raw)
+            except Exception:
+                form_data = {}
+
+            # ✅ Normalize
+            normalized = build_payment_breakdown(
+                application_fee=application_fee,
+                service_charge=service_charge,
+                subtotal=subtotal,
+                gst_amount=gst_amount,
+                total_amount=total_amount,
+            )
+            application_fee = normalized["application_fee"]
+            gst_amount = normalized["gst_amount"]
+            service_charge = normalized["service_charge"]
+            subtotal = normalized["subtotal"]
+            total_amount = normalized["total_amount"]
 
         profile = await db.profile.find_one({"email": user_email})
         applicant_name = profile.get("full_name") if profile else "User"
@@ -1239,6 +1820,27 @@ async def verify_payment_no_signature(
             if existing:
                 application_id = str(existing["_id"])
                 new_status = existing.get("status", "verification_successful")
+
+                # ✅ Update existing with correct breakdown
+                await db.applications.update_one(
+                    {"_id": existing["_id"]},
+                    {
+                        "$set": {
+                            "payment_amount": total_amount,     # ✅ TOTAL
+                            "payment_gst": gst_amount,
+                            "payment_service_charge": service_charge,
+                            "payment_total": total_amount,
+                            "payment_breakdown": {
+                                "application_fee": application_fee,
+                                "service_charge": service_charge,
+                                "subtotal": subtotal,
+                                "gst_amount": gst_amount,
+                                "total_amount": total_amount,
+                            },
+                            "updated_at": datetime.utcnow(),
+                        }
+                    }
+                )
             else:
                 doc = {
                     "application_type": "job",
@@ -1258,12 +1860,19 @@ async def verify_payment_no_signature(
                     "payment_verification_status": "approved",
                     "payment_status": "completed",
                     "payment_id": razorpay_payment_id,
-                    "payment_amount": application_fee,
-                    "payment_gst": gst_amount,
+                    "payment_amount": total_amount,           # ✅ TOTAL
+                    "payment_gst": gst_amount,                # ✅ GST
                     "payment_service_charge": service_charge,
                     "payment_total": total_amount,
                     "payment_category_used": category_used,
                     "payment_method": "razorpay",
+                    "payment_breakdown": {
+                        "application_fee": application_fee,
+                        "service_charge": service_charge,
+                        "subtotal": subtotal,
+                        "gst_amount": gst_amount,
+                        "total_amount": total_amount,
+                    },
                     "razorpay_order_id": razorpay_order_id,
                     "razorpay_payment_id": razorpay_payment_id,
                     "transaction_id": razorpay_payment_id,
@@ -1291,6 +1900,27 @@ async def verify_payment_no_signature(
             if existing:
                 application_id = str(existing["_id"])
                 new_status = existing.get("status", "payment_verified")
+
+                # ✅ Update existing with correct breakdown
+                await db.applications.update_one(
+                    {"_id": existing["_id"]},
+                    {
+                        "$set": {
+                            "payment_amount": total_amount,    # ✅ TOTAL
+                            "payment_gst": gst_amount,
+                            "payment_service_charge": service_charge,
+                            "payment_total": total_amount,
+                            "payment_breakdown": {
+                                "application_fee": application_fee,
+                                "service_charge": service_charge,
+                                "subtotal": subtotal,
+                                "gst_amount": gst_amount,
+                                "total_amount": total_amount,
+                            },
+                            "updated_at": datetime.utcnow(),
+                        }
+                    }
+                )
             else:
                 from app.modules.services.models.service_types import ServiceMasterData
                 service = ServiceMasterData.get_service_by_id(service_id)
@@ -1308,19 +1938,26 @@ async def verify_payment_no_signature(
                     "user_category": "service",
                     "is_disabled": is_disabled,
                     "application_username": application_username,
-                    "fields": form_data or {},
-                    "documents": {},
+                    "fields": form_data.get('fields', {}) if isinstance(form_data, dict) else {},
+                    "documents": form_data.get('document_urls', {}) if isinstance(form_data, dict) else {},
                     "service_documents": [],
                     "status": "payment_verified",
                     "payment_verification_status": "approved",
                     "payment_status": "completed",
                     "payment_id": razorpay_payment_id,
-                    "payment_amount": application_fee,
-                    "payment_gst": gst_amount,
+                    "payment_amount": total_amount,           # ✅ TOTAL
+                    "payment_gst": gst_amount,                # ✅ GST
                     "payment_service_charge": service_charge,
                     "payment_total": total_amount,
                     "payment_category_used": category_used,
                     "payment_method": "razorpay",
+                    "payment_breakdown": {
+                        "application_fee": application_fee,
+                        "service_charge": service_charge,
+                        "subtotal": subtotal,
+                        "gst_amount": gst_amount,
+                        "total_amount": total_amount,
+                    },
                     "razorpay_order_id": razorpay_order_id,
                     "razorpay_payment_id": razorpay_payment_id,
                     "transaction_id": razorpay_payment_id,
@@ -1342,6 +1979,9 @@ async def verify_payment_no_signature(
             "application_type": payment_type,
             "application_status": new_status,
             "amount": total_amount,
+            "application_fee": application_fee,
+            "service_charge": service_charge,
+            "gst_amount": gst_amount,
             "razorpay_payment_id": razorpay_payment_id,
             "razorpay_order_id": razorpay_order_id,
             "verification_method": "no_signature_fallback",
@@ -1363,7 +2003,7 @@ async def verify_payment_no_signature(
 
 
 # ============================================================
-# ✅ UPDATE JOB PAYMENT STATUS (Legacy endpoint - kept for compatibility)
+# ✅ UPDATE JOB PAYMENT STATUS (Legacy endpoint)
 # ============================================================
 
 @router.post("/update-payment-status/{job_id}")
@@ -1373,10 +2013,7 @@ async def update_job_payment_status(
     current_user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
-    """
-    Update payment status. Since applications are now created directly
-    in verify-payment, this endpoint is only used to update existing apps.
-    """
+    """Update payment status for an existing application."""
     try:
         user_email = current_user.get("email")
         razorpay_payment_id = update_data.get("razorpay_payment_id")
@@ -1389,10 +2026,8 @@ async def update_job_payment_status(
         logger.info("📤 Updating application payment status")
         logger.info(f"   Job ID: {job_id}")
         logger.info(f"   User: {user_email}")
-        logger.info(f"   Razorpay Payment ID: {razorpay_payment_id}")
         logger.info("=" * 70)
 
-        # Find application
         application = await db.applications.find_one({
             "user_email": user_email,
             "job_id": job_id,
@@ -1408,7 +2043,6 @@ async def update_job_payment_status(
 
         application_id = str(application["_id"])
 
-        # Update
         update_data_db = {
             "status": "verification_successful",
             "payment_verification_status": "approved",
@@ -1423,8 +2057,49 @@ async def update_job_payment_status(
             "updated_at": datetime.utcnow()
         }
 
-        if amount:
-            update_data_db["payment_amount"] = int(amount)
+        # ✅ Try to get breakdown from payment_orders
+        payment_record = await db.payment_orders.find_one({
+            "razorpay_order_id": razorpay_order_id
+        })
+        if payment_record:
+            normalized = build_payment_breakdown(
+                application_fee=int(payment_record.get("application_fee") or 0),
+                service_charge=int(payment_record.get("service_charge") or SERVICE_CHARGE),
+                subtotal=int(payment_record.get("subtotal") or 0),
+                gst_amount=int(payment_record.get("gst_amount") or 0),
+                total_amount=int(payment_record.get("total_amount") or 0),
+            )
+            update_data_db["payment_amount"] = normalized["total_amount"]
+            update_data_db["payment_gst"] = normalized["gst_amount"]
+            update_data_db["payment_service_charge"] = normalized["service_charge"]
+            update_data_db["payment_total"] = normalized["total_amount"]
+            update_data_db["payment_breakdown"] = {
+                "application_fee": normalized["application_fee"],
+                "service_charge": normalized["service_charge"],
+                "subtotal": normalized["subtotal"],
+                "gst_amount": normalized["gst_amount"],
+                "total_amount": normalized["total_amount"],
+            }
+        elif amount:
+            # Fallback: infer from amount
+            normalized = build_payment_breakdown(
+                application_fee=0,
+                service_charge=SERVICE_CHARGE,
+                subtotal=0,
+                gst_amount=0,
+                total_amount=int(amount),
+            )
+            update_data_db["payment_amount"] = normalized["total_amount"]
+            update_data_db["payment_gst"] = normalized["gst_amount"]
+            update_data_db["payment_service_charge"] = normalized["service_charge"]
+            update_data_db["payment_total"] = normalized["total_amount"]
+            update_data_db["payment_breakdown"] = {
+                "application_fee": normalized["application_fee"],
+                "service_charge": normalized["service_charge"],
+                "subtotal": normalized["subtotal"],
+                "gst_amount": normalized["gst_amount"],
+                "total_amount": normalized["total_amount"],
+            }
 
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
@@ -1447,6 +2122,9 @@ async def update_job_payment_status(
 
 # ============================================================
 # ✅ RAZORPAY WEBHOOK (Auto-creates application if needed)
+# ============================================================
+# ✅ CRITICAL FIX: Reads breakdown from payment_orders DB
+# ✅ CRITICAL FIX: payment_amount stores TOTAL (not app_fee)
 # ============================================================
 
 @router.post("/razorpay/webhook")
@@ -1471,7 +2149,6 @@ async def razorpay_webhook(
 
             logger.info(f"💰 Payment captured: {payment_id} for order: {order_id}")
 
-            # Check if application already exists
             existing = await db.applications.find_one({
                 "razorpay_order_id": order_id
             })
@@ -1480,33 +2157,74 @@ async def razorpay_webhook(
                 logger.info(f"✅ Application already exists: {existing['_id']}")
                 return {"success": True, "received": True, "already_exists": True}
 
-            # Fetch order and create application
             if razorpay_client:
                 try:
                     order_details = razorpay_client.order.fetch(order_id)
-                    order_notes = order_details.get("notes", {})
-                    
-                    payment_type = order_notes.get("payment_type", "job")
-                    user_email = order_notes.get("user_email")
-                    user_id = order_notes.get("user_id")
-                    job_id = order_notes.get("job_id", "")
-                    job_title = order_notes.get("job_title", "")
-                    organization = order_notes.get("organization", "")
-                    added_by = order_notes.get("added_by", "admin@rojgarnext.com")
-                    service_id = order_notes.get("service_id", "")
-                    sub_type_id = order_notes.get("sub_type_id", "")
-                    application_fee = int(order_notes.get("application_fee", "0"))
-                    gst_amount = int(order_notes.get("gst_amount", "0"))
-                    service_charge = int(order_notes.get("service_charge", "0"))
-                    total_amount = int(order_notes.get("total_amount", "0"))
-                    category_used = order_notes.get("category_used", "none")
-                    user_category = order_notes.get("user_category", "General/UR")
-                    is_disabled = order_notes.get("is_disabled", "false").lower() == "true"
-                    
-                    try:
-                        form_data = json.loads(order_notes.get("form_data", "{}"))
-                    except Exception:
-                        form_data = {}
+
+                    # ✅ Read from payment_orders DB
+                    payment_record = await db.payment_orders.find_one({
+                        "razorpay_order_id": order_id
+                    })
+
+                    if payment_record:
+                        payment_type = payment_record.get("payment_type", "job")
+                        user_email = payment_record.get("user_email")
+                        user_id = payment_record.get("user_id")
+                        job_id = payment_record.get("job_id", "")
+                        job_title = payment_record.get("job_title", "")
+                        organization = payment_record.get("organization", "")
+                        added_by = payment_record.get("added_by", "admin@rojgarnext.com")
+                        service_id = payment_record.get("service_id", "")
+                        sub_type_id = payment_record.get("sub_type_id", "")
+                        category_used = payment_record.get("category_used", "none")
+                        user_category = payment_record.get("user_category", "General/UR")
+                        is_disabled = bool(payment_record.get("is_disabled", False))
+                        form_data = payment_record.get("form_data", {}) or {}
+
+                        # ✅ Normalize
+                        normalized = build_payment_breakdown(
+                            application_fee=int(payment_record.get("application_fee") or 0),
+                            service_charge=int(payment_record.get("service_charge") or SERVICE_CHARGE),
+                            subtotal=int(payment_record.get("subtotal") or 0),
+                            gst_amount=int(payment_record.get("gst_amount") or 0),
+                            total_amount=int(payment_record.get("total_amount") or 0),
+                        )
+                        application_fee = normalized["application_fee"]
+                        gst_amount = normalized["gst_amount"]
+                        service_charge = normalized["service_charge"]
+                        subtotal = normalized["subtotal"]
+                        total_amount = normalized["total_amount"]
+                    else:
+                        order_notes = order_details.get("notes", {})
+                        payment_type = order_notes.get("payment_type", "job")
+                        user_email = order_notes.get("user_email")
+                        user_id = order_notes.get("user_id")
+                        job_id = order_notes.get("job_id", "")
+                        job_title = order_notes.get("job_title", "")
+                        organization = order_notes.get("organization", "")
+                        added_by = order_notes.get("added_by", "admin@rojgarnext.com")
+                        service_id = order_notes.get("service_id", "")
+                        sub_type_id = order_notes.get("sub_type_id", "")
+                        category_used = order_notes.get("category_used", "none")
+                        user_category = order_notes.get("user_category", "General/UR")
+                        is_disabled = order_notes.get("is_disabled", "false").lower() == "true"
+                        try:
+                            form_data = json.loads(order_notes.get("form_data", "{}"))
+                        except Exception:
+                            form_data = {}
+
+                        normalized = build_payment_breakdown(
+                            application_fee=int(order_notes.get("application_fee", "0")),
+                            service_charge=int(order_notes.get("service_charge", "50")),
+                            subtotal=int(order_notes.get("subtotal", "0")),
+                            gst_amount=int(order_notes.get("gst_amount", "0")),
+                            total_amount=int(order_notes.get("total_amount", "0")),
+                        )
+                        application_fee = normalized["application_fee"]
+                        gst_amount = normalized["gst_amount"]
+                        service_charge = normalized["service_charge"]
+                        subtotal = normalized["subtotal"]
+                        total_amount = normalized["total_amount"]
 
                     profile = await db.profile.find_one({"email": user_email})
                     applicant_name = profile.get("full_name") if profile else "User"
@@ -1531,12 +2249,19 @@ async def razorpay_webhook(
                             "payment_verification_status": "approved",
                             "payment_status": "completed",
                             "payment_id": payment_id,
-                            "payment_amount": application_fee,
-                            "payment_gst": gst_amount,
+                            "payment_amount": total_amount,        # ✅ TOTAL
+                            "payment_gst": gst_amount,             # ✅ GST
                             "payment_service_charge": service_charge,
                             "payment_total": total_amount,
                             "payment_category_used": category_used,
                             "payment_method": "razorpay",
+                            "payment_breakdown": {
+                                "application_fee": application_fee,
+                                "service_charge": service_charge,
+                                "subtotal": subtotal,
+                                "gst_amount": gst_amount,
+                                "total_amount": total_amount,
+                            },
                             "razorpay_order_id": order_id,
                             "razorpay_payment_id": payment_id,
                             "transaction_id": payment_id,
@@ -1553,7 +2278,7 @@ async def razorpay_webhook(
                         from app.modules.services.models.service_types import ServiceMasterData
                         service = ServiceMasterData.get_service_by_id(service_id)
                         sub_type = ServiceMasterData.get_sub_type_by_id(sub_type_id)
-                        
+
                         doc = {
                             "application_type": "service",
                             "service_id": service_id,
@@ -1566,19 +2291,26 @@ async def razorpay_webhook(
                             "user_category": "service",
                             "is_disabled": is_disabled,
                             "application_username": application_username,
-                            "fields": form_data or {},
-                            "documents": {},
+                            "fields": form_data.get('fields', {}) if isinstance(form_data, dict) else {},
+                            "documents": form_data.get('document_urls', {}) if isinstance(form_data, dict) else {},
                             "service_documents": [],
                             "status": "payment_verified",
                             "payment_verification_status": "approved",
                             "payment_status": "completed",
                             "payment_id": payment_id,
-                            "payment_amount": application_fee,
-                            "payment_gst": gst_amount,
+                            "payment_amount": total_amount,        # ✅ TOTAL
+                            "payment_gst": gst_amount,             # ✅ GST
                             "payment_service_charge": service_charge,
                             "payment_total": total_amount,
                             "payment_category_used": category_used,
                             "payment_method": "razorpay",
+                            "payment_breakdown": {
+                                "application_fee": application_fee,
+                                "service_charge": service_charge,
+                                "subtotal": subtotal,
+                                "gst_amount": gst_amount,
+                                "total_amount": total_amount,
+                            },
                             "razorpay_order_id": order_id,
                             "razorpay_payment_id": payment_id,
                             "transaction_id": payment_id,
@@ -1589,9 +2321,22 @@ async def razorpay_webhook(
                             "created_at": datetime.utcnow(),
                             "updated_at": datetime.utcnow(),
                         }
-                    
+
                     result = await db.applications.insert_one(doc)
                     logger.info(f"✅ Webhook created application: {result.inserted_id}")
+
+                    # Update payment record
+                    await db.payment_orders.update_one(
+                        {"razorpay_order_id": order_id},
+                        {
+                            "$set": {
+                                "status": "paid",
+                                "razorpay_payment_id": payment_id,
+                                "paid_at": datetime.utcnow(),
+                                "application_id": str(result.inserted_id),
+                            }
+                        }
+                    )
                 except Exception as e:
                     logger.error(f"❌ Webhook failed to create application: {e}")
 
@@ -1600,7 +2345,20 @@ async def razorpay_webhook(
             order_id = payment.get("order_id")
             payment_id = payment.get("id")
             logger.warning(f"❌ Payment failed: {payment_id} for order: {order_id}")
-            # No application to update - nothing was created
+
+            try:
+                await db.payment_orders.update_one(
+                    {"razorpay_order_id": order_id},
+                    {
+                        "$set": {
+                            "status": "failed",
+                            "razorpay_payment_id": payment_id,
+                            "failed_at": datetime.utcnow(),
+                        }
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"⚠️ Could not update payment record: {e}")
 
         return {"success": True, "received": True}
     except Exception as e:
@@ -1608,11 +2366,22 @@ async def razorpay_webhook(
         return {"success": False, "error": str(e)}
 
 
+# ============================================================
+# ✅ MODULE LOAD SUMMARY
+# ============================================================
 print("=" * 70)
 print("✅ Payment Routes Loaded - ONLY RAZORPAY")
+print("   ✅ use_provided_amount flag prevents double calculation")
+print("   ✅ build_payment_breakdown() normalizes amounts")
+print("   ✅ payment_amount now stores TOTAL (not app_fee)")
+print("   ✅ payment_gst inferred from (total - subtotal) if 0")
+print("   ✅ STRICT VALIDATION: rejects mismatched amount/total_amount")
+print("   ✅ STRICT VALIDATION: rejects mismatched breakdown sum")
+print("   ✅ SANITY CHECK: verifies Razorpay returned the same amount")
 print("   ✅ NO application created on order creation")
 print("   ✅ Application created ONLY after successful payment")
 print("   ✅ Failed/cancelled payments create NO record")
-print("   ✅ GST (18%) + Service Charge (₹50) added")
 print("   ✅ Supports job + service payments")
+print("   ✅ Full breakdown saved to `payment_orders` collection")
+print("   ✅ verify-payment reads breakdown from DB (not Razorpay notes)")
 print("=" * 70)

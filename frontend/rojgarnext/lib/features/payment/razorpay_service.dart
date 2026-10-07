@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 // ⬇️ On Android/iOS/Desktop  → uses razorpay_web_stub.dart
 //    On Web                  → uses razorpay_web_service.dart
-// dart.library.js_interop is true ONLY on web.
 import 'razorpay_web_stub.dart'
     if (dart.library.js_interop) 'razorpay_web_service.dart' as web;
 
@@ -21,8 +20,10 @@ class RazorpayService {
     return _instance!;
   }
 
+  /// `amount` MUST be in RUPEES.
+  /// This service converts to paise exactly once before calling Razorpay.
   Future<void> initiatePayment({
-    required int amount,
+    required int amount,           // ← RUPEES
     required String orderId,
     required String keyId,
     required String userEmail,
@@ -34,7 +35,7 @@ class RazorpayService {
   }) async {
     if (kIsWeb) {
       await web.RazorpayWebService.instance.initiatePayment(
-        amount: amount,
+        amount: amount,             // ← RUPEES (web service × 100)
         orderId: orderId,
         keyId: keyId,
         userEmail: userEmail,
@@ -48,7 +49,7 @@ class RazorpayService {
     }
 
     await mobile.RazorpayMobileService.instance.initiatePayment(
-      amount: amount,
+      amount: amount,               // ← RUPEES (mobile service × 100)
       orderId: orderId,
       keyId: keyId,
       userEmail: userEmail,

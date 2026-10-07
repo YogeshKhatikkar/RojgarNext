@@ -4,10 +4,11 @@
 // ✅ FIXED: Application is ONLY saved after payment success
 // ✅ FIXED: No application record created on payment cancellation/failure
 // ✅ FIXED: Displays EXACT amount received from parent (no recalculation)
+// ✅ FIXED: Passes EXACT SAME amount to Razorpay (converted to paise inside service)
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/features/payment/razorpay_service.dart';
@@ -27,8 +28,8 @@ class PaymentScreen extends StatefulWidget {
   final String? userName;
   final String? userMobile;
 
-  /// ✅ Total amount to pay — passed directly from caller.
-  /// PaymentScreen does NOT recalculate; it displays this as-is.
+  /// ✅ Total amount to pay — passed directly from caller (RUPEES).
+  /// PaymentScreen does NOT recalculate; it displays and passes this as-is.
   final int amount;
 
   final String categoryUsed;
@@ -85,10 +86,10 @@ class _PaymentScreenState extends State<PaymentScreen>
   void initState() {
     super.initState();
 
-    // ✅ Debug: confirm exact amount received from parent
     debugPrint("=" * 60);
     debugPrint("💰 PaymentScreen opened");
-    debugPrint("   Amount received: ₹${widget.amount}");
+    debugPrint("   Amount received (rupees): ₹${widget.amount}");
+    debugPrint("   Will be sent to Razorpay as: ${widget.amount * 100} paise");
     debugPrint("   Payment type: ${widget.paymentType}");
     debugPrint("   Payment ID: ${widget.paymentId}");
     debugPrint("=" * 60);
@@ -152,6 +153,9 @@ class _PaymentScreenState extends State<PaymentScreen>
     });
   }
 
+  // ============================================================
+  // STEP 1: Create Razorpay order via backend
+  // ============================================================
   Future<void> _createRazorpayOrder() async {
     if (!mounted || _isDisposed) return;
 
@@ -161,13 +165,17 @@ class _PaymentScreenState extends State<PaymentScreen>
     });
 
     try {
-      debugPrint("💰 Creating Razorpay order (verify step)...");
-      debugPrint("   Amount: ₹${widget.amount}");
+      debugPrint("=" * 60);
+      debugPrint("💰 STEP 1: Creating Razorpay order (backend)");
+      debugPrint("   Amount (rupees): ₹${widget.amount}");
+      debugPrint("   use_provided_amount: true");
       debugPrint("   Platform: ${kIsWeb ? 'Web' : 'Mobile'}");
-      debugPrint("   Payment Type: ${widget.paymentType}");
+      debugPrint("=" * 60);
 
       final Map<String, dynamic> requestData = {
-        "amount": widget.amount, // ✅ exact amount from parent
+        // ✅ TOTAL in rupees — backend must use this as-is
+        "amount": widget.amount,
+        "use_provided_amount": true,
         "payment_type":
             widget.paymentType == PaymentType.job ? "job" : "service",
       };
@@ -179,6 +187,7 @@ class _PaymentScreenState extends State<PaymentScreen>
           requestData["job_title"] = widget.jobTitle;
         if (widget.organization != null)
           requestData["organization"] = widget.organization;
+        requestData["category_used"] = widget.categoryUsed;
       } else {
         if (widget.serviceId == null || widget.serviceSubType == null) {
           throw Exception("Service ID and Sub Type are required");
@@ -211,40 +220,72 @@ class _PaymentScreenState extends State<PaymentScreen>
             response.data['application_id']?.toString() ??
             widget.paymentId;
 
+        // ============================================================
+        // ✅ DEFENSIVE CHECK: Verify backend echoed the SAME amount
+        // ============================================================
+        final dynamic backendRupees = response.data['amount_rupees'];
+        if (backendRupees != null) {
+          final int? parsedRupees = (backendRupees is num)
+              ? backendRupees.toInt()
+              : int.tryParse(backendRupees.toString());
+          if (parsedRupees != null && parsedRupees != widget.amount) {
+            debugPrint("⚠️⚠️ AMOUNT MISMATCH!");
+            debugPrint("   Frontend total:  ₹${widget.amount}");
+            debugPrint("   Backend echoed:  ₹$parsedRupees");
+            debugPrint("   → Forcing frontend total (source of truth)");
+          }
+        }
+
+        final dynamic backendPaise = response.data['amount'];
+        if (backendPaise != null) {
+          final int? parsedPaise = (backendPaise is num)
+              ? backendPaise.toInt()
+              : int.tryParse(backendPaise.toString());
+          if (parsedPaise != null && parsedPaise != widget.amount * 100) {
+            debugPrint("⚠️⚠️ PAISE MISMATCH!");
+            debugPrint("   Frontend paise:  ${widget.amount * 100}");
+            debugPrint("   Backend echoed:  $parsedPaise");
+          } else if (parsedPaise != null) {
+            debugPrint("✅ Backend paise matches frontend: $parsedPaise");
+          }
+        }
+
         if (_razorpayOrderId == null || _razorpayOrderId!.isEmpty) {
           throw Exception("Order ID is missing from response");
         }
-
         if (_razorpayKeyId == null || _razorpayKeyId!.isEmpty) {
           throw Exception("Key ID is missing from response");
         }
 
         debugPrint("✅ Order created successfully!");
         debugPrint("   Order ID: $_razorpayOrderId");
-        debugPrint("   Key ID: $_razorpayKeyId");
+        debugPrint("   Key ID:   $_razorpayKeyId");
+        debugPrint("=" * 60);
 
         if (mounted) {
           _showMessage("Opening payment gateway...");
         }
 
-        // ✅ Pass widget.amount to Razorpay (must equal what backend stored)
+        // ============================================================
+        // STEP 2: Open Razorpay with SAME amount (service converts to paise)
+        // ============================================================
         await RazorpayService.instance.initiatePayment(
-          amount: widget.amount,
+          amount: widget.amount,    // ✅ RUPEES — same as parent
           orderId: _razorpayOrderId!,
           keyId: _razorpayKeyId!,
           userEmail: widget.userEmail ?? '',
           userName: widget.userName ?? 'User',
           userMobile: widget.userMobile ?? '',
           onSuccess: (Map<String, dynamic> paymentResponse) {
-            debugPrint("✅ Razorpay SUCCESS callback triggered");
+            debugPrint("✅ Razorpay SUCCESS callback");
             _handleRazorpaySuccess(paymentResponse);
           },
           onError: (String error) {
-            debugPrint("❌ Razorpay ERROR callback triggered: $error");
+            debugPrint("❌ Razorpay ERROR: $error");
             _handleRazorpayError({'message': error});
           },
           onExternalWallet: () {
-            debugPrint("ℹ️ Razorpay External Wallet callback triggered");
+            debugPrint("ℹ️ Razorpay External Wallet");
             _showMessage(
                 "External wallet selected. Please complete payment in the app.");
           },
@@ -289,17 +330,21 @@ class _PaymentScreenState extends State<PaymentScreen>
     }
   }
 
+  // ============================================================
+  // STEP 3: Verify with backend
+  // ============================================================
   Future<void> _verifyRazorpayPayment() async {
     try {
-      debugPrint("🔐 Verifying Razorpay payment with backend...");
+      debugPrint("🔐 STEP 3: Verifying payment with backend...");
 
       final Map<String, dynamic> requestData = {
         "razorpay_payment_id": _razorpayPaymentId,
         "razorpay_order_id": _razorpayOrderId,
         "razorpay_signature": _razorpaySignature,
         "application_id": _applicationId ?? widget.paymentId,
-        "amount": widget.amount,
-        "payment_type": widget.paymentType == PaymentType.job ? "job" : "service",
+        "amount": widget.amount,      // ← rupees (same as before)
+        "payment_type":
+            widget.paymentType == PaymentType.job ? "job" : "service",
       };
 
       if (widget.paymentType == PaymentType.job) {
@@ -341,8 +386,7 @@ class _PaymentScreenState extends State<PaymentScreen>
     } catch (e) {
       debugPrint("❌ Verification error: $e");
       if (mounted && !_isDisposed) {
-        _showMessage(
-            "Payment verification failed. Please contact support.",
+        _showMessage("Payment verification failed. Please contact support.",
             isError: true);
         setState(() => _isRazorpayLoading = false);
       }
@@ -360,7 +404,6 @@ class _PaymentScreenState extends State<PaymentScreen>
     debugPrint("✅ PAYMENT SUCCESS - Processing...");
     debugPrint("   Payment ID: ${widget.paymentId}");
     debugPrint("   Amount: ₹${widget.amount}");
-    debugPrint("   Platform: ${kIsWeb ? 'Web' : 'Mobile'}");
     debugPrint("=" * 60);
 
     try {
@@ -427,7 +470,7 @@ class _PaymentScreenState extends State<PaymentScreen>
   }
 
   // ============================================================
-  // BUILD — ONLY TOTAL AMOUNT (no breakdown)
+  // BUILD
   // ============================================================
   @override
   Widget build(BuildContext context) {
@@ -464,7 +507,6 @@ class _PaymentScreenState extends State<PaymentScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ==================== HEADER ====================
                 Row(
                   children: [
                     Container(
@@ -507,7 +549,9 @@ class _PaymentScreenState extends State<PaymentScreen>
                 ),
                 const SizedBox(height: 24),
 
-                // ==================== AMOUNT DISPLAY (ONLY TOTAL) ====================
+                // ============================================================
+                // AMOUNT DISPLAY — EXACTLY what parent passed
+                // ============================================================
                 Container(
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
@@ -564,7 +608,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                 ),
                 const SizedBox(height: 20),
 
-                // ==================== TIMER ====================
+                // Timer
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -591,7 +635,6 @@ class _PaymentScreenState extends State<PaymentScreen>
                 ),
                 const SizedBox(height: 24),
 
-                // ==================== ERROR ====================
                 if (_errorMessage != null)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -617,7 +660,6 @@ class _PaymentScreenState extends State<PaymentScreen>
                   ),
                 if (_errorMessage != null) const SizedBox(height: 16),
 
-                // ==================== SUCCESS ====================
                 if (_isPaymentCompleted)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -645,7 +687,6 @@ class _PaymentScreenState extends State<PaymentScreen>
                   ),
                 const SizedBox(height: 20),
 
-                // ==================== PAY BUTTON ====================
                 if (!_isPaymentCompleted && !isExpired)
                   SizedBox(
                     width: double.infinity,
@@ -681,7 +722,6 @@ class _PaymentScreenState extends State<PaymentScreen>
                   ),
                 const SizedBox(height: 16),
 
-                // ==================== PLATFORM INFO ====================
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -712,7 +752,6 @@ class _PaymentScreenState extends State<PaymentScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // ==================== CANCEL BUTTON ====================
                 TextButton(
                   onPressed: _showCancelConfirmation,
                   style: TextButton.styleFrom(foregroundColor: Colors.red),

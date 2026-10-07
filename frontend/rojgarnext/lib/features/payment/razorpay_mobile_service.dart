@@ -1,7 +1,9 @@
 // lib/features/payment/razorpay_mobile_service.dart
-// ✅ ANDROID ONLY - Uses razorpay_flutter SDK
+// ✅ ANDROID / iOS — Uses razorpay_flutter SDK
+// ✅ Razorpay expects amount in PAISE (int)
+// ✅ Input `amount` is in RUPEES → multiply by 100 exactly once
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 class RazorpayMobileService {
@@ -17,7 +19,7 @@ class RazorpayMobileService {
   }
 
   Future<void> initiatePayment({
-    required int amount,
+    required int amount,           // ← RUPEES
     required String orderId,
     required String keyId,
     required String userEmail,
@@ -32,6 +34,16 @@ class RazorpayMobileService {
       return;
     }
 
+    // ✅ Convert rupees → paise (EXACTLY ONCE)
+    final int amountInPaise = (amount * 100).round();
+
+    debugPrint("=" * 60);
+    debugPrint("💰 MOBILE RAZORPAY");
+    debugPrint("   Amount (rupees): ₹$amount");
+    debugPrint("   Amount (paise):  $amountInPaise");
+    debugPrint("   Order ID:        $orderId");
+    debugPrint("=" * 60);
+
     try {
       if (_razorpay == null) {
         _razorpay = Razorpay();
@@ -39,34 +51,45 @@ class RazorpayMobileService {
 
       _razorpay!.clear();
 
-      // ✅ Payment Success
-      _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, (PaymentSuccessResponse response) {
-        _isPaymentOpen = false;
-        if (response.paymentId == null || response.paymentId!.isEmpty) {
-          onError("Payment verification failed.");
-          return;
-        }
-        onSuccess({
-          'razorpay_payment_id': response.paymentId,
-          'razorpay_order_id': response.orderId ?? orderId,
-          'razorpay_signature': response.signature,
-        });
-      });
+      // ✅ Success
+      _razorpay!.on(
+        Razorpay.EVENT_PAYMENT_SUCCESS,
+        (PaymentSuccessResponse response) {
+          _isPaymentOpen = false;
+          if (response.paymentId == null || response.paymentId!.isEmpty) {
+            onError("Payment verification failed.");
+            return;
+          }
+          onSuccess({
+            'razorpay_payment_id': response.paymentId,
+            'razorpay_order_id': response.orderId ?? orderId,
+            'razorpay_signature': response.signature,
+          });
+        },
+      );
 
-      // ✅ Payment Error
-      _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, (PaymentFailureResponse response) {
-        _isPaymentOpen = false;
-        onError(response.message ?? 'Payment failed. Please try again.');
-      });
+      // ✅ Error
+      _razorpay!.on(
+        Razorpay.EVENT_PAYMENT_ERROR,
+        (PaymentFailureResponse response) {
+          _isPaymentOpen = false;
+          onError(response.message ?? 'Payment failed. Please try again.');
+        },
+      );
 
       // ✅ External Wallet
-      _razorpay!.on(Razorpay.EVENT_EXTERNAL_WALLET, (ExternalWalletResponse response) {
-        onExternalWallet();
-      });
+      _razorpay!.on(
+        Razorpay.EVENT_EXTERNAL_WALLET,
+        (ExternalWalletResponse response) {
+          onExternalWallet();
+        },
+      );
 
       final options = {
         'key': keyId,
-        'amount': amount * 100,
+        // ✅ Razorpay SDK requires PAISE
+        'amount': amountInPaise,
+        'currency': 'INR',
         'name': 'RojgarNext',
         'description': 'Payment for service',
         'order_id': orderId,
@@ -78,9 +101,10 @@ class RazorpayMobileService {
         'theme': {'color': '#1E3A8A'},
       };
 
+      debugPrint("📤 Razorpay options sent: amount=${options['amount']} paise");
+
       _isPaymentOpen = true;
       _razorpay!.open(options);
-
     } catch (e) {
       _isPaymentOpen = false;
       onError("Failed to open payment: ${e.toString()}");
