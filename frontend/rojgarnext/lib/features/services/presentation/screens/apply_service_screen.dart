@@ -4,6 +4,15 @@
 // ✅ FIXED: _tempSessionId properly initialized BEFORE any use
 // ✅ FIXED: Pay & Submit now opens PaymentScreen correctly
 // ✅ FIXED: Service application ONLY saved after payment success
+// ✅ NEW: FULL FEE BREAKDOWN with correct formula:
+//     Subtotal = Application Fee + Service Charge
+//     GST      = 18% of Subtotal
+//     Total    = Subtotal + GST
+// ✅ NEW: Sends TOTAL + breakdown + use_provided_amount=true to backend
+// ✅ NEW: Payment screen receives EXACT SAME TOTAL
+//
+// Example: App Fee = ₹100, Service Charge = ₹50
+//   Subtotal = 150, GST = 27, Total = ₹177
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -56,11 +65,30 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
 
   // Payment
   String? _paymentId;
-  int _serviceFee = 100;
   bool _paymentCompleted = false;
   String? _razorpayOrderId;
 
+  // ============================================================
+  // ✅ FEE CONSTANTS
+  // ✅ FORMULA:
+  //     Subtotal = Application Fee + Service Charge
+  //     GST      = 18% of Subtotal
+  //     Total    = Subtotal + GST
+  // ============================================================
+  static const double GST_PERCENT = 18.0;
+  static const int SERVICE_CHARGE = 50;
+  static const int BASE_SERVICE_FEE = 100;
+
   final List<ServiceType> _allServices = ServiceRepository.getAllServices();
+
+  // ============================================================
+  // ✅ FEE BREAKDOWN
+  // ============================================================
+  int get _applicationFee => BASE_SERVICE_FEE;
+  int get _serviceCharge => SERVICE_CHARGE;
+  int get _subtotal => _applicationFee + _serviceCharge;
+  int get _gstAmount => ((_subtotal * GST_PERCENT) / 100).round();
+  int get _totalFee => _subtotal + _gstAmount;
 
   // ==================== LIFECYCLE ====================
   @override
@@ -92,7 +120,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
             _userName = name ?? email.split('@').first;
             _userMobile = mobile ?? '';
             _userDetailsLoaded = true;
-            // ✅ CRITICAL FIX: Set _tempSessionId with real email AFTER loaded
             _tempSessionId =
                 'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
           });
@@ -120,7 +147,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
 
         if (mounted) {
           setState(() {
-            // ✅ CRITICAL FIX: Update _tempSessionId with real email
             _tempSessionId =
                 'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
           });
@@ -176,7 +202,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       _resetSelections();
     });
     _initializeForm();
-    // ✅ CRITICAL: Regenerate temp session ID for each new form session
     _tempSessionId =
         'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
     debugPrint("🔄 New temp session ID: $_tempSessionId");
@@ -272,7 +297,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     }
   }
 
-  // ✅ Upload to temp storage (files NOT linked to application yet)
   Future<void> _uploadDocumentToTempStorage(
     String docName,
     Uint8List fileBytes,
@@ -286,7 +310,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       final token = await SecureStorage.getToken();
       if (token == null) throw Exception("No authentication token found");
 
-      // ✅ Ensure temp session ID is valid (never null)
       if (_tempSessionId.isEmpty) {
         _tempSessionId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
       }
@@ -370,7 +393,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       _isUploadingDoc[docName] = false;
     });
 
-    // ✅ Delete from temp storage
     if (_tempSessionId.isNotEmpty) {
       try {
         await DioClient.dio.delete(
@@ -414,8 +436,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
   }
 
   // ============================================================
-  // ✅ FIXED: _submitApplicationWithPayment
-  // This is the KEY fix — validates all values before opening PaymentScreen
+  // ✅ SUBMIT — Fee dialog → Razorpay order → PaymentScreen
   // ============================================================
   Future<void> _submitApplicationWithPayment() async {
     if (!_isFormValid()) {
@@ -427,17 +448,109 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       return;
     }
 
-    // ✅ CRITICAL FIX: Ensure temp session ID is NEVER null/empty
     if (_tempSessionId.trim().isEmpty) {
       _tempSessionId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
       debugPrint("⚠️ Temp session ID was empty, regenerated: $_tempSessionId");
+    }
+
+    // ✅ STEP 0: Fee breakdown dialog
+    final bool? confirmPayment = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.currency_rupee,
+                  color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                "Fee Breakdown",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildFeeRow("Application Fee", _applicationFee),
+            const SizedBox(height: 8),
+            _buildFeeRow("Service Charge", _serviceCharge),
+            const SizedBox(height: 8),
+            _buildFeeRow("Subtotal", _subtotal, isBold: true),
+            const SizedBox(height: 8),
+            _buildFeeRow(
+              "GST (${GST_PERCENT.toInt()}% on ₹$_subtotal)",
+              _gstAmount,
+            ),
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    "Total Payable",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF6C63FF),
+                    ),
+                  ),
+                ),
+                Text(
+                  "₹$_totalFee",
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF6C63FF),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6C63FF),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text("Proceed to Pay"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmPayment != true) {
+      debugPrint("❌ User cancelled fee confirmation");
+      return;
     }
 
     setState(() => _isSubmitting = true);
 
     try {
       // ============================================================
-      // ✅ STEP 1: Build form fields safely
+      // ✅ STEP 1: Build form data safely
       // ============================================================
       final Map<String, dynamic> formFields = {};
       for (final field in _selectedSubType!.requiredFields) {
@@ -445,7 +558,6 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
         formFields[field.key] = _getFieldValue(field.key) ?? '';
       }
 
-      // ✅ Collect document URLs for submission after payment
       final Map<String, String> documentUrls = {};
       for (final entry in _uploadedDocs.entries) {
         final url = entry.value.url.trim();
@@ -461,15 +573,27 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       debugPrint("   Temp Session: $_tempSessionId");
       debugPrint("   Documents: ${documentUrls.length}");
       debugPrint("   Form Fields: ${formFields.length}");
+      debugPrint("   Application Fee: ₹$_applicationFee");
+      debugPrint("   Service Charge: ₹$_serviceCharge");
+      debugPrint("   Subtotal: ₹$_subtotal");
+      debugPrint("   GST (18% on ₹$_subtotal): ₹$_gstAmount");
+      debugPrint("   TOTAL: ₹$_totalFee");
       debugPrint("=" * 70);
 
       // ============================================================
-      // ✅ STEP 2: Create Razorpay order (NO application created here)
+      // ✅ STEP 2: Create Razorpay order — send TOTAL + breakdown + flag
       // ============================================================
       final response = await DioClient.dio.post(
         '/payment/razorpay/create-order',
         data: {
-          "amount": _serviceFee,
+          "amount": _totalFee,                       // ✅ TOTAL
+          "application_fee": _applicationFee,        // ✅ breakdown
+          "service_charge": _serviceCharge,
+          "subtotal": _subtotal,
+          "gst_amount": _gstAmount,
+          "total_amount": _totalFee,
+          "use_provided_amount": true,               // ✅ no recalc
+
           "payment_type": "service",
           "service_id": _selectedService!.id,
           "service_type": _selectedService!.name,
@@ -495,7 +619,7 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       }
 
       // ============================================================
-      // ✅ STEP 3: Extract payment data safely (NEVER null)
+      // ✅ STEP 3: Extract payment data safely
       // ============================================================
       final String paymentId = (response.data['payment_id'] ??
               response.data['application_id'] ??
@@ -505,25 +629,20 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
       final String orderId =
           (response.data['order_id'] ?? '').toString();
 
-      final int amount = response.data['amount'] is int
-          ? response.data['amount'] as int
-          : _serviceFee;
-
       _paymentId = paymentId;
       _razorpayOrderId = orderId;
 
       debugPrint("✅ Order created: $orderId");
       debugPrint("   Payment ID: $paymentId");
-      debugPrint("   Amount: ₹$amount");
+      debugPrint("   Total amount sent: ₹$_totalFee");
 
       // ============================================================
-      // ✅ STEP 4: Open PaymentScreen — ALL values guaranteed non-null
+      // ✅ STEP 4: Open PaymentScreen — pass OUR total (same as dialog)
       // ============================================================
       final paymentResult = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => PaymentScreen(
-          // Service-specific fields
           serviceId: _selectedService!.id,
           serviceType: _selectedService!.name,
           serviceSubType: _selectedSubType!.id,
@@ -537,8 +656,9 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
           userName: _userName,
           userMobile: _userMobile,
 
-          // Common fields — ✅ ALL SAFE (never null)
-          amount: amount,
+          // ✅ Use OUR total — always consistent with dialog
+          amount: _totalFee,
+
           categoryUsed: "service",
           paymentId: paymentId,
           expiresAt: DateTime.now().add(const Duration(minutes: 15)),
@@ -572,13 +692,37 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     }
   }
 
+  Widget _buildFeeRow(String label, int amount, {bool isBold = false}) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.black87,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+        Text(
+          "₹$amount",
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
   void _resetForm() {
     setState(() {
       _selectedService = null;
       _selectedSubType = null;
       _currentStep = 0;
       _resetSelections();
-      // ✅ Generate new temp session ID
       _tempSessionId =
           'temp_${DateTime.now().millisecondsSinceEpoch}_${_userEmail.hashCode}';
     });
@@ -835,64 +979,70 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     );
   }
 
-  Widget _sectionHeader(String title, IconData icon, {String? subtitle}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
+Widget _sectionHeader(
+  String title,
+  IconData icon, {
+  String? subtitle,
+  Color? color,
+}) {
+  final headerColor = color ?? const Color(0xFF6C63FF);
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [headerColor, headerColor.withOpacity(0.7)],
                 ),
-                child: Icon(icon, color: Colors.white, size: 18),
+                borderRadius: BorderRadius.circular(10),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Container(
-                width: 30,
-                height: 2,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                  ),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ],
-          ),
-          if (subtitle != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 44, top: 4),
+              child: Icon(icon, color: Colors.white, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
               child: Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-        ],
-      ),
-    );
-  }
+            Container(
+              width: 30,
+              height: 2,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [headerColor, headerColor.withOpacity(0.7)],
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ],
+        ),
+        if (subtitle != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 44, top: 4),
+            child: Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
 
   // ==================== HEADER ====================
   Widget _buildHeader() {
@@ -1765,60 +1915,147 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
     );
   }
 
+  // ============================================================
+  // ✅ FEE CARD — Full breakdown before payment
+  // ============================================================
   Widget _buildFeeCard() {
     return _buildGlassContainer(
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-              ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF6C63FF).withOpacity(0.3),
-                  blurRadius: 10,
-                  spreadRadius: 2,
+          _sectionHeader("Fee Breakdown", Icons.receipt_long,
+              color: const Color(0xFF6C63FF)),
+          const SizedBox(height: 16),
+
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  "Application Fee",
+                  style: TextStyle(fontSize: 14, color: Colors.black87),
                 ),
-              ],
-            ),
-            child: const Icon(
-              Icons.currency_rupee,
-              color: Colors.white,
-              size: 24,
-            ),
+              ),
+              Text(
+                "₹$_applicationFee",
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Service Fee",
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  "Service Charge",
+                  style: TextStyle(fontSize: 14, color: Colors.black87),
+                ),
+              ),
+              Text(
+                "₹$_serviceCharge",
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  "Subtotal",
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
                     fontSize: 14,
                     color: Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Text(
+                "₹$_subtotal",
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  "GST (${GST_PERCENT.toInt()}% on ₹$_subtotal)",
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                ),
+              ),
+              Text(
+                "₹$_gstAmount",
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 12),
+
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.green.shade50, Colors.teal.shade50],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Colors.green.shade300,
+                width: 2,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.payment,
+                      color: Colors.green, size: 26),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Text(
+                    "Total Payable",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF065F46),
+                    ),
                   ),
                 ),
                 Text(
-                  "Pay securely via Razorpay",
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade600,
+                  "₹$_totalFee",
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF065F46),
                   ),
                 ),
               ],
-            ),
-          ),
-          Text(
-            "₹$_serviceFee",
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF6C63FF),
             ),
           ),
         ],
@@ -1872,6 +2109,15 @@ class _ApplyServiceScreenState extends State<ApplyServiceScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Total: ₹$_totalFee",
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF6C63FF),
+                  ),
                 ),
               ],
             ),

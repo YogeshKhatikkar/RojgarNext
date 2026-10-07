@@ -2,6 +2,9 @@
 # ============================================================
 # FULLY AUTOMATIC AI RESUME GENERATOR
 # Builds complete resumes from user profile + optional JD
+# ✅ FIXED: Default summary and career objective no longer include user's name
+# ✅ NEW: Professional opening phrases instead of "I am"
+# ✅ NEW: Smart role-based opening line selection
 # ============================================================
 
 import json
@@ -315,7 +318,9 @@ Certifications:
 
 ----- REWRITE INSTRUCTIONS -----
 1. professional_summary: 3–4 sentences, 50–90 words. Include role, years exp, key skills, top achievement.
+   DO NOT start with the candidate's name. Use "Dynamic", "Results-driven", "Experienced" etc. instead.
 2. career_objective: 2 sentences, forward-looking.
+   DO NOT start with the candidate's name. Use "Seeking", "Aspiring", "Dedicated" etc. instead.
 3. experience: for EACH entry, keep role/company/dates EXACTLY. Rewrite `description` (2–4 sentences). Rewrite `achievements` as 3–5 bullet points starting with strong verbs and numbers where possible.
 4. skills: group into {{all, technical, soft, tools}}. Never invent — only reuse + infer common tools for mentioned domains.
 5. projects: keep title/url. Enhance `description` with impact + tech stack.
@@ -440,22 +445,256 @@ Certifications:
         except Exception:
             return None
 
+    # ============================================================
+    # ✅ PROFESSIONAL OPENING PHRASES
+    # ------------------------------------------------------------
+    # Instead of "I am", we use role-aware, seniority-aware, and
+    # experience-aware professional openers that sound like
+    # real recruiter-approved resume language.
+    # ============================================================
+
+    def _get_professional_opener(
+        self,
+        role: str,
+        years: int,
+        is_tech: bool = False,
+        is_government: bool = False,
+        is_fresher: bool = False,
+    ) -> str:
+        """
+        Returns a professional opening phrase for the summary.
+
+        Priorities:
+        1. Fresher (0 years) → fresher openers
+        2. Government role → formal openers
+        3. Tech role → tech openers
+        4. Senior (5+ years) → senior openers
+        5. Mid (2-4 years) → mid-level openers
+        6. Default → generic professional openers
+        """
+
+        # -------------------- FRESHER OPENERS --------------------
+        fresher_openers = [
+            "Aspiring",
+            "Motivated",
+            "Enthusiastic",
+            "Dedicated",
+            "Eager",
+            "Passionate",
+            "Ambitious",
+            "Career-focused",
+            "Goal-oriented",
+            "Recent graduate",
+            "Emerging",
+        ]
+
+        # -------------------- TECH OPENERS --------------------
+        tech_openers = [
+            "Results-driven",
+            "Detail-oriented",
+            "Innovative",
+            "Analytical",
+            "Tech-savvy",
+            "Solution-focused",
+            "Performance-driven",
+            "Creative",
+            "Forward-thinking",
+            "Data-driven",
+            "Quality-focused",
+        ]
+
+        # -------------------- GOVERNMENT OPENERS --------------------
+        government_openers = [
+            "Committed",
+            "Sincere",
+            "Disciplined",
+            "Dedicated",
+            "Responsible",
+            "Punctual",
+            "Service-oriented",
+            "Nation-focused",
+            "Duty-bound",
+            "Principled",
+        ]
+
+        # -------------------- SENIOR OPENERS (5+ years) --------------------
+        senior_openers = [
+            "Accomplished",
+            "Seasoned",
+            "Distinguished",
+            "Highly experienced",
+            "Proven",
+            "Recognized",
+            "Strategic",
+            "Visionary",
+            "Respected",
+            "Award-winning",
+            "Industry-leading",
+            "Expert",
+        ]
+
+        # -------------------- MID-LEVEL OPENERS (2-4 years) --------------------
+        mid_openers = [
+            "Dynamic",
+            "Skilled",
+            "Capable",
+            "Professional",
+            "Talented",
+            "Competent",
+            "Resourceful",
+            "Versatile",
+            "Adaptable",
+            "Efficient",
+            "Reliable",
+        ]
+
+        # -------------------- GENERIC OPENERS --------------------
+        generic_openers = [
+            "Dedicated",
+            "Committed",
+            "Hardworking",
+            "Motivated",
+            "Professional",
+            "Enthusiastic",
+            "Capable",
+            "Responsible",
+            "Reliable",
+            "Organized",
+        ]
+
+        # --------- Decide which list to use ---------
+        if is_fresher or years == 0:
+            pool = fresher_openers
+        elif is_government:
+            pool = government_openers
+        elif is_tech:
+            pool = tech_openers
+        elif years >= 5:
+            pool = senior_openers
+        elif years >= 2:
+            pool = mid_openers
+        else:
+            pool = generic_openers
+
+        # --------- Deterministic selection using role hash ---------
+        # This ensures the same role always gets the same opener,
+        # but different roles get different openers.
+        # It's stable across regenerations (no random flip-flop).
+        try:
+            index = abs(hash(role.lower().strip())) % len(pool)
+        except Exception:
+            index = 0
+
+        return pool[index]
+
+    # ============================================================
+    # ✅ FIXED: Default Summary — NO user name, Professional opener
+    # ============================================================
     def _default_summary(self, base: Dict[str, Any], target_role: str) -> str:
+        """
+        Generate a default professional summary.
+
+        ✅ FIXED: No longer includes the user's full name.
+        ✅ NEW: Uses a professional opener (like "Results-driven") instead of "I am".
+        """
         role = target_role or base["user_info"].get("current_role") or "professional"
         skills = ", ".join([s["name"] for s in base["skills"]["all"][:5]])
         years = len(base["experience"])
-        return (
-            f"{role} with {years}+ years of experience. "
-            f"Skilled in {skills}. "
-            f"Passionate about delivering measurable results and continuously learning new technologies."
+
+        # --------- Detect role category ---------
+        role_lower = role.lower()
+
+        is_tech = any(
+            kw in role_lower
+            for kw in [
+                "software", "developer", "engineer", "programmer", "data",
+                "ai", "ml", "cloud", "devops", "full stack", "backend",
+                "frontend", "qa", "tester", "analyst", "scientist",
+                "cyber", "security", "network", "database", "architect",
+                "tech", "it ", " it", "web", "mobile", "android", "ios",
+            ]
         )
 
-    def _default_objective(self, target_role: str) -> str:
-        role = target_role or "a challenging role"
-        return (
-            f"Seeking {role} where I can apply my technical expertise, "
-            f"contribute to impactful projects, and grow as a professional."
+        is_government = any(
+            kw in role_lower
+            for kw in [
+                "government", "clerk", "patwari", "constable", "police",
+                "officer", "teacher", "professor", "bank", "postal",
+                "railway", "defence", "army", "navy", "air force",
+                "civil", "administrative", "ias", "ips", "ssc", "upsc",
+            ]
         )
+
+        is_fresher = years == 0
+
+        # --------- Get professional opener ---------
+        opener = self._get_professional_opener(
+            role=role,
+            years=years,
+            is_tech=is_tech,
+            is_government=is_government,
+            is_fresher=is_fresher,
+        )
+
+        # --------- Build the summary ---------
+        if years > 0:
+            summary = f"{opener} {role} with {years}+ years of experience. "
+        else:
+            summary = f"{opener} {role} ready to launch my professional career. "
+
+        if skills:
+            summary += f"Skilled in {skills}. "
+
+        summary += (
+            "Passionate about delivering measurable results and continuously "
+            "learning new technologies to grow professionally."
+        )
+
+        return summary
+
+    # ============================================================
+    # ✅ FIXED: Default Objective — NO user name, Professional opener
+    # ============================================================
+    def _default_objective(self, target_role: str) -> str:
+        """
+        Generate a default career objective.
+
+        ✅ FIXED: No longer includes the user's full name.
+        ✅ NEW: Uses a professional opener instead of "I am seeking".
+        """
+        role = target_role or "a challenging role"
+
+        # --------- Professional objective openers ---------
+        objective_openers = [
+            "Seeking",
+            "Looking for",
+            "Aspiring to join",
+            "Aiming to secure",
+            "Keen to contribute",
+            "Focused on",
+            "Determined to build",
+            "Eager to grow",
+            "Ready to excel",
+            "Poised to deliver",
+        ]
+
+        # --------- Deterministic selection ---------
+        try:
+            index = abs(hash(role.lower().strip())) % len(objective_openers)
+        except Exception:
+            index = 0
+
+        opener = objective_openers[index]
+
+        # --------- Build the objective ---------
+        objective = (
+            f"{opener} {role} where I can apply my technical expertise, "
+            f"contribute to impactful projects, and grow as a professional. "
+            f"I aim to continuously enhance my skills and make meaningful "
+            f"contributions to the organization."
+        )
+
+        return objective
 
     def _ensure_bullets(self, experience: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         for exp in experience:

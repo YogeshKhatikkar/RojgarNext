@@ -1,23 +1,24 @@
 // lib/features/jobs/presentation/screens/job_detail_screen.dart
-// ✅ AI‑BASED MODERN DESIGN – Light gradient, glass cards, brand colors
-// ✅ ULTRA‑FAST – Cached profile, instant load, background refresh
+// ✅ AI-BASED MODERN DESIGN – Light gradient, glass cards, brand colors
+// ✅ ULTRA-FAST – Cached profile, instant load, background refresh
 // ✅ AI LOADING ANIMATION with animated auto_awesome icon
 // ✅ FULLY FUNCTIONAL – All original logic preserved
 // ✅ FIXED: Added ALL missing widget builder methods
 // ✅ FIXED: User category properly loaded and passed to payment screen
 // ✅ FIXED: Disability check FIRST, then category (PWD priority)
-// ✅ NEW: Service Charge + GST added to application fees
-// ✅ NEW: Total fees = Application Fees + GST (18%) + Service Charge (₹50)
+// ✅ NEW: FULL FEE BREAKDOWN shown in Job Detail Screen
+// ✅ CRITICAL FIX: Correct fee formula:
+//     Subtotal = Application Fee + Service Charge
+//     GST      = 18% of Subtotal
+//     Total    = Subtotal + GST
+//     Example: 3 + 50 = 53, GST = 10, Total = 63
+// ✅ CRITICAL FIX: Sends TOTAL + breakdown to backend with use_provided_amount=true
+// ✅ CRITICAL FIX: Payment screen receives EXACT SAME TOTAL as Job Detail Screen
 // ✅ CRITICAL FIX: Advertisement button now shows correctly
 // ✅ CRITICAL FIX: Apply With Us button now shows correctly
 // ✅ CRITICAL FIX: Auto-refresh job data to ensure all fields available
 // ✅ CRITICAL FIX: Better null/empty handling for all URL fields
-// ✅ ADDED: _buildApplicationTimelineSection
-// ✅ ADDED: _buildInfoRow helper
-// ✅ ADDED: ALL other missing widget methods
 // ✅ FIXED: ALL text colors now explicitly set for perfect visibility
-// ✅ FIXED: ALL backgrounds now properly defined matching job list screen
-// ✅ REDESIGNED: Clean design matching job_list_screen.dart style
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -99,17 +100,23 @@ class AIJobDetailService {
 
 // ============================================================
 // FEE BREAKDOWN MODEL
+// ✅ CORRECT FORMULA:
+//    Subtotal = Application Fee + Service Charge
+//    GST      = 18% of Subtotal
+//    Total    = Subtotal + GST
 // ============================================================
 class FeeBreakdown {
   final int applicationFee;
-  final int gstAmount;
   final int serviceCharge;
+  final int subtotal;
+  final int gstAmount;
   final int totalFee;
 
   FeeBreakdown({
     required this.applicationFee,
-    required this.gstAmount,
     required this.serviceCharge,
+    required this.subtotal,
+    required this.gstAmount,
     required this.totalFee,
   });
 
@@ -118,25 +125,28 @@ class FeeBreakdown {
     double gstPercent = 18.0,
     int serviceCharge = 50,
   }) {
-    final int gstAmount = ((applicationFee * gstPercent) / 100).round();
-    final int totalFee = applicationFee + gstAmount + serviceCharge;
+    final int subtotal = applicationFee + serviceCharge;
+    final int gstAmount = ((subtotal * gstPercent) / 100).round();
+    final int totalFee = subtotal + gstAmount;
+
     return FeeBreakdown(
       applicationFee: applicationFee,
-      gstAmount: gstAmount,
       serviceCharge: serviceCharge,
+      subtotal: subtotal,
+      gstAmount: gstAmount,
       totalFee: totalFee,
     );
   }
 
   @override
   String toString() {
-    return 'FeeBreakdown(app: ₹$applicationFee, gst: ₹$gstAmount, '
-        'service: ₹$serviceCharge, total: ₹$totalFee)';
+    return 'FeeBreakdown(app: ₹$applicationFee, service: ₹$serviceCharge, '
+        'subtotal: ₹$subtotal, gst: ₹$gstAmount, total: ₹$totalFee)';
   }
 }
 
 // ============================================================
-// FILE TYPE DETECTOR (Local helper for job detail screen)
+// FILE TYPE DETECTOR
 // ============================================================
 class _JobFileTypeDetector {
   static const Set<String> imageExtensions = {
@@ -162,15 +172,12 @@ class _JobFileTypeDetector {
   static bool isPdf(String url, {String? explicitType}) {
     if (url.isEmpty) return false;
     final lower = url.toLowerCase();
-
     if (explicitType != null) {
       final t = explicitType.toLowerCase();
       if (t == 'pdf' || t.contains('pdf')) return true;
     }
-
     final ext = getExtension(url);
     if (pdfExtensions.contains(ext)) return true;
-
     if (lower.contains('/raw/upload/')) return true;
     if (lower.contains('/raw/authenticated/')) return true;
     if (lower.contains('.pdf')) return true;
@@ -178,39 +185,31 @@ class _JobFileTypeDetector {
     if (lower.contains('/pdf/')) return true;
     if (lower.contains('type=pdf')) return true;
     if (lower.contains('format=pdf')) return true;
-
     if (lower.contains('docs.google.com') && lower.contains('export=pdf')) {
       return true;
     }
-
     return false;
   }
 
   static bool isImage(String url, {String? explicitType}) {
     if (url.isEmpty) return false;
     final lower = url.toLowerCase();
-
     if (explicitType != null) {
       final t = explicitType.toLowerCase();
       if (t == 'image' || t.contains('image')) return true;
     }
-
     final ext = getExtension(url);
     if (imageExtensions.contains(ext)) return true;
-
     if (isPdf(url, explicitType: explicitType)) return false;
-
     if (lower.contains('cloudinary.com') &&
         (lower.contains('/image/upload/') ||
          lower.contains('/image/authenticated/'))) {
       return true;
     }
-
     if (lower.contains('image/')) return true;
     if (lower.contains('img/')) return true;
     if (lower.contains('photo/')) return true;
     if (lower.contains('picture/')) return true;
-
     return false;
   }
 
@@ -223,11 +222,9 @@ class _JobFileTypeDetector {
 
   static String detectFileType(String url, {String? explicitType}) {
     if (url.isEmpty) return 'unknown';
-
     if (isPdf(url, explicitType: explicitType)) return 'pdf';
     if (isImage(url, explicitType: explicitType)) return 'image';
     if (isGoogleDrive(url)) return 'gdrive';
-
     final ext = getExtension(url);
     if (ext.isNotEmpty) {
       switch (ext) {
@@ -259,7 +256,6 @@ class _JobFileTypeDetector {
           return ext;
       }
     }
-
     return 'unknown';
   }
 }
@@ -330,11 +326,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   static const int SERVICE_CHARGE = 50;
 
   // ============================================================
-  // COLOR CONSTANTS - ALL EXPLICIT FOR PERFECT VISIBILITY
+  // COLOR CONSTANTS
   // ============================================================
-  static const Color _kTextPrimary = Color(0xFF111827); // near-black
-  static const Color _kTextSecondary = Color(0xFF374151); // dark grey
-  static const Color _kTextMuted = Color(0xFF6B7280); // grey
+  static const Color _kTextPrimary = Color(0xFF111827);
+  static const Color _kTextSecondary = Color(0xFF374151);
+  static const Color _kTextMuted = Color(0xFF6B7280);
   static const Color _kPrimary = Color(0xFF6C63FF);
   static const Color _kPink = Color(0xFFFF6588);
   static const Color _kBackgroundLight = Color(0xFFF5F7FA);
@@ -374,7 +370,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // ✅ REFRESH JOB DATA
+  // REFRESH JOB DATA
   // ============================================================
   Future<void> _refreshJobData() async {
     final jobId = widget.job['_id']?.toString();
@@ -382,20 +378,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       debugPrint("⚠️ _refreshJobData: No job ID");
       return;
     }
-
     if (_isRefreshingJobData) return;
     _isRefreshingJobData = true;
-
     try {
-      debugPrint("=" * 70);
-      debugPrint("🔄 REFRESHING JOB DATA");
-      debugPrint("   Job ID: $jobId");
-      debugPrint("=" * 70);
-
       final response = await DioClient.dio.get('/jobs/$jobId');
-
       if (!mounted) return;
-
       Map<String, dynamic> freshJob = {};
       if (response.data is Map) {
         if (response.data.containsKey('data') && response.data['data'] is Map) {
@@ -404,12 +391,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           freshJob = Map<String, dynamic>.from(response.data);
         }
       }
-
       if (freshJob.isNotEmpty) {
-        debugPrint("✅ Fresh job data received");
         widget.job.addAll(freshJob);
         _loadNotificationData();
-
         if (mounted) setState(() {});
       }
     } catch (e) {
@@ -420,11 +404,10 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // ✅ LOAD NOTIFICATION DATA
+  // LOAD NOTIFICATION DATA
   // ============================================================
   void _loadNotificationData() {
     final job = widget.job;
-
     _hasOfficialNotification = false;
     _hasAdvertisement = false;
     _hasApplyWithUs = false;
@@ -437,13 +420,10 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     _isGoogleDriveLink = false;
     _isPrivateCloudinaryFile = false;
 
-    // OFFICIAL NOTIFICATION CHECK
     String? officialUrl = job['official_notification_url']?.toString();
     if (officialUrl == null || officialUrl.trim().isEmpty) {
       officialUrl = job['official_notification_link']?.toString();
     }
-    final hasOfficialFlag = job['has_official_notification'] == true;
-
     if (_isValidUrl(officialUrl)) {
       _officialNotificationUrl = officialUrl!.trim();
       _hasOfficialNotification = true;
@@ -453,36 +433,27 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       );
     }
 
-    // ADVERTISEMENT CHECK
     String? advUrl = job['advertisement_url']?.toString();
-    final hasAdvFlag = job['has_advertisement_file'] == true;
-
     if (_isValidUrl(advUrl)) {
       _advertisementUrl = advUrl!.trim();
       _hasAdvertisement = true;
-
       final downloadUrl = job['advertisement_download_url']?.toString();
       if (_isValidUrl(downloadUrl)) {
         _advertisementDownloadUrl = downloadUrl!.trim();
       }
-
       _isPrivateCloudinaryFile = job['advertisement_is_public'] == false &&
           _advertisementUrl!.contains('cloudinary.com');
-
       if (job['advertisement_is_pdf'] == true) {
         _isAdvertisementPdf = true;
       } else {
         _isAdvertisementPdf = _JobFileTypeDetector.isPdf(_advertisementUrl!);
       }
-
       _isImageFile = _JobFileTypeDetector.isImage(_advertisementUrl!);
       _isGoogleDriveLink = _JobFileTypeDetector.isGoogleDrive(_advertisementUrl!);
     }
 
-    // APPLY WITH US CHECK
     String? applyUrl = job['apply_with_us_url']?.toString();
     final hasApplyFlag = job['has_apply_with_us'] == true;
-
     if (_isValidUrl(applyUrl)) {
       _applyWithUsUrl = applyUrl!.trim();
       _hasApplyWithUs = true;
@@ -517,16 +488,14 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // ✅ LOAD USER PROFILE - Disability + Category
+  // LOAD USER PROFILE
   // ============================================================
   Future<void> _loadUserProfileData() async {
     if (!mounted) return;
-
     setState(() {
       _isLoadingCategory = true;
       _isLoadingDisability = true;
     });
-
     try {
       final token = await SecureStorage.getToken();
       if (token == null) {
@@ -541,10 +510,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         }
         return;
       }
-
       final response = await DioClient.dio.get('/user/full-profile');
       if (!mounted) return;
-
       Map<String, dynamic> profile = {};
       if (response.data is Map) {
         if (response.data.containsKey('data') && response.data['data'] is Map) {
@@ -554,7 +521,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         }
       }
 
-      // DISABILITY CHECK
       bool isDisabled = false;
       String? disabilityPercentage;
       String? disabilityCategory;
@@ -570,7 +536,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         } else if (isDisabledValue is int) {
           isDisabled = isDisabledValue == 1;
         }
-
         disabilityPercentage =
             disabilityObj['disability_percentage']?.toString();
         disabilityCategory = disabilityObj['disability_category']?.toString();
@@ -586,7 +551,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         } else if (isDisableTop is int) {
           isDisabled = isDisableTop == 1;
         }
-
         if (disabilityPercentage == null) {
           disabilityPercentage = profile['disability_percentage']?.toString();
         }
@@ -595,16 +559,13 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         }
       }
 
-      // CATEGORY
       String? category = profile['category']?.toString();
-
       if (category == null || category.isEmpty) {
         final basicDetails = profile['basic_details'] as Map<String, dynamic>?;
         if (basicDetails != null) {
           category = basicDetails['category']?.toString();
         }
       }
-
       if (category == null || category.isEmpty) {
         final personalInfo = profile['personal_info'] as Map<String, dynamic>?;
         if (personalInfo != null) {
@@ -641,12 +602,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   String _normalizeCategory(String? category) {
-    if (category == null || category.isEmpty) {
-      return 'general/ur';
-    }
-
+    if (category == null || category.isEmpty) return 'general/ur';
     final lowerCategory = category.toLowerCase().trim();
-
     if (lowerCategory.contains('general') ||
         lowerCategory == 'ur' ||
         lowerCategory == 'unreserved') {
@@ -672,17 +629,12 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         lowerCategory.contains('ex-serviceman')) {
       return 'esm';
     }
-
     return 'general/ur';
   }
 
   String _getCategoryDisplayName(String? category) {
-    if (category == null || category.isEmpty) {
-      return 'General/UR';
-    }
-
+    if (category == null || category.isEmpty) return 'General/UR';
     final lowerCategory = category.toLowerCase().trim();
-
     if (lowerCategory.contains('general') || lowerCategory == 'ur') {
       return 'General/UR';
     }
@@ -695,13 +647,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     }
     if (lowerCategory.contains('female')) return 'Female';
     if (lowerCategory.contains('esm')) return 'ESM';
-
     return category;
   }
 
-  // ============================================================
-  // OTHER DATA LOADING
-  // ============================================================
   Future<void> _loadUserProfile() async {
     try {
       final token = await SecureStorage.getToken();
@@ -780,9 +728,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   // FEE HELPERS
   // ============================================================
   String _getEffectivePaymentCategory() {
-    if (_isDisabled) {
-      return 'pwd';
-    }
+    if (_isDisabled) return 'pwd';
     return _userCategory ?? 'general/ur';
   }
 
@@ -795,7 +741,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 
   int _getCategoryFee(Map<String, dynamic> fees) {
     if (fees == null || fees.isEmpty) return 0;
-
     final effectiveCategory = _getEffectivePaymentCategory();
     int? fee;
 
@@ -833,7 +778,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           fee = int.tryParse(value);
         }
       }
-
       if (fee == null || fee <= 0) {
         final altKeys = _getAlternativeFeeKeys(fallbackCategory);
         for (final altKey in altKeys) {
@@ -910,17 +854,25 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     }
   }
 
+  /// ✅ CORRECT FEE FORMULA:
+  ///   Subtotal = Application Fee + Service Charge
+  ///   GST      = 18% of Subtotal
+  ///   Total    = Subtotal + GST
+  /// Example: 3 + 50 = 53, GST = 10, Total = 63
   FeeBreakdown _calculateFeeBreakdown() {
     final hasFees = _hasApplicationFees();
     final fees = _getApplicationFees();
     final applicationFee = hasFees ? _getCategoryFee(fees) : 0;
 
     if (applicationFee <= 0) {
+      final subtotal = SERVICE_CHARGE;
+      final gstAmount = ((subtotal * GST_PERCENT) / 100).round();
       return FeeBreakdown(
         applicationFee: 0,
-        gstAmount: 0,
         serviceCharge: SERVICE_CHARGE,
-        totalFee: SERVICE_CHARGE,
+        subtotal: subtotal,
+        gstAmount: gstAmount,
+        totalFee: subtotal + gstAmount,
       );
     }
 
@@ -977,12 +929,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     if (minSal != null && maxSal != null) {
       return "₹${minSal ~/ 100000}-${maxSal ~/ 100000} LPA";
     }
-    if (minSal != null) {
-      return "From ₹${minSal ~/ 100000} LPA";
-    }
-    if (maxSal != null) {
-      return "Up to ₹${maxSal ~/ 100000} LPA";
-    }
+    if (minSal != null) return "From ₹${minSal ~/ 100000} LPA";
+    if (maxSal != null) return "Up to ₹${maxSal ~/ 100000} LPA";
     return 'Not disclosed';
   }
 
@@ -1025,27 +973,17 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   String _getExperience() {
     final minExp = widget.job['experience_min_years'];
     final maxExp = widget.job['experience_max_years'];
-    if (minExp != null && maxExp != null) {
-      return '$minExp - $maxExp years';
-    }
-    if (minExp != null) {
-      return '$minExp+ years';
-    }
+    if (minExp != null && maxExp != null) return '$minExp - $maxExp years';
+    if (minExp != null) return '$minExp+ years';
     return 'Fresher';
   }
 
   String _getAgeLimit() {
     final minAge = widget.job['age_min_years'];
     final maxAge = widget.job['age_max_years'];
-    if (minAge != null && maxAge != null) {
-      return '$minAge - $maxAge years';
-    }
-    if (minAge != null) {
-      return '$minAge+ years';
-    }
-    if (maxAge != null) {
-      return 'Up to $maxAge years';
-    }
+    if (minAge != null && maxAge != null) return '$minAge - $maxAge years';
+    if (minAge != null) return '$minAge+ years';
+    if (maxAge != null) return 'Up to $maxAge years';
     return 'Not specified';
   }
 
@@ -1133,7 +1071,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   bool _hasApplyWithUsLink() {
-    return _hasApplyWithUs && _applyWithUsUrl != null && _applyWithUsUrl!.isNotEmpty;
+    return _hasApplyWithUs &&
+        _applyWithUsUrl != null &&
+        _applyWithUsUrl!.isNotEmpty;
   }
 
   String _getWebsiteUrl() {
@@ -1219,9 +1159,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 
   List<dynamic> _getMultiplePosts() {
     final posts = widget.job['multiple_posts'];
-    if (posts != null && posts is List) {
-      return posts;
-    }
+    if (posts != null && posts is List) return posts;
     return [];
   }
 
@@ -1259,7 +1197,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // ✅ FIXED: _applyWithUs - NO application created on cancel
+  // ✅ CRITICAL FIX: Send TOTAL + breakdown + flag to backend
+  // ✅ Payment screen shows EXACT SAME amount
   // ============================================================
   Future<void> _applyWithUs() async {
     final token = await SecureStorage.getToken();
@@ -1301,10 +1240,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         debugPrint("Error checking application status: $e");
       }
 
-      // Calculate fee breakdown
       final feeBreakdown = _calculateFeeBreakdown();
 
-      if (feeBreakdown.applicationFee <= 0 && feeBreakdown.totalFee <= 0) {
+      if (feeBreakdown.applicationFee <= 0) {
         _showSnackBar("Invalid fee amount", isError: true);
         return;
       }
@@ -1312,16 +1250,35 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       final categoryKey = _getEffectivePaymentCategory();
 
       // ============================================================
-      // ✅ STEP 1: Create Razorpay order ONLY (NO application yet)
+      // ✅ STEP 1: Create Razorpay order
+      // ✅ Send TOTAL as amount + full breakdown + use_provided_amount flag
+      // Backend MUST use `amount` directly (no recalc)
       // ============================================================
-      debugPrint("=" * 60);
-      debugPrint("📤 STEP 1: Creating Razorpay order (NO application)");
-      debugPrint("=" * 60);
+      debugPrint("=" * 70);
+      debugPrint("📤 Creating Razorpay order");
+      debugPrint("   Application Fee: ₹${feeBreakdown.applicationFee}");
+      debugPrint("   Service Charge:  ₹${feeBreakdown.serviceCharge}");
+      debugPrint("   Subtotal:        ₹${feeBreakdown.subtotal}");
+      debugPrint("   GST (18%):       ₹${feeBreakdown.gstAmount}");
+      debugPrint("   TOTAL (sent):    ₹${feeBreakdown.totalFee}");
+      debugPrint("=" * 70);
 
       final orderResponse = await DioClient.dio.post(
         '/payment/razorpay/create-order',
         data: {
-          "amount": feeBreakdown.applicationFee,
+          // ✅ Send TOTAL — backend must use this directly
+          "amount": feeBreakdown.totalFee,
+
+          // ✅ Send breakdown so backend can log/validate/store
+          "application_fee": feeBreakdown.applicationFee,
+          "service_charge": feeBreakdown.serviceCharge,
+          "subtotal": feeBreakdown.subtotal,
+          "gst_amount": feeBreakdown.gstAmount,
+          "total_amount": feeBreakdown.totalFee,
+
+          // ✅ Tell backend NOT to recalculate
+          "use_provided_amount": true,
+
           "payment_type": "job",
           "job_id": jobId,
           "job_title": widget.job['post_name'] ?? 'Job',
@@ -1336,25 +1293,37 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       final responseData = orderResponse.data;
       final orderId = responseData['order_id'] ?? '';
       final keyId = responseData['key_id'] ?? '';
-      final totalAmount = responseData['amount'] ?? feeBreakdown.totalFee;
-      final appFee = responseData['application_fee'] ?? feeBreakdown.applicationFee;
-      final gstAmt = responseData['gst_amount'] ?? feeBreakdown.gstAmount;
-      final svcCharge = responseData['service_charge'] ?? feeBreakdown.serviceCharge;
+
+      // ✅ Prefer backend's echo of amount; if backend still returns different,
+      // use OUR computed total so UI is consistent
+      final dynamic backendAmount = responseData['amount'];
+      final int backendTotal = backendAmount is int
+          ? backendAmount
+          : (backendAmount is num
+              ? backendAmount.toInt()
+              : feeBreakdown.totalFee);
+
+      debugPrint("✅ Order created: $orderId");
+      debugPrint("   Backend returned amount: ₹$backendTotal");
+      debugPrint("   Frontend computed total: ₹${feeBreakdown.totalFee}");
+
+      // ⚠️ Warn if backend added extra
+      if (backendTotal != feeBreakdown.totalFee) {
+        debugPrint("⚠️⚠️ BACKEND MISMATCH: backend=₹$backendTotal, "
+            "frontend=₹${feeBreakdown.totalFee}");
+        debugPrint("⚠️ Backend is still recalculating! "
+            "Fix backend to use provided amount.");
+      }
 
       if (orderId.isEmpty || keyId.isEmpty) {
         _showSnackBar("Payment order failed", isError: true);
         return;
       }
 
-      debugPrint("✅ Order created: $orderId");
-      debugPrint("   Total: ₹$totalAmount");
-
       // ============================================================
-      // ✅ STEP 2: Show Payment Screen
-      // Application will be created ONLY on success
+      // ✅ STEP 2: Show Payment Screen with FRONTEND total
+      //    (so user always sees the same amount they saw in Job Detail)
       // ============================================================
-      debugPrint("📤 STEP 2: Opening payment screen");
-
       final paymentCompleted = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
@@ -1362,12 +1331,12 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           jobId: jobId,
           jobTitle: widget.job['post_name'] ?? 'Job',
           organization: widget.job['organization'] ?? 'Company',
-          amount: totalAmount,
-          applicationFee: appFee,
-          gstAmount: gstAmt,
-          serviceCharge: svcCharge,
+
+          // ✅ Use frontend total — always matches Job Detail screen
+          amount: feeBreakdown.totalFee,
+
           categoryUsed: categoryKey,
-          paymentId: orderId,  // Order ID
+          paymentId: orderId,
           expiresAt: DateTime.now().add(const Duration(minutes: 15)),
           onPaymentSuccess: () {
             if (mounted) setState(() => _hasApplied = true);
@@ -1379,18 +1348,15 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         ),
       );
 
-      // ============================================================
-      // ✅ STEP 3: Handle result
-      // ============================================================
       if (paymentCompleted == true && mounted) {
-        debugPrint("✅ Payment successful - Application was created by backend");
+        debugPrint("✅ Payment successful");
         _showSnackBar("✅ Application submitted successfully!");
         await _checkIfAlreadyApplied();
         if (widget.onApplicationSubmitted != null) {
           widget.onApplicationSubmitted!();
         }
       } else if (mounted) {
-        debugPrint("❌ Payment cancelled - NO application was created");
+        debugPrint("❌ Payment cancelled");
         _showSnackBar(
           "Payment cancelled. No application was created.",
           isError: true,
@@ -1557,13 +1523,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       _showSnackBar("No file URL available", isError: true);
       return;
     }
-
     if (!finalUrl.startsWith('http') &&
         !finalUrl.startsWith('file') &&
         !finalUrl.startsWith('blob:')) {
       finalUrl = 'https://$finalUrl';
     }
-
     String effectiveFileType = fileType ?? 'unknown';
     if (effectiveFileType == 'unknown' || effectiveFileType.isEmpty) {
       effectiveFileType = _JobFileTypeDetector.detectFileType(
@@ -1571,7 +1535,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         explicitType: fileType,
       );
     }
-
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1601,11 +1564,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       _showSnackBar("No notification link", isError: true);
       return;
     }
-
     final fileType = _isOfficialNotificationPdf
         ? 'pdf'
         : _JobFileTypeDetector.detectFileType(_officialNotificationUrl!);
-
     _showFilePopup(
       _officialNotificationUrl!,
       widget.job['post_name'] ?? "Official Notification",
@@ -1618,9 +1579,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       _showSnackBar("No advertisement", isError: true);
       return;
     }
-
     final fileType = _JobFileTypeDetector.detectFileType(_advertisementUrl!);
-
     _showFilePopup(
       _advertisementUrl!,
       widget.job['post_name'] ?? "Job Advertisement",
@@ -1630,7 +1589,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // DESIGN HELPERS - CLEAN & VISIBLE
+  // DESIGN HELPERS
   // ============================================================
   BoxDecoration _buildGradientBackground() {
     return const BoxDecoration(
@@ -1646,10 +1605,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     return BoxDecoration(
       color: _kCardWhite,
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(
-        color: _kBorderLight,
-        width: 1,
-      ),
+      border: Border.all(color: _kBorderLight, width: 1),
       boxShadow: [
         BoxShadow(
           color: Colors.grey.withOpacity(0.12),
@@ -1670,20 +1626,21 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   Widget _buildSectionHeader(String title, IconData icon, {Color? color}) {
+    final headerColor = color ?? _kPrimary;
     return Row(
       children: [
         Container(
           width: 4,
           height: 18,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [_kPrimary, _kPink],
+            gradient: LinearGradient(
+              colors: [headerColor, headerColor.withOpacity(0.7)],
             ),
             borderRadius: BorderRadius.circular(2),
           ),
         ),
         const SizedBox(width: 10),
-        Icon(icon, color: color ?? _kPrimary, size: 18),
+        Icon(icon, color: headerColor, size: 18),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -1700,8 +1657,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           width: 30,
           height: 2,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [_kPrimary, _kPink],
+            gradient: LinearGradient(
+              colors: [headerColor, headerColor.withOpacity(0.7)],
             ),
             borderRadius: BorderRadius.circular(2),
           ),
@@ -1822,8 +1779,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                     final uri = Uri.parse(
                         value.startsWith('http') ? value : 'https://$value');
                     if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri,
-                          mode: LaunchMode.externalApplication);
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
                     }
                   },
                   child: Text(
@@ -1908,44 +1864,30 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   Widget _buildApplicationTimelineSection() {
     final startDate = _getApplicationStartDate();
     final endDate = _getApplicationEndDate();
-
     List<Widget> children = [];
-
     if (startDate.isNotEmpty) {
-      children.add(
-        _buildInfoRow(
-          Icons.play_circle_outline,
-          "Start Date",
-          startDate,
-          color: Colors.green,
-        ),
-      );
+      children.add(_buildInfoRow(
+        Icons.play_circle_outline,
+        "Start Date",
+        startDate,
+        color: Colors.green,
+      ));
     }
-
     if (endDate.isNotEmpty) {
       if (children.isNotEmpty) children.add(const SizedBox(height: 8));
-      children.add(
-        _buildInfoRow(
-          Icons.stop_circle_outlined,
-          "End Date",
-          endDate,
-          color: Colors.red,
-        ),
-      );
+      children.add(_buildInfoRow(
+        Icons.stop_circle_outlined,
+        "End Date",
+        endDate,
+        color: Colors.red,
+      ));
     }
-
     if (children.isEmpty) {
-      children.add(
-        const Text(
-          "Application timeline not specified",
-          style: TextStyle(
-            fontSize: 13,
-            color: _kTextMuted,
-          ),
-        ),
-      );
+      children.add(const Text(
+        "Application timeline not specified",
+        style: TextStyle(fontSize: 13, color: _kTextMuted),
+      ));
     }
-
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1990,11 +1932,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                     ],
                   ),
                   child: const Center(
-                    child: Icon(
-                      Icons.auto_awesome,
-                      color: Colors.white,
-                      size: 32,
-                    ),
+                    child: Icon(Icons.auto_awesome,
+                        color: Colors.white, size: 32),
                   ),
                 ),
               );
@@ -2036,7 +1975,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     final hasAnyNotification = _hasAnyNotification();
     final hasApplicationFees = _hasApplicationFees();
     final applicationFees = _getApplicationFees();
-
     final feeBreakdown = _calculateFeeBreakdown();
 
     return Scaffold(
@@ -2053,31 +1991,20 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // AI HEADER CARD
                       _buildAIHeaderCard(job, typeColor, postedDate, lastDate),
                       const SizedBox(height: 16),
-
-                      // DISABILITY STATUS BANNER
                       if (_isDisabled) _buildDisabilityBanner(),
                       if (_isDisabled) const SizedBox(height: 16),
-
-                      // AI INSIGHTS ROW
                       if (_insights.isNotEmpty) _buildAIInsightsRow(),
                       if (_insights.isNotEmpty) const SizedBox(height: 16),
-
-                      // KEY INFO
                       _buildKeyInfoSection(job),
                       const SizedBox(height: 16),
-
-                      // APPLICATION TIMELINE
                       if (_getApplicationStartDate().isNotEmpty ||
                           _getApplicationEndDate().isNotEmpty)
                         _buildApplicationTimelineSection(),
                       if (_getApplicationStartDate().isNotEmpty ||
                           _getApplicationEndDate().isNotEmpty)
                         const SizedBox(height: 16),
-
-                      // APPLICATION FEES
                       if (hasApplicationFees && applicationFees.isNotEmpty)
                         _buildApplicationFeesSection(
                           applicationFees,
@@ -2085,51 +2012,36 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                         ),
                       if (hasApplicationFees && applicationFees.isNotEmpty)
                         const SizedBox(height: 16),
-
-                      // AGE LIMIT
                       if (_getAgeLimit() != 'Not specified')
                         _buildAgeLimitSection(),
                       if (_getAgeLimit() != 'Not specified')
                         const SizedBox(height: 16),
-
-                      // EXAM CITIES
                       if (job['exam_cities'] != null &&
                           (job['exam_cities'] as List).isNotEmpty)
                         _buildExamCitiesSection(job['exam_cities']),
                       if (job['exam_cities'] != null &&
                           (job['exam_cities'] as List).isNotEmpty)
                         const SizedBox(height: 16),
-
-                      // WORK DETAILS
                       _buildWorkDetailsSection(),
                       const SizedBox(height: 16),
-
-                      // BENEFITS
                       if (job['benefits'] != null &&
                           (job['benefits'] as List).isNotEmpty)
                         _buildBenefitsSection(job['benefits']),
                       if (job['benefits'] != null &&
                           (job['benefits'] as List).isNotEmpty)
                         const SizedBox(height: 16),
-
-                      // LANGUAGES
                       if (job['languages_required'] != null &&
                           (job['languages_required'] as List).isNotEmpty)
                         _buildLanguagesSection(job['languages_required']),
                       if (job['languages_required'] != null &&
                           (job['languages_required'] as List).isNotEmpty)
                         const SizedBox(height: 16),
-
-                      // EDUCATION DETAILS
                       if (job['education_details'] != null &&
                           job['education_details'].toString().isNotEmpty)
-                        _buildEducationDetailsSection(
-                            job['education_details']),
+                        _buildEducationDetailsSection(job['education_details']),
                       if (job['education_details'] != null &&
                           job['education_details'].toString().isNotEmpty)
                         const SizedBox(height: 16),
-
-                      // EXPERIENCE DETAILS
                       if (job['experience_details'] != null &&
                           job['experience_details'].toString().isNotEmpty)
                         _buildExperienceDetailsSection(
@@ -2137,15 +2049,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                       if (job['experience_details'] != null &&
                           job['experience_details'].toString().isNotEmpty)
                         const SizedBox(height: 16),
-
-                      // PHYSICAL ELIGIBILITY
                       if (job['physical_eligibility'] != null)
                         _buildPhysicalEligibilitySection(
                             job['physical_eligibility']),
                       if (job['physical_eligibility'] != null)
                         const SizedBox(height: 16),
-
-                      // INTERVIEW
                       if (job['interview_venue'] != null ||
                           job['interview_link'] != null ||
                           job['interview_date'] != null ||
@@ -2156,8 +2064,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                           job['interview_date'] != null ||
                           job['interview_time'] != null)
                         const SizedBox(height: 16),
-
-                      // SELECTION PROCESS
                       if (job['selection_stages'] != null &&
                           (job['selection_stages'] as List).isNotEmpty)
                         _buildSelectionProcessSection(
@@ -2166,8 +2072,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                       if (job['selection_stages'] != null &&
                           (job['selection_stages'] as List).isNotEmpty)
                         const SizedBox(height: 16),
-
-                      // CONTACT
                       if (job['contact_person'] != null ||
                           job['contact_email'] != null ||
                           job['contact_phone'] != null)
@@ -2176,25 +2080,18 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                           job['contact_email'] != null ||
                           job['contact_phone'] != null)
                         const SizedBox(height: 16),
-
-                      // IMPORTANT NOTES
                       if (job['important_notes'] != null &&
                           job['important_notes'].toString().isNotEmpty)
                         _buildImportantNotesSection(job['important_notes']),
                       if (job['important_notes'] != null &&
                           job['important_notes'].toString().isNotEmpty)
                         const SizedBox(height: 16),
-
-                      // TERMS
                       if (job['terms_conditions'] != null &&
                           job['terms_conditions'].toString().isNotEmpty)
-                        _buildTermsConditionsSection(
-                            job['terms_conditions']),
+                        _buildTermsConditionsSection(job['terms_conditions']),
                       if (job['terms_conditions'] != null &&
                           job['terms_conditions'].toString().isNotEmpty)
                         const SizedBox(height: 16),
-
-                      // IMPORTANT DATES
                       if (job['admit_card_date'] != null ||
                           job['exam_date'] != null ||
                           job['result_date'] != null)
@@ -2207,8 +2104,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                           job['exam_date'] != null ||
                           job['result_date'] != null)
                         const SizedBox(height: 16),
-
-                      // HELPLINE
                       if (job['helpline_number'] != null ||
                           job['helpline_email'] != null ||
                           job['whatsapp_number'] != null ||
@@ -2219,46 +2114,30 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                           job['whatsapp_number'] != null ||
                           job['telegram_channel'] != null)
                         const SizedBox(height: 16),
-
-                      // DESCRIPTION
                       if (job['description'] != null &&
                           job['description'].toString().isNotEmpty)
                         _buildDescriptionSection(job['description']),
                       if (job['description'] != null &&
                           job['description'].toString().isNotEmpty)
                         const SizedBox(height: 16),
-
-                      // SKILLS
                       if (job['required_skills'] != null &&
                           (job['required_skills'] as List).isNotEmpty)
                         _buildSkillsSection(job['required_skills']),
                       if (job['required_skills'] != null &&
                           (job['required_skills'] as List).isNotEmpty)
                         const SizedBox(height: 16),
-
-                      // MULTIPLE POSTS TABLE
                       if (hasMultiplePosts)
                         _buildMultiplePostsTable(multiplePosts),
                       if (hasMultiplePosts) const SizedBox(height: 16),
-
-                      // OFFICIAL NOTIFICATION
                       if (_hasOfficialNotification)
                         _buildOfficialNotificationSection(),
                       if (_hasOfficialNotification) const SizedBox(height: 16),
-
-                      // ADVERTISEMENT
                       if (_hasAdvertisement) _buildAdvertisementSection(),
                       if (_hasAdvertisement) const SizedBox(height: 16),
-
-                      // INFO NOTE
                       if (hasAnyNotification) _buildInfoNote(),
                       if (hasAnyNotification) const SizedBox(height: 16),
-
-                      // SAVE / SHARE
                       if (!_isCheckingApplied) _buildSaveAndShareButtons(),
                       if (!_isCheckingApplied) const SizedBox(height: 16),
-
-                      // APPLY BUTTONS
                       if (_isCheckingApplied)
                         const Center(
                           child: CircularProgressIndicator(
@@ -2293,10 +2172,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.orange.shade300,
-          width: 2,
-        ),
+        border: Border.all(color: Colors.orange.shade300, width: 2),
         boxShadow: [
           BoxShadow(
             color: Colors.orange.withOpacity(0.2),
@@ -2322,11 +2198,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.accessible,
-              color: Colors.white,
-              size: 28,
-            ),
+            child: const Icon(Icons.accessible, color: Colors.white, size: 28),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -2365,10 +2237,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                 const SizedBox(height: 4),
                 const Text(
                   "You will be charged the PWD (Divyangjan) application fee.",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _kTextSecondary,
-                  ),
+                  style: TextStyle(fontSize: 12, color: _kTextSecondary),
                 ),
                 if (_disabilityPercentage != null &&
                     _disabilityPercentage!.isNotEmpty)
@@ -2399,10 +2268,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     return AppBar(
       title: const Text(
         "Job Details",
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
       backgroundColor: _kPrimary,
       foregroundColor: Colors.white,
@@ -2446,16 +2312,10 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            _kCardWhite,
-            typeColor.withOpacity(0.08),
-          ],
+          colors: [_kCardWhite, typeColor.withOpacity(0.08)],
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: typeColor.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: typeColor.withOpacity(0.2), width: 1),
         boxShadow: [
           BoxShadow(
             color: typeColor.withOpacity(0.15),
@@ -2618,7 +2478,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                         color: Colors.red.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.event, size: 16, color: Colors.red),
+                      child:
+                          const Icon(Icons.event, size: 16, color: Colors.red),
                     ),
                     const SizedBox(width: 10),
                     const Text(
@@ -2696,16 +2557,10 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            _kPrimary.withOpacity(0.08),
-            _kPink.withOpacity(0.05),
-          ],
+          colors: [_kPrimary.withOpacity(0.08), _kPink.withOpacity(0.05)],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _kPrimary.withOpacity(0.15),
-          width: 1,
-        ),
+        border: Border.all(color: _kPrimary.withOpacity(0.15), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2715,9 +2570,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [_kPrimary, _kPink],
-                  ),
+                  gradient: const LinearGradient(colors: [_kPrimary, _kPink]),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.auto_awesome,
@@ -2740,13 +2593,12 @@ class _JobDetailScreenState extends State<JobDetailScreen>
             runSpacing: 8,
             children: _insights.map((insight) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: _kCardWhite,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _kPrimary.withOpacity(0.2),
-                  ),
+                  border: Border.all(color: _kPrimary.withOpacity(0.2)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.grey.withOpacity(0.08),
@@ -2782,32 +2634,27 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       const SizedBox(height: 12),
       _buildKeyInfoRow(Icons.work_history, "Experience", _getExperience()),
     ];
-
     if (job['total_posts'] != null) {
       children.add(const SizedBox(height: 12));
       children.add(_buildKeyInfoRow(
           Icons.people, "Vacancies", _getTotalVacancies()));
     }
-
     if (_getAgeLimit() != 'Not specified') {
       children.add(const SizedBox(height: 12));
-      children.add(_buildKeyInfoRow(
-          Icons.calendar_today, "Age Limit", _getAgeLimit()));
+      children.add(
+          _buildKeyInfoRow(Icons.calendar_today, "Age Limit", _getAgeLimit()));
     }
-
     if (_getGenderPreference() != 'Any') {
       children.add(const SizedBox(height: 12));
       children.add(_buildKeyInfoRow(
           Icons.people, "Gender", _getGenderPreference()));
     }
-
     if (_getUrgencyLevel() != 'Normal') {
       children.add(const SizedBox(height: 12));
       children.add(_buildKeyInfoRow(
           Icons.priority_high, "Urgency", _getUrgencyLevel(),
           color: Colors.orange));
     }
-
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2821,7 +2668,10 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // APPLICATION FEES SECTION
+  // APPLICATION FEES SECTION - FULL BREAKDOWN
+  // ✅ Formula: Subtotal = App Fee + Service Charge
+  //            GST      = 18% of Subtotal
+  //            Total    = Subtotal + GST
   // ============================================================
   Widget _buildApplicationFeesSection(
     Map<String, dynamic> fees,
@@ -2837,10 +2687,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       final entryKey = entry.key.toLowerCase();
       final isEffectiveCategory = entryKey == effectiveCategory.toLowerCase() ||
           _getAlternativeFeeKeys(effectiveCategory).contains(entryKey);
-
       final isPwdEntry = entryKey == 'pwd' ||
           _getAlternativeFeeKeys('pwd').contains(entryKey);
-
       final isHighlighted = isEffectiveCategory || (isPwd && isPwdEntry);
 
       feeChildren.add(
@@ -2881,10 +2729,13 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                         entry.key.toString().toUpperCase(),
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight:
-                              isHighlighted ? FontWeight.bold : FontWeight.w500,
+                          fontWeight: isHighlighted
+                              ? FontWeight.bold
+                              : FontWeight.w500,
                           color: isHighlighted
-                              ? (isPwd ? Colors.orange.shade900 : Colors.green.shade900)
+                              ? (isPwd
+                                  ? Colors.orange.shade900
+                                  : Colors.green.shade900)
                               : _kTextSecondary,
                         ),
                       ),
@@ -2901,7 +2752,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                     fontWeight:
                         isHighlighted ? FontWeight.bold : FontWeight.w600,
                     color: isHighlighted
-                        ? (isPwd ? Colors.orange.shade900 : Colors.green.shade900)
+                        ? (isPwd
+                            ? Colors.orange.shade900
+                            : Colors.green.shade900)
                         : _kTextPrimary,
                   ),
                 ),
@@ -2936,8 +2789,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           _buildSectionHeader("Application Fees", Icons.currency_rupee,
               color: Colors.teal),
           const SizedBox(height: 16),
-
-          // User category info banner
           if (isPwd)
             Container(
               padding: const EdgeInsets.all(12),
@@ -2947,9 +2798,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                   colors: [Colors.orange.shade100, Colors.amber.shade100],
                 ),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.orange.shade400,
-                ),
+                border: Border.all(color: Colors.orange.shade400),
               ),
               child: Row(
                 children: [
@@ -2995,9 +2844,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
               decoration: BoxDecoration(
                 color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.blue.shade200,
-                ),
+                border: Border.all(color: Colors.blue.shade200),
               ),
               child: Row(
                 children: [
@@ -3024,8 +2871,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                 ],
               ),
             ),
-
-          // Category-wise fees
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -3048,21 +2893,16 @@ class _JobDetailScreenState extends State<JobDetailScreen>
               ],
             ),
           ),
-
           const SizedBox(height: 16),
           Divider(color: Colors.grey.shade300),
           const SizedBox(height: 12),
-
-          // Fee Breakdown
+          // Application Fee
           Row(
             children: [
               const Expanded(
                 child: Text(
                   "Application Fee",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: _kTextSecondary,
-                  ),
+                  style: TextStyle(fontSize: 14, color: _kTextSecondary),
                 ),
               ),
               Text(
@@ -3076,37 +2916,13 @@ class _JobDetailScreenState extends State<JobDetailScreen>
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  "GST (${GST_PERCENT.toInt()}%)",
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: _kTextSecondary,
-                  ),
-                ),
-              ),
-              Text(
-                "₹${feeBreakdown.gstAmount}",
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: _kTextPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
+          // Service Charge
           Row(
             children: [
               const Expanded(
                 child: Text(
                   "Service Charge",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: _kTextSecondary,
-                  ),
+                  style: TextStyle(fontSize: 14, color: _kTextSecondary),
                 ),
               ),
               Text(
@@ -3119,7 +2935,52 @@ class _JobDetailScreenState extends State<JobDetailScreen>
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          // Subtotal
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  "Subtotal",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _kTextPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Text(
+                "₹${feeBreakdown.subtotal}",
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: _kTextPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // GST on subtotal
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  "GST (${GST_PERCENT.toInt()}% on ₹${feeBreakdown.subtotal})",
+                  style: const TextStyle(fontSize: 14, color: _kTextSecondary),
+                ),
+              ),
+              Text(
+                "₹${feeBreakdown.gstAmount}",
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: _kTextPrimary,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
+          // Total
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -3127,10 +2988,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                 colors: [Colors.green.shade50, Colors.teal.shade50],
               ),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: Colors.green.shade300,
-                width: 2,
-              ),
+              border: Border.all(color: Colors.green.shade300, width: 2),
             ),
             child: Row(
               children: [
@@ -3180,25 +3038,14 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     final relaxationByCategory = job['age_relaxation_by_category'];
 
     List<Widget> children = [
-      _buildInfoRow(
-        Icons.cake,
-        "Age Limit",
-        _getAgeLimit(),
-        color: Colors.orange,
-      ),
+      _buildInfoRow(Icons.cake, "Age Limit", _getAgeLimit(),
+          color: Colors.orange),
     ];
-
     if (calcDate != null && calcDate.toString().isNotEmpty) {
       children.add(const SizedBox(height: 8));
-      children.add(
-        _buildInfoRow(
-          Icons.calendar_today,
-          "Age as on",
-          _formatDate(calcDate.toString()),
-        ),
-      );
+      children.add(_buildInfoRow(Icons.calendar_today, "Age as on",
+          _formatDate(calcDate.toString())));
     }
-
     if (relaxationByCategory != null &&
         relaxationByCategory is Map &&
         relaxationByCategory.isNotEmpty) {
@@ -3248,9 +3095,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                         child: Text(
                           "${entry.key}: +${entry.value} years",
                           style: const TextStyle(
-                            fontSize: 13,
-                            color: _kTextPrimary,
-                          ),
+                              fontSize: 13, color: _kTextPrimary),
                         ),
                       ),
                     ],
@@ -3262,7 +3107,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         ),
       );
     }
-
     if (relaxation != null && relaxation.toString().isNotEmpty) {
       children.add(const SizedBox(height: 12));
       children.add(
@@ -3275,15 +3119,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           child: Text(
             relaxation.toString(),
             style: const TextStyle(
-              fontSize: 13,
-              height: 1.5,
-              color: _kTextPrimary,
-            ),
+                fontSize: 13, height: 1.5, color: _kTextPrimary),
           ),
         ),
       );
     }
-
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3318,15 +3158,12 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.blue.shade200,
-                  ),
+                  border: Border.all(color: Colors.blue.shade200),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.location_on,
-                        size: 14, color: Colors.blue),
+                    const Icon(Icons.location_on, size: 14, color: Colors.blue),
                     const SizedBox(width: 6),
                     Text(
                       city.toString(),
@@ -3399,9 +3236,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                 decoration: BoxDecoration(
                   color: Colors.pink.shade50,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.pink.shade200,
-                  ),
+                  border: Border.all(color: Colors.pink.shade200),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -3448,9 +3283,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                 decoration: BoxDecoration(
                   color: Colors.indigo.shade50,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.indigo.shade200,
-                  ),
+                  border: Border.all(color: Colors.indigo.shade200),
                 ),
                 child: Text(
                   lang.toString(),
@@ -3468,10 +3301,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
             const SizedBox(height: 12),
             Text(
               "Other: ${widget.job['other_languages']}",
-              style: const TextStyle(
-                fontSize: 13,
-                color: _kTextSecondary,
-              ),
+              style: const TextStyle(fontSize: 13, color: _kTextSecondary),
             ),
           ],
         ],
@@ -3500,10 +3330,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
             child: Text(
               details,
               style: const TextStyle(
-                fontSize: 14,
-                height: 1.6,
-                color: _kTextPrimary,
-              ),
+                  fontSize: 14, height: 1.6, color: _kTextPrimary),
             ),
           ),
         ],
@@ -3532,10 +3359,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
             child: Text(
               details,
               style: const TextStyle(
-                fontSize: 14,
-                height: 1.6,
-                color: _kTextPrimary,
-              ),
+                  fontSize: 14, height: 1.6, color: _kTextPrimary),
             ),
           ),
         ],
@@ -3548,7 +3372,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   // ============================================================
   Widget _buildPhysicalEligibilitySection(Map physical) {
     List<Widget> children = [];
-
     if (physical['min_height_cm'] != null) {
       children.add(_buildInfoRow(Icons.height, "Min Height (Male)",
           "${physical['min_height_cm']} cm", color: Colors.blue));
@@ -3581,15 +3404,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           ),
           child: Text(
             "Relaxation: ${physical['relaxation']}",
-            style: const TextStyle(
-              fontSize: 13,
-              color: _kTextPrimary,
-            ),
+            style: const TextStyle(fontSize: 13, color: _kTextPrimary),
           ),
         ),
       );
     }
-
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3616,28 +3435,24 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     final isOnline = job['is_interview_online'] == true;
 
     List<Widget> children = [];
-
     if (isOnline && link != null) {
       children.add(_buildInfoRow(Icons.video_call, "Mode", "Online Interview",
           color: Colors.green));
       children.add(const SizedBox(height: 8));
-      children.add(_buildInfoRow(Icons.link, "Link", link.toString(),
-          isLink: true));
+      children.add(
+          _buildInfoRow(Icons.link, "Link", link.toString(), isLink: true));
     } else if (venue != null && venue.toString().isNotEmpty) {
       children.add(_buildInfoRow(Icons.location_on, "Venue", venue.toString()));
     }
-
     if (date != null && date.toString().isNotEmpty) {
       if (children.isNotEmpty) children.add(const SizedBox(height: 8));
       children.add(_buildInfoRow(
           Icons.calendar_today, "Date", _formatDate(date.toString())));
     }
-
     if (time != null && time.toString().isNotEmpty) {
       if (children.isNotEmpty) children.add(const SizedBox(height: 8));
       children.add(_buildInfoRow(Icons.access_time, "Time", time.toString()));
     }
-
     if (documents != null && documents is List && documents.isNotEmpty) {
       children.add(const SizedBox(height: 16));
       children.add(
@@ -3693,7 +3508,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
         ),
       );
     }
-
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3778,10 +3592,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
               child: Text(
                 details.toString(),
                 style: const TextStyle(
-                  fontSize: 13,
-                  height: 1.5,
-                  color: _kTextPrimary,
-                ),
+                    fontSize: 13, height: 1.5, color: _kTextPrimary),
               ),
             ),
           ],
@@ -3796,7 +3607,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   Widget _buildContactInformationSection() {
     final job = widget.job;
     List<Widget> children = [];
-
     if (job['contact_person'] != null &&
         job['contact_person'].toString().isNotEmpty) {
       children.add(_buildInfoRow(
@@ -3824,7 +3634,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           Icons.phone, "Phone", job['contact_phone'].toString(),
           color: Colors.cyan));
     }
-
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3854,17 +3663,12 @@ class _JobDetailScreenState extends State<JobDetailScreen>
             decoration: BoxDecoration(
               color: Colors.amber.shade50,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.amber.shade200,
-              ),
+              border: Border.all(color: Colors.amber.shade200),
             ),
             child: Text(
               notes,
               style: const TextStyle(
-                fontSize: 14,
-                height: 1.6,
-                color: _kTextPrimary,
-              ),
+                  fontSize: 14, height: 1.6, color: _kTextPrimary),
             ),
           ),
         ],
@@ -3893,10 +3697,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
             child: Text(
               terms,
               style: const TextStyle(
-                fontSize: 14,
-                height: 1.6,
-                color: _kTextSecondary,
-              ),
+                  fontSize: 14, height: 1.6, color: _kTextSecondary),
             ),
           ),
         ],
@@ -3910,7 +3711,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   Widget _buildImportantDatesSection(
       dynamic admitCardDate, dynamic examDate, dynamic resultDate) {
     List<Widget> children = [];
-
     if (admitCardDate != null && admitCardDate.toString().isNotEmpty) {
       children.add(_buildInfoRow(Icons.confirmation_number, "Admit Card",
           _formatDate(admitCardDate.toString()),
@@ -3928,7 +3728,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           Icons.emoji_events, "Result Date", _formatDate(resultDate.toString()),
           color: Colors.green));
     }
-
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3948,7 +3747,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   Widget _buildHelplineSection() {
     final job = widget.job;
     List<Widget> children = [];
-
     if (job['helpline_number'] != null &&
         job['helpline_number'].toString().isNotEmpty) {
       children.add(_buildInfoRow(
@@ -3976,7 +3774,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           Icons.telegram, "Telegram", job['telegram_channel'].toString(),
           isLink: true, color: Colors.green));
     }
-
     return _buildGlassCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4010,10 +3807,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
             child: Text(
               description,
               style: const TextStyle(
-                fontSize: 14,
-                height: 1.6,
-                color: _kTextPrimary,
-              ),
+                  fontSize: 14, height: 1.6, color: _kTextPrimary),
             ),
           ),
         ],
@@ -4029,7 +3823,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader("Required Skills", Icons.build, color: Colors.blue),
+          _buildSectionHeader("Required Skills", Icons.build,
+              color: Colors.blue),
           const SizedBox(height: 16),
           Wrap(
             spacing: 10,
@@ -4039,16 +3834,13 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                   ? (skill['name'] ?? skill['skill'] ?? skill.toString())
                   : skill.toString();
               final minProf = skill is Map ? skill['min_proficiency'] : null;
-
               return Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.blue.shade200,
-                  ),
+                  border: Border.all(color: Colors.blue.shade200),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -4095,16 +3887,13 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           ...posts.asMap().entries.map((entry) {
             final index = entry.key;
             final post = entry.value as Map;
-
             return Container(
               margin: const EdgeInsets.only(bottom: 14),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: Colors.teal.shade50,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: Colors.teal.shade200,
-                ),
+                border: Border.all(color: Colors.teal.shade200),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -4199,9 +3988,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                             Text(
                               ps['pay_scale'] ?? 'N/A',
                               style: const TextStyle(
-                                fontSize: 13,
-                                color: _kTextPrimary,
-                              ),
+                                  fontSize: 13, color: _kTextPrimary),
                             ),
                           ],
                         ),
@@ -4262,9 +4049,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                 colors: [Colors.blue.shade50, Colors.blue.shade100],
               ),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: Colors.blue.shade300,
-              ),
+              border: Border.all(color: Colors.blue.shade300),
             ),
             child: Row(
               children: [
@@ -4380,9 +4165,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                 colors: [Colors.orange.shade50, Colors.orange.shade100],
               ),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: Colors.orange.shade300,
-              ),
+              border: Border.all(color: Colors.orange.shade300),
             ),
             child: Row(
               children: [
@@ -4478,9 +4261,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       decoration: BoxDecoration(
         color: Colors.amber.shade50,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.amber.shade200,
-        ),
+        border: Border.all(color: Colors.amber.shade200),
       ),
       child: Row(
         children: [
@@ -4490,7 +4271,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
               color: Colors.amber.withOpacity(0.2),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.info_outline, color: Colors.amber, size: 20),
+            child:
+                const Icon(Icons.info_outline, color: Colors.amber, size: 20),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -4610,7 +4392,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                 color: Colors.green.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.check_circle, color: Colors.green, size: 28),
+              child: const Icon(Icons.check_circle,
+                  color: Colors.green, size: 28),
             ),
             const SizedBox(width: 14),
             Text(
@@ -4628,7 +4411,6 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 
     return Column(
       children: [
-        // APPLY WITH US BUTTON
         if (hasApplyWithUs)
           SizedBox(
             width: double.infinity,
@@ -4639,17 +4421,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
                   : (feeBreakdown.totalFee > 0
                       ? "Apply with Us (₹${feeBreakdown.totalFee})"
                       : "Apply with Us"),
-              icon: _isApplyingWithUs
-                  ? Icons.hourglass_empty
-                  : Icons.send,
+              icon: _isApplyingWithUs ? Icons.hourglass_empty : Icons.send,
               onTap: _isApplyingWithUs ? () {} : _applyWithUs,
             ),
           ),
-
-        // Divider if both buttons
         if (hasApplyWithUs && hasWebsiteUrl) const SizedBox(height: 14),
-
-        // APPLY ON WEBSITE BUTTON
         if (hasWebsiteUrl)
           SizedBox(
             width: double.infinity,

@@ -1,8 +1,9 @@
 // lib/features/payment/presentation/screens/payment_screen.dart
 // ✅ COMPLETE - Works on both Web and Mobile
-// ✅ NEW: Shows full fee breakdown (App Fee + GST + Service Charge = Total)
+// ✅ ONLY SHOWS TOTAL AMOUNT - No breakdown
 // ✅ FIXED: Application is ONLY saved after payment success
 // ✅ FIXED: No application record created on payment cancellation/failure
+// ✅ FIXED: Displays EXACT amount received from parent (no recalculation)
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -13,12 +14,10 @@ import 'package:rojgarnext/features/payment/razorpay_service.dart';
 import 'package:rojgarnext/features/payment/presentation/payment.dart';
 
 class PaymentScreen extends StatefulWidget {
-  // Job-specific fields
   final String? jobId;
   final String? jobTitle;
   final String? organization;
 
-  // Service-specific fields
   final String? serviceId;
   final String? serviceType;
   final String? serviceSubType;
@@ -28,18 +27,15 @@ class PaymentScreen extends StatefulWidget {
   final String? userName;
   final String? userMobile;
 
-  // Common fields
+  /// ✅ Total amount to pay — passed directly from caller.
+  /// PaymentScreen does NOT recalculate; it displays this as-is.
   final int amount;
+
   final String categoryUsed;
   final String paymentId;
   final DateTime expiresAt;
   final VoidCallback onPaymentSuccess;
   final PaymentType paymentType;
-
-  // ✅ NEW: Fee breakdown fields
-  final int? applicationFee;
-  final int? gstAmount;
-  final int? serviceCharge;
 
   const PaymentScreen({
     super.key,
@@ -60,10 +56,6 @@ class PaymentScreen extends StatefulWidget {
     required this.expiresAt,
     required this.onPaymentSuccess,
     required this.paymentType,
-    // ✅ NEW
-    this.applicationFee,
-    this.gstAmount,
-    this.serviceCharge,
   });
 
   @override
@@ -92,6 +84,14 @@ class _PaymentScreenState extends State<PaymentScreen>
   @override
   void initState() {
     super.initState();
+
+    // ✅ Debug: confirm exact amount received from parent
+    debugPrint("=" * 60);
+    debugPrint("💰 PaymentScreen opened");
+    debugPrint("   Amount received: ₹${widget.amount}");
+    debugPrint("   Payment type: ${widget.paymentType}");
+    debugPrint("   Payment ID: ${widget.paymentId}");
+    debugPrint("=" * 60);
 
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
@@ -161,13 +161,13 @@ class _PaymentScreenState extends State<PaymentScreen>
     });
 
     try {
-      debugPrint("💰 Creating Razorpay order...");
-      debugPrint("   Amount: ${widget.amount}");
+      debugPrint("💰 Creating Razorpay order (verify step)...");
+      debugPrint("   Amount: ₹${widget.amount}");
       debugPrint("   Platform: ${kIsWeb ? 'Web' : 'Mobile'}");
       debugPrint("   Payment Type: ${widget.paymentType}");
 
       final Map<String, dynamic> requestData = {
-        "amount": widget.amount,
+        "amount": widget.amount, // ✅ exact amount from parent
         "payment_type":
             widget.paymentType == PaymentType.job ? "job" : "service",
       };
@@ -179,13 +179,6 @@ class _PaymentScreenState extends State<PaymentScreen>
           requestData["job_title"] = widget.jobTitle;
         if (widget.organization != null)
           requestData["organization"] = widget.organization;
-        // ✅ Send fee breakdown
-        if (widget.applicationFee != null)
-          requestData["application_fee"] = widget.applicationFee;
-        if (widget.gstAmount != null)
-          requestData["gst_amount"] = widget.gstAmount;
-        if (widget.serviceCharge != null)
-          requestData["service_charge"] = widget.serviceCharge;
       } else {
         if (widget.serviceId == null || widget.serviceSubType == null) {
           throw Exception("Service ID and Sub Type are required");
@@ -234,6 +227,7 @@ class _PaymentScreenState extends State<PaymentScreen>
           _showMessage("Opening payment gateway...");
         }
 
+        // ✅ Pass widget.amount to Razorpay (must equal what backend stored)
         await RazorpayService.instance.initiatePayment(
           amount: widget.amount,
           orderId: _razorpayOrderId!,
@@ -305,7 +299,6 @@ class _PaymentScreenState extends State<PaymentScreen>
         "razorpay_signature": _razorpaySignature,
         "application_id": _applicationId ?? widget.paymentId,
         "amount": widget.amount,
-        // ✅ CRITICAL: Send ALL application data so backend creates record ONLY on success
         "payment_type": widget.paymentType == PaymentType.job ? "job" : "service",
       };
 
@@ -314,9 +307,6 @@ class _PaymentScreenState extends State<PaymentScreen>
         requestData["job_title"] = widget.jobTitle;
         requestData["organization"] = widget.organization;
         requestData["category_used"] = widget.categoryUsed;
-        requestData["application_fee"] = widget.applicationFee;
-        requestData["gst_amount"] = widget.gstAmount;
-        requestData["service_charge"] = widget.serviceCharge;
       } else {
         requestData["service_id"] = widget.serviceId;
         requestData["service_type"] = widget.serviceType;
@@ -436,6 +426,9 @@ class _PaymentScreenState extends State<PaymentScreen>
     }
   }
 
+  // ============================================================
+  // BUILD — ONLY TOTAL AMOUNT (no breakdown)
+  // ============================================================
   @override
   Widget build(BuildContext context) {
     final isExpired = _timeLeft.isNegative;
@@ -453,12 +446,6 @@ class _PaymentScreenState extends State<PaymentScreen>
     final bool canPay =
         !_isPaymentCompleted && !isExpired && !_isRazorpayLoading;
 
-    // ✅ Get fee breakdown from widget or fallback
-    final appFee = widget.applicationFee ?? 0;
-    final gst = widget.gstAmount ?? 0;
-    final serviceCharge = widget.serviceCharge ?? 0;
-    final hasBreakdown = appFee > 0 || gst > 0 || serviceCharge > 0;
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
@@ -471,13 +458,13 @@ class _PaymentScreenState extends State<PaymentScreen>
         backgroundColor: Colors.white,
         child: Container(
           width: MediaQuery.of(context).size.width * 0.92,
-          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 720),
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 650),
           padding: const EdgeInsets.all(24),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Header
+                // ==================== HEADER ====================
                 Row(
                   children: [
                     Container(
@@ -518,109 +505,23 @@ class _PaymentScreenState extends State<PaymentScreen>
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
-                // ✅ NEW: Fee Breakdown Section
-                if (hasBreakdown) ...[
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Row(
-                          children: [
-                            Icon(Icons.receipt_long,
-                                size: 18, color: Color(0xFF6C63FF)),
-                            SizedBox(width: 8),
-                            Text(
-                              "Fee Breakdown",
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF6C63FF),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        // Application Fee
-                        if (appFee > 0)
-                          _buildBreakdownRow(
-                            "Application Fees",
-                            appFee,
-                            Colors.teal,
-                          ),
-                        if (appFee > 0) const SizedBox(height: 8),
-                        // GST
-                        if (gst > 0)
-                          _buildBreakdownRow(
-                            "GST (18%)",
-                            gst,
-                            Colors.orange,
-                          ),
-                        if (gst > 0) const SizedBox(height: 8),
-                        // Service Charge
-                        if (serviceCharge > 0)
-                          _buildBreakdownRow(
-                            "Service Charge",
-                            serviceCharge,
-                            Colors.purple,
-                          ),
-                        const SizedBox(height: 12),
-                        const Divider(),
-                        const SizedBox(height: 8),
-                        // Total
-                        Row(
-                          children: [
-                            const Icon(Icons.payments,
-                                size: 18, color: Color(0xFF1E3A8A)),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                "Total Payable",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E3A8A),
-                                ),
-                              ),
-                            ),
-                            Text(
-                              "₹${widget.amount}",
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1E3A8A),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Amount Display
+                // ==================== AMOUNT DISPLAY (ONLY TOTAL) ====================
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.blue.shade200,
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
@@ -628,30 +529,31 @@ class _PaymentScreenState extends State<PaymentScreen>
                     children: [
                       const Text("Amount to Pay",
                           style: TextStyle(
-                              fontSize: 14, color: Colors.white70)),
-                      const SizedBox(height: 4),
+                              fontSize: 16, color: Colors.white70)),
+                      const SizedBox(height: 8),
+                      // ✅ Displays EXACT amount passed by parent
                       Text(
                         "₹${widget.amount}",
                         style: const TextStyle(
-                          fontSize: 44,
+                          fontSize: 52,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
+                            horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(24),
                         ),
                         child: Text(
                           widget.paymentType == PaymentType.job
                               ? widget.categoryUsed.toUpperCase()
                               : "Service Fee",
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 13,
                             fontWeight: FontWeight.bold,
                             color: Colors.teal,
                           ),
@@ -660,9 +562,9 @@ class _PaymentScreenState extends State<PaymentScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-                // Timer
+                // ==================== TIMER ====================
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -687,9 +589,9 @@ class _PaymentScreenState extends State<PaymentScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-                // Error Message
+                // ==================== ERROR ====================
                 if (_errorMessage != null)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -713,9 +615,9 @@ class _PaymentScreenState extends State<PaymentScreen>
                       ],
                     ),
                   ),
-                if (_errorMessage != null) const SizedBox(height: 12),
+                if (_errorMessage != null) const SizedBox(height: 16),
 
-                // Payment Completed
+                // ==================== SUCCESS ====================
                 if (_isPaymentCompleted)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -741,23 +643,23 @@ class _PaymentScreenState extends State<PaymentScreen>
                       ],
                     ),
                   ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-                // Pay Button
+                // ==================== PAY BUTTON ====================
                 if (!_isPaymentCompleted && !isExpired)
                   SizedBox(
                     width: double.infinity,
-                    height: 54,
+                    height: 58,
                     child: ElevatedButton.icon(
                       onPressed: canPay ? _createRazorpayOrder : null,
                       icon: _isRazorpayLoading
                           ? const SizedBox(
-                              width: 20,
-                              height: 20,
+                              width: 22,
+                              height: 22,
                               child:
                                   CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.payment, size: 24),
+                          : const Icon(Icons.payment, size: 26),
                       label: Text(
                         _isRazorpayLoading
                             ? "Processing..."
@@ -765,20 +667,21 @@ class _PaymentScreenState extends State<PaymentScreen>
                                 ? "Pay ₹${widget.amount} (Web)"
                                 : "Pay ₹${widget.amount}",
                         style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1E3A8A),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(16),
                         ),
+                        elevation: 4,
                       ),
                     ),
                   ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
-                // Platform Info
+                // ==================== PLATFORM INFO ====================
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -807,9 +710,9 @@ class _PaymentScreenState extends State<PaymentScreen>
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
-                // Cancel Button
+                // ==================== CANCEL BUTTON ====================
                 TextButton(
                   onPressed: _showCancelConfirmation,
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -820,30 +723,6 @@ class _PaymentScreenState extends State<PaymentScreen>
           ),
         ),
       ),
-    );
-  }
-
-  // ✅ NEW: Fee breakdown row helper
-  Widget _buildBreakdownRow(String label, int amount, Color color) {
-    return Row(
-      children: [
-        Icon(Icons.circle, size: 8, color: color),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 13, color: Colors.black87),
-          ),
-        ),
-        Text(
-          "₹$amount",
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
     );
   }
 }

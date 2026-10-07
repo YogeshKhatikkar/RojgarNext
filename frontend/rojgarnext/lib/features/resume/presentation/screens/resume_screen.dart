@@ -18,7 +18,9 @@ import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rojgarnext/core/services/profile_state_service.dart';
-
+// At the top of resume_screen.dart
+import 'package:rojgarnext/features/resume/services/resume_profile_service.dart';
+import 'package:rojgarnext/features/resume/utils/resume_defaults.dart';
 class ResumeScreen extends StatefulWidget {
   const ResumeScreen({super.key});
 
