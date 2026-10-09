@@ -1,5 +1,8 @@
 // lib/features/user/presentation/screens/user_dashboard.dart
 // ✅ COMPLETE FIXED VERSION
+// ✅ MODIFIED: Jobs menu now contains Browse Jobs + Job Applications
+// ✅ MODIFIED: Saved Jobs REMOVED from Jobs submenu (accessible via Quick Action)
+// ✅ MODIFIED: Applications top-level menu REMOVED (jobApplications now under Jobs)
 // ✅ All enum types properly imported
 // ✅ Career Score + Profile Completion + Application Counts
 // ✅ Cache-first loading for instant display
@@ -8,6 +11,13 @@
 // ✅ FIXED: UserServiceApplicationScreen (singular) — matches class name
 // ✅ FIXED: SupportScreen — matches class name
 // ✅ FIXED: Services → Browse Services opens ApplyServiceScreen (user-facing)
+// ✅ NEW: Job Details shown in RIGHT PANEL (embedded mode, no back button)
+// ✅ NEW: _selectedJob state for embedded job detail
+// ✅ NEW: onJobSelected callback from JobListScreen
+// ✅ NEW: onBack callback returns to job list
+// ✅ FIXED: View Application now opens ApplicationDetailScreen in RIGHT PANEL
+// ✅ FIXED: _selectedApplication state properly managed
+// ✅ FIXED: Back button in AppBar returns from application detail
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -29,6 +39,7 @@ import 'package:rojgarnext/features/user/presentation/screens/user_documents_scr
 import 'package:rojgarnext/features/user/presentation/screens/user_applications_screen.dart';
 import 'package:rojgarnext/features/user/presentation/screens/user_support_screen.dart';
 import 'package:rojgarnext/features/jobs/presentation/screens/job_list_screen.dart';
+import 'package:rojgarnext/features/jobs/presentation/screens/job_detail_screen.dart';
 import 'package:rojgarnext/features/jobs/presentation/screens/saved_jobs_screen.dart';
 
 // ✅ Service screens
@@ -103,6 +114,8 @@ class DashboardStats {
 
 // ============================================================
 // USER DASHBOARD
+// ✅ NEW: _selectedJob state for embedded job detail
+// ✅ NEW: _selectedApplication state for embedded application detail
 // ============================================================
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -114,13 +127,21 @@ class UserDashboard extends StatefulWidget {
 class _UserDashboardState extends State<UserDashboard> {
   // ==================== STATE ====================
   UserMenuType selectedMenu = UserMenuType.dashboard;
+
+  // ⬅️ MODIFIED: JobSubMenu now includes jobApplications
   JobSubMenu selectedJobSubMenu = JobSubMenu.browseJobs;
-  ApplicationSubMenu selectedAppSubMenu = ApplicationSubMenu.jobApplications;
+
   ServiceSubMenu selectedServiceSubMenu = ServiceSubMenu.browseServices;
   ResumeSubMenu selectedResumeSubMenu = ResumeSubMenu.buildResume;
   AISubMenu selectedAISubMenu = AISubMenu.dashboard;
   ProfileSubMenu selectedProfileSubMenu = ProfileSubMenu.basicDetails;
   SettingsSubMenu selectedSettingsSubMenu = SettingsSubMenu.changePassword;
+
+  // ✅ Selected job for embedded detail view
+  Map<String, dynamic>? _selectedJob;
+
+  // ✅ NEW: Selected application for embedded detail view
+  Map<String, dynamic>? _selectedApplication;
 
   // ==================== DASHBOARD DATA ====================
   DashboardStats _stats = DashboardStats.empty();
@@ -215,7 +236,6 @@ class _UserDashboardState extends State<UserDashboard> {
   // ============================================================
   Future<void> _refreshInBackground() async {
     try {
-      // ---- Load profile photo ----
       try {
         await ProfileStateService().loadPhotoFromBackend();
         if (mounted) {
@@ -225,11 +245,9 @@ class _UserDashboardState extends State<UserDashboard> {
         debugPrint("⚠️ Photo load failed: $e");
       }
 
-      // ---- Load dashboard stats ----
       final statsResponse = await UserService.getDashboardStats();
       final stats = DashboardStats.fromJson(statsResponse);
 
-      // ---- Load user name ----
       String userName = 'User';
       try {
         final profileRes = await UserService.getFullProfile();
@@ -316,6 +334,9 @@ class _UserDashboardState extends State<UserDashboard> {
       if (mounted) {
         setState(() {
           selectedMenu = menu;
+          // ✅ Clear selected job & application when navigating away
+          _selectedJob = null;
+          _selectedApplication = null;
           if (menu == UserMenuType.settings) {
             selectedSettingsSubMenu = SettingsSubMenu.changePassword;
           }
@@ -331,18 +352,9 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.jobs;
           selectedJobSubMenu = subMenu;
-        });
-      }
-    });
-  }
-
-  void _onApplicationSubMenuSelected(ApplicationSubMenu subMenu) {
-    _closeDrawerIfOpen();
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        setState(() {
-          selectedMenu = UserMenuType.applications;
-          selectedAppSubMenu = subMenu;
+          // ✅ Clear selected job & application when switching submenus
+          _selectedJob = null;
+          _selectedApplication = null;
         });
       }
     });
@@ -355,6 +367,8 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.services;
           selectedServiceSubMenu = subMenu;
+          _selectedJob = null;
+          _selectedApplication = null;
         });
       }
     });
@@ -367,6 +381,8 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.resume;
           selectedResumeSubMenu = subMenu;
+          _selectedJob = null;
+          _selectedApplication = null;
         });
       }
     });
@@ -379,6 +395,8 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.ai;
           selectedAISubMenu = subMenu;
+          _selectedJob = null;
+          _selectedApplication = null;
         });
       }
     });
@@ -391,6 +409,8 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.profile;
           selectedProfileSubMenu = subMenu;
+          _selectedJob = null;
+          _selectedApplication = null;
         });
       }
     });
@@ -403,9 +423,96 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.settings;
           selectedSettingsSubMenu = subMenu;
+          _selectedJob = null;
+          _selectedApplication = null;
         });
       }
     });
+  }
+
+  // ============================================================
+  // ✅ JOB SELECTION HANDLERS (embedded mode)
+  // ============================================================
+  void _onJobSelected(Map<String, dynamic> job) {
+    debugPrint("📋 Job selected: ${job['post_name']}");
+    setState(() {
+      _selectedJob = job;
+    });
+  }
+
+  void _closeJobDetail() {
+    setState(() {
+      _selectedJob = null;
+    });
+  }
+
+  // ============================================================
+  // ✅ APPLICATION SELECTION HANDLERS (embedded mode)
+  // ============================================================
+  void _onApplicationSelected(Map<String, dynamic> application) {
+    debugPrint("📋 Application selected: ${application['_id']}");
+    setState(() {
+      _selectedApplication = application;
+    });
+  }
+
+  void _closeApplicationDetail() {
+    setState(() {
+      _selectedApplication = null;
+    });
+  }
+
+  // ============================================================
+  // ✅ NAVIGATION HELPERS
+  // ============================================================
+  void _goToJobApplications() {
+    _closeDrawerIfOpen();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          selectedMenu = UserMenuType.jobs;
+          selectedJobSubMenu = JobSubMenu.jobApplications;
+          _selectedJob = null;
+          _selectedApplication = null;
+        });
+      }
+    });
+  }
+
+  void _goToBrowseJobs() {
+    _closeDrawerIfOpen();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          selectedMenu = UserMenuType.jobs;
+          selectedJobSubMenu = JobSubMenu.browseJobs;
+          _selectedJob = null;
+          _selectedApplication = null;
+        });
+      }
+    });
+  }
+
+  void _goToServiceApplications() {
+    _closeDrawerIfOpen();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          selectedMenu = UserMenuType.services;
+          selectedServiceSubMenu = ServiceSubMenu.myApplications;
+          _selectedJob = null;
+          _selectedApplication = null;
+        });
+      }
+    });
+  }
+
+  void _goToSavedJobs() {
+    _closeDrawerIfOpen();
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SavedJobsScreen()),
+    );
   }
 
   // ============================================================
@@ -464,33 +571,61 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ GET CONTENT — FIXED
+  // ✅ GET CONTENT
+  // ✅ NEW: Jobs menu handles embedded job detail & application detail
   // ============================================================
   Widget _getContent() {
     switch (selectedMenu) {
       case UserMenuType.dashboard:
         return _buildDashboardContent();
 
+      // ⬅️ MODIFIED: Jobs menu now has Browse Jobs + Job Applications
+      // ✅ NEW: Embedded JobDetailScreen when _selectedJob != null
+      // ✅ NEW: Embedded ApplicationDetailScreen when _selectedApplication != null
       case UserMenuType.jobs:
-        if (selectedJobSubMenu == JobSubMenu.savedJobs) {
-          return const SavedJobsScreen();
+        // ✅ FIRST CHECK: If an application is selected, show detail screen
+        if (_selectedApplication != null &&
+            selectedJobSubMenu == JobSubMenu.jobApplications) {
+          return ApplicationDetailScreen(
+            application: _selectedApplication!,
+            onBack: _closeApplicationDetail,
+            onViewJob: (job) {
+              setState(() {
+                _selectedJob = job;
+                selectedJobSubMenu = JobSubMenu.browseJobs;
+                _selectedApplication = null;
+              });
+            },
+          );
         }
-        return const JobListScreen();
 
-      // ✅ UserApplicationsScreen now receives required parameters
-      case UserMenuType.applications:
-        return UserApplicationsScreen(
-          onApplicationSelected: (app) {
-            setState(() {
-              selectedMenu = UserMenuType.applications;
-              selectedAppSubMenu = ApplicationSubMenu.jobApplications;
-            });
-          },
-          showAppBar: false,
+        // ✅ If submenu is "Job Applications", show list
+        if (selectedJobSubMenu == JobSubMenu.jobApplications) {
+          return UserApplicationsScreen(
+            onApplicationSelected: _onApplicationSelected,
+            showAppBar: false,
+          );
+        }
+
+        // ✅ Browse Jobs: show JobDetail if selected, else JobList
+        if (_selectedJob != null) {
+          return JobDetailScreen(
+            job: _selectedJob!,
+            isEmbedded: true,
+            onBack: _closeJobDetail,
+            onApplicationSubmitted: () {
+              // Refresh stats after application
+              _refreshDashboard();
+            },
+          );
+        }
+
+        return JobListScreen(
+          isEmbedded: true,
+          onJobSelected: _onJobSelected,
         );
 
       // ✅ FIX: Browse Services now opens ApplyServiceScreen (user-facing)
-      //          My Applications opens UserServiceApplicationScreen
       case UserMenuType.services:
         if (selectedServiceSubMenu == ServiceSubMenu.myApplications) {
           return const UserServiceApplicationScreen();
@@ -583,13 +718,7 @@ class _UserDashboardState extends State<UserDashboard> {
                     savedCount: _stats.jobApplicationsSaved,
                     icon: Icons.work_rounded,
                     color: const Color(0xFF6C63FF),
-                    onTap: () {
-                      setState(() {
-                        selectedMenu = UserMenuType.applications;
-                        selectedAppSubMenu =
-                            ApplicationSubMenu.jobApplications;
-                      });
-                    },
+                    onTap: _goToJobApplications,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -600,13 +729,7 @@ class _UserDashboardState extends State<UserDashboard> {
                     savedCount: 0,
                     icon: Icons.workspace_premium_rounded,
                     color: const Color(0xFFFF6588),
-                    onTap: () {
-                      setState(() {
-                        selectedMenu = UserMenuType.services;
-                        selectedServiceSubMenu =
-                            ServiceSubMenu.myApplications;
-                      });
-                    },
+                    onTap: _goToServiceApplications,
                   ),
                 ),
               ],
@@ -656,7 +779,6 @@ class _UserDashboardState extends State<UserDashboard> {
       ),
       child: Row(
         children: [
-          // Profile photo or avatar
           Container(
             width: 56,
             height: 56,
@@ -841,6 +963,8 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.profile;
           selectedProfileSubMenu = ProfileSubMenu.basicDetails;
+          _selectedJob = null;
+          _selectedApplication = null;
         });
       },
       child: Container(
@@ -1316,12 +1440,7 @@ class _UserDashboardState extends State<UserDashboard> {
         title: 'Browse Jobs',
         icon: Icons.search,
         color: const Color(0xFF6C63FF),
-        onTap: () {
-          setState(() {
-            selectedMenu = UserMenuType.jobs;
-            selectedJobSubMenu = JobSubMenu.browseJobs;
-          });
-        },
+        onTap: _goToBrowseJobs,
       ),
       _QuickAction(
         title: 'My Resume',
@@ -1331,6 +1450,8 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.resume;
             selectedResumeSubMenu = ResumeSubMenu.buildResume;
+            _selectedJob = null;
+            _selectedApplication = null;
           });
         },
       ),
@@ -1342,6 +1463,8 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.ai;
             selectedAISubMenu = AISubMenu.dashboard;
+            _selectedJob = null;
+            _selectedApplication = null;
           });
         },
       ),
@@ -1353,6 +1476,8 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.profile;
             selectedProfileSubMenu = ProfileSubMenu.basicDetails;
+            _selectedJob = null;
+            _selectedApplication = null;
           });
         },
       ),
@@ -1364,6 +1489,8 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.services;
             selectedServiceSubMenu = ServiceSubMenu.browseServices;
+            _selectedJob = null;
+            _selectedApplication = null;
           });
         },
       ),
@@ -1371,12 +1498,7 @@ class _UserDashboardState extends State<UserDashboard> {
         title: 'Saved Jobs',
         icon: Icons.bookmark,
         color: const Color(0xFF0891B2),
-        onTap: () {
-          setState(() {
-            selectedMenu = UserMenuType.jobs;
-            selectedJobSubMenu = JobSubMenu.savedJobs;
-          });
-        },
+        onTap: _goToSavedJobs,
       ),
       _QuickAction(
         title: 'Support',
@@ -1385,6 +1507,8 @@ class _UserDashboardState extends State<UserDashboard> {
         onTap: () {
           setState(() {
             selectedMenu = UserMenuType.support;
+            _selectedJob = null;
+            _selectedApplication = null;
           });
         },
       ),
@@ -1396,6 +1520,8 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.settings;
             selectedSettingsSubMenu = SettingsSubMenu.changePassword;
+            _selectedJob = null;
+            _selectedApplication = null;
           });
         },
       ),
@@ -1526,6 +1652,9 @@ class _UserDashboardState extends State<UserDashboard> {
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 900;
+    final isShowingApplicationDetail = _selectedApplication != null &&
+        selectedMenu == UserMenuType.jobs &&
+        selectedJobSubMenu == JobSubMenu.jobApplications;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -1534,26 +1663,30 @@ class _UserDashboardState extends State<UserDashboard> {
               title: Text(_getAppBarTitle()),
               backgroundColor: Colors.blueAccent,
               foregroundColor: Colors.white,
-              leading: Builder(
-                builder: (context) => IconButton(
-                  icon: const Icon(Icons.menu),
-                  onPressed: () => Scaffold.of(context).openDrawer(),
-                ),
-              ),
+              leading: (_selectedJob != null || _selectedApplication != null)
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () {
+                        setState(() {
+                          if (_selectedApplication != null) {
+                            _selectedApplication = null;
+                          } else {
+                            _selectedJob = null;
+                          }
+                        });
+                      },
+                    )
+                  : Builder(
+                      builder: (context) => IconButton(
+                        icon: const Icon(Icons.menu),
+                        onPressed: () => Scaffold.of(context).openDrawer(),
+                      ),
+                    ),
               actions: [
                 const LocationDisplay(),
                 NotificationBell(
-                  onJobAlertClicked: () {
-                    setState(() {
-                      selectedMenu = UserMenuType.jobs;
-                      selectedJobSubMenu = JobSubMenu.browseJobs;
-                    });
-                  },
-                  onApplicationStatusClicked: () {
-                    setState(() {
-                      selectedMenu = UserMenuType.applications;
-                    });
-                  },
+                  onJobAlertClicked: _goToBrowseJobs,
+                  onApplicationStatusClicked: _goToJobApplications,
                 ),
                 const SizedBox(width: 8),
               ],
@@ -1564,7 +1697,6 @@ class _UserDashboardState extends State<UserDashboard> {
               child: UserSidebar(
                 selectedMenu: selectedMenu,
                 selectedJobSubMenu: selectedJobSubMenu,
-                selectedAppSubMenu: selectedAppSubMenu,
                 selectedServiceSubMenu: selectedServiceSubMenu,
                 selectedResumeSubMenu: selectedResumeSubMenu,
                 selectedAISubMenu: selectedAISubMenu,
@@ -1572,7 +1704,6 @@ class _UserDashboardState extends State<UserDashboard> {
                 selectedSettingsSubMenu: selectedSettingsSubMenu,
                 onMenuSelected: _onMenuSelected,
                 onJobSubMenuSelected: _onJobSubMenuSelected,
-                onApplicationSubMenuSelected: _onApplicationSubMenuSelected,
                 onServiceSubMenuSelected: _onServiceSubMenuSelected,
                 onResumeSubMenuSelected: _onResumeSubMenuSelected,
                 onAISubMenuSelected: _onAISubMenuSelected,
@@ -1587,7 +1718,6 @@ class _UserDashboardState extends State<UserDashboard> {
             UserSidebar(
               selectedMenu: selectedMenu,
               selectedJobSubMenu: selectedJobSubMenu,
-              selectedAppSubMenu: selectedAppSubMenu,
               selectedServiceSubMenu: selectedServiceSubMenu,
               selectedResumeSubMenu: selectedResumeSubMenu,
               selectedAISubMenu: selectedAISubMenu,
@@ -1595,7 +1725,6 @@ class _UserDashboardState extends State<UserDashboard> {
               selectedSettingsSubMenu: selectedSettingsSubMenu,
               onMenuSelected: _onMenuSelected,
               onJobSubMenuSelected: _onJobSubMenuSelected,
-              onApplicationSubMenuSelected: _onApplicationSubMenuSelected,
               onServiceSubMenuSelected: _onServiceSubMenuSelected,
               onResumeSubMenuSelected: _onResumeSubMenuSelected,
               onAISubMenuSelected: _onAISubMenuSelected,
@@ -1626,30 +1755,42 @@ class _UserDashboardState extends State<UserDashboard> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            _getAppBarTitle(),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blueAccent,
-                            ),
+                          Row(
+                            children: [
+                              if (_selectedJob != null ||
+                                  _selectedApplication != null) ...[
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back,
+                                      color: Colors.blueAccent),
+                                  onPressed: () {
+                                    setState(() {
+                                      if (_selectedApplication != null) {
+                                        _selectedApplication = null;
+                                      } else {
+                                        _selectedJob = null;
+                                      }
+                                    });
+                                  },
+                                  tooltip: "Back",
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              Text(
+                                _getAppBarTitle(),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blueAccent,
+                                ),
+                              ),
+                            ],
                           ),
                           Row(
                             children: [
                               const LocationDisplay(),
                               NotificationBell(
-                                onJobAlertClicked: () {
-                                  setState(() {
-                                    selectedMenu = UserMenuType.jobs;
-                                    selectedJobSubMenu =
-                                        JobSubMenu.browseJobs;
-                                  });
-                                },
-                                onApplicationStatusClicked: () {
-                                  setState(() {
-                                    selectedMenu = UserMenuType.applications;
-                                  });
-                                },
+                                onJobAlertClicked: _goToBrowseJobs,
+                                onApplicationStatusClicked: _goToJobApplications,
                               ),
                             ],
                           ),
@@ -1663,12 +1804,13 @@ class _UserDashboardState extends State<UserDashboard> {
                         key: ValueKey(
                           'menu_${selectedMenu.name}_'
                           '${selectedJobSubMenu.name}_'
-                          '${selectedAppSubMenu.name}_'
                           '${selectedServiceSubMenu.name}_'
                           '${selectedResumeSubMenu.name}_'
                           '${selectedAISubMenu.name}_'
                           '${selectedProfileSubMenu.name}_'
-                          '${selectedSettingsSubMenu.name}',
+                          '${selectedSettingsSubMenu.name}_'
+                          '${_selectedJob != null ? _selectedJob!['_id'] : 'none'}_'
+                          '${_selectedApplication != null ? _selectedApplication!['_id'] : 'none'}',
                         ),
                         child: _getContent(),
                       ),
@@ -1684,14 +1826,29 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   String _getAppBarTitle() {
+    // ✅ If application detail is open, show application title
+    if (_selectedApplication != null &&
+        selectedMenu == UserMenuType.jobs &&
+        selectedJobSubMenu == JobSubMenu.jobApplications) {
+      return _selectedApplication!['job_title']?.toString() ??
+          "Application Details";
+    }
+
+    // ✅ If job is selected, show job title
+    if (_selectedJob != null && selectedMenu == UserMenuType.jobs) {
+      return _selectedJob!['post_name']?.toString() ?? "Job Details";
+    }
+
     switch (selectedMenu) {
       case UserMenuType.dashboard:
         return "Dashboard";
+
       case UserMenuType.jobs:
-        if (selectedJobSubMenu == JobSubMenu.savedJobs) return "Saved Jobs";
+        if (selectedJobSubMenu == JobSubMenu.jobApplications) {
+          return "My Applications";
+        }
         return "Browse Jobs";
-      case UserMenuType.applications:
-        return "My Applications";
+
       case UserMenuType.services:
         if (selectedServiceSubMenu == ServiceSubMenu.myApplications) {
           return "My Service Applications";

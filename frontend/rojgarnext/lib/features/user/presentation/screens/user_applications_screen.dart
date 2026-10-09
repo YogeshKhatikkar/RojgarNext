@@ -10,6 +10,8 @@
 // ✅ NEW: Tapping "View Application" opens the full ApplicationDetailScreen
 // ✅ REMOVED: "VIEW APPLICATION DOCUMENT" button from Under Review & Final Submit sections
 // ✅ KEPT: Admin documents section (Review / Final Submit uploads) still visible
+// ✅ FIXED: Now opens ApplicationDetailScreen in RIGHT PANEL (embedded mode)
+// ✅ FIXED: onApplicationSelected callback now properly triggers parent state change
 
 import 'package:flutter/material.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
@@ -489,7 +491,8 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
                       ),
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          // ✅ CALLBACK → opens ApplicationDetailScreen
+                          // ✅ CALLBACK → opens ApplicationDetailScreen in right panel
+                          debugPrint("📋 View Application clicked: ${app['_id']}");
                           widget.onApplicationSelected(app);
                         },
                         icon: const Icon(Icons.visibility, size: 18),
@@ -647,13 +650,13 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
 class ApplicationDetailScreen extends StatefulWidget {
   final Map<String, dynamic> application;
   final VoidCallback onBack;
-  final Function(Map<String, dynamic>) onViewJob;
+  final Function(Map<String, dynamic>)? onViewJob;
 
   const ApplicationDetailScreen({
     super.key,
     required this.application,
     required this.onBack,
-    required this.onViewJob,
+    this.onViewJob,
   });
 
   @override
@@ -1861,8 +1864,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                                 text: "View Full Job Details",
                                 icon: Icons.visibility,
                                 onTap: () {
-                                  if (_jobDetails != null) {
-                                    widget.onViewJob(_jobDetails!);
+                                  if (_jobDetails != null &&
+                                      widget.onViewJob != null) {
+                                    widget.onViewJob!(_jobDetails!);
                                   }
                                 },
                               ),

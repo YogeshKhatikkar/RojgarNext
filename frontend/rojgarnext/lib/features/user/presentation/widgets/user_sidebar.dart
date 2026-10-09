@@ -2,6 +2,10 @@
 // ============================================================
 // USER SIDEBAR — Matches UserDashboard parameters exactly
 // ============================================================
+// ✅ MODIFIED: Jobs submenu now shows Browse Jobs + Job Applications
+// ✅ MODIFIED: Saved Jobs REMOVED from Jobs submenu
+// ✅ MODIFIED: Applications top-level menu REMOVED entirely
+// ✅ All other menu items preserved exactly
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -12,7 +16,6 @@ import 'package:rojgarnext/features/user/presentation/utils/menu_types.dart';
 class UserSidebar extends StatefulWidget {
   final UserMenuType selectedMenu;
   final JobSubMenu selectedJobSubMenu;
-  final ApplicationSubMenu selectedAppSubMenu;
   final ServiceSubMenu selectedServiceSubMenu;
   final ResumeSubMenu selectedResumeSubMenu;
   final AISubMenu selectedAISubMenu;
@@ -21,7 +24,6 @@ class UserSidebar extends StatefulWidget {
 
   final Function(UserMenuType) onMenuSelected;
   final Function(JobSubMenu) onJobSubMenuSelected;
-  final Function(ApplicationSubMenu) onApplicationSubMenuSelected;
   final Function(ServiceSubMenu) onServiceSubMenuSelected;
   final Function(ResumeSubMenu) onResumeSubMenuSelected;
   final Function(AISubMenu) onAISubMenuSelected;
@@ -32,7 +34,6 @@ class UserSidebar extends StatefulWidget {
     super.key,
     required this.selectedMenu,
     required this.selectedJobSubMenu,
-    required this.selectedAppSubMenu,
     required this.selectedServiceSubMenu,
     required this.selectedResumeSubMenu,
     required this.selectedAISubMenu,
@@ -40,7 +41,6 @@ class UserSidebar extends StatefulWidget {
     required this.selectedSettingsSubMenu,
     required this.onMenuSelected,
     required this.onJobSubMenuSelected,
-    required this.onApplicationSubMenuSelected,
     required this.onServiceSubMenuSelected,
     required this.onResumeSubMenuSelected,
     required this.onAISubMenuSelected,
@@ -57,7 +57,6 @@ class _UserSidebarState extends State<UserSidebar> {
   static const Color _pink = Color(0xFFFF6588);
 
   bool _jobsExpanded = false;
-  bool _appsExpanded = false;
   bool _servicesExpanded = false;
   bool _resumeExpanded = false;
   bool _aiExpanded = false;
@@ -80,7 +79,7 @@ class _UserSidebarState extends State<UserSidebar> {
 
   void _syncExpansion() {
     _jobsExpanded = widget.selectedMenu == UserMenuType.jobs;
-    _appsExpanded = widget.selectedMenu == UserMenuType.applications;
+    // ⬅️ REMOVED: _appsExpanded (Applications menu removed)
     _servicesExpanded = widget.selectedMenu == UserMenuType.services;
     _resumeExpanded = widget.selectedMenu == UserMenuType.resume;
     _aiExpanded = widget.selectedMenu == UserMenuType.ai;
@@ -148,7 +147,8 @@ class _UserSidebarState extends State<UserSidebar> {
                     UserMenuType.dashboard,
                   ),
 
-                  // Jobs
+                  // ⬅️ MODIFIED: Jobs now has Browse Jobs + Job Applications
+                  //     Saved Jobs REMOVED
                   _buildExpandable(
                     title: "Jobs",
                     icon: Icons.work_rounded,
@@ -165,35 +165,18 @@ class _UserSidebarState extends State<UserSidebar> {
                             .onJobSubMenuSelected(JobSubMenu.browseJobs),
                       ),
                       _buildSubItem(
-                        "Saved Jobs",
-                        Icons.bookmark_rounded,
-                        widget.selectedJobSubMenu == JobSubMenu.savedJobs,
-                        () => widget
-                            .onJobSubMenuSelected(JobSubMenu.savedJobs),
+                        "Job Applications",
+                        Icons.assignment_rounded,
+                        widget.selectedJobSubMenu ==
+                            JobSubMenu.jobApplications,
+                        () => widget.onJobSubMenuSelected(
+                            JobSubMenu.jobApplications),
                       ),
                     ],
                   ),
 
-                  // Applications
-                  _buildExpandable(
-                    title: "Applications",
-                    icon: Icons.assignment_rounded,
-                    isSelected:
-                        widget.selectedMenu == UserMenuType.applications,
-                    isExpanded: _appsExpanded,
-                    onToggle: () =>
-                        setState(() => _appsExpanded = !_appsExpanded),
-                    children: [
-                      _buildSubItem(
-                        "Job Applications",
-                        Icons.work_rounded,
-                        widget.selectedAppSubMenu ==
-                            ApplicationSubMenu.jobApplications,
-                        () => widget.onApplicationSubMenuSelected(
-                            ApplicationSubMenu.jobApplications),
-                      ),
-                    ],
-                  ),
+                  // ⬅️ REMOVED: Applications top-level menu
+                  //     (jobApplications now lives under Jobs menu)
 
                   // Services
                   _buildExpandable(

@@ -19,6 +19,9 @@
 // ✅ CRITICAL FIX: Auto-refresh job data to ensure all fields available
 // ✅ CRITICAL FIX: Better null/empty handling for all URL fields
 // ✅ FIXED: ALL text colors now explicitly set for perfect visibility
+// ✅ NEW: isEmbedded mode - when true, no AppBar/Scaffold, just content
+// ✅ NEW: onBack callback for embedded mode
+// ✅ NEW: onApplicationSubmitted callback preserved
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -262,17 +265,24 @@ class _JobFileTypeDetector {
 
 // ============================================================
 // MAIN SCREEN
+// ✅ NEW: isEmbedded mode
+// ✅ NEW: onBack callback
 // ============================================================
 class JobDetailScreen extends StatefulWidget {
   final Map<String, dynamic> job;
   final VoidCallback? onBack;
   final VoidCallback? onApplicationSubmitted;
 
+  /// ✅ NEW: When true, renders WITHOUT Scaffold/AppBar
+  /// so it can be embedded in the right panel of UserDashboard.
+  final bool isEmbedded;
+
   const JobDetailScreen({
     super.key,
     required this.job,
     this.onBack,
     this.onApplicationSubmitted,
+    this.isEmbedded = false,
   });
 
   @override
@@ -1959,6 +1969,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 
   // ============================================================
   // BUILD
+  // ✅ NEW: isEmbedded mode - no Scaffold/AppBar
   // ============================================================
   @override
   Widget build(BuildContext context) {
@@ -1977,184 +1988,196 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     final applicationFees = _getApplicationFees();
     final feeBreakdown = _calculateFeeBreakdown();
 
+    // ✅ Build the main content
+    final Widget content = (_isLoadingCategory || _isLoadingDisability)
+        ? _buildLoadingScreen()
+        : FadeTransition(
+            opacity: _fadeAnimation,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildAIHeaderCard(job, typeColor, postedDate, lastDate),
+                  const SizedBox(height: 16),
+                  if (_isDisabled) _buildDisabilityBanner(),
+                  if (_isDisabled) const SizedBox(height: 16),
+                  if (_insights.isNotEmpty) _buildAIInsightsRow(),
+                  if (_insights.isNotEmpty) const SizedBox(height: 16),
+                  _buildKeyInfoSection(job),
+                  const SizedBox(height: 16),
+                  if (_getApplicationStartDate().isNotEmpty ||
+                      _getApplicationEndDate().isNotEmpty)
+                    _buildApplicationTimelineSection(),
+                  if (_getApplicationStartDate().isNotEmpty ||
+                      _getApplicationEndDate().isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (hasApplicationFees && applicationFees.isNotEmpty)
+                    _buildApplicationFeesSection(
+                      applicationFees,
+                      feeBreakdown,
+                    ),
+                  if (hasApplicationFees && applicationFees.isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (_getAgeLimit() != 'Not specified')
+                    _buildAgeLimitSection(),
+                  if (_getAgeLimit() != 'Not specified')
+                    const SizedBox(height: 16),
+                  if (job['exam_cities'] != null &&
+                      (job['exam_cities'] as List).isNotEmpty)
+                    _buildExamCitiesSection(job['exam_cities']),
+                  if (job['exam_cities'] != null &&
+                      (job['exam_cities'] as List).isNotEmpty)
+                    const SizedBox(height: 16),
+                  _buildWorkDetailsSection(),
+                  const SizedBox(height: 16),
+                  if (job['benefits'] != null &&
+                      (job['benefits'] as List).isNotEmpty)
+                    _buildBenefitsSection(job['benefits']),
+                  if (job['benefits'] != null &&
+                      (job['benefits'] as List).isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['languages_required'] != null &&
+                      (job['languages_required'] as List).isNotEmpty)
+                    _buildLanguagesSection(job['languages_required']),
+                  if (job['languages_required'] != null &&
+                      (job['languages_required'] as List).isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['education_details'] != null &&
+                      job['education_details'].toString().isNotEmpty)
+                    _buildEducationDetailsSection(job['education_details']),
+                  if (job['education_details'] != null &&
+                      job['education_details'].toString().isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['experience_details'] != null &&
+                      job['experience_details'].toString().isNotEmpty)
+                    _buildExperienceDetailsSection(
+                        job['experience_details']),
+                  if (job['experience_details'] != null &&
+                      job['experience_details'].toString().isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['physical_eligibility'] != null)
+                    _buildPhysicalEligibilitySection(
+                        job['physical_eligibility']),
+                  if (job['physical_eligibility'] != null)
+                    const SizedBox(height: 16),
+                  if (job['interview_venue'] != null ||
+                      job['interview_link'] != null ||
+                      job['interview_date'] != null ||
+                      job['interview_time'] != null)
+                    _buildInterviewSection(),
+                  if (job['interview_venue'] != null ||
+                      job['interview_link'] != null ||
+                      job['interview_date'] != null ||
+                      job['interview_time'] != null)
+                    const SizedBox(height: 16),
+                  if (job['selection_stages'] != null &&
+                      (job['selection_stages'] as List).isNotEmpty)
+                    _buildSelectionProcessSection(
+                        job['selection_stages'],
+                        job['selection_process_details']),
+                  if (job['selection_stages'] != null &&
+                      (job['selection_stages'] as List).isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['contact_person'] != null ||
+                      job['contact_email'] != null ||
+                      job['contact_phone'] != null)
+                    _buildContactInformationSection(),
+                  if (job['contact_person'] != null ||
+                      job['contact_email'] != null ||
+                      job['contact_phone'] != null)
+                    const SizedBox(height: 16),
+                  if (job['important_notes'] != null &&
+                      job['important_notes'].toString().isNotEmpty)
+                    _buildImportantNotesSection(job['important_notes']),
+                  if (job['important_notes'] != null &&
+                      job['important_notes'].toString().isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['terms_conditions'] != null &&
+                      job['terms_conditions'].toString().isNotEmpty)
+                    _buildTermsConditionsSection(job['terms_conditions']),
+                  if (job['terms_conditions'] != null &&
+                      job['terms_conditions'].toString().isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['admit_card_date'] != null ||
+                      job['exam_date'] != null ||
+                      job['result_date'] != null)
+                    _buildImportantDatesSection(
+                      job['admit_card_date'],
+                      job['exam_date'],
+                      job['result_date'],
+                    ),
+                  if (job['admit_card_date'] != null ||
+                      job['exam_date'] != null ||
+                      job['result_date'] != null)
+                    const SizedBox(height: 16),
+                  if (job['helpline_number'] != null ||
+                      job['helpline_email'] != null ||
+                      job['whatsapp_number'] != null ||
+                      job['telegram_channel'] != null)
+                    _buildHelplineSection(),
+                  if (job['helpline_number'] != null ||
+                      job['helpline_email'] != null ||
+                      job['whatsapp_number'] != null ||
+                      job['telegram_channel'] != null)
+                    const SizedBox(height: 16),
+                  if (job['description'] != null &&
+                      job['description'].toString().isNotEmpty)
+                    _buildDescriptionSection(job['description']),
+                  if (job['description'] != null &&
+                      job['description'].toString().isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['required_skills'] != null &&
+                      (job['required_skills'] as List).isNotEmpty)
+                    _buildSkillsSection(job['required_skills']),
+                  if (job['required_skills'] != null &&
+                      (job['required_skills'] as List).isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (hasMultiplePosts)
+                    _buildMultiplePostsTable(multiplePosts),
+                  if (hasMultiplePosts) const SizedBox(height: 16),
+                  if (_hasOfficialNotification)
+                    _buildOfficialNotificationSection(),
+                  if (_hasOfficialNotification) const SizedBox(height: 16),
+                  if (_hasAdvertisement) _buildAdvertisementSection(),
+                  if (_hasAdvertisement) const SizedBox(height: 16),
+                  if (hasAnyNotification) _buildInfoNote(),
+                  if (hasAnyNotification) const SizedBox(height: 16),
+                  if (!_isCheckingApplied) _buildSaveAndShareButtons(),
+                  if (!_isCheckingApplied) const SizedBox(height: 16),
+                  if (_isCheckingApplied)
+                    const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(_kPrimary),
+                      ),
+                    )
+                  else if (showApplyButtons)
+                    _buildApplyButtons(
+                      hasApplyWithUsLink,
+                      hasValidWebsiteUrl,
+                      feeBreakdown,
+                    ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          );
+
+    // ✅ EMBEDDED MODE: No Scaffold, no AppBar, no back button
+    if (widget.isEmbedded) {
+      return Container(
+        decoration: _buildGradientBackground(),
+        child: content,
+      );
+    }
+
+    // ✅ FULL SCREEN MODE: With Scaffold and AppBar
     return Scaffold(
       backgroundColor: _kBackgroundLight,
       appBar: _buildAppBar(),
       body: Container(
         decoration: _buildGradientBackground(),
-        child: (_isLoadingCategory || _isLoadingDisability)
-            ? _buildLoadingScreen()
-            : FadeTransition(
-                opacity: _fadeAnimation,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildAIHeaderCard(job, typeColor, postedDate, lastDate),
-                      const SizedBox(height: 16),
-                      if (_isDisabled) _buildDisabilityBanner(),
-                      if (_isDisabled) const SizedBox(height: 16),
-                      if (_insights.isNotEmpty) _buildAIInsightsRow(),
-                      if (_insights.isNotEmpty) const SizedBox(height: 16),
-                      _buildKeyInfoSection(job),
-                      const SizedBox(height: 16),
-                      if (_getApplicationStartDate().isNotEmpty ||
-                          _getApplicationEndDate().isNotEmpty)
-                        _buildApplicationTimelineSection(),
-                      if (_getApplicationStartDate().isNotEmpty ||
-                          _getApplicationEndDate().isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (hasApplicationFees && applicationFees.isNotEmpty)
-                        _buildApplicationFeesSection(
-                          applicationFees,
-                          feeBreakdown,
-                        ),
-                      if (hasApplicationFees && applicationFees.isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (_getAgeLimit() != 'Not specified')
-                        _buildAgeLimitSection(),
-                      if (_getAgeLimit() != 'Not specified')
-                        const SizedBox(height: 16),
-                      if (job['exam_cities'] != null &&
-                          (job['exam_cities'] as List).isNotEmpty)
-                        _buildExamCitiesSection(job['exam_cities']),
-                      if (job['exam_cities'] != null &&
-                          (job['exam_cities'] as List).isNotEmpty)
-                        const SizedBox(height: 16),
-                      _buildWorkDetailsSection(),
-                      const SizedBox(height: 16),
-                      if (job['benefits'] != null &&
-                          (job['benefits'] as List).isNotEmpty)
-                        _buildBenefitsSection(job['benefits']),
-                      if (job['benefits'] != null &&
-                          (job['benefits'] as List).isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['languages_required'] != null &&
-                          (job['languages_required'] as List).isNotEmpty)
-                        _buildLanguagesSection(job['languages_required']),
-                      if (job['languages_required'] != null &&
-                          (job['languages_required'] as List).isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['education_details'] != null &&
-                          job['education_details'].toString().isNotEmpty)
-                        _buildEducationDetailsSection(job['education_details']),
-                      if (job['education_details'] != null &&
-                          job['education_details'].toString().isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['experience_details'] != null &&
-                          job['experience_details'].toString().isNotEmpty)
-                        _buildExperienceDetailsSection(
-                            job['experience_details']),
-                      if (job['experience_details'] != null &&
-                          job['experience_details'].toString().isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['physical_eligibility'] != null)
-                        _buildPhysicalEligibilitySection(
-                            job['physical_eligibility']),
-                      if (job['physical_eligibility'] != null)
-                        const SizedBox(height: 16),
-                      if (job['interview_venue'] != null ||
-                          job['interview_link'] != null ||
-                          job['interview_date'] != null ||
-                          job['interview_time'] != null)
-                        _buildInterviewSection(),
-                      if (job['interview_venue'] != null ||
-                          job['interview_link'] != null ||
-                          job['interview_date'] != null ||
-                          job['interview_time'] != null)
-                        const SizedBox(height: 16),
-                      if (job['selection_stages'] != null &&
-                          (job['selection_stages'] as List).isNotEmpty)
-                        _buildSelectionProcessSection(
-                            job['selection_stages'],
-                            job['selection_process_details']),
-                      if (job['selection_stages'] != null &&
-                          (job['selection_stages'] as List).isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['contact_person'] != null ||
-                          job['contact_email'] != null ||
-                          job['contact_phone'] != null)
-                        _buildContactInformationSection(),
-                      if (job['contact_person'] != null ||
-                          job['contact_email'] != null ||
-                          job['contact_phone'] != null)
-                        const SizedBox(height: 16),
-                      if (job['important_notes'] != null &&
-                          job['important_notes'].toString().isNotEmpty)
-                        _buildImportantNotesSection(job['important_notes']),
-                      if (job['important_notes'] != null &&
-                          job['important_notes'].toString().isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['terms_conditions'] != null &&
-                          job['terms_conditions'].toString().isNotEmpty)
-                        _buildTermsConditionsSection(job['terms_conditions']),
-                      if (job['terms_conditions'] != null &&
-                          job['terms_conditions'].toString().isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['admit_card_date'] != null ||
-                          job['exam_date'] != null ||
-                          job['result_date'] != null)
-                        _buildImportantDatesSection(
-                          job['admit_card_date'],
-                          job['exam_date'],
-                          job['result_date'],
-                        ),
-                      if (job['admit_card_date'] != null ||
-                          job['exam_date'] != null ||
-                          job['result_date'] != null)
-                        const SizedBox(height: 16),
-                      if (job['helpline_number'] != null ||
-                          job['helpline_email'] != null ||
-                          job['whatsapp_number'] != null ||
-                          job['telegram_channel'] != null)
-                        _buildHelplineSection(),
-                      if (job['helpline_number'] != null ||
-                          job['helpline_email'] != null ||
-                          job['whatsapp_number'] != null ||
-                          job['telegram_channel'] != null)
-                        const SizedBox(height: 16),
-                      if (job['description'] != null &&
-                          job['description'].toString().isNotEmpty)
-                        _buildDescriptionSection(job['description']),
-                      if (job['description'] != null &&
-                          job['description'].toString().isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['required_skills'] != null &&
-                          (job['required_skills'] as List).isNotEmpty)
-                        _buildSkillsSection(job['required_skills']),
-                      if (job['required_skills'] != null &&
-                          (job['required_skills'] as List).isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (hasMultiplePosts)
-                        _buildMultiplePostsTable(multiplePosts),
-                      if (hasMultiplePosts) const SizedBox(height: 16),
-                      if (_hasOfficialNotification)
-                        _buildOfficialNotificationSection(),
-                      if (_hasOfficialNotification) const SizedBox(height: 16),
-                      if (_hasAdvertisement) _buildAdvertisementSection(),
-                      if (_hasAdvertisement) const SizedBox(height: 16),
-                      if (hasAnyNotification) _buildInfoNote(),
-                      if (hasAnyNotification) const SizedBox(height: 16),
-                      if (!_isCheckingApplied) _buildSaveAndShareButtons(),
-                      if (!_isCheckingApplied) const SizedBox(height: 16),
-                      if (_isCheckingApplied)
-                        const Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(_kPrimary),
-                          ),
-                        )
-                      else if (showApplyButtons)
-                        _buildApplyButtons(
-                          hasApplyWithUsLink,
-                          hasValidWebsiteUrl,
-                          feeBreakdown,
-                        ),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-              ),
+        child: content,
       ),
     );
   }
@@ -2262,7 +2285,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // APP BAR
+  // APP BAR (only used in fullscreen mode)
   // ============================================================
   PreferredSizeWidget _buildAppBar() {
     return AppBar(

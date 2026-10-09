@@ -10,6 +10,9 @@
 // ✅ Cache save ignores local-only color filter
 // ✅ _applyLocalFilters() always clears stale error
 // ✅ Loading screen ONLY until first non-empty OR first-ever success
+// ✅ NEW: isEmbedded mode — no Scaffold, works inside parent panel
+// ✅ NEW: onJobSelected callback used in embedded mode
+// ✅ NEW: onBack callback preserved
 
 import 'dart:async';
 import 'dart:convert';
@@ -51,17 +54,27 @@ class AIRecommendationService {
 
 // ============================================================
 // MAIN SCREEN
+// ✅ NEW: isEmbedded + onJobSelected + onBack
 // ============================================================
 class JobListScreen extends StatefulWidget {
   final Function(Map<String, dynamic>)? onJobSelected;
   final Map<String, dynamic>? location;
   final String? initialColorFilter;
 
+  /// ✅ NEW: When true, renders WITHOUT Scaffold
+  /// so it can be embedded in the right panel of UserDashboard.
+  final bool isEmbedded;
+
+  /// ✅ NEW: Optional back callback (for embedded mode)
+  final VoidCallback? onBack;
+
   const JobListScreen({
     super.key,
     this.onJobSelected,
     this.location,
     this.initialColorFilter,
+    this.isEmbedded = false,
+    this.onBack,
   });
 
   @override
@@ -88,7 +101,6 @@ class _JobListScreenState extends State<JobListScreen>
   bool _isLoadingMore = false;
 
   // ---------- FILTERS ----------
-  // ✅ FIRST-TIME DEFAULTS: all = 'all'
   String _searchQuery = '';
   String _selectedJobType = 'all';
   String _selectedSector = 'all';
@@ -111,16 +123,12 @@ class _JobListScreenState extends State<JobListScreen>
   Timer? _debounceTimer;
   int _requestId = 0;
 
-  // ============================================================
-  // ✅ NOTE OVERLAY STATE
-  // ============================================================
   OverlayEntry? _noteOverlay;
   Timer? _hideNoteTimer;
   String? _activeNoteColor;
 
   final TextEditingController _searchController = TextEditingController();
 
-  // ---------- STATIC FILTER DATA ----------
   static const List<Map<String, dynamic>> _jobTypes = [
     {'value': 'all', 'label': 'All Jobs', 'icon': Icons.list, 'color': Colors.grey},
     {'value': 'private', 'label': 'Private', 'icon': Icons.business, 'color': Color(0xFF6C63FF)},
@@ -167,15 +175,11 @@ class _JobListScreenState extends State<JobListScreen>
 
   bool get _isWeb => kIsWeb || MediaQuery.of(context).size.width > 800;
 
-  // ============================================================
-  // LIFECYCLE
-  // ============================================================
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // ✅ ONLY apply initialColorFilter if explicitly passed (deep-link use case)
     if (widget.initialColorFilter != null &&
         widget.initialColorFilter!.isNotEmpty) {
       _selectedColorType = widget.initialColorFilter!;
@@ -192,20 +196,11 @@ class _JobListScreenState extends State<JobListScreen>
     _initLoad();
   }
 
-  // ============================================================
-  // ✅ CRITICAL FIX: FIRST-TIME LOAD SEQUENCE
-  //   1. Reset all filters to 'all' (guarantee default state)
-  //   2. Load cache (instant render if available)
-  //   3. Fire API in background
-  //   4. Apply filters ONLY AFTER jobs list is populated
-  // ============================================================
   Future<void> _initLoad() async {
     debugPrint('=' * 70);
     debugPrint('🚀 JOB LIST SCREEN - INITIAL LOAD STARTED');
     debugPrint('=' * 70);
 
-    // ✅ STEP 1: FORCE all filters to default (first-time open)
-    //    (unless a deep-link color filter was explicitly set)
     _selectedJobType = 'all';
     _selectedSector = 'all';
     _selectedState = 'all';
@@ -214,21 +209,17 @@ class _JobListScreenState extends State<JobListScreen>
     _sortBy = 'nearest';
     _searchQuery = '';
     _searchController.clear();
-    // keep _selectedColorType as-is if deep-link set, else 'all'
     if (widget.initialColorFilter == null) {
       _selectedColorType = 'all';
     }
 
     debugPrint('🎛️ Filters reset → color=$_selectedColorType, type=$_selectedJobType, sector=$_selectedSector');
 
-    // ✅ STEP 2: Load cache synchronously (fast first paint if cached)
     await _loadCachedJobs();
 
-    // ✅ STEP 3: Start background tasks (non-blocking)
     _loadUserProfile();
     _loadSavedJobs();
 
-    // ✅ STEP 4: Fetch fresh jobs from API
     debugPrint('🌐 Starting API fetch...');
     await _fetchJobs(reset: true);
 
@@ -268,9 +259,6 @@ class _JobListScreenState extends State<JobListScreen>
     if (mounted) setState(() {});
   }
 
-  // ============================================================
-  // ✅ NOTE OVERLAY MANAGEMENT
-  // ============================================================
   void _removeNoteOverlay() {
     _noteOverlay?.remove();
     _noteOverlay = null;
@@ -349,9 +337,6 @@ class _JobListScreenState extends State<JobListScreen>
     });
   }
 
-  // ============================================================
-  // ✅ NOTE CARD
-  // ============================================================
   Widget _buildColorNoteCard(
     Map<String, dynamic> filter,
     bool placedRight,
@@ -527,9 +512,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // USER PROFILE
-  // ============================================================
   Future<void> _loadUserProfile() async {
     try {
       final profile = await UserService.getFullProfile();
@@ -541,9 +523,6 @@ class _JobListScreenState extends State<JobListScreen>
     }
   }
 
-  // ============================================================
-  // CACHE
-  // ============================================================
   Future<void> _loadCachedJobs() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -591,9 +570,6 @@ class _JobListScreenState extends State<JobListScreen>
     }
   }
 
-  // ============================================================
-  // ✅ FETCH JOBS — FIRST-TIME SAFE
-  // ============================================================
   Future<void> _fetchJobs({bool reset = true}) async {
     if (!mounted) return;
 
@@ -621,8 +597,6 @@ class _JobListScreenState extends State<JobListScreen>
         'limit': _pageSize,
       };
 
-      // ✅ On FIRST load (reset=true with no filters), don't send any filter params
-      //    so the backend returns the full list of jobs
       if (_searchQuery.isNotEmpty) params['search'] = _searchQuery;
       if (_selectedJobType != 'all') params['job_type'] = _selectedJobType;
       if (_selectedSector != 'all') params['category'] = _selectedSector;
@@ -695,8 +669,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   New jobs: ${newJobs.length}');
       debugPrint('   Has more: $_hasMore');
 
-      // ✅ Save to cache when no SERVER-side filters are active
-      //    (color is local-only, so ignore it here)
       if (reset &&
           _searchQuery.isEmpty &&
           _selectedJobType == 'all' &&
@@ -710,7 +682,6 @@ class _JobListScreenState extends State<JobListScreen>
       _extractAvailableEducations();
       await _loadSavedJobs();
 
-      // ✅ Apply filters AFTER _jobs is populated → list renders on first load
       _applyLocalFilters();
 
       debugPrint('✅ Fetch complete: ${_filteredJobs.length} filtered jobs shown');
@@ -875,9 +846,6 @@ class _JobListScreenState extends State<JobListScreen>
     }
   }
 
-  // ============================================================
-  // FILTER EXTRACTION — guarded setState
-  // ============================================================
   void _extractAvailableStates() {
     final Set<String> states = {'all'};
     for (final job in _jobs) {
@@ -941,10 +909,6 @@ class _JobListScreenState extends State<JobListScreen>
     return true;
   }
 
-  // ============================================================
-  // ✅ LOCAL FILTERS — applies to _jobs → _filteredJobs
-  //    With default filters ('all'), this returns ALL jobs.
-  // ============================================================
   void _applyLocalFilters() {
     if (!mounted) return;
 
@@ -960,7 +924,6 @@ class _JobListScreenState extends State<JobListScreen>
 
     final List<Map<String, dynamic>> filtered = List.from(_jobs);
 
-    // ✅ Filter by job type (local, since backend may ignore)
     if (_selectedJobType != 'all') {
       filtered.retainWhere((job) {
         final t = job['job_type']?.toString().toLowerCase() ?? '';
@@ -969,7 +932,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   After job type filter: ${filtered.length}');
     }
 
-    // ✅ Filter by sector (category)
     if (_selectedSector != 'all') {
       filtered.retainWhere((job) {
         final cat = job['category']?.toString().toLowerCase() ?? '';
@@ -978,7 +940,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   After sector filter: ${filtered.length}');
     }
 
-    // ✅ Filter by color (local-only)
     if (_selectedColorType != 'all') {
       filtered.retainWhere((job) {
         final jobColor = JobColorMasterData.normalize(job['color_type']);
@@ -987,7 +948,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   After color filter: ${filtered.length}');
     }
 
-    // ✅ Filter by state
     if (_selectedState != 'all') {
       filtered.retainWhere((job) {
         final jobLoc = job['job_location'];
@@ -998,7 +958,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   After state filter: ${filtered.length}');
     }
 
-    // ✅ Filter by education
     if (_selectedEducation != 'all') {
       final needle = _selectedEducation.toLowerCase();
       filtered.retainWhere((job) {
@@ -1009,7 +968,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   After education filter: ${filtered.length}');
     }
 
-    // ✅ Filter by salary range
     if (_selectedSalaryRange != 'all') {
       final range = _selectedSalaryRange;
       int? min, max;
@@ -1031,7 +989,6 @@ class _JobListScreenState extends State<JobListScreen>
       }
     }
 
-    // ✅ Filter by search query
     if (_searchQuery.isNotEmpty) {
       filtered.retainWhere((job) {
         final title = job['post_name']?.toString().toLowerCase() ?? '';
@@ -1045,7 +1002,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   After search filter: ${filtered.length}');
     }
 
-    // ✅ Sort results
     if (_sortBy == 'nearest') {
       filtered.sort((a, b) {
         final da = _asDouble(a['distance_km']) ?? double.infinity;
@@ -1069,9 +1025,6 @@ class _JobListScreenState extends State<JobListScreen>
     debugPrint('✅ Local filters applied: ${_filteredJobs.length} jobs shown');
   }
 
-  // ============================================================
-  // SAVED JOBS
-  // ============================================================
   Future<void> _loadSavedJobs() async {
     try {
       final token = await SecureStorage.getToken();
@@ -1142,9 +1095,6 @@ class _JobListScreenState extends State<JobListScreen>
     }
   }
 
-  // ============================================================
-  // HELPERS
-  // ============================================================
   String _getJobLocationName(Map<String, dynamic> job) {
     final loc = job['job_location'];
     if (loc is Map) {
@@ -1190,9 +1140,6 @@ class _JobListScreenState extends State<JobListScreen>
     return 'Up to ${maxD!.toInt()} years';
   }
 
-  // ============================================================
-  // UI EVENT HANDLERS
-  // ============================================================
   void _onSearchChanged(String value) {
     _debounceTimer?.cancel();
     setState(() => _searchQuery = value);
@@ -1213,7 +1160,6 @@ class _JobListScreenState extends State<JobListScreen>
     _fetchJobs(reset: true);
   }
 
-  // ✅ Color filter — 100% LOCAL, INSTANT
   void _onColorSelected(String value) {
     if (value == _selectedColorType) return;
     debugPrint('🎨 Color filter selected: $value');
@@ -1265,17 +1211,25 @@ class _JobListScreenState extends State<JobListScreen>
     _fetchJobs(reset: true);
   }
 
+  // ============================================================
+  // ✅ JOB TAP HANDLER
+  // - If onJobSelected callback provided → call it (embedded mode)
+  // - Otherwise → navigate to full-screen JobDetailScreen
+  // ============================================================
   void _onJobTap(Map<String, dynamic> job) {
     if (!kIsWeb) HapticFeedback.mediumImpact();
 
     if (widget.onJobSelected != null) {
+      // ✅ EMBEDDED MODE: parent handles navigation
       widget.onJobSelected!(job);
     } else {
+      // ✅ FULL SCREEN MODE: push new route
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => JobDetailScreen(
             job: job,
+            isEmbedded: false,
             onApplicationSubmitted: () async {
               if (mounted) await _fetchJobs(reset: true);
             },
@@ -1289,45 +1243,55 @@ class _JobListScreenState extends State<JobListScreen>
 
   // ============================================================
   // ✅ BUILD
+  // - isEmbedded = true → no Scaffold
+  // - isEmbedded = false → full Scaffold
   // ============================================================
   @override
   Widget build(BuildContext context) {
     final brightness = MediaQuery.of(context).platformBrightness;
     final isDark = brightness == Brightness.dark;
 
-    // ✅ Show full loading ONLY when nothing to show yet AND never fetched successfully
     final showFullLoading = _isLoading &&
         _jobs.isEmpty &&
         !_hasEverFetchedSuccessfully;
 
+    // ✅ Build the inner content
+    final Widget content = showFullLoading
+        ? _buildLoadingScreen()
+        : Column(
+            children: [
+              _buildHeader(isDark),
+              _buildSearchBar(isDark),
+              _buildColorFilterChips(isDark),
+              _buildJobTypeFilter(isDark),
+              _buildSectorFilter(isDark),
+              _buildEducationAndSalaryFilter(isDark),
+              _buildSortAndStateFilters(isDark),
+              Expanded(
+                child: _buildMainContent(isDark),
+              ),
+            ],
+          );
+
+    // ✅ EMBEDDED MODE: No Scaffold
+    if (widget.isEmbedded) {
+      return Container(
+        decoration: _buildGradientBackground(),
+        child: SafeArea(child: content),
+      );
+    }
+
+    // ✅ FULL SCREEN MODE: With Scaffold
     return Scaffold(
       backgroundColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
       body: Container(
         decoration: _buildGradientBackground(),
-        child: SafeArea(
-          child: showFullLoading
-              ? _buildLoadingScreen()
-              : Column(
-                  children: [
-                    _buildHeader(isDark),
-                    _buildSearchBar(isDark),
-                    _buildColorFilterChips(isDark),
-                    _buildJobTypeFilter(isDark),
-                    _buildSectorFilter(isDark),
-                    _buildEducationAndSalaryFilter(isDark),
-                    _buildSortAndStateFilters(isDark),
-                    Expanded(
-                      child: _buildMainContent(isDark),
-                    ),
-                  ],
-                ),
-        ),
+        child: SafeArea(child: content),
       ),
     );
   }
 
   Widget _buildMainContent(bool isDark) {
-    // ✅ 1) Error state — ONLY when truly no data at all
     if (_errorMessage != null &&
         _jobs.isEmpty &&
         !_hasEverFetchedSuccessfully &&
@@ -1335,17 +1299,14 @@ class _JobListScreenState extends State<JobListScreen>
       return _buildErrorState(isDark);
     }
 
-    // ✅ 2) Show list if we have ANY jobs
     if (_filteredJobs.isNotEmpty) {
       return _buildJobList(isDark);
     }
 
-    // ✅ 3) Loading spinner if still fetching
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // ✅ 4) Empty state
     return _buildEmptyState(isDark);
   }
 
@@ -1359,9 +1320,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // LOADING SCREEN
-  // ============================================================
   Widget _buildLoadingScreen() {
     return Center(
       child: SingleChildScrollView(
@@ -1429,9 +1387,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // HEADER
-  // ============================================================
   Widget _buildHeader(bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1455,6 +1410,13 @@ class _JobListScreenState extends State<JobListScreen>
       ),
       child: Row(
         children: [
+          // ✅ BACK BUTTON (only in embedded mode)
+          if (widget.isEmbedded && widget.onBack != null)
+            IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: widget.onBack,
+              tooltip: "Back",
+            ),
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -1523,9 +1485,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // SEARCH BAR
-  // ============================================================
   Widget _buildSearchBar(bool isDark) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1609,9 +1568,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // COLOR FILTER CHIPS
-  // ============================================================
   Widget _buildColorFilterChips(bool isDark) {
     return SizedBox(
       height: 48,
@@ -1803,9 +1759,6 @@ class _JobListScreenState extends State<JobListScreen>
         isDark: isDark,
       );
 
-  // ============================================================
-  // EDUCATION + SALARY FILTERS
-  // ============================================================
   Widget _buildEducationAndSalaryFilter(bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -1863,9 +1816,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // SORT + STATE FILTERS
-  // ============================================================
   Widget _buildSortAndStateFilters(bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -1982,9 +1932,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // JOB LIST
-  // ============================================================
   Widget _buildJobList(bool isDark) {
     final int itemCount = _filteredJobs.length + (_hasMore ? 1 : 0);
 
@@ -2045,9 +1992,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // JOB CARD
-  // ============================================================
   Widget _buildJobCard(Map<String, dynamic> job, int index, bool isDark) {
     final colorType = JobColorMasterData.normalize(job['color_type']);
     final colorPrimary = JobColorMasterData.getPrimary(colorType);
@@ -2569,9 +2513,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // ERROR STATE
-  // ============================================================
   Widget _buildErrorState(bool isDark) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -2633,9 +2574,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // EMPTY STATE
-  // ============================================================
   Widget _buildEmptyState(bool isDark) {
     final hasFilters = _selectedJobType != 'all' ||
         _selectedSector != 'all' ||

@@ -1,7 +1,7 @@
 ================================================================================
 ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-Generated: 2026-10-09 09:13:09
+Generated: 2026-10-09 15:56:38
 Source: E:\yogesh\website\rojgarnext\frontend
 Total Files: 143
 Total Size: 3.3 MB
@@ -36113,8 +36113,8 @@ class _CandidateProfileScreenState extends State<CandidateProfileScreen>
 
 ================================================================================
 [  65/ 143] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_detail_screen.dart
-📏 SIZE: 158.0 KB
-🕐 MODIFIED: 2026-10-07 10:57:36
+📏 SIZE: 158.1 KB
+🕐 MODIFIED: 2026-10-09 15:49:56
 ================================================================================
 
 // lib/features/jobs/presentation/screens/job_detail_screen.dart
@@ -36138,6 +36138,9 @@ class _CandidateProfileScreenState extends State<CandidateProfileScreen>
 // ✅ CRITICAL FIX: Auto-refresh job data to ensure all fields available
 // ✅ CRITICAL FIX: Better null/empty handling for all URL fields
 // ✅ FIXED: ALL text colors now explicitly set for perfect visibility
+// ✅ NEW: isEmbedded mode - when true, no AppBar/Scaffold, just content
+// ✅ NEW: onBack callback for embedded mode
+// ✅ NEW: onApplicationSubmitted callback preserved
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -36381,17 +36384,24 @@ class _JobFileTypeDetector {
 
 // ============================================================
 // MAIN SCREEN
+// ✅ NEW: isEmbedded mode
+// ✅ NEW: onBack callback
 // ============================================================
 class JobDetailScreen extends StatefulWidget {
   final Map<String, dynamic> job;
   final VoidCallback? onBack;
   final VoidCallback? onApplicationSubmitted;
 
+  /// ✅ NEW: When true, renders WITHOUT Scaffold/AppBar
+  /// so it can be embedded in the right panel of UserDashboard.
+  final bool isEmbedded;
+
   const JobDetailScreen({
     super.key,
     required this.job,
     this.onBack,
     this.onApplicationSubmitted,
+    this.isEmbedded = false,
   });
 
   @override
@@ -38078,6 +38088,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 
   // ============================================================
   // BUILD
+  // ✅ NEW: isEmbedded mode - no Scaffold/AppBar
   // ============================================================
   @override
   Widget build(BuildContext context) {
@@ -38096,184 +38107,196 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     final applicationFees = _getApplicationFees();
     final feeBreakdown = _calculateFeeBreakdown();
 
+    // ✅ Build the main content
+    final Widget content = (_isLoadingCategory || _isLoadingDisability)
+        ? _buildLoadingScreen()
+        : FadeTransition(
+            opacity: _fadeAnimation,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildAIHeaderCard(job, typeColor, postedDate, lastDate),
+                  const SizedBox(height: 16),
+                  if (_isDisabled) _buildDisabilityBanner(),
+                  if (_isDisabled) const SizedBox(height: 16),
+                  if (_insights.isNotEmpty) _buildAIInsightsRow(),
+                  if (_insights.isNotEmpty) const SizedBox(height: 16),
+                  _buildKeyInfoSection(job),
+                  const SizedBox(height: 16),
+                  if (_getApplicationStartDate().isNotEmpty ||
+                      _getApplicationEndDate().isNotEmpty)
+                    _buildApplicationTimelineSection(),
+                  if (_getApplicationStartDate().isNotEmpty ||
+                      _getApplicationEndDate().isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (hasApplicationFees && applicationFees.isNotEmpty)
+                    _buildApplicationFeesSection(
+                      applicationFees,
+                      feeBreakdown,
+                    ),
+                  if (hasApplicationFees && applicationFees.isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (_getAgeLimit() != 'Not specified')
+                    _buildAgeLimitSection(),
+                  if (_getAgeLimit() != 'Not specified')
+                    const SizedBox(height: 16),
+                  if (job['exam_cities'] != null &&
+                      (job['exam_cities'] as List).isNotEmpty)
+                    _buildExamCitiesSection(job['exam_cities']),
+                  if (job['exam_cities'] != null &&
+                      (job['exam_cities'] as List).isNotEmpty)
+                    const SizedBox(height: 16),
+                  _buildWorkDetailsSection(),
+                  const SizedBox(height: 16),
+                  if (job['benefits'] != null &&
+                      (job['benefits'] as List).isNotEmpty)
+                    _buildBenefitsSection(job['benefits']),
+                  if (job['benefits'] != null &&
+                      (job['benefits'] as List).isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['languages_required'] != null &&
+                      (job['languages_required'] as List).isNotEmpty)
+                    _buildLanguagesSection(job['languages_required']),
+                  if (job['languages_required'] != null &&
+                      (job['languages_required'] as List).isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['education_details'] != null &&
+                      job['education_details'].toString().isNotEmpty)
+                    _buildEducationDetailsSection(job['education_details']),
+                  if (job['education_details'] != null &&
+                      job['education_details'].toString().isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['experience_details'] != null &&
+                      job['experience_details'].toString().isNotEmpty)
+                    _buildExperienceDetailsSection(
+                        job['experience_details']),
+                  if (job['experience_details'] != null &&
+                      job['experience_details'].toString().isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['physical_eligibility'] != null)
+                    _buildPhysicalEligibilitySection(
+                        job['physical_eligibility']),
+                  if (job['physical_eligibility'] != null)
+                    const SizedBox(height: 16),
+                  if (job['interview_venue'] != null ||
+                      job['interview_link'] != null ||
+                      job['interview_date'] != null ||
+                      job['interview_time'] != null)
+                    _buildInterviewSection(),
+                  if (job['interview_venue'] != null ||
+                      job['interview_link'] != null ||
+                      job['interview_date'] != null ||
+                      job['interview_time'] != null)
+                    const SizedBox(height: 16),
+                  if (job['selection_stages'] != null &&
+                      (job['selection_stages'] as List).isNotEmpty)
+                    _buildSelectionProcessSection(
+                        job['selection_stages'],
+                        job['selection_process_details']),
+                  if (job['selection_stages'] != null &&
+                      (job['selection_stages'] as List).isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['contact_person'] != null ||
+                      job['contact_email'] != null ||
+                      job['contact_phone'] != null)
+                    _buildContactInformationSection(),
+                  if (job['contact_person'] != null ||
+                      job['contact_email'] != null ||
+                      job['contact_phone'] != null)
+                    const SizedBox(height: 16),
+                  if (job['important_notes'] != null &&
+                      job['important_notes'].toString().isNotEmpty)
+                    _buildImportantNotesSection(job['important_notes']),
+                  if (job['important_notes'] != null &&
+                      job['important_notes'].toString().isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['terms_conditions'] != null &&
+                      job['terms_conditions'].toString().isNotEmpty)
+                    _buildTermsConditionsSection(job['terms_conditions']),
+                  if (job['terms_conditions'] != null &&
+                      job['terms_conditions'].toString().isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['admit_card_date'] != null ||
+                      job['exam_date'] != null ||
+                      job['result_date'] != null)
+                    _buildImportantDatesSection(
+                      job['admit_card_date'],
+                      job['exam_date'],
+                      job['result_date'],
+                    ),
+                  if (job['admit_card_date'] != null ||
+                      job['exam_date'] != null ||
+                      job['result_date'] != null)
+                    const SizedBox(height: 16),
+                  if (job['helpline_number'] != null ||
+                      job['helpline_email'] != null ||
+                      job['whatsapp_number'] != null ||
+                      job['telegram_channel'] != null)
+                    _buildHelplineSection(),
+                  if (job['helpline_number'] != null ||
+                      job['helpline_email'] != null ||
+                      job['whatsapp_number'] != null ||
+                      job['telegram_channel'] != null)
+                    const SizedBox(height: 16),
+                  if (job['description'] != null &&
+                      job['description'].toString().isNotEmpty)
+                    _buildDescriptionSection(job['description']),
+                  if (job['description'] != null &&
+                      job['description'].toString().isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (job['required_skills'] != null &&
+                      (job['required_skills'] as List).isNotEmpty)
+                    _buildSkillsSection(job['required_skills']),
+                  if (job['required_skills'] != null &&
+                      (job['required_skills'] as List).isNotEmpty)
+                    const SizedBox(height: 16),
+                  if (hasMultiplePosts)
+                    _buildMultiplePostsTable(multiplePosts),
+                  if (hasMultiplePosts) const SizedBox(height: 16),
+                  if (_hasOfficialNotification)
+                    _buildOfficialNotificationSection(),
+                  if (_hasOfficialNotification) const SizedBox(height: 16),
+                  if (_hasAdvertisement) _buildAdvertisementSection(),
+                  if (_hasAdvertisement) const SizedBox(height: 16),
+                  if (hasAnyNotification) _buildInfoNote(),
+                  if (hasAnyNotification) const SizedBox(height: 16),
+                  if (!_isCheckingApplied) _buildSaveAndShareButtons(),
+                  if (!_isCheckingApplied) const SizedBox(height: 16),
+                  if (_isCheckingApplied)
+                    const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(_kPrimary),
+                      ),
+                    )
+                  else if (showApplyButtons)
+                    _buildApplyButtons(
+                      hasApplyWithUsLink,
+                      hasValidWebsiteUrl,
+                      feeBreakdown,
+                    ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          );
+
+    // ✅ EMBEDDED MODE: No Scaffold, no AppBar, no back button
+    if (widget.isEmbedded) {
+      return Container(
+        decoration: _buildGradientBackground(),
+        child: content,
+      );
+    }
+
+    // ✅ FULL SCREEN MODE: With Scaffold and AppBar
     return Scaffold(
       backgroundColor: _kBackgroundLight,
       appBar: _buildAppBar(),
       body: Container(
         decoration: _buildGradientBackground(),
-        child: (_isLoadingCategory || _isLoadingDisability)
-            ? _buildLoadingScreen()
-            : FadeTransition(
-                opacity: _fadeAnimation,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildAIHeaderCard(job, typeColor, postedDate, lastDate),
-                      const SizedBox(height: 16),
-                      if (_isDisabled) _buildDisabilityBanner(),
-                      if (_isDisabled) const SizedBox(height: 16),
-                      if (_insights.isNotEmpty) _buildAIInsightsRow(),
-                      if (_insights.isNotEmpty) const SizedBox(height: 16),
-                      _buildKeyInfoSection(job),
-                      const SizedBox(height: 16),
-                      if (_getApplicationStartDate().isNotEmpty ||
-                          _getApplicationEndDate().isNotEmpty)
-                        _buildApplicationTimelineSection(),
-                      if (_getApplicationStartDate().isNotEmpty ||
-                          _getApplicationEndDate().isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (hasApplicationFees && applicationFees.isNotEmpty)
-                        _buildApplicationFeesSection(
-                          applicationFees,
-                          feeBreakdown,
-                        ),
-                      if (hasApplicationFees && applicationFees.isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (_getAgeLimit() != 'Not specified')
-                        _buildAgeLimitSection(),
-                      if (_getAgeLimit() != 'Not specified')
-                        const SizedBox(height: 16),
-                      if (job['exam_cities'] != null &&
-                          (job['exam_cities'] as List).isNotEmpty)
-                        _buildExamCitiesSection(job['exam_cities']),
-                      if (job['exam_cities'] != null &&
-                          (job['exam_cities'] as List).isNotEmpty)
-                        const SizedBox(height: 16),
-                      _buildWorkDetailsSection(),
-                      const SizedBox(height: 16),
-                      if (job['benefits'] != null &&
-                          (job['benefits'] as List).isNotEmpty)
-                        _buildBenefitsSection(job['benefits']),
-                      if (job['benefits'] != null &&
-                          (job['benefits'] as List).isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['languages_required'] != null &&
-                          (job['languages_required'] as List).isNotEmpty)
-                        _buildLanguagesSection(job['languages_required']),
-                      if (job['languages_required'] != null &&
-                          (job['languages_required'] as List).isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['education_details'] != null &&
-                          job['education_details'].toString().isNotEmpty)
-                        _buildEducationDetailsSection(job['education_details']),
-                      if (job['education_details'] != null &&
-                          job['education_details'].toString().isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['experience_details'] != null &&
-                          job['experience_details'].toString().isNotEmpty)
-                        _buildExperienceDetailsSection(
-                            job['experience_details']),
-                      if (job['experience_details'] != null &&
-                          job['experience_details'].toString().isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['physical_eligibility'] != null)
-                        _buildPhysicalEligibilitySection(
-                            job['physical_eligibility']),
-                      if (job['physical_eligibility'] != null)
-                        const SizedBox(height: 16),
-                      if (job['interview_venue'] != null ||
-                          job['interview_link'] != null ||
-                          job['interview_date'] != null ||
-                          job['interview_time'] != null)
-                        _buildInterviewSection(),
-                      if (job['interview_venue'] != null ||
-                          job['interview_link'] != null ||
-                          job['interview_date'] != null ||
-                          job['interview_time'] != null)
-                        const SizedBox(height: 16),
-                      if (job['selection_stages'] != null &&
-                          (job['selection_stages'] as List).isNotEmpty)
-                        _buildSelectionProcessSection(
-                            job['selection_stages'],
-                            job['selection_process_details']),
-                      if (job['selection_stages'] != null &&
-                          (job['selection_stages'] as List).isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['contact_person'] != null ||
-                          job['contact_email'] != null ||
-                          job['contact_phone'] != null)
-                        _buildContactInformationSection(),
-                      if (job['contact_person'] != null ||
-                          job['contact_email'] != null ||
-                          job['contact_phone'] != null)
-                        const SizedBox(height: 16),
-                      if (job['important_notes'] != null &&
-                          job['important_notes'].toString().isNotEmpty)
-                        _buildImportantNotesSection(job['important_notes']),
-                      if (job['important_notes'] != null &&
-                          job['important_notes'].toString().isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['terms_conditions'] != null &&
-                          job['terms_conditions'].toString().isNotEmpty)
-                        _buildTermsConditionsSection(job['terms_conditions']),
-                      if (job['terms_conditions'] != null &&
-                          job['terms_conditions'].toString().isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['admit_card_date'] != null ||
-                          job['exam_date'] != null ||
-                          job['result_date'] != null)
-                        _buildImportantDatesSection(
-                          job['admit_card_date'],
-                          job['exam_date'],
-                          job['result_date'],
-                        ),
-                      if (job['admit_card_date'] != null ||
-                          job['exam_date'] != null ||
-                          job['result_date'] != null)
-                        const SizedBox(height: 16),
-                      if (job['helpline_number'] != null ||
-                          job['helpline_email'] != null ||
-                          job['whatsapp_number'] != null ||
-                          job['telegram_channel'] != null)
-                        _buildHelplineSection(),
-                      if (job['helpline_number'] != null ||
-                          job['helpline_email'] != null ||
-                          job['whatsapp_number'] != null ||
-                          job['telegram_channel'] != null)
-                        const SizedBox(height: 16),
-                      if (job['description'] != null &&
-                          job['description'].toString().isNotEmpty)
-                        _buildDescriptionSection(job['description']),
-                      if (job['description'] != null &&
-                          job['description'].toString().isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (job['required_skills'] != null &&
-                          (job['required_skills'] as List).isNotEmpty)
-                        _buildSkillsSection(job['required_skills']),
-                      if (job['required_skills'] != null &&
-                          (job['required_skills'] as List).isNotEmpty)
-                        const SizedBox(height: 16),
-                      if (hasMultiplePosts)
-                        _buildMultiplePostsTable(multiplePosts),
-                      if (hasMultiplePosts) const SizedBox(height: 16),
-                      if (_hasOfficialNotification)
-                        _buildOfficialNotificationSection(),
-                      if (_hasOfficialNotification) const SizedBox(height: 16),
-                      if (_hasAdvertisement) _buildAdvertisementSection(),
-                      if (_hasAdvertisement) const SizedBox(height: 16),
-                      if (hasAnyNotification) _buildInfoNote(),
-                      if (hasAnyNotification) const SizedBox(height: 16),
-                      if (!_isCheckingApplied) _buildSaveAndShareButtons(),
-                      if (!_isCheckingApplied) const SizedBox(height: 16),
-                      if (_isCheckingApplied)
-                        const Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(_kPrimary),
-                          ),
-                        )
-                      else if (showApplyButtons)
-                        _buildApplyButtons(
-                          hasApplyWithUsLink,
-                          hasValidWebsiteUrl,
-                          feeBreakdown,
-                        ),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-              ),
+        child: content,
       ),
     );
   }
@@ -38381,7 +38404,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   }
 
   // ============================================================
-  // APP BAR
+  // APP BAR (only used in fullscreen mode)
   // ============================================================
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
@@ -40587,8 +40610,8 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 
 ================================================================================
 [  66/ 143] 🎯 rojgarnext/lib/features/jobs/presentation/screens/job_list_screen.dart
-📏 SIZE: 97.5 KB
-🕐 MODIFIED: 2026-09-28 20:40:42
+📏 SIZE: 93.7 KB
+🕐 MODIFIED: 2026-10-09 15:51:11
 ================================================================================
 
 // lib/features/jobs/presentation/screens/job_list_screen.dart
@@ -40603,6 +40626,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 // ✅ Cache save ignores local-only color filter
 // ✅ _applyLocalFilters() always clears stale error
 // ✅ Loading screen ONLY until first non-empty OR first-ever success
+// ✅ NEW: isEmbedded mode — no Scaffold, works inside parent panel
+// ✅ NEW: onJobSelected callback used in embedded mode
+// ✅ NEW: onBack callback preserved
 
 import 'dart:async';
 import 'dart:convert';
@@ -40644,17 +40670,27 @@ class AIRecommendationService {
 
 // ============================================================
 // MAIN SCREEN
+// ✅ NEW: isEmbedded + onJobSelected + onBack
 // ============================================================
 class JobListScreen extends StatefulWidget {
   final Function(Map<String, dynamic>)? onJobSelected;
   final Map<String, dynamic>? location;
   final String? initialColorFilter;
 
+  /// ✅ NEW: When true, renders WITHOUT Scaffold
+  /// so it can be embedded in the right panel of UserDashboard.
+  final bool isEmbedded;
+
+  /// ✅ NEW: Optional back callback (for embedded mode)
+  final VoidCallback? onBack;
+
   const JobListScreen({
     super.key,
     this.onJobSelected,
     this.location,
     this.initialColorFilter,
+    this.isEmbedded = false,
+    this.onBack,
   });
 
   @override
@@ -40681,7 +40717,6 @@ class _JobListScreenState extends State<JobListScreen>
   bool _isLoadingMore = false;
 
   // ---------- FILTERS ----------
-  // ✅ FIRST-TIME DEFAULTS: all = 'all'
   String _searchQuery = '';
   String _selectedJobType = 'all';
   String _selectedSector = 'all';
@@ -40704,16 +40739,12 @@ class _JobListScreenState extends State<JobListScreen>
   Timer? _debounceTimer;
   int _requestId = 0;
 
-  // ============================================================
-  // ✅ NOTE OVERLAY STATE
-  // ============================================================
   OverlayEntry? _noteOverlay;
   Timer? _hideNoteTimer;
   String? _activeNoteColor;
 
   final TextEditingController _searchController = TextEditingController();
 
-  // ---------- STATIC FILTER DATA ----------
   static const List<Map<String, dynamic>> _jobTypes = [
     {'value': 'all', 'label': 'All Jobs', 'icon': Icons.list, 'color': Colors.grey},
     {'value': 'private', 'label': 'Private', 'icon': Icons.business, 'color': Color(0xFF6C63FF)},
@@ -40760,15 +40791,11 @@ class _JobListScreenState extends State<JobListScreen>
 
   bool get _isWeb => kIsWeb || MediaQuery.of(context).size.width > 800;
 
-  // ============================================================
-  // LIFECYCLE
-  // ============================================================
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // ✅ ONLY apply initialColorFilter if explicitly passed (deep-link use case)
     if (widget.initialColorFilter != null &&
         widget.initialColorFilter!.isNotEmpty) {
       _selectedColorType = widget.initialColorFilter!;
@@ -40785,20 +40812,11 @@ class _JobListScreenState extends State<JobListScreen>
     _initLoad();
   }
 
-  // ============================================================
-  // ✅ CRITICAL FIX: FIRST-TIME LOAD SEQUENCE
-  //   1. Reset all filters to 'all' (guarantee default state)
-  //   2. Load cache (instant render if available)
-  //   3. Fire API in background
-  //   4. Apply filters ONLY AFTER jobs list is populated
-  // ============================================================
   Future<void> _initLoad() async {
     debugPrint('=' * 70);
     debugPrint('🚀 JOB LIST SCREEN - INITIAL LOAD STARTED');
     debugPrint('=' * 70);
 
-    // ✅ STEP 1: FORCE all filters to default (first-time open)
-    //    (unless a deep-link color filter was explicitly set)
     _selectedJobType = 'all';
     _selectedSector = 'all';
     _selectedState = 'all';
@@ -40807,21 +40825,17 @@ class _JobListScreenState extends State<JobListScreen>
     _sortBy = 'nearest';
     _searchQuery = '';
     _searchController.clear();
-    // keep _selectedColorType as-is if deep-link set, else 'all'
     if (widget.initialColorFilter == null) {
       _selectedColorType = 'all';
     }
 
     debugPrint('🎛️ Filters reset → color=$_selectedColorType, type=$_selectedJobType, sector=$_selectedSector');
 
-    // ✅ STEP 2: Load cache synchronously (fast first paint if cached)
     await _loadCachedJobs();
 
-    // ✅ STEP 3: Start background tasks (non-blocking)
     _loadUserProfile();
     _loadSavedJobs();
 
-    // ✅ STEP 4: Fetch fresh jobs from API
     debugPrint('🌐 Starting API fetch...');
     await _fetchJobs(reset: true);
 
@@ -40861,9 +40875,6 @@ class _JobListScreenState extends State<JobListScreen>
     if (mounted) setState(() {});
   }
 
-  // ============================================================
-  // ✅ NOTE OVERLAY MANAGEMENT
-  // ============================================================
   void _removeNoteOverlay() {
     _noteOverlay?.remove();
     _noteOverlay = null;
@@ -40942,9 +40953,6 @@ class _JobListScreenState extends State<JobListScreen>
     });
   }
 
-  // ============================================================
-  // ✅ NOTE CARD
-  // ============================================================
   Widget _buildColorNoteCard(
     Map<String, dynamic> filter,
     bool placedRight,
@@ -41120,9 +41128,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // USER PROFILE
-  // ============================================================
   Future<void> _loadUserProfile() async {
     try {
       final profile = await UserService.getFullProfile();
@@ -41134,9 +41139,6 @@ class _JobListScreenState extends State<JobListScreen>
     }
   }
 
-  // ============================================================
-  // CACHE
-  // ============================================================
   Future<void> _loadCachedJobs() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -41184,9 +41186,6 @@ class _JobListScreenState extends State<JobListScreen>
     }
   }
 
-  // ============================================================
-  // ✅ FETCH JOBS — FIRST-TIME SAFE
-  // ============================================================
   Future<void> _fetchJobs({bool reset = true}) async {
     if (!mounted) return;
 
@@ -41214,8 +41213,6 @@ class _JobListScreenState extends State<JobListScreen>
         'limit': _pageSize,
       };
 
-      // ✅ On FIRST load (reset=true with no filters), don't send any filter params
-      //    so the backend returns the full list of jobs
       if (_searchQuery.isNotEmpty) params['search'] = _searchQuery;
       if (_selectedJobType != 'all') params['job_type'] = _selectedJobType;
       if (_selectedSector != 'all') params['category'] = _selectedSector;
@@ -41288,8 +41285,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   New jobs: ${newJobs.length}');
       debugPrint('   Has more: $_hasMore');
 
-      // ✅ Save to cache when no SERVER-side filters are active
-      //    (color is local-only, so ignore it here)
       if (reset &&
           _searchQuery.isEmpty &&
           _selectedJobType == 'all' &&
@@ -41303,7 +41298,6 @@ class _JobListScreenState extends State<JobListScreen>
       _extractAvailableEducations();
       await _loadSavedJobs();
 
-      // ✅ Apply filters AFTER _jobs is populated → list renders on first load
       _applyLocalFilters();
 
       debugPrint('✅ Fetch complete: ${_filteredJobs.length} filtered jobs shown');
@@ -41468,9 +41462,6 @@ class _JobListScreenState extends State<JobListScreen>
     }
   }
 
-  // ============================================================
-  // FILTER EXTRACTION — guarded setState
-  // ============================================================
   void _extractAvailableStates() {
     final Set<String> states = {'all'};
     for (final job in _jobs) {
@@ -41534,10 +41525,6 @@ class _JobListScreenState extends State<JobListScreen>
     return true;
   }
 
-  // ============================================================
-  // ✅ LOCAL FILTERS — applies to _jobs → _filteredJobs
-  //    With default filters ('all'), this returns ALL jobs.
-  // ============================================================
   void _applyLocalFilters() {
     if (!mounted) return;
 
@@ -41553,7 +41540,6 @@ class _JobListScreenState extends State<JobListScreen>
 
     final List<Map<String, dynamic>> filtered = List.from(_jobs);
 
-    // ✅ Filter by job type (local, since backend may ignore)
     if (_selectedJobType != 'all') {
       filtered.retainWhere((job) {
         final t = job['job_type']?.toString().toLowerCase() ?? '';
@@ -41562,7 +41548,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   After job type filter: ${filtered.length}');
     }
 
-    // ✅ Filter by sector (category)
     if (_selectedSector != 'all') {
       filtered.retainWhere((job) {
         final cat = job['category']?.toString().toLowerCase() ?? '';
@@ -41571,7 +41556,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   After sector filter: ${filtered.length}');
     }
 
-    // ✅ Filter by color (local-only)
     if (_selectedColorType != 'all') {
       filtered.retainWhere((job) {
         final jobColor = JobColorMasterData.normalize(job['color_type']);
@@ -41580,7 +41564,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   After color filter: ${filtered.length}');
     }
 
-    // ✅ Filter by state
     if (_selectedState != 'all') {
       filtered.retainWhere((job) {
         final jobLoc = job['job_location'];
@@ -41591,7 +41574,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   After state filter: ${filtered.length}');
     }
 
-    // ✅ Filter by education
     if (_selectedEducation != 'all') {
       final needle = _selectedEducation.toLowerCase();
       filtered.retainWhere((job) {
@@ -41602,7 +41584,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   After education filter: ${filtered.length}');
     }
 
-    // ✅ Filter by salary range
     if (_selectedSalaryRange != 'all') {
       final range = _selectedSalaryRange;
       int? min, max;
@@ -41624,7 +41605,6 @@ class _JobListScreenState extends State<JobListScreen>
       }
     }
 
-    // ✅ Filter by search query
     if (_searchQuery.isNotEmpty) {
       filtered.retainWhere((job) {
         final title = job['post_name']?.toString().toLowerCase() ?? '';
@@ -41638,7 +41618,6 @@ class _JobListScreenState extends State<JobListScreen>
       debugPrint('   After search filter: ${filtered.length}');
     }
 
-    // ✅ Sort results
     if (_sortBy == 'nearest') {
       filtered.sort((a, b) {
         final da = _asDouble(a['distance_km']) ?? double.infinity;
@@ -41662,9 +41641,6 @@ class _JobListScreenState extends State<JobListScreen>
     debugPrint('✅ Local filters applied: ${_filteredJobs.length} jobs shown');
   }
 
-  // ============================================================
-  // SAVED JOBS
-  // ============================================================
   Future<void> _loadSavedJobs() async {
     try {
       final token = await SecureStorage.getToken();
@@ -41735,9 +41711,6 @@ class _JobListScreenState extends State<JobListScreen>
     }
   }
 
-  // ============================================================
-  // HELPERS
-  // ============================================================
   String _getJobLocationName(Map<String, dynamic> job) {
     final loc = job['job_location'];
     if (loc is Map) {
@@ -41783,9 +41756,6 @@ class _JobListScreenState extends State<JobListScreen>
     return 'Up to ${maxD!.toInt()} years';
   }
 
-  // ============================================================
-  // UI EVENT HANDLERS
-  // ============================================================
   void _onSearchChanged(String value) {
     _debounceTimer?.cancel();
     setState(() => _searchQuery = value);
@@ -41806,7 +41776,6 @@ class _JobListScreenState extends State<JobListScreen>
     _fetchJobs(reset: true);
   }
 
-  // ✅ Color filter — 100% LOCAL, INSTANT
   void _onColorSelected(String value) {
     if (value == _selectedColorType) return;
     debugPrint('🎨 Color filter selected: $value');
@@ -41858,17 +41827,25 @@ class _JobListScreenState extends State<JobListScreen>
     _fetchJobs(reset: true);
   }
 
+  // ============================================================
+  // ✅ JOB TAP HANDLER
+  // - If onJobSelected callback provided → call it (embedded mode)
+  // - Otherwise → navigate to full-screen JobDetailScreen
+  // ============================================================
   void _onJobTap(Map<String, dynamic> job) {
     if (!kIsWeb) HapticFeedback.mediumImpact();
 
     if (widget.onJobSelected != null) {
+      // ✅ EMBEDDED MODE: parent handles navigation
       widget.onJobSelected!(job);
     } else {
+      // ✅ FULL SCREEN MODE: push new route
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => JobDetailScreen(
             job: job,
+            isEmbedded: false,
             onApplicationSubmitted: () async {
               if (mounted) await _fetchJobs(reset: true);
             },
@@ -41882,45 +41859,55 @@ class _JobListScreenState extends State<JobListScreen>
 
   // ============================================================
   // ✅ BUILD
+  // - isEmbedded = true → no Scaffold
+  // - isEmbedded = false → full Scaffold
   // ============================================================
   @override
   Widget build(BuildContext context) {
     final brightness = MediaQuery.of(context).platformBrightness;
     final isDark = brightness == Brightness.dark;
 
-    // ✅ Show full loading ONLY when nothing to show yet AND never fetched successfully
     final showFullLoading = _isLoading &&
         _jobs.isEmpty &&
         !_hasEverFetchedSuccessfully;
 
+    // ✅ Build the inner content
+    final Widget content = showFullLoading
+        ? _buildLoadingScreen()
+        : Column(
+            children: [
+              _buildHeader(isDark),
+              _buildSearchBar(isDark),
+              _buildColorFilterChips(isDark),
+              _buildJobTypeFilter(isDark),
+              _buildSectorFilter(isDark),
+              _buildEducationAndSalaryFilter(isDark),
+              _buildSortAndStateFilters(isDark),
+              Expanded(
+                child: _buildMainContent(isDark),
+              ),
+            ],
+          );
+
+    // ✅ EMBEDDED MODE: No Scaffold
+    if (widget.isEmbedded) {
+      return Container(
+        decoration: _buildGradientBackground(),
+        child: SafeArea(child: content),
+      );
+    }
+
+    // ✅ FULL SCREEN MODE: With Scaffold
     return Scaffold(
       backgroundColor: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
       body: Container(
         decoration: _buildGradientBackground(),
-        child: SafeArea(
-          child: showFullLoading
-              ? _buildLoadingScreen()
-              : Column(
-                  children: [
-                    _buildHeader(isDark),
-                    _buildSearchBar(isDark),
-                    _buildColorFilterChips(isDark),
-                    _buildJobTypeFilter(isDark),
-                    _buildSectorFilter(isDark),
-                    _buildEducationAndSalaryFilter(isDark),
-                    _buildSortAndStateFilters(isDark),
-                    Expanded(
-                      child: _buildMainContent(isDark),
-                    ),
-                  ],
-                ),
-        ),
+        child: SafeArea(child: content),
       ),
     );
   }
 
   Widget _buildMainContent(bool isDark) {
-    // ✅ 1) Error state — ONLY when truly no data at all
     if (_errorMessage != null &&
         _jobs.isEmpty &&
         !_hasEverFetchedSuccessfully &&
@@ -41928,17 +41915,14 @@ class _JobListScreenState extends State<JobListScreen>
       return _buildErrorState(isDark);
     }
 
-    // ✅ 2) Show list if we have ANY jobs
     if (_filteredJobs.isNotEmpty) {
       return _buildJobList(isDark);
     }
 
-    // ✅ 3) Loading spinner if still fetching
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // ✅ 4) Empty state
     return _buildEmptyState(isDark);
   }
 
@@ -41952,9 +41936,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // LOADING SCREEN
-  // ============================================================
   Widget _buildLoadingScreen() {
     return Center(
       child: SingleChildScrollView(
@@ -42022,9 +42003,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // HEADER
-  // ============================================================
   Widget _buildHeader(bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -42048,6 +42026,13 @@ class _JobListScreenState extends State<JobListScreen>
       ),
       child: Row(
         children: [
+          // ✅ BACK BUTTON (only in embedded mode)
+          if (widget.isEmbedded && widget.onBack != null)
+            IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: widget.onBack,
+              tooltip: "Back",
+            ),
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -42116,9 +42101,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // SEARCH BAR
-  // ============================================================
   Widget _buildSearchBar(bool isDark) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -42202,9 +42184,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // COLOR FILTER CHIPS
-  // ============================================================
   Widget _buildColorFilterChips(bool isDark) {
     return SizedBox(
       height: 48,
@@ -42396,9 +42375,6 @@ class _JobListScreenState extends State<JobListScreen>
         isDark: isDark,
       );
 
-  // ============================================================
-  // EDUCATION + SALARY FILTERS
-  // ============================================================
   Widget _buildEducationAndSalaryFilter(bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -42456,9 +42432,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // SORT + STATE FILTERS
-  // ============================================================
   Widget _buildSortAndStateFilters(bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -42575,9 +42548,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // JOB LIST
-  // ============================================================
   Widget _buildJobList(bool isDark) {
     final int itemCount = _filteredJobs.length + (_hasMore ? 1 : 0);
 
@@ -42638,9 +42608,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // JOB CARD
-  // ============================================================
   Widget _buildJobCard(Map<String, dynamic> job, int index, bool isDark) {
     final colorType = JobColorMasterData.normalize(job['color_type']);
     final colorPrimary = JobColorMasterData.getPrimary(colorType);
@@ -43162,9 +43129,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // ERROR STATE
-  // ============================================================
   Widget _buildErrorState(bool isDark) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -43226,9 +43190,6 @@ class _JobListScreenState extends State<JobListScreen>
     );
   }
 
-  // ============================================================
-  // EMPTY STATE
-  // ============================================================
   Widget _buildEmptyState(bool isDark) {
     final hasFilters = _selectedJobType != 'all' ||
         _selectedSector != 'all' ||
@@ -43842,7 +43803,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
 ================================================================================
 [  68/ 143] 🎯 rojgarnext/lib/features/jobs/presentation/screens/show_jobs_screen.dart
 📏 SIZE: 59.2 KB
-🕐 MODIFIED: 2026-09-27 18:10:42
+🕐 MODIFIED: 2026-10-09 15:38:36
 ================================================================================
 
 // lib/features/jobs/presentation/screens/show_jobs_screen.dart
@@ -91694,12 +91655,15 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 
 ================================================================================
 [ 133/ 143] 🎯 rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
-📏 SIZE: 58.9 KB
-🕐 MODIFIED: 2026-10-09 08:38:50
+📏 SIZE: 61.2 KB
+🕐 MODIFIED: 2026-10-09 15:56:31
 ================================================================================
 
 // lib/features/user/presentation/screens/user_dashboard.dart
 // ✅ COMPLETE FIXED VERSION
+// ✅ MODIFIED: Jobs menu now contains Browse Jobs + Job Applications
+// ✅ MODIFIED: Saved Jobs REMOVED from Jobs submenu (accessible via Quick Action)
+// ✅ MODIFIED: Applications top-level menu REMOVED (jobApplications now under Jobs)
 // ✅ All enum types properly imported
 // ✅ Career Score + Profile Completion + Application Counts
 // ✅ Cache-first loading for instant display
@@ -91707,6 +91671,11 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 // ✅ FIXED: UserApplicationsScreen now receives required onApplicationSelected
 // ✅ FIXED: UserServiceApplicationScreen (singular) — matches class name
 // ✅ FIXED: SupportScreen — matches class name
+// ✅ FIXED: Services → Browse Services opens ApplyServiceScreen (user-facing)
+// ✅ NEW: Job Details shown in RIGHT PANEL (embedded mode, no back button)
+// ✅ NEW: _selectedJob state for embedded job detail
+// ✅ NEW: onJobSelected callback from JobListScreen
+// ✅ NEW: onBack callback returns to job list
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -91728,9 +91697,13 @@ import 'package:rojgarnext/features/user/presentation/screens/user_documents_scr
 import 'package:rojgarnext/features/user/presentation/screens/user_applications_screen.dart';
 import 'package:rojgarnext/features/user/presentation/screens/user_support_screen.dart';
 import 'package:rojgarnext/features/jobs/presentation/screens/job_list_screen.dart';
+import 'package:rojgarnext/features/jobs/presentation/screens/job_detail_screen.dart';
 import 'package:rojgarnext/features/jobs/presentation/screens/saved_jobs_screen.dart';
-import 'package:rojgarnext/features/services/presentation/screens/service_application_screen.dart';
+
+// ✅ Service screens
+import 'package:rojgarnext/features/services/presentation/screens/apply_service_screen.dart';
 import 'package:rojgarnext/features/services/presentation/screens/user_service_applications_screen.dart';
+
 import 'package:rojgarnext/features/resume/presentation/screens/build_resume_screen.dart';
 import 'package:rojgarnext/features/resume/presentation/screens/resume_screen.dart';
 import 'package:rojgarnext/features/resume/AI/presentation/screens/ats_score_screen.dart';
@@ -91799,6 +91772,7 @@ class DashboardStats {
 
 // ============================================================
 // USER DASHBOARD
+// ✅ NEW: _selectedJob state for embedded job detail
 // ============================================================
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -91810,13 +91784,18 @@ class UserDashboard extends StatefulWidget {
 class _UserDashboardState extends State<UserDashboard> {
   // ==================== STATE ====================
   UserMenuType selectedMenu = UserMenuType.dashboard;
+
+  // ⬅️ MODIFIED: JobSubMenu now includes jobApplications
   JobSubMenu selectedJobSubMenu = JobSubMenu.browseJobs;
-  ApplicationSubMenu selectedAppSubMenu = ApplicationSubMenu.jobApplications;
+
   ServiceSubMenu selectedServiceSubMenu = ServiceSubMenu.browseServices;
   ResumeSubMenu selectedResumeSubMenu = ResumeSubMenu.buildResume;
   AISubMenu selectedAISubMenu = AISubMenu.dashboard;
   ProfileSubMenu selectedProfileSubMenu = ProfileSubMenu.basicDetails;
   SettingsSubMenu selectedSettingsSubMenu = SettingsSubMenu.changePassword;
+
+  // ✅ NEW: Selected job for embedded detail view
+  Map<String, dynamic>? _selectedJob;
 
   // ==================== DASHBOARD DATA ====================
   DashboardStats _stats = DashboardStats.empty();
@@ -91911,7 +91890,6 @@ class _UserDashboardState extends State<UserDashboard> {
   // ============================================================
   Future<void> _refreshInBackground() async {
     try {
-      // ---- Load profile photo ----
       try {
         await ProfileStateService().loadPhotoFromBackend();
         if (mounted) {
@@ -91921,11 +91899,9 @@ class _UserDashboardState extends State<UserDashboard> {
         debugPrint("⚠️ Photo load failed: $e");
       }
 
-      // ---- Load dashboard stats ----
       final statsResponse = await UserService.getDashboardStats();
       final stats = DashboardStats.fromJson(statsResponse);
 
-      // ---- Load user name ----
       String userName = 'User';
       try {
         final profileRes = await UserService.getFullProfile();
@@ -92012,6 +91988,8 @@ class _UserDashboardState extends State<UserDashboard> {
       if (mounted) {
         setState(() {
           selectedMenu = menu;
+          // ✅ Clear selected job when navigating away
+          _selectedJob = null;
           if (menu == UserMenuType.settings) {
             selectedSettingsSubMenu = SettingsSubMenu.changePassword;
           }
@@ -92027,18 +92005,8 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.jobs;
           selectedJobSubMenu = subMenu;
-        });
-      }
-    });
-  }
-
-  void _onApplicationSubMenuSelected(ApplicationSubMenu subMenu) {
-    _closeDrawerIfOpen();
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        setState(() {
-          selectedMenu = UserMenuType.applications;
-          selectedAppSubMenu = subMenu;
+          // ✅ Clear selected job when switching submenus
+          _selectedJob = null;
         });
       }
     });
@@ -92051,6 +92019,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.services;
           selectedServiceSubMenu = subMenu;
+          _selectedJob = null;
         });
       }
     });
@@ -92063,6 +92032,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.resume;
           selectedResumeSubMenu = subMenu;
+          _selectedJob = null;
         });
       }
     });
@@ -92075,6 +92045,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.ai;
           selectedAISubMenu = subMenu;
+          _selectedJob = null;
         });
       }
     });
@@ -92087,6 +92058,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.profile;
           selectedProfileSubMenu = subMenu;
+          _selectedJob = null;
         });
       }
     });
@@ -92099,9 +92071,76 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.settings;
           selectedSettingsSubMenu = subMenu;
+          _selectedJob = null;
         });
       }
     });
+  }
+
+  // ============================================================
+  // ✅ JOB SELECTION HANDLERS (embedded mode)
+  // ============================================================
+  void _onJobSelected(Map<String, dynamic> job) {
+    debugPrint("📋 Job selected: ${job['post_name']}");
+    setState(() {
+      _selectedJob = job;
+    });
+  }
+
+  void _closeJobDetail() {
+    setState(() {
+      _selectedJob = null;
+    });
+  }
+
+  // ============================================================
+  // ✅ NAVIGATION HELPERS
+  // ============================================================
+  void _goToJobApplications() {
+    _closeDrawerIfOpen();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          selectedMenu = UserMenuType.jobs;
+          selectedJobSubMenu = JobSubMenu.jobApplications;
+          _selectedJob = null;
+        });
+      }
+    });
+  }
+
+  void _goToBrowseJobs() {
+    _closeDrawerIfOpen();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          selectedMenu = UserMenuType.jobs;
+          selectedJobSubMenu = JobSubMenu.browseJobs;
+          _selectedJob = null;
+        });
+      }
+    });
+  }
+
+  void _goToServiceApplications() {
+    _closeDrawerIfOpen();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          selectedMenu = UserMenuType.services;
+          selectedServiceSubMenu = ServiceSubMenu.myApplications;
+          _selectedJob = null;
+        });
+      }
+    });
+  }
+
+  void _goToSavedJobs() {
+    _closeDrawerIfOpen();
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SavedJobsScreen()),
+    );
   }
 
   // ============================================================
@@ -92160,37 +92199,48 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ GET CONTENT — FIXED
+  // ✅ GET CONTENT
+  // ✅ NEW: Jobs menu handles embedded job detail
   // ============================================================
   Widget _getContent() {
     switch (selectedMenu) {
       case UserMenuType.dashboard:
         return _buildDashboardContent();
 
+      // ⬅️ MODIFIED: Jobs menu now has Browse Jobs + Job Applications
+      // ✅ NEW: Embedded JobDetailScreen when _selectedJob != null
       case UserMenuType.jobs:
-        if (selectedJobSubMenu == JobSubMenu.savedJobs) {
-          return const SavedJobsScreen();
+        if (selectedJobSubMenu == JobSubMenu.jobApplications) {
+          return UserApplicationsScreen(
+            onApplicationSelected: (app) {
+              debugPrint("📋 Application selected: ${app['_id']}");
+            },
+            showAppBar: false,
+          );
         }
-        return const JobListScreen();
-
-      // ✅ FIX 1: UserApplicationsScreen now receives required parameters
-      case UserMenuType.applications:
-        return UserApplicationsScreen(
-          onApplicationSelected: (app) {
-            setState(() {
-              selectedMenu = UserMenuType.applications;
-              selectedAppSubMenu = ApplicationSubMenu.jobApplications;
-            });
-          },
-          showAppBar: false,
+        // ✅ Browse Jobs: show JobDetail if selected, else JobList
+        if (_selectedJob != null) {
+          return JobDetailScreen(
+            job: _selectedJob!,
+            isEmbedded: true,
+            onBack: _closeJobDetail,
+            onApplicationSubmitted: () {
+              // Refresh stats after application
+              _refreshDashboard();
+            },
+          );
+        }
+        return JobListScreen(
+          isEmbedded: true,
+          onJobSelected: _onJobSelected,
         );
 
-      // ✅ FIX 2: Class name corrected to singular "Application"
+      // ✅ FIX: Browse Services now opens ApplyServiceScreen (user-facing)
       case UserMenuType.services:
         if (selectedServiceSubMenu == ServiceSubMenu.myApplications) {
           return const UserServiceApplicationScreen();
         }
-        return const ServiceApplicationScreen();
+        return const ApplyServiceScreen();
 
       case UserMenuType.resume:
         switch (selectedResumeSubMenu) {
@@ -92226,7 +92276,7 @@ class _UserDashboardState extends State<UserDashboard> {
             return const UserDocumentsScreen();
         }
 
-      // ✅ FIX 3: Class name corrected — SupportScreen (not UserSupportScreen)
+      // ✅ SupportScreen (not UserSupportScreen)
       case UserMenuType.support:
         return const SupportScreen();
 
@@ -92278,13 +92328,7 @@ class _UserDashboardState extends State<UserDashboard> {
                     savedCount: _stats.jobApplicationsSaved,
                     icon: Icons.work_rounded,
                     color: const Color(0xFF6C63FF),
-                    onTap: () {
-                      setState(() {
-                        selectedMenu = UserMenuType.applications;
-                        selectedAppSubMenu =
-                            ApplicationSubMenu.jobApplications;
-                      });
-                    },
+                    onTap: _goToJobApplications,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -92295,13 +92339,7 @@ class _UserDashboardState extends State<UserDashboard> {
                     savedCount: 0,
                     icon: Icons.workspace_premium_rounded,
                     color: const Color(0xFFFF6588),
-                    onTap: () {
-                      setState(() {
-                        selectedMenu = UserMenuType.services;
-                        selectedServiceSubMenu =
-                            ServiceSubMenu.myApplications;
-                      });
-                    },
+                    onTap: _goToServiceApplications,
                   ),
                 ),
               ],
@@ -92351,7 +92389,6 @@ class _UserDashboardState extends State<UserDashboard> {
       ),
       child: Row(
         children: [
-          // Profile photo or avatar
           Container(
             width: 56,
             height: 56,
@@ -92536,6 +92573,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.profile;
           selectedProfileSubMenu = ProfileSubMenu.basicDetails;
+          _selectedJob = null;
         });
       },
       child: Container(
@@ -93011,12 +93049,7 @@ class _UserDashboardState extends State<UserDashboard> {
         title: 'Browse Jobs',
         icon: Icons.search,
         color: const Color(0xFF6C63FF),
-        onTap: () {
-          setState(() {
-            selectedMenu = UserMenuType.jobs;
-            selectedJobSubMenu = JobSubMenu.browseJobs;
-          });
-        },
+        onTap: _goToBrowseJobs,
       ),
       _QuickAction(
         title: 'My Resume',
@@ -93026,6 +93059,7 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.resume;
             selectedResumeSubMenu = ResumeSubMenu.buildResume;
+            _selectedJob = null;
           });
         },
       ),
@@ -93037,6 +93071,7 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.ai;
             selectedAISubMenu = AISubMenu.dashboard;
+            _selectedJob = null;
           });
         },
       ),
@@ -93048,6 +93083,7 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.profile;
             selectedProfileSubMenu = ProfileSubMenu.basicDetails;
+            _selectedJob = null;
           });
         },
       ),
@@ -93059,6 +93095,7 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.services;
             selectedServiceSubMenu = ServiceSubMenu.browseServices;
+            _selectedJob = null;
           });
         },
       ),
@@ -93066,12 +93103,7 @@ class _UserDashboardState extends State<UserDashboard> {
         title: 'Saved Jobs',
         icon: Icons.bookmark,
         color: const Color(0xFF0891B2),
-        onTap: () {
-          setState(() {
-            selectedMenu = UserMenuType.jobs;
-            selectedJobSubMenu = JobSubMenu.savedJobs;
-          });
-        },
+        onTap: _goToSavedJobs,
       ),
       _QuickAction(
         title: 'Support',
@@ -93080,6 +93112,7 @@ class _UserDashboardState extends State<UserDashboard> {
         onTap: () {
           setState(() {
             selectedMenu = UserMenuType.support;
+            _selectedJob = null;
           });
         },
       ),
@@ -93091,6 +93124,7 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.settings;
             selectedSettingsSubMenu = SettingsSubMenu.changePassword;
+            _selectedJob = null;
           });
         },
       ),
@@ -93229,26 +93263,22 @@ class _UserDashboardState extends State<UserDashboard> {
               title: Text(_getAppBarTitle()),
               backgroundColor: Colors.blueAccent,
               foregroundColor: Colors.white,
-              leading: Builder(
-                builder: (context) => IconButton(
-                  icon: const Icon(Icons.menu),
-                  onPressed: () => Scaffold.of(context).openDrawer(),
-                ),
-              ),
+              leading: _selectedJob != null
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: _closeJobDetail,
+                    )
+                  : Builder(
+                      builder: (context) => IconButton(
+                        icon: const Icon(Icons.menu),
+                        onPressed: () => Scaffold.of(context).openDrawer(),
+                      ),
+                    ),
               actions: [
                 const LocationDisplay(),
                 NotificationBell(
-                  onJobAlertClicked: () {
-                    setState(() {
-                      selectedMenu = UserMenuType.jobs;
-                      selectedJobSubMenu = JobSubMenu.browseJobs;
-                    });
-                  },
-                  onApplicationStatusClicked: () {
-                    setState(() {
-                      selectedMenu = UserMenuType.applications;
-                    });
-                  },
+                  onJobAlertClicked: _goToBrowseJobs,
+                  onApplicationStatusClicked: _goToJobApplications,
                 ),
                 const SizedBox(width: 8),
               ],
@@ -93259,7 +93289,6 @@ class _UserDashboardState extends State<UserDashboard> {
               child: UserSidebar(
                 selectedMenu: selectedMenu,
                 selectedJobSubMenu: selectedJobSubMenu,
-                selectedAppSubMenu: selectedAppSubMenu,
                 selectedServiceSubMenu: selectedServiceSubMenu,
                 selectedResumeSubMenu: selectedResumeSubMenu,
                 selectedAISubMenu: selectedAISubMenu,
@@ -93267,7 +93296,6 @@ class _UserDashboardState extends State<UserDashboard> {
                 selectedSettingsSubMenu: selectedSettingsSubMenu,
                 onMenuSelected: _onMenuSelected,
                 onJobSubMenuSelected: _onJobSubMenuSelected,
-                onApplicationSubMenuSelected: _onApplicationSubMenuSelected,
                 onServiceSubMenuSelected: _onServiceSubMenuSelected,
                 onResumeSubMenuSelected: _onResumeSubMenuSelected,
                 onAISubMenuSelected: _onAISubMenuSelected,
@@ -93282,7 +93310,6 @@ class _UserDashboardState extends State<UserDashboard> {
             UserSidebar(
               selectedMenu: selectedMenu,
               selectedJobSubMenu: selectedJobSubMenu,
-              selectedAppSubMenu: selectedAppSubMenu,
               selectedServiceSubMenu: selectedServiceSubMenu,
               selectedResumeSubMenu: selectedResumeSubMenu,
               selectedAISubMenu: selectedAISubMenu,
@@ -93290,7 +93317,6 @@ class _UserDashboardState extends State<UserDashboard> {
               selectedSettingsSubMenu: selectedSettingsSubMenu,
               onMenuSelected: _onMenuSelected,
               onJobSubMenuSelected: _onJobSubMenuSelected,
-              onApplicationSubMenuSelected: _onApplicationSubMenuSelected,
               onServiceSubMenuSelected: _onServiceSubMenuSelected,
               onResumeSubMenuSelected: _onResumeSubMenuSelected,
               onAISubMenuSelected: _onAISubMenuSelected,
@@ -93321,30 +93347,33 @@ class _UserDashboardState extends State<UserDashboard> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            _getAppBarTitle(),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blueAccent,
-                            ),
+                          Row(
+                            children: [
+                              if (_selectedJob != null) ...[
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back,
+                                      color: Colors.blueAccent),
+                                  onPressed: _closeJobDetail,
+                                  tooltip: "Back to Jobs",
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              Text(
+                                _getAppBarTitle(),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blueAccent,
+                                ),
+                              ),
+                            ],
                           ),
                           Row(
                             children: [
                               const LocationDisplay(),
                               NotificationBell(
-                                onJobAlertClicked: () {
-                                  setState(() {
-                                    selectedMenu = UserMenuType.jobs;
-                                    selectedJobSubMenu =
-                                        JobSubMenu.browseJobs;
-                                  });
-                                },
-                                onApplicationStatusClicked: () {
-                                  setState(() {
-                                    selectedMenu = UserMenuType.applications;
-                                  });
-                                },
+                                onJobAlertClicked: _goToBrowseJobs,
+                                onApplicationStatusClicked: _goToJobApplications,
                               ),
                             ],
                           ),
@@ -93358,12 +93387,12 @@ class _UserDashboardState extends State<UserDashboard> {
                         key: ValueKey(
                           'menu_${selectedMenu.name}_'
                           '${selectedJobSubMenu.name}_'
-                          '${selectedAppSubMenu.name}_'
                           '${selectedServiceSubMenu.name}_'
                           '${selectedResumeSubMenu.name}_'
                           '${selectedAISubMenu.name}_'
                           '${selectedProfileSubMenu.name}_'
-                          '${selectedSettingsSubMenu.name}',
+                          '${selectedSettingsSubMenu.name}_'
+                          '${_selectedJob != null ? _selectedJob!['_id'] : 'none'}',
                         ),
                         child: _getContent(),
                       ),
@@ -93379,14 +93408,21 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   String _getAppBarTitle() {
+    // ✅ If job is selected, show job title
+    if (_selectedJob != null && selectedMenu == UserMenuType.jobs) {
+      return _selectedJob!['post_name']?.toString() ?? "Job Details";
+    }
+
     switch (selectedMenu) {
       case UserMenuType.dashboard:
         return "Dashboard";
+
       case UserMenuType.jobs:
-        if (selectedJobSubMenu == JobSubMenu.savedJobs) return "Saved Jobs";
+        if (selectedJobSubMenu == JobSubMenu.jobApplications) {
+          return "My Applications";
+        }
         return "Browse Jobs";
-      case UserMenuType.applications:
-        return "My Applications";
+
       case UserMenuType.services:
         if (selectedServiceSubMenu == ServiceSubMenu.myApplications) {
           return "My Service Applications";
@@ -95853,38 +95889,41 @@ This message was sent from RojgarNext App
 
 ================================================================================
 [ 136/ 143] 🎯 rojgarnext/lib/features/user/presentation/utils/menu_types.dart
-📏 SIZE: 1.2 KB
-🕐 MODIFIED: 2026-10-09 08:31:29
+📏 SIZE: 1.5 KB
+🕐 MODIFIED: 2026-10-09 12:48:14
 ================================================================================
 
 // lib/features/user/presentation/utils/menu_types.dart
 // ============================================================
 // USER MENU TYPES — All enums used by UserSidebar & UserDashboard
 // ============================================================
+// ✅ MODIFIED: jobApplications moved to JobSubMenu
+// ✅ MODIFIED: savedJobs removed from JobSubMenu
+// ============================================================
 
 /// Top-level menu items shown in the sidebar
 enum UserMenuType {
   dashboard,
   jobs,
-  applications,
   services,
   resume,
   ai,
   profile,
   support,
   settings,
+  // ⬅️ REMOVED: applications (moved under jobs)
 }
 
 /// Sub-menu items for "Jobs" parent
 enum JobSubMenu {
   browseJobs,
-  savedJobs,
+  jobApplications,
 }
 
-/// Sub-menu items for "Applications" parent
+/// ✅ Kept for backward compatibility — currently only has jobApplications
+/// (can be expanded later if you add a separate Applications menu)
 enum ApplicationSubMenu {
   jobApplications,
-  // (add more here if you expand later)
 }
 
 /// Sub-menu items for "Services" parent
@@ -95925,14 +95964,18 @@ enum SettingsSubMenu {
 
 ================================================================================
 [ 137/ 143] 🎯 rojgarnext/lib/features/user/presentation/widgets/user_sidebar.dart
-📏 SIZE: 24.8 KB
-🕐 MODIFIED: 2026-10-09 08:32:00
+📏 SIZE: 24.5 KB
+🕐 MODIFIED: 2026-10-09 12:48:05
 ================================================================================
 
 // lib/features/user/presentation/widgets/user_sidebar.dart
 // ============================================================
 // USER SIDEBAR — Matches UserDashboard parameters exactly
 // ============================================================
+// ✅ MODIFIED: Jobs submenu now shows Browse Jobs + Job Applications
+// ✅ MODIFIED: Saved Jobs REMOVED from Jobs submenu
+// ✅ MODIFIED: Applications top-level menu REMOVED entirely
+// ✅ All other menu items preserved exactly
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -95943,7 +95986,6 @@ import 'package:rojgarnext/features/user/presentation/utils/menu_types.dart';
 class UserSidebar extends StatefulWidget {
   final UserMenuType selectedMenu;
   final JobSubMenu selectedJobSubMenu;
-  final ApplicationSubMenu selectedAppSubMenu;
   final ServiceSubMenu selectedServiceSubMenu;
   final ResumeSubMenu selectedResumeSubMenu;
   final AISubMenu selectedAISubMenu;
@@ -95952,7 +95994,6 @@ class UserSidebar extends StatefulWidget {
 
   final Function(UserMenuType) onMenuSelected;
   final Function(JobSubMenu) onJobSubMenuSelected;
-  final Function(ApplicationSubMenu) onApplicationSubMenuSelected;
   final Function(ServiceSubMenu) onServiceSubMenuSelected;
   final Function(ResumeSubMenu) onResumeSubMenuSelected;
   final Function(AISubMenu) onAISubMenuSelected;
@@ -95963,7 +96004,6 @@ class UserSidebar extends StatefulWidget {
     super.key,
     required this.selectedMenu,
     required this.selectedJobSubMenu,
-    required this.selectedAppSubMenu,
     required this.selectedServiceSubMenu,
     required this.selectedResumeSubMenu,
     required this.selectedAISubMenu,
@@ -95971,7 +96011,6 @@ class UserSidebar extends StatefulWidget {
     required this.selectedSettingsSubMenu,
     required this.onMenuSelected,
     required this.onJobSubMenuSelected,
-    required this.onApplicationSubMenuSelected,
     required this.onServiceSubMenuSelected,
     required this.onResumeSubMenuSelected,
     required this.onAISubMenuSelected,
@@ -95988,7 +96027,6 @@ class _UserSidebarState extends State<UserSidebar> {
   static const Color _pink = Color(0xFFFF6588);
 
   bool _jobsExpanded = false;
-  bool _appsExpanded = false;
   bool _servicesExpanded = false;
   bool _resumeExpanded = false;
   bool _aiExpanded = false;
@@ -96001,9 +96039,17 @@ class _UserSidebarState extends State<UserSidebar> {
     _syncExpansion();
   }
 
+  @override
+  void didUpdateWidget(covariant UserSidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedMenu != oldWidget.selectedMenu) {
+      _syncExpansion();
+    }
+  }
+
   void _syncExpansion() {
     _jobsExpanded = widget.selectedMenu == UserMenuType.jobs;
-    _appsExpanded = widget.selectedMenu == UserMenuType.applications;
+    // ⬅️ REMOVED: _appsExpanded (Applications menu removed)
     _servicesExpanded = widget.selectedMenu == UserMenuType.services;
     _resumeExpanded = widget.selectedMenu == UserMenuType.resume;
     _aiExpanded = widget.selectedMenu == UserMenuType.ai;
@@ -96071,7 +96117,8 @@ class _UserSidebarState extends State<UserSidebar> {
                     UserMenuType.dashboard,
                   ),
 
-                  // Jobs
+                  // ⬅️ MODIFIED: Jobs now has Browse Jobs + Job Applications
+                  //     Saved Jobs REMOVED
                   _buildExpandable(
                     title: "Jobs",
                     icon: Icons.work_rounded,
@@ -96088,35 +96135,18 @@ class _UserSidebarState extends State<UserSidebar> {
                             .onJobSubMenuSelected(JobSubMenu.browseJobs),
                       ),
                       _buildSubItem(
-                        "Saved Jobs",
-                        Icons.bookmark_rounded,
-                        widget.selectedJobSubMenu == JobSubMenu.savedJobs,
-                        () => widget
-                            .onJobSubMenuSelected(JobSubMenu.savedJobs),
+                        "Job Applications",
+                        Icons.assignment_rounded,
+                        widget.selectedJobSubMenu ==
+                            JobSubMenu.jobApplications,
+                        () => widget.onJobSubMenuSelected(
+                            JobSubMenu.jobApplications),
                       ),
                     ],
                   ),
 
-                  // Applications
-                  _buildExpandable(
-                    title: "Applications",
-                    icon: Icons.assignment_rounded,
-                    isSelected:
-                        widget.selectedMenu == UserMenuType.applications,
-                    isExpanded: _appsExpanded,
-                    onToggle: () =>
-                        setState(() => _appsExpanded = !_appsExpanded),
-                    children: [
-                      _buildSubItem(
-                        "Job Applications",
-                        Icons.work_rounded,
-                        widget.selectedAppSubMenu ==
-                            ApplicationSubMenu.jobApplications,
-                        () => widget.onApplicationSubMenuSelected(
-                            ApplicationSubMenu.jobApplications),
-                      ),
-                    ],
-                  ),
+                  // ⬅️ REMOVED: Applications top-level menu
+                  //     (jobApplications now lives under Jobs menu)
 
                   // Services
                   _buildExpandable(
@@ -96124,8 +96154,8 @@ class _UserSidebarState extends State<UserSidebar> {
                     icon: Icons.workspace_premium_rounded,
                     isSelected: widget.selectedMenu == UserMenuType.services,
                     isExpanded: _servicesExpanded,
-                    onToggle: () =>
-                        setState(() => _servicesExpanded = !_servicesExpanded),
+                    onToggle: () => setState(
+                        () => _servicesExpanded = !_servicesExpanded),
                     children: [
                       _buildSubItem(
                         "Browse Services",
@@ -96196,7 +96226,8 @@ class _UserSidebarState extends State<UserSidebar> {
                     icon: Icons.auto_awesome_rounded,
                     isSelected: widget.selectedMenu == UserMenuType.ai,
                     isExpanded: _aiExpanded,
-                    onToggle: () => setState(() => _aiExpanded = !_aiExpanded),
+                    onToggle: () =>
+                        setState(() => _aiExpanded = !_aiExpanded),
                     children: [
                       _buildSubItem(
                         "Dashboard",
@@ -96280,8 +96311,8 @@ class _UserSidebarState extends State<UserSidebar> {
                     icon: Icons.settings_rounded,
                     isSelected: widget.selectedMenu == UserMenuType.settings,
                     isExpanded: _settingsExpanded,
-                    onToggle: () =>
-                        setState(() => _settingsExpanded = !_settingsExpanded),
+                    onToggle: () => setState(
+                        () => _settingsExpanded = !_settingsExpanded),
                     children: [
                       _buildSubItem(
                         "Change Password",
@@ -96381,7 +96412,8 @@ class _UserSidebarState extends State<UserSidebar> {
           splashColor: Colors.white.withOpacity(0.08),
           highlightColor: Colors.white.withOpacity(0.04),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               gradient: isSelected
                   ? const LinearGradient(colors: [_primary, _pink])
@@ -96449,7 +96481,9 @@ class _UserSidebarState extends State<UserSidebar> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? _primary.withOpacity(0.08) : Colors.transparent,
+          color: isSelected
+              ? _primary.withOpacity(0.08)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -96544,7 +96578,8 @@ class _UserSidebarState extends State<UserSidebar> {
           margin: const EdgeInsets.symmetric(vertical: 2),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? _primary.withOpacity(0.15) : Colors.transparent,
+            color:
+                isActive ? _primary.withOpacity(0.15) : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             border: isActive
                 ? Border.all(
@@ -97372,5 +97407,5 @@ flutter:
 🎉 EXPORT COMPLETED!
 ================================================================================
 Total Files: 143
-Generated: 2026-10-09 09:13:09
+Generated: 2026-10-09 15:56:38
 ================================================================================

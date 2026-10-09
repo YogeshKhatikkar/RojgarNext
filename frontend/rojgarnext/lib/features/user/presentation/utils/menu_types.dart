@@ -2,43 +2,36 @@
 // ============================================================
 // USER MENU TYPES — All enums used by UserSidebar & UserDashboard
 // ============================================================
-// ⚠️ IMPORTANT: These names MUST match exactly what the sidebar
-//    and dashboard reference. Currently they use:
-//      - ServiceSubMenu   (singular)
-//      - ApplicationSubMenu
-//      - JobSubMenu
-//      - ResumeSubMenu
-//      - AISubMenu
-//      - ProfileSubMenu
-//      - SettingsSubMenu
+// ✅ MODIFIED: jobApplications moved to JobSubMenu
+// ✅ MODIFIED: savedJobs removed from JobSubMenu
 // ============================================================
 
 /// Top-level menu items shown in the sidebar
 enum UserMenuType {
   dashboard,
   jobs,
-  applications,
   services,
   resume,
   ai,
   profile,
   support,
   settings,
+  // ⬅️ REMOVED: applications (moved under jobs)
 }
 
 /// Sub-menu items for "Jobs" parent
 enum JobSubMenu {
   browseJobs,
-  savedJobs,
+  jobApplications,
 }
 
-/// Sub-menu items for "Applications" parent
+/// ✅ Kept for backward compatibility — currently only has jobApplications
+/// (can be expanded later if you add a separate Applications menu)
 enum ApplicationSubMenu {
   jobApplications,
-  // add more here if you expand later
 }
 
-/// ✅ Sub-menu items for "Services" parent — SINGULAR name
+/// Sub-menu items for "Services" parent
 enum ServiceSubMenu {
   browseServices,
   myApplications,
