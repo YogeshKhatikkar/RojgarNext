@@ -1,6 +1,8 @@
 # app/modules/resume/routes.py - COMPLETE VERSION
 # ✅ NEW: /rebuild — rebuilds resume in all formats
 # ✅ NEW: /profile-photo — lightweight endpoint for current photo URL
+# ✅ NEW: /rebuild now sets resume_generated_at + has_generated_resume
+# ✅ FIXED: Profile completion now correctly credits generated resumes
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks
 from typing import Optional, List, Dict, Any
@@ -66,13 +68,18 @@ async def upload_user_resume(
             document_type="resume"
         )
 
+        now = datetime.utcnow()
+
         await db.profile.update_one(
             {"email": email},
             {"$set": {
                 "resume_url": upload_result["url"],
                 "resume_public_id": upload_result.get("public_id"),
                 "resume_name": file.filename,
-                "resume_uploaded_at": datetime.utcnow()
+                "resume_uploaded_at": now,
+                # ✅ ALSO mark as "has resume" for dashboard counting
+                "has_generated_resume": True,
+                "updated_at": now,
             }},
             upsert=True
         )
@@ -85,7 +92,7 @@ async def upload_user_resume(
             "file_size_kb": upload_result.get("size_bytes", 0) // 1024,
             "file_type": file_ext,
             "is_primary": True,
-            "uploaded_at": datetime.utcnow()
+            "uploaded_at": now
         }
         await service.save_resume_record(email, resume_data)
 
@@ -313,7 +320,7 @@ async def share_resume(
 
 
 # ==============================================================
-# ✅ NEW: REBUILD RESUME IN ALL FORMATS
+# ✅ FIXED: REBUILD RESUME — NOW SETS resume_generated_at
 # ==============================================================
 @router.post("/rebuild")
 async def rebuild_resume(
@@ -323,6 +330,10 @@ async def rebuild_resume(
     """
     Rebuild resume in all formats using latest profile data.
     Called automatically after profile photo upload, and manually by user.
+
+    ✅ NEW: Sets `resume_generated_at` and `has_generated_resume` flags
+    so that user dashboard profile completion correctly credits the
+    resume section (+10%) even when no file was uploaded.
     """
     email = current_user.get("email")
     if not email:
@@ -337,16 +348,26 @@ async def rebuild_resume(
         # 2. Generate HTML (used for PDF printing)
         html = await service.generate_resume_html(email, resume_data)
 
-        # 3. Cache to profile
+        # 3. Cache to profile + set generation flags
         formats = ["classic", "modern", "fresher", "executive", "tech", "government"]
+        now = datetime.utcnow()
+
         await db.profile.update_one(
             {"email": email},
             {"$set": {
                 "resume_cache_html": html,
-                "resume_cache_updated_at": datetime.utcnow(),
+                "resume_cache_updated_at": now,
                 "resume_formats_available": formats,
+                # ✅ NEW FLAGS — dashboard_service reads these
+                "resume_generated_at": now,
+                "has_generated_resume": True,
+                "updated_at": now,
             }},
             upsert=True
+        )
+
+        logger.info(
+            f"✅ Resume rebuilt + generation flags set for {email}"
         )
 
         return {
@@ -354,7 +375,7 @@ async def rebuild_resume(
             "message": "Resume rebuilt successfully",
             "formats": formats,
             "resume_data": resume_data,
-            "rebuilt_at": datetime.utcnow().isoformat()
+            "rebuilt_at": now.isoformat()
         }
     except Exception as e:
         logger.error(f"Resume rebuild failed: {e}")
@@ -398,5 +419,5 @@ async def get_profile_photo(
 
 
 print("✅ Resume Routes Loaded - Complete profile resume view available")
-print("✅ NEW: /rebuild — rebuilds resume in all formats")
+print("✅ NEW: /rebuild — rebuilds resume AND sets resume_generated_at flag")
 print("✅ NEW: /profile-photo — lightweight current photo URL endpoint")

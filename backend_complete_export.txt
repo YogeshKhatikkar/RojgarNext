@@ -1,7 +1,7 @@
 ================================================================================
 ROJARGAR NEXT BACKEND - COMPLETE CODE EXPORT (SANITIZED)
 ================================================================================
-Generated: 2026-10-09 12:52:33
+Generated: 2026-10-09 18:35:29
 Source: E:\YOGESH\website\RojgarNext\backend\rojgarnext
 Total Files: 163
   - Python Files: 159
@@ -39019,21 +39019,25 @@ __all__ = [
 
 ================================================================================
 [ 123/ 163] 🐍 PYTHON FILE: app\modules\resume\AI\ai_routes.py
-📏 SIZE: 7,684 bytes
-🕐 MODIFIED: 2026-09-25 10:35:41
+📏 SIZE: 9,788 bytes
+🕐 MODIFIED: 2026-10-09 17:47:16
 
 ================================================================================
 
 # app/modules/resume/AI/ai_routes.py
 # ============================================================
 # AI RESUME ROUTES — Full API surface
+# ✅ FIXED: All generation endpoints now set resume_generated_at
+#           so profile completion correctly credits the resume (+10%)
 # ============================================================
 
 from fastapi import APIRouter, Depends, HTTPException, Body
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 from app.core.services.dependencies import get_current_user
+from app.db.connection import get_db
 from app.modules.resume.AI.ats_optimizer import ats_optimizer
 from app.modules.resume.AI.resume_generator import resume_generator
 from app.modules.resume.AI.resume_enhancer import resume_enhancer
@@ -39069,6 +39073,42 @@ class SummaryRequest(BaseModel):
     skills: List[str] = []
     years_experience: int = 0
     job_description: Optional[str] = None
+
+
+# ============================================================
+# ✅ HELPER: Mark resume as generated in profile
+# ============================================================
+async def _mark_resume_generated(
+    db,
+    email: str,
+    style: Optional[str] = None,
+) -> None:
+    """
+    ✅ NEW HELPER: Sets resume_generated_at + has_generated_resume flags
+    so that user dashboard profile completion credits the resume section.
+    """
+    try:
+        now = datetime.utcnow()
+        update_doc: Dict[str, Any] = {
+            "resume_generated_at": now,
+            "has_generated_resume": True,
+            "updated_at": now,
+        }
+        if style:
+            update_doc["resume_style"] = style
+
+        await db.profile.update_one(
+            {"email": email},
+            {"$set": update_doc},
+            upsert=True,
+        )
+        logger.info(
+            f"✅ Marked resume_generated_at for {email} "
+            f"(style={style or 'default'})"
+        )
+    except Exception as e:
+        # Never fail the main request if flag setting fails
+        logger.warning(f"⚠️ Could not set resume_generated flag: {e}")
 
 
 # ============================================================
@@ -39118,6 +39158,7 @@ async def generate_resume(
 ):
     """
     Fully automatic AI resume generation from the user's profile.
+    ✅ Sets resume_generated_at flag → profile completion +10%.
     """
     try:
         email = current_user.get("email")
@@ -39130,6 +39171,10 @@ async def generate_resume(
             target_role=payload.target_role,
             style=payload.style,
         )
+
+        # ✅ Mark as generated in profile so dashboard credits resume
+        db = get_db()
+        await _mark_resume_generated(db, email, style=payload.style)
 
         return {"success": True, "data": resume}
     except HTTPException:
@@ -39147,6 +39192,10 @@ async def generate_and_score(
     payload: GenerateRequest,
     current_user: dict = Depends(get_current_user),
 ):
+    """
+    One call → returns both resume + ATS report.
+    ✅ Sets resume_generated_at flag → profile completion +10%.
+    """
     try:
         email = current_user.get("email")
         if not email:
@@ -39163,6 +39212,10 @@ async def generate_and_score(
             resume_data=resume,
             job_description=payload.job_description,
         )
+
+        # ✅ Mark as generated in profile
+        db = get_db()
+        await _mark_resume_generated(db, email, style=payload.style)
 
         return {"success": True, "data": {"resume": resume, "ats_report": report}}
     except HTTPException:
@@ -39220,6 +39273,9 @@ async def enhance_summary(
 # ============================================================
 @router.get("/quick-score")
 async def quick_score(current_user: dict = Depends(get_current_user)):
+    """
+    ✅ Sets resume_generated_at flag → profile completion +10%.
+    """
     try:
         email = current_user.get("email")
         if not email:
@@ -39227,6 +39283,10 @@ async def quick_score(current_user: dict = Depends(get_current_user)):
 
         resume = await resume_generator.generate_full_resume(email=email)
         report = await ats_optimizer.score_resume(resume_data=resume)
+
+        # ✅ Mark as generated in profile
+        db = get_db()
+        await _mark_resume_generated(db, email)
 
         return {
             "success": True,
@@ -40857,14 +40917,16 @@ RESUME CONTENT: {content[:2000]}
 
 ================================================================================
 [ 128/ 163] 🐍 PYTHON FILE: app\modules\resume\routes.py
-📏 SIZE: 13,126 bytes
-🕐 MODIFIED: 2026-09-24 23:14:26
+📏 SIZE: 14,008 bytes
+🕐 MODIFIED: 2026-10-09 17:46:39
 
 ================================================================================
 
 # app/modules/resume/routes.py - COMPLETE VERSION
 # ✅ NEW: /rebuild — rebuilds resume in all formats
 # ✅ NEW: /profile-photo — lightweight endpoint for current photo URL
+# ✅ NEW: /rebuild now sets resume_generated_at + has_generated_resume
+# ✅ FIXED: Profile completion now correctly credits generated resumes
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks
 from typing import Optional, List, Dict, Any
@@ -40930,13 +40992,18 @@ async def upload_user_resume(
             document_type="resume"
         )
 
+        now = datetime.utcnow()
+
         await db.profile.update_one(
             {"email": email},
             {"$set": {
                 "resume_url": upload_result["url"],
                 "resume_public_id": upload_result.get("public_id"),
                 "resume_name": file.filename,
-                "resume_uploaded_at": datetime.utcnow()
+                "resume_uploaded_at": now,
+                # ✅ ALSO mark as "has resume" for dashboard counting
+                "has_generated_resume": True,
+                "updated_at": now,
             }},
             upsert=True
         )
@@ -40949,7 +41016,7 @@ async def upload_user_resume(
             "file_size_kb": upload_result.get("size_bytes", 0) // 1024,
             "file_type": file_ext,
             "is_primary": True,
-            "uploaded_at": datetime.utcnow()
+            "uploaded_at": now
         }
         await service.save_resume_record(email, resume_data)
 
@@ -41177,7 +41244,7 @@ async def share_resume(
 
 
 # ==============================================================
-# ✅ NEW: REBUILD RESUME IN ALL FORMATS
+# ✅ FIXED: REBUILD RESUME — NOW SETS resume_generated_at
 # ==============================================================
 @router.post("/rebuild")
 async def rebuild_resume(
@@ -41187,6 +41254,10 @@ async def rebuild_resume(
     """
     Rebuild resume in all formats using latest profile data.
     Called automatically after profile photo upload, and manually by user.
+
+    ✅ NEW: Sets `resume_generated_at` and `has_generated_resume` flags
+    so that user dashboard profile completion correctly credits the
+    resume section (+10%) even when no file was uploaded.
     """
     email = current_user.get("email")
     if not email:
@@ -41201,16 +41272,26 @@ async def rebuild_resume(
         # 2. Generate HTML (used for PDF printing)
         html = await service.generate_resume_html(email, resume_data)
 
-        # 3. Cache to profile
+        # 3. Cache to profile + set generation flags
         formats = ["classic", "modern", "fresher", "executive", "tech", "government"]
+        now = datetime.utcnow()
+
         await db.profile.update_one(
             {"email": email},
             {"$set": {
                 "resume_cache_html": html,
-                "resume_cache_updated_at": datetime.utcnow(),
+                "resume_cache_updated_at": now,
                 "resume_formats_available": formats,
+                # ✅ NEW FLAGS — dashboard_service reads these
+                "resume_generated_at": now,
+                "has_generated_resume": True,
+                "updated_at": now,
             }},
             upsert=True
+        )
+
+        logger.info(
+            f"✅ Resume rebuilt + generation flags set for {email}"
         )
 
         return {
@@ -41218,7 +41299,7 @@ async def rebuild_resume(
             "message": "Resume rebuilt successfully",
             "formats": formats,
             "resume_data": resume_data,
-            "rebuilt_at": datetime.utcnow().isoformat()
+            "rebuilt_at": now.isoformat()
         }
     except Exception as e:
         logger.error(f"Resume rebuild failed: {e}")
@@ -41262,7 +41343,7 @@ async def get_profile_photo(
 
 
 print("✅ Resume Routes Loaded - Complete profile resume view available")
-print("✅ NEW: /rebuild — rebuilds resume in all formats")
+print("✅ NEW: /rebuild — rebuilds resume AND sets resume_generated_at flag")
 print("✅ NEW: /profile-photo — lightweight current photo URL endpoint")
 
 
@@ -48587,8 +48668,8 @@ print("✅ Ultra Career Guidance Routes loaded - Using Unified AI Insights Colle
 
 ================================================================================
 [ 152/ 163] 🐍 PYTHON FILE: app\modules\user\dashboard_service.py
-📏 SIZE: 19,037 bytes
-🕐 MODIFIED: 2026-10-09 08:24:48
+📏 SIZE: 21,430 bytes
+🕐 MODIFIED: 2026-10-09 17:46:15
 
 ================================================================================
 
@@ -48601,6 +48682,8 @@ print("✅ Ultra Career Guidance Routes loaded - Using Unified AI Insights Colle
 #   - Career Score (AI-based)
 #   - Job Applications Count
 #   - Service Applications Count
+# ============================================================
+# ✅ FIXED: Resume section now counts GENERATED resume (not just uploads)
 # ============================================================
 
 import logging
@@ -48735,6 +48818,51 @@ class UserDashboardService:
             return self._empty_stats()
 
     # ============================================================
+    # HELPER: Detect if user has ANY resume (uploaded OR generated)
+    # ============================================================
+    def _has_resume(self, profile: Optional[Dict[str, Any]]) -> Dict[str, bool]:
+        """
+        ✅ NEW HELPER: Detects resume presence from MULTIPLE signals.
+
+        Returns dict with:
+          - has_uploaded: True if user uploaded a resume file
+          - has_generated: True if user generated an AI resume
+          - has_any: True if either is true
+        """
+        if not profile:
+            return {
+                "has_uploaded": False,
+                "has_generated": False,
+                "has_any": False,
+            }
+
+        additional = profile.get("additional_details") or {}
+
+        # ---- Signal 1: Uploaded resume (legacy) ----
+        resume_url = (
+            profile.get("resume_url")
+            or additional.get("resume_url")
+        )
+        has_uploaded = bool(
+            resume_url and str(resume_url).startswith("http")
+        )
+
+        # ---- Signal 2: Generated resume (NEW) ----
+        # Any of these indicate a resume was generated from profile data
+        has_generated = bool(
+            profile.get("resume_generated_at")
+            or profile.get("resume_cache_html")
+            or profile.get("resume_formats_available")
+            or profile.get("has_generated_resume") == True
+        )
+
+        return {
+            "has_uploaded": has_uploaded,
+            "has_generated": has_generated,
+            "has_any": has_uploaded or has_generated,
+        }
+
+    # ============================================================
     # PROFILE COMPLETION CALCULATION
     # ============================================================
     def _calculate_profile_completion(
@@ -48751,7 +48879,7 @@ class UserDashboardService:
           - Education (at least 1 record):                15%
           - Experience (at least 1 record OR fresher):    15%
           - Skills (at least 5 skills):                   15%
-          - Resume uploaded:                              10%
+          - Resume (uploaded OR generated):               10%   ✅ FIXED
           - Profile photo:                                5%
           - Summary/Career objective:                     10%
         """
@@ -48818,13 +48946,17 @@ class UserDashboardService:
         elif len(skills) >= 1:
             score += 6
 
-        # ---- Resume (10%) ----
-        resume_url = (
-            profile.get("resume_url")
-            or (profile.get("additional_details") or {}).get("resume_url")
-        )
-        if resume_url and str(resume_url).startswith("http"):
+        # ============================================================
+        # ✅ FIXED: Resume (10%) — now counts GENERATED resume too
+        # ============================================================
+        resume_flags = self._has_resume(profile)
+        if resume_flags["has_any"]:
             score += 10
+            if resume_flags["has_generated"] and not resume_flags["has_uploaded"]:
+                module_logger.debug(
+                    "✅ Resume credit given via GENERATED resume "
+                    "(no upload found)"
+                )
 
         # ---- Profile Photo (5%) ----
         photo_url = (
@@ -49031,19 +49163,25 @@ class UserDashboardService:
             return {}
 
     # ============================================================
-    # PROFILE SECTIONS BREAKDOWN
+    # ✅ FIXED: PROFILE SECTIONS BREAKDOWN (Resume OR upload)
     # ============================================================
     def _get_profile_sections_breakdown(
         self,
         auth_user: Dict[str, Any],
         profile: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
-        """Return a breakdown of which profile sections are complete."""
+        """
+        Return a breakdown of which profile sections are complete.
+        ✅ FIXED: 'resume' now true if uploaded OR generated.
+        """
         if not profile:
             profile = {}
 
         address = profile.get("current_address") or {}
         additional = profile.get("additional_details") or {}
+
+        # ✅ Use the same helper — single source of truth
+        resume_flags = self._has_resume(profile)
 
         return {
             "basic_info": bool(
@@ -49058,9 +49196,8 @@ class UserDashboardService:
             "education": len(profile.get("academic_records") or []) > 0,
             "experience": len(profile.get("experience") or []) > 0,
             "skills": len(profile.get("skills") or []) > 0,
-            "resume": bool(
-                profile.get("resume_url") or additional.get("resume_url")
-            ),
+            # ✅ FIXED: Resume counts if uploaded OR generated
+            "resume": resume_flags["has_any"],
             "profile_photo": bool(
                 profile.get("profile_photo_url")
                 or additional.get("profile_photo_url")
@@ -49108,7 +49245,7 @@ def get_user_dashboard_service(db=None):
     return user_dashboard_service
 
 
-print("✅ User Dashboard Service Loaded")
+print("✅ User Dashboard Service Loaded — Resume (upload OR generate) counts 10%")
 
 
 ================================================================================

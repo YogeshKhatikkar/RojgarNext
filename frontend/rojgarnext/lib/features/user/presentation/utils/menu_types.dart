@@ -1,43 +1,39 @@
 // lib/features/user/presentation/utils/menu_types.dart
-// ============================================================
-// USER MENU TYPES — All enums used by UserSidebar & UserDashboard
-// ============================================================
-// ✅ MODIFIED: jobApplications moved to JobSubMenu
-// ✅ MODIFIED: savedJobs removed from JobSubMenu
-// ============================================================
+// ✅ COMPLETE UPDATED VERSION
+// ✅ Parent menu tap ONLY expands — never navigates
+// ✅ Right-side content changes ONLY when a submenu is tapped
+// ✅ Submenus are NULLABLE — nothing auto-selected
 
-/// Top-level menu items shown in the sidebar
 enum UserMenuType {
   dashboard,
-  jobs,
-  services,
-  resume,
-  ai,
-  profile,
-  support,
-  settings,
-  // ⬅️ REMOVED: applications (moved under jobs)
+  jobs,          // ✅ Parent — expands to Browse Jobs + Job Applications
+  services,      // ✅ Parent — expands to Browse Services + My Applications
+  resume,        // ✅ Parent — expands to Build Resume + View Resume + ATS + AI
+  ai,            // ✅ Parent — expands to AI Dashboard + Career Roadmap
+  profile,       // ✅ Parent — expands to Basic / Education / Experience / Advanced / Documents
+  support,       // ✅ Leaf — direct
+  settings,      // ✅ Parent — expands to Change Password / MPIN / Fingerprint
 }
 
-/// Sub-menu items for "Jobs" parent
+// ============================================================
+// JOB SUBMENU
+// ============================================================
 enum JobSubMenu {
   browseJobs,
   jobApplications,
 }
 
-/// ✅ Kept for backward compatibility — currently only has jobApplications
-/// (can be expanded later if you add a separate Applications menu)
-enum ApplicationSubMenu {
-  jobApplications,
-}
-
-/// Sub-menu items for "Services" parent
+// ============================================================
+// SERVICE SUBMENU
+// ============================================================
 enum ServiceSubMenu {
   browseServices,
   myApplications,
 }
 
-/// Sub-menu items for "Resume" parent
+// ============================================================
+// RESUME SUBMENU
+// ============================================================
 enum ResumeSubMenu {
   buildResume,
   viewResume,
@@ -45,13 +41,17 @@ enum ResumeSubMenu {
   aiGenerator,
 }
 
-/// Sub-menu items for "AI" parent
+// ============================================================
+// AI SUBMENU
+// ============================================================
 enum AISubMenu {
   dashboard,
   careerRoadmap,
 }
 
-/// Sub-menu items for "Profile" parent
+// ============================================================
+// PROFILE SUBMENU
+// ============================================================
 enum ProfileSubMenu {
   basicDetails,
   education,
@@ -60,7 +60,9 @@ enum ProfileSubMenu {
   documents,
 }
 
-/// Sub-menu items for "Settings" parent
+// ============================================================
+// SETTINGS SUBMENU
+// ============================================================
 enum SettingsSubMenu {
   changePassword,
   setupMpin,

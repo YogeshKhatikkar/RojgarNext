@@ -8,6 +8,8 @@
 #   - Job Applications Count
 #   - Service Applications Count
 # ============================================================
+# ✅ FIXED: Resume section now counts GENERATED resume (not just uploads)
+# ============================================================
 
 import logging
 from datetime import datetime, timedelta
@@ -141,6 +143,51 @@ class UserDashboardService:
             return self._empty_stats()
 
     # ============================================================
+    # HELPER: Detect if user has ANY resume (uploaded OR generated)
+    # ============================================================
+    def _has_resume(self, profile: Optional[Dict[str, Any]]) -> Dict[str, bool]:
+        """
+        ✅ NEW HELPER: Detects resume presence from MULTIPLE signals.
+
+        Returns dict with:
+          - has_uploaded: True if user uploaded a resume file
+          - has_generated: True if user generated an AI resume
+          - has_any: True if either is true
+        """
+        if not profile:
+            return {
+                "has_uploaded": False,
+                "has_generated": False,
+                "has_any": False,
+            }
+
+        additional = profile.get("additional_details") or {}
+
+        # ---- Signal 1: Uploaded resume (legacy) ----
+        resume_url = (
+            profile.get("resume_url")
+            or additional.get("resume_url")
+        )
+        has_uploaded = bool(
+            resume_url and str(resume_url).startswith("http")
+        )
+
+        # ---- Signal 2: Generated resume (NEW) ----
+        # Any of these indicate a resume was generated from profile data
+        has_generated = bool(
+            profile.get("resume_generated_at")
+            or profile.get("resume_cache_html")
+            or profile.get("resume_formats_available")
+            or profile.get("has_generated_resume") == True
+        )
+
+        return {
+            "has_uploaded": has_uploaded,
+            "has_generated": has_generated,
+            "has_any": has_uploaded or has_generated,
+        }
+
+    # ============================================================
     # PROFILE COMPLETION CALCULATION
     # ============================================================
     def _calculate_profile_completion(
@@ -157,7 +204,7 @@ class UserDashboardService:
           - Education (at least 1 record):                15%
           - Experience (at least 1 record OR fresher):    15%
           - Skills (at least 5 skills):                   15%
-          - Resume uploaded:                              10%
+          - Resume (uploaded OR generated):               10%   ✅ FIXED
           - Profile photo:                                5%
           - Summary/Career objective:                     10%
         """
@@ -224,13 +271,17 @@ class UserDashboardService:
         elif len(skills) >= 1:
             score += 6
 
-        # ---- Resume (10%) ----
-        resume_url = (
-            profile.get("resume_url")
-            or (profile.get("additional_details") or {}).get("resume_url")
-        )
-        if resume_url and str(resume_url).startswith("http"):
+        # ============================================================
+        # ✅ FIXED: Resume (10%) — now counts GENERATED resume too
+        # ============================================================
+        resume_flags = self._has_resume(profile)
+        if resume_flags["has_any"]:
             score += 10
+            if resume_flags["has_generated"] and not resume_flags["has_uploaded"]:
+                module_logger.debug(
+                    "✅ Resume credit given via GENERATED resume "
+                    "(no upload found)"
+                )
 
         # ---- Profile Photo (5%) ----
         photo_url = (
@@ -437,19 +488,25 @@ class UserDashboardService:
             return {}
 
     # ============================================================
-    # PROFILE SECTIONS BREAKDOWN
+    # ✅ FIXED: PROFILE SECTIONS BREAKDOWN (Resume OR upload)
     # ============================================================
     def _get_profile_sections_breakdown(
         self,
         auth_user: Dict[str, Any],
         profile: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
-        """Return a breakdown of which profile sections are complete."""
+        """
+        Return a breakdown of which profile sections are complete.
+        ✅ FIXED: 'resume' now true if uploaded OR generated.
+        """
         if not profile:
             profile = {}
 
         address = profile.get("current_address") or {}
         additional = profile.get("additional_details") or {}
+
+        # ✅ Use the same helper — single source of truth
+        resume_flags = self._has_resume(profile)
 
         return {
             "basic_info": bool(
@@ -464,9 +521,8 @@ class UserDashboardService:
             "education": len(profile.get("academic_records") or []) > 0,
             "experience": len(profile.get("experience") or []) > 0,
             "skills": len(profile.get("skills") or []) > 0,
-            "resume": bool(
-                profile.get("resume_url") or additional.get("resume_url")
-            ),
+            # ✅ FIXED: Resume counts if uploaded OR generated
+            "resume": resume_flags["has_any"],
             "profile_photo": bool(
                 profile.get("profile_photo_url")
                 or additional.get("profile_photo_url")
@@ -514,4 +570,4 @@ def get_user_dashboard_service(db=None):
     return user_dashboard_service
 
 
-print("✅ User Dashboard Service Loaded")
+print("✅ User Dashboard Service Loaded — Resume (upload OR generate) counts 10%")

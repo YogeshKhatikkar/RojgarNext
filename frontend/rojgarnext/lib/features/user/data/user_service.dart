@@ -2,7 +2,7 @@
 // ✅ ULTRA-FAST WITH CACHING - ALL PLATFORMS
 // ✅ COMPLETE WITH ALL FUNCTIONS - FIXED IMPORT
 // ✅ FIXED: deleteEducation now sends email + proper cache clearing
-// ✅ NEW: getDashboardStats() — returns career score, profile %, app counts
+// ✅ FIXED: Removed duplicate getDashboardStats() — only ONE declaration now
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -40,7 +40,6 @@ class UserService {
     } catch (e) {}
   }
 
-  // ✅ NEW: Properly REMOVE cache (not set to null)
   static Future<void> _clearCache(String key) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -75,7 +74,6 @@ class UserService {
     }
   }
 
-  // ✅ Helper: read email from SharedPreferences
   // ✅ BULLETPROOF email lookup — tries SecureStorage, SharedPreferences, and JWT
   static Future<String?> _getStoredEmail() async {
     // 1) SecureStorage (primary — matches SecureStorage.setEmail)
@@ -106,15 +104,7 @@ class UserService {
   }
 
   // ============================================================
-  // ✅ NEW: DASHBOARD STATS
-  // ============================================================
-  // Returns:
-  //   - profile_completion: 0-100
-  //   - career_score: 0-100
-  //   - job_applications: {total, saved, applied, by_status}
-  //   - service_applications: {total, by_status}
-  //   - profile_sections: which sections are complete
-  //   - career_breakdown: detailed score breakdown
+  // ✅ DASHBOARD STATS (ONLY ONE DECLARATION)
   // ============================================================
   static Future<Map<String, dynamic>> getDashboardStats({
     bool forceRefresh = false,
@@ -287,13 +277,11 @@ class UserService {
     }
   }
 
-  // ✅ FIXED: deleteEducation with email param + proper cache clear
   // ✅ FINAL FIX: deleteEducation — email is optional, backend reads from JWT
   static Future<void> deleteEducation(String id) async {
     try {
       debugPrint("🗑️ DELETE education → id=$id");
 
-      // Optionally attach email if we have it; NEVER fail if we don't.
       final email = await _getStoredEmail();
       final Map<String, dynamic>? queryParams =
           (email != null && email.isNotEmpty) ? {'email': email} : null;
@@ -307,12 +295,10 @@ class UserService {
 
       debugPrint("✅ DELETE response: ${res.statusCode} | ${res.data}");
 
-      // Verify backend actually confirmed deletion
       if (res.data is Map && res.data['success'] == false) {
         throw Exception(res.data['message'] ?? "Delete failed");
       }
 
-      // Clear caches so next fetch is fresh
       await _clearCache('education');
       await _clearCache('full_profile');
       await _clearCache('profile_with_apps');
@@ -1081,5 +1067,54 @@ class UserService {
       }
       debugPrint("✅ All user cache cleared");
     } catch (e) {}
+  }
+
+  // ============================================================
+  // ✅ Rebuild resume → marks profile as having a generated resume
+  // ============================================================
+  static Future<Map<String, dynamic>> rebuildResume() async {
+    try {
+      final res = await DioClient.dio.post('/resume/rebuild');
+      final body = res.data;
+      if (body is Map<String, dynamic>) {
+        if (body.containsKey('data') && body['data'] is Map) {
+          return Map<String, dynamic>.from(body['data'] as Map);
+        }
+        return body;
+      }
+      return {'success': false, 'message': 'Invalid response'};
+    } on DioException catch (e) {
+      throw DioClient.toApiException(e);
+    }
+  }
+
+  // ============================================================
+  // ✅ Generate AI resume (from profile) and mark it generated
+  // ============================================================
+  static Future<Map<String, dynamic>> generateAIResume({
+    String? jobDescription,
+    String? targetRole,
+    String style = 'modern',
+  }) async {
+    try {
+      final res = await DioClient.dio.post(
+        '/resume/ai/generate',
+        data: {
+          if (jobDescription != null) 'job_description': jobDescription,
+          if (targetRole != null) 'target_role': targetRole,
+          'style': style,
+        },
+      );
+      final body = res.data;
+      if (body is Map<String, dynamic>) {
+        if (body.containsKey('data') && body['data'] is Map) {
+          return Map<String, dynamic>.from(body['data'] as Map);
+        }
+        return body;
+      }
+      return {'success': false, 'message': 'Invalid response'};
+    } on DioException catch (e) {
+      throw DioClient.toApiException(e);
+    }
   }
 }

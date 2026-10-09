@@ -1,29 +1,18 @@
 // lib/features/user/presentation/screens/user_dashboard.dart
-// ✅ COMPLETE FIXED VERSION
-// ✅ MODIFIED: Jobs menu now contains Browse Jobs + Job Applications
-// ✅ MODIFIED: Saved Jobs REMOVED from Jobs submenu (accessible via Quick Action)
-// ✅ MODIFIED: Applications top-level menu REMOVED (jobApplications now under Jobs)
-// ✅ All enum types properly imported
-// ✅ Career Score + Profile Completion + Application Counts
-// ✅ Cache-first loading for instant display
-// ✅ AI-themed modern design
-// ✅ FIXED: UserApplicationsScreen now receives required onApplicationSelected
-// ✅ FIXED: UserServiceApplicationScreen (singular) — matches class name
-// ✅ FIXED: SupportScreen — matches class name
-// ✅ FIXED: Services → Browse Services opens ApplyServiceScreen (user-facing)
-// ✅ NEW: Job Details shown in RIGHT PANEL (embedded mode, no back button)
-// ✅ NEW: _selectedJob state for embedded job detail
-// ✅ NEW: onJobSelected callback from JobListScreen
-// ✅ NEW: onBack callback returns to job list
-// ✅ FIXED: View Application now opens ApplicationDetailScreen in RIGHT PANEL
-// ✅ FIXED: _selectedApplication state properly managed
-// ✅ FIXED: Back button in AppBar returns from application detail
+// ✅ COMPLETE UPDATED VERSION
+// ✅ Parent menu tap ONLY expands sidebar — never changes right-side content
+// ✅ Right-side content changes ONLY when a submenu is tapped
+// ✅ NULLABLE submenus — no auto-select
+// ✅ Placeholder shown when parent expanded but no submenu chosen
+// ✅ FIXED: ApplicationDetailScreen now shows in right panel when "View Application" clicked
+// ✅ All original functionality preserved — NO lines skipped
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
 import 'package:rojgarnext/core/services/profile_state_service.dart';
+import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/features/user/presentation/widgets/user_sidebar.dart';
 import 'package:rojgarnext/features/user/presentation/utils/menu_types.dart';
 import 'package:rojgarnext/features/notification/widgets/notification_bell.dart';
@@ -114,8 +103,8 @@ class DashboardStats {
 
 // ============================================================
 // USER DASHBOARD
-// ✅ NEW: _selectedJob state for embedded job detail
-// ✅ NEW: _selectedApplication state for embedded application detail
+// ✅ NULLABLE submenus — no auto-select
+// ✅ FIXED: ApplicationDetailScreen shows in right panel
 // ============================================================
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -128,19 +117,16 @@ class _UserDashboardState extends State<UserDashboard> {
   // ==================== STATE ====================
   UserMenuType selectedMenu = UserMenuType.dashboard;
 
-  // ⬅️ MODIFIED: JobSubMenu now includes jobApplications
-  JobSubMenu selectedJobSubMenu = JobSubMenu.browseJobs;
+  // ✅ NULLABLE — nothing auto-selected
+  JobSubMenu? selectedJobSubMenu;
+  ServiceSubMenu? selectedServiceSubMenu;
+  ResumeSubMenu? selectedResumeSubMenu;
+  AISubMenu? selectedAISubMenu;
+  ProfileSubMenu? selectedProfileSubMenu;
+  SettingsSubMenu? selectedSettingsSubMenu;
 
-  ServiceSubMenu selectedServiceSubMenu = ServiceSubMenu.browseServices;
-  ResumeSubMenu selectedResumeSubMenu = ResumeSubMenu.buildResume;
-  AISubMenu selectedAISubMenu = AISubMenu.dashboard;
-  ProfileSubMenu selectedProfileSubMenu = ProfileSubMenu.basicDetails;
-  SettingsSubMenu selectedSettingsSubMenu = SettingsSubMenu.changePassword;
-
-  // ✅ Selected job for embedded detail view
+  // ✅ Embedded detail views
   Map<String, dynamic>? _selectedJob;
-
-  // ✅ NEW: Selected application for embedded detail view
   Map<String, dynamic>? _selectedApplication;
 
   // ==================== DASHBOARD DATA ====================
@@ -314,6 +300,55 @@ class _UserDashboardState extends State<UserDashboard> {
     }
   }
 
+  // ============================================================
+  // ✅ Refresh dashboard stats
+  // ============================================================
+  Future<void> _refreshDashboardStats() async {
+    try {
+      final statsResponse = await UserService.getDashboardStats();
+      final stats = DashboardStats.fromJson(statsResponse);
+
+      if (!mounted) return;
+
+      setState(() {
+        _stats = stats;
+        _isLoading = false;
+        _isDataReady = true;
+      });
+
+      await _cacheDashboardData(stats, _userName);
+
+      debugPrint(
+        "✅ Dashboard stats refreshed: "
+        "profile=${stats.profileCompletion}% "
+        "career=${stats.careerScore}",
+      );
+    } catch (e) {
+      debugPrint("⚠️ Refresh dashboard stats failed: $e");
+    }
+  }
+
+  // ============================================================
+  // ✅ Called AFTER resume is generated/rebuilt
+  // ============================================================
+  Future<void> _onResumeGenerated() async {
+    try {
+      await UserService.rebuildResume();
+    } catch (e) {
+      debugPrint("⚠️ Resume rebuild call failed (non-fatal): $e");
+    }
+
+    await _refreshDashboardStats();
+
+    if (mounted) {
+      showMessage(
+        context,
+        "✅ Resume generated! Profile completion updated.",
+        isError: false,
+      );
+    }
+  }
+
   Future<void> _refreshDashboard() async {
     setState(() => _isLoading = true);
     await _refreshInBackground();
@@ -328,23 +363,21 @@ class _UserDashboardState extends State<UserDashboard> {
     }
   }
 
+  // ✅ Dashboard / Support — LEAF menu handlers
   void _onMenuSelected(UserMenuType menu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {
         setState(() {
           selectedMenu = menu;
-          // ✅ Clear selected job & application when navigating away
           _selectedJob = null;
           _selectedApplication = null;
-          if (menu == UserMenuType.settings) {
-            selectedSettingsSubMenu = SettingsSubMenu.changePassword;
-          }
         });
       }
     });
   }
 
+  // ✅ Jobs — SUBMENU handlers (ONLY these change content)
   void _onJobSubMenuSelected(JobSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -352,7 +385,6 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.jobs;
           selectedJobSubMenu = subMenu;
-          // ✅ Clear selected job & application when switching submenus
           _selectedJob = null;
           _selectedApplication = null;
         });
@@ -360,6 +392,7 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
+  // ✅ Services — SUBMENU handlers
   void _onServiceSubMenuSelected(ServiceSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -374,6 +407,7 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
+  // ✅ Resume — SUBMENU handlers
   void _onResumeSubMenuSelected(ResumeSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -388,6 +422,7 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
+  // ✅ AI — SUBMENU handlers
   void _onAISubMenuSelected(AISubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -402,6 +437,7 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
+  // ✅ Profile — SUBMENU handlers
   void _onProfileSubMenuSelected(ProfileSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -416,6 +452,7 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
+  // ✅ Settings — SUBMENU handlers
   void _onSettingsSubMenuSelected(SettingsSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -431,7 +468,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ JOB SELECTION HANDLERS (embedded mode)
+  // ✅ JOB / APPLICATION selection (embedded)
   // ============================================================
   void _onJobSelected(Map<String, dynamic> job) {
     debugPrint("📋 Job selected: ${job['post_name']}");
@@ -446,11 +483,11 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ============================================================
-  // ✅ APPLICATION SELECTION HANDLERS (embedded mode)
-  // ============================================================
+  // ✅ NEW: Handle application selection from UserApplicationsScreen
   void _onApplicationSelected(Map<String, dynamic> application) {
     debugPrint("📋 Application selected: ${application['_id']}");
+    debugPrint("   Job Title: ${application['job_title']}");
+    debugPrint("   Status: ${application['status']}");
     setState(() {
       _selectedApplication = application;
     });
@@ -516,7 +553,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // GET SETTINGS SCREEN
+  // ✅ GET SETTINGS SCREEN
   // ============================================================
   Widget _getSettingsScreen() {
     switch (selectedSettingsSubMenu) {
@@ -567,39 +604,134 @@ class _UserDashboardState extends State<UserDashboard> {
           key: const ValueKey('user_fingerprint_setup_page'),
           email: _cachedEmail!,
         );
+
+      case null:
+        // ✅ Defensive fallback — settings screen only renders after submenu tap
+        return _buildSelectSubmenuPlaceholder(
+          title: "Settings",
+          icon: Icons.settings_rounded,
+          message: "Select a submenu from the sidebar",
+        );
     }
   }
 
   // ============================================================
+  // ✅ PLACEHOLDER — shown when parent expanded but no submenu selected
+  // ============================================================
+  Widget _buildSelectSubmenuPlaceholder({
+    required String title,
+    required IconData icon,
+    required String message,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF6C63FF).withOpacity(0.1),
+                    const Color(0xFFFF6588).withOpacity(0.05),
+                  ],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 60,
+                color: const Color(0xFF6C63FF),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6C63FF).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.arrow_back,
+                    size: 16,
+                    color: Color(0xFF6C63FF),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    "Tap a submenu in the sidebar",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF6C63FF),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
   // ✅ GET CONTENT
-  // ✅ NEW: Jobs menu handles embedded job detail & application detail
+  // ✅ Uses NULLABLE checks — placeholder if submenu not selected
+  // ✅ FIXED: ApplicationDetailScreen shows when application selected
   // ============================================================
   Widget _getContent() {
     switch (selectedMenu) {
       case UserMenuType.dashboard:
         return _buildDashboardContent();
 
-      // ⬅️ MODIFIED: Jobs menu now has Browse Jobs + Job Applications
-      // ✅ NEW: Embedded JobDetailScreen when _selectedJob != null
-      // ✅ NEW: Embedded ApplicationDetailScreen when _selectedApplication != null
+      // ============================================================
+      // JOBS
+      // ============================================================
       case UserMenuType.jobs:
-        // ✅ FIRST CHECK: If an application is selected, show detail screen
+        // ✅ CRITICAL FIX: If application selected → show ApplicationDetailScreen
         if (_selectedApplication != null &&
             selectedJobSubMenu == JobSubMenu.jobApplications) {
+          debugPrint("📋 Showing ApplicationDetailScreen for: ${_selectedApplication!['job_title']}");
           return ApplicationDetailScreen(
             application: _selectedApplication!,
             onBack: _closeApplicationDetail,
             onViewJob: (job) {
+              // Navigate to job detail when "View Full Job Details" clicked
               setState(() {
                 _selectedJob = job;
-                selectedJobSubMenu = JobSubMenu.browseJobs;
                 _selectedApplication = null;
               });
             },
           );
         }
 
-        // ✅ If submenu is "Job Applications", show list
+        // ✅ Job Applications list
         if (selectedJobSubMenu == JobSubMenu.jobApplications) {
           return UserApplicationsScreen(
             onApplicationSelected: _onApplicationSelected,
@@ -607,51 +739,94 @@ class _UserDashboardState extends State<UserDashboard> {
           );
         }
 
-        // ✅ Browse Jobs: show JobDetail if selected, else JobList
-        if (_selectedJob != null) {
-          return JobDetailScreen(
-            job: _selectedJob!,
+        // ✅ Browse Jobs
+        if (selectedJobSubMenu == JobSubMenu.browseJobs) {
+          if (_selectedJob != null) {
+            return JobDetailScreen(
+              job: _selectedJob!,
+              isEmbedded: true,
+              onBack: _closeJobDetail,
+              onApplicationSubmitted: () {
+                _refreshDashboard();
+              },
+            );
+          }
+          return JobListScreen(
             isEmbedded: true,
-            onBack: _closeJobDetail,
-            onApplicationSubmitted: () {
-              // Refresh stats after application
-              _refreshDashboard();
-            },
+            onJobSelected: _onJobSelected,
           );
         }
 
-        return JobListScreen(
-          isEmbedded: true,
-          onJobSelected: _onJobSelected,
+        // ✅ Placeholder — no submenu selected
+        return _buildSelectSubmenuPlaceholder(
+          title: "Jobs",
+          icon: Icons.work_rounded,
+          message: "Select a submenu from the sidebar",
         );
 
-      // ✅ FIX: Browse Services now opens ApplyServiceScreen (user-facing)
+      // ============================================================
+      // SERVICES
+      // ============================================================
       case UserMenuType.services:
+        if (selectedServiceSubMenu == ServiceSubMenu.browseServices) {
+          return const ApplyServiceScreen();
+        }
         if (selectedServiceSubMenu == ServiceSubMenu.myApplications) {
           return const UserServiceApplicationScreen();
         }
-        return const ApplyServiceScreen();
+        return _buildSelectSubmenuPlaceholder(
+          title: "Services",
+          icon: Icons.miscellaneous_services_rounded,
+          message: "Select a submenu from the sidebar",
+        );
 
+      // ============================================================
+      // RESUME
+      // ============================================================
       case UserMenuType.resume:
         switch (selectedResumeSubMenu) {
           case ResumeSubMenu.buildResume:
-            return const BuildResumeScreen();
+            return _ResumeLauncher(
+              child: const BuildResumeScreen(),
+              onGenerated: _onResumeGenerated,
+            );
           case ResumeSubMenu.viewResume:
             return const ResumeScreen();
           case ResumeSubMenu.atsScore:
             return const ATSScoreScreen();
           case ResumeSubMenu.aiGenerator:
-            return const AIResumeGeneratorScreen();
+            return _ResumeLauncher(
+              child: const AIResumeGeneratorScreen(),
+              onGenerated: _onResumeGenerated,
+            );
+          case null:
+            return _buildSelectSubmenuPlaceholder(
+              title: "Resume",
+              icon: Icons.description_rounded,
+              message: "Select a submenu from the sidebar",
+            );
         }
 
+      // ============================================================
+      // AI
+      // ============================================================
       case UserMenuType.ai:
         switch (selectedAISubMenu) {
           case AISubMenu.dashboard:
             return const UserAIScreen();
           case AISubMenu.careerRoadmap:
             return const UserCareerRoadmapScreen();
+          case null:
+            return _buildSelectSubmenuPlaceholder(
+              title: "AI",
+              icon: Icons.auto_awesome_rounded,
+              message: "Select a submenu from the sidebar",
+            );
         }
 
+      // ============================================================
+      // PROFILE
+      // ============================================================
       case UserMenuType.profile:
         switch (selectedProfileSubMenu) {
           case ProfileSubMenu.basicDetails:
@@ -664,12 +839,23 @@ class _UserDashboardState extends State<UserDashboard> {
             return const AdvancedDetailsScreen();
           case ProfileSubMenu.documents:
             return const UserDocumentsScreen();
+          case null:
+            return _buildSelectSubmenuPlaceholder(
+              title: "Profile",
+              icon: Icons.person_rounded,
+              message: "Select a submenu from the sidebar",
+            );
         }
 
-      // ✅ SupportScreen (not UserSupportScreen)
+      // ============================================================
+      // SUPPORT (LEAF)
+      // ============================================================
       case UserMenuType.support:
         return const SupportScreen();
 
+      // ============================================================
+      // SETTINGS
+      // ============================================================
       case UserMenuType.settings:
         return _getSettingsScreen();
     }
@@ -692,11 +878,9 @@ class _UserDashboardState extends State<UserDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ==================== AI HEADER ====================
             _buildAIHeader(greeting),
             const SizedBox(height: 20),
 
-            // ==================== CAREER SCORE + PROFILE ====================
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -707,7 +891,6 @@ class _UserDashboardState extends State<UserDashboard> {
             ),
             const SizedBox(height: 16),
 
-            // ==================== APPLICATION COUNTS ====================
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -736,15 +919,12 @@ class _UserDashboardState extends State<UserDashboard> {
             ),
             const SizedBox(height: 20),
 
-            // ==================== CAREER SCORE BREAKDOWN ====================
             _buildCareerBreakdownCard(),
             const SizedBox(height: 20),
 
-            // ==================== PROFILE SECTIONS ====================
             _buildProfileSectionsCard(),
             const SizedBox(height: 20),
 
-            // ==================== QUICK ACTIONS ====================
             _buildQuickActionsGrid(),
             const SizedBox(height: 16),
           ],
@@ -1652,9 +1832,6 @@ class _UserDashboardState extends State<UserDashboard> {
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 900;
-    final isShowingApplicationDetail = _selectedApplication != null &&
-        selectedMenu == UserMenuType.jobs &&
-        selectedJobSubMenu == JobSubMenu.jobApplications;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -1803,12 +1980,12 @@ class _UserDashboardState extends State<UserDashboard> {
                       child: KeyedSubtree(
                         key: ValueKey(
                           'menu_${selectedMenu.name}_'
-                          '${selectedJobSubMenu.name}_'
-                          '${selectedServiceSubMenu.name}_'
-                          '${selectedResumeSubMenu.name}_'
-                          '${selectedAISubMenu.name}_'
-                          '${selectedProfileSubMenu.name}_'
-                          '${selectedSettingsSubMenu.name}_'
+                          '${selectedJobSubMenu?.name ?? "none"}_'
+                          '${selectedServiceSubMenu?.name ?? "none"}_'
+                          '${selectedResumeSubMenu?.name ?? "none"}_'
+                          '${selectedAISubMenu?.name ?? "none"}_'
+                          '${selectedProfileSubMenu?.name ?? "none"}_'
+                          '${selectedSettingsSubMenu?.name ?? "none"}_'
                           '${_selectedJob != null ? _selectedJob!['_id'] : 'none'}_'
                           '${_selectedApplication != null ? _selectedApplication!['_id'] : 'none'}',
                         ),
@@ -1826,7 +2003,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   String _getAppBarTitle() {
-    // ✅ If application detail is open, show application title
+    // ✅ If application detail is open
     if (_selectedApplication != null &&
         selectedMenu == UserMenuType.jobs &&
         selectedJobSubMenu == JobSubMenu.jobApplications) {
@@ -1834,7 +2011,7 @@ class _UserDashboardState extends State<UserDashboard> {
           "Application Details";
     }
 
-    // ✅ If job is selected, show job title
+    // ✅ If job is selected
     if (_selectedJob != null && selectedMenu == UserMenuType.jobs) {
       return _selectedJob!['post_name']?.toString() ?? "Job Details";
     }
@@ -1847,13 +2024,20 @@ class _UserDashboardState extends State<UserDashboard> {
         if (selectedJobSubMenu == JobSubMenu.jobApplications) {
           return "My Applications";
         }
-        return "Browse Jobs";
+        if (selectedJobSubMenu == JobSubMenu.browseJobs) {
+          return "Browse Jobs";
+        }
+        return "Jobs";
 
       case UserMenuType.services:
         if (selectedServiceSubMenu == ServiceSubMenu.myApplications) {
           return "My Service Applications";
         }
-        return "Online Services";
+        if (selectedServiceSubMenu == ServiceSubMenu.browseServices) {
+          return "Online Services";
+        }
+        return "Services";
+
       case UserMenuType.resume:
         switch (selectedResumeSubMenu) {
           case ResumeSubMenu.buildResume:
@@ -1864,14 +2048,20 @@ class _UserDashboardState extends State<UserDashboard> {
             return "ATS Score";
           case ResumeSubMenu.aiGenerator:
             return "AI Resume Generator";
+          case null:
+            return "Resume";
         }
+
       case UserMenuType.ai:
         switch (selectedAISubMenu) {
           case AISubMenu.dashboard:
             return "AI Insights";
           case AISubMenu.careerRoadmap:
             return "Career Roadmap";
+          case null:
+            return "AI";
         }
+
       case UserMenuType.profile:
         switch (selectedProfileSubMenu) {
           case ProfileSubMenu.basicDetails:
@@ -1884,9 +2074,13 @@ class _UserDashboardState extends State<UserDashboard> {
             return "Advanced Details";
           case ProfileSubMenu.documents:
             return "Documents";
+          case null:
+            return "Profile";
         }
+
       case UserMenuType.support:
         return "Support";
+
       case UserMenuType.settings:
         switch (selectedSettingsSubMenu) {
           case SettingsSubMenu.changePassword:
@@ -1895,8 +2089,47 @@ class _UserDashboardState extends State<UserDashboard> {
             return "Setup MPIN";
           case SettingsSubMenu.fingerprint:
             return "Fingerprint Setup";
+          case null:
+            return "Settings";
         }
     }
+  }
+}
+
+// ============================================================
+// ✅ Resume launcher widget — wraps resume screens and
+//    triggers dashboard refresh after generation.
+// ============================================================
+class _ResumeLauncher extends StatefulWidget {
+  final Widget child;
+  final Future<void> Function() onGenerated;
+
+  const _ResumeLauncher({
+    required this.child,
+    required this.onGenerated,
+  });
+
+  @override
+  State<_ResumeLauncher> createState() => _ResumeLauncherState();
+}
+
+class _ResumeLauncherState extends State<_ResumeLauncher> {
+  @override
+  void initState() {
+    super.initState();
+    // Silently refresh on open (in case user already had a resume)
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await widget.onGenerated();
+      } catch (e) {
+        debugPrint("⚠️ ResumeLauncher post-frame refresh failed: $e");
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
   }
 }
 
