@@ -2,6 +2,7 @@
 // ✅ ULTRA-FAST WITH CACHING - ALL PLATFORMS
 // ✅ COMPLETE WITH ALL FUNCTIONS - FIXED IMPORT
 // ✅ FIXED: deleteEducation now sends email + proper cache clearing
+// ✅ NEW: getDashboardStats() — returns career score, profile %, app counts
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -9,6 +10,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
+
 class UserService {
   static const String _base = "/user";
   static const Duration CACHE_DURATION = Duration(minutes: 5);
@@ -74,7 +76,7 @@ class UserService {
   }
 
   // ✅ Helper: read email from SharedPreferences
-   // ✅ BULLETPROOF email lookup — tries SecureStorage, SharedPreferences, and JWT
+  // ✅ BULLETPROOF email lookup — tries SecureStorage, SharedPreferences, and JWT
   static Future<String?> _getStoredEmail() async {
     // 1) SecureStorage (primary — matches SecureStorage.setEmail)
     try {
@@ -101,6 +103,55 @@ class UserService {
 
     debugPrint("⚠️ _getStoredEmail → no email found in any storage");
     return null;
+  }
+
+  // ============================================================
+  // ✅ NEW: DASHBOARD STATS
+  // ============================================================
+  // Returns:
+  //   - profile_completion: 0-100
+  //   - career_score: 0-100
+  //   - job_applications: {total, saved, applied, by_status}
+  //   - service_applications: {total, by_status}
+  //   - profile_sections: which sections are complete
+  //   - career_breakdown: detailed score breakdown
+  // ============================================================
+  static Future<Map<String, dynamic>> getDashboardStats({
+    bool forceRefresh = false,
+  }) async {
+    if (!forceRefresh) {
+      final cached = await _getCache('dashboard_stats');
+      if (cached != null) {
+        debugPrint("📊 Dashboard stats loaded from cache");
+        return Map<String, dynamic>.from(cached as Map);
+      }
+    }
+
+    try {
+      debugPrint("📊 Fetching dashboard stats from API...");
+      final res = await _dio.get('$_base/dashboard-stats');
+
+      Map<String, dynamic> data;
+      if (res.data is Map<String, dynamic>) {
+        data = Map<String, dynamic>.from(res.data as Map);
+      } else {
+        data = {'success': false};
+      }
+
+      debugPrint(
+        "📊 Dashboard stats received: "
+        "profile=${data['profile_completion']}%, "
+        "career=${data['career_score']}, "
+        "jobApps=${data['job_applications']?['total']}, "
+        "serviceApps=${data['service_applications']?['total']}",
+      );
+
+      await _setCache('dashboard_stats', data);
+      return data;
+    } on DioException catch (e) {
+      debugPrint("❌ Dashboard stats failed: ${e.message}");
+      throw DioClient.extractErrorMessage(e);
+    }
   }
 
   // ================= CONTACT DETAILS =================
@@ -145,6 +196,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('full_profile');
       await _clearCache('profile_with_apps');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -178,6 +230,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('basic_details');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -212,6 +265,7 @@ class UserService {
       await _clearCache('education');
       await _clearCache('full_profile');
       await _clearCache('profile_with_apps');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -226,6 +280,7 @@ class UserService {
       await _clearCache('education');
       await _clearCache('full_profile');
       await _clearCache('profile_with_apps');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -233,7 +288,7 @@ class UserService {
   }
 
   // ✅ FIXED: deleteEducation with email param + proper cache clear
-   // ✅ FINAL FIX: deleteEducation — email is optional, backend reads from JWT
+  // ✅ FINAL FIX: deleteEducation — email is optional, backend reads from JWT
   static Future<void> deleteEducation(String id) async {
     try {
       debugPrint("🗑️ DELETE education → id=$id");
@@ -261,6 +316,7 @@ class UserService {
       await _clearCache('education');
       await _clearCache('full_profile');
       await _clearCache('profile_with_apps');
+      await _clearCache('dashboard_stats');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
@@ -294,6 +350,7 @@ class UserService {
       await _clearCache('experience');
       await _clearCache('full_profile');
       await _clearCache('profile_with_apps');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -308,6 +365,7 @@ class UserService {
       await _clearCache('experience');
       await _clearCache('full_profile');
       await _clearCache('profile_with_apps');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -324,6 +382,7 @@ class UserService {
       await _clearCache('experience');
       await _clearCache('full_profile');
       await _clearCache('profile_with_apps');
+      await _clearCache('dashboard_stats');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
@@ -356,6 +415,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('skills');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -369,6 +429,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('skills');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -380,6 +441,7 @@ class UserService {
       await _dio.delete('$_base/skills/$id');
       await _clearCache('skills');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
@@ -412,6 +474,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('internships');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -425,6 +488,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('internships');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -436,6 +500,7 @@ class UserService {
       await _dio.delete('$_base/internships/$id');
       await _clearCache('internships');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
@@ -468,6 +533,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('certifications');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -481,6 +547,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('certifications');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -492,6 +559,7 @@ class UserService {
       await _dio.delete('$_base/certifications/$id');
       await _clearCache('certifications');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
@@ -524,6 +592,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('projects');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -537,6 +606,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('projects');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -548,6 +618,7 @@ class UserService {
       await _dio.delete('$_base/projects/$id');
       await _clearCache('projects');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
@@ -580,6 +651,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('languages');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -593,6 +665,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('languages');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -604,6 +677,7 @@ class UserService {
       await _dio.delete('$_base/languages/$id');
       await _clearCache('languages');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
@@ -636,6 +710,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('other_details');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -671,6 +746,7 @@ class UserService {
       await _clearCache('full_profile');
       await _clearCache('basic_details');
       await _clearCache('profile_with_apps');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -686,6 +762,7 @@ class UserService {
       await _clearCache('full_profile');
       await _clearCache('experience');
       await _clearCache('profile_with_apps');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -719,6 +796,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('bank_details');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -752,6 +830,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('gov_ids');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -785,6 +864,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('emergency_contact');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -819,6 +899,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('references');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -832,6 +913,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('references');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -843,6 +925,7 @@ class UserService {
       await _dio.delete('$_base/references/$id');
       await _clearCache('references');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
     }
@@ -876,6 +959,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('employment_prefs');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -909,6 +993,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('social_links');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -942,6 +1027,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('work_auth');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);
@@ -976,6 +1062,7 @@ class UserService {
       final result = _unwrap(res.data);
       await _clearCache('app_prefs');
       await _clearCache('full_profile');
+      await _clearCache('dashboard_stats');
       return result;
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);

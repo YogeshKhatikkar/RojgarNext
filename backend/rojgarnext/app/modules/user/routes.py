@@ -330,6 +330,77 @@ async def upload_profile_photo(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
+# ==============================================================
+# ✅ NEW: GET SIGNED URL FOR PRIVATE PROFILE PHOTO
+# ==============================================================
+@router.post("/get-signed-photo-url")
+async def get_signed_photo_url(
+    data: dict = Body(...),
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """
+    Generates a signed, temporary URL for a private Cloudinary image.
+    The frontend sends the public_id, and the backend returns a secure URL.
+    """
+    from app.core.services.cloudinary import get_signed_view_url
+
+    public_id = data.get("public_id")
+    resource_type = data.get("resource_type", "image")
+
+    if not public_id:
+        raise HTTPException(status_code=400, detail="public_id is required")
+
+    try:
+        # Generate a signed URL that expires in 24 hours
+        signed_url = await get_signed_view_url(
+            public_id=public_id,
+            resource_type=resource_type,
+            expires_seconds=86400
+        )
+
+        if not signed_url:
+            raise HTTPException(status_code=500, detail="Could not generate signed URL")
+
+        return {"success": True, "url": signed_url}
+
+    except Exception as e:
+        logger.error(f"Failed to generate signed URL for {public_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate signed URL: {str(e)}")
+
+
+# ==================== DASHBOARD STATS ENDPOINT ====================
+@router.get("/dashboard-stats")
+async def get_user_dashboard_stats(
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """
+    ✅ Returns complete dashboard statistics:
+    - profile_completion: 0-100
+    - career_score: 0-100
+    - job_applications: {total, saved, applied, by_status}
+    - service_applications: {total, by_status}
+    - profile_sections: which sections are complete
+    - career_breakdown: detailed score breakdown
+    """
+    email = current_user.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="User email not found")
+
+    from app.modules.user.dashboard_service import UserDashboardService
+
+    service = UserDashboardService(db)
+    result = await service.get_dashboard_stats(email)
+    return result
+
+
+print("✅ User routes loaded with Ultra AI features + DELETE education/experience")
+print("✅ /full-profile now accepts optional email param for admin viewing candidate")
+print("✅ Null / deleted documents are STRIPPED from every response")
+print("✅ NEW: /upload-profile-photo — auto-rebuilds resume after photo upload")
+print("✅ NEW: /dashboard-stats — returns career score, profile %, app counts")
+
 
 # ================= BASIC DETAILS =================
 @router.get("/basic-details")

@@ -1,10 +1,11 @@
 // lib/core/services/profile_state_service.dart
-// ✅ GLOBAL PROFILE STATE — SINGLE SOURCE OF TRUTH
-// ✅ FIXED: Reads photo from additional_details.profile_photo_url FIRST
-// ✅ FIXED: Falls back to top-level profile_photo_url
-// ✅ FIXED: Never clears photo on error — keeps existing
+// ✅ INSTANT PHOTO LOAD FROM CACHE
+// ✅ SAVES PHOTO TO CACHE AFTER FETCH
+// ✅ ZERO DELAY ON APP START / LOGIN
 
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 
 class ProfileStateService {
@@ -12,6 +13,13 @@ class ProfileStateService {
       ProfileStateService._internal();
   factory ProfileStateService() => _instance;
   ProfileStateService._internal();
+
+  // ============================================================
+  // ✅ CACHE KEYS
+  // ============================================================
+  static const String _photoUrlKey = 'cached_profile_photo_url';
+  static const String _publicIdKey = 'cached_profile_photo_public_id';
+  static const String _photoTimeKey = 'cached_profile_photo_time';
 
   final ValueNotifier<String?> profilePhotoUrl =
       ValueNotifier<String?>(null);
@@ -31,6 +39,57 @@ class ProfileStateService {
   String? get currentPhotoUrl => profilePhotoUrl.value;
   String? get currentPublicId => profilePhotoPublicId.value;
   bool get hasPhoto => (profilePhotoUrl.value ?? '').isNotEmpty;
+
+  // ============================================================
+  // ✅ NEW: LOAD FROM CACHE INSTANTLY (synchronous-ish)
+  // Call this ONCE at app start BEFORE any UI renders
+  // ============================================================
+  Future<void> loadFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedUrl = prefs.getString(_photoUrlKey);
+      final cachedPublicId = prefs.getString(_publicIdKey);
+
+      if (cachedUrl != null && cachedUrl.isNotEmpty && _isValidUrl(cachedUrl)) {
+        profilePhotoUrl.value = cachedUrl;
+        profilePhotoPublicId.value = cachedPublicId;
+        hasInitialPhotoLoaded.value = true;
+        debugPrint("⚡ ProfileStateService: Loaded photo from CACHE → $cachedUrl");
+      } else {
+        debugPrint("ℹ️ ProfileStateService: No cached photo found");
+      }
+    } catch (e) {
+      debugPrint("⚠️ ProfileStateService: Cache load error: $e");
+    }
+  }
+
+  // ============================================================
+  // ✅ NEW: SAVE PHOTO TO CACHE
+  // Call this EVERY time photo is updated (login / upload / fetch)
+  // ============================================================
+  Future<void> _saveToCache(String? url, String? publicId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (url != null && url.isNotEmpty) {
+        await prefs.setString(_photoUrlKey, url);
+        if (publicId != null) {
+          await prefs.setString(_publicIdKey, publicId);
+        } else {
+          await prefs.remove(_publicIdKey);
+        }
+        await prefs.setInt(
+            _photoTimeKey, DateTime.now().millisecondsSinceEpoch);
+        debugPrint("💾 ProfileStateService: Photo saved to CACHE → $url");
+      } else {
+        await prefs.remove(_photoUrlKey);
+        await prefs.remove(_publicIdKey);
+        await prefs.remove(_photoTimeKey);
+        debugPrint("🗑️ ProfileStateService: Photo removed from CACHE");
+      }
+    } catch (e) {
+      debugPrint("⚠️ ProfileStateService: Cache save error: $e");
+    }
+  }
 
   // ============================================================
   // ✅ URL VALIDATOR
@@ -111,7 +170,7 @@ class ProfileStateService {
   }
 
   // ============================================================
-  // ✅ UPDATE PHOTO URL
+  // ✅ UPDATE PHOTO URL — NOW ALSO SAVES TO CACHE
   // ============================================================
   void updatePhotoUrl(String? url, {String? publicId}) {
     String? normalized;
@@ -135,6 +194,9 @@ class ProfileStateService {
     profilePhotoPublicId.value = publicId;
     hasInitialPhotoLoaded.value = true;
 
+    // ✅ Save to cache
+    _saveToCache(normalized, publicId);
+
     debugPrint("=" * 70);
     debugPrint("📸 ProfileStateService: ✅ Photo updated");
     debugPrint("   New URL: $normalized");
@@ -143,7 +205,7 @@ class ProfileStateService {
   }
 
   // ============================================================
-  // ✅ LOAD PHOTO FROM BACKEND — FIXED
+  // ✅ LOAD PHOTO FROM BACKEND (kept as fallback)
   // ============================================================
   Future<void> loadPhotoFromBackend({bool forceRefresh = false}) async {
     if (_isFetching) {
@@ -151,8 +213,12 @@ class ProfileStateService {
       return;
     }
 
-    if (!forceRefresh && hasInitialPhotoLoaded.value) {
-      debugPrint("📸 ProfileStateService: Already loaded, skipping");
+    // ✅ If cache has photo and not forcing refresh, skip API call
+    if (!forceRefresh &&
+        profilePhotoUrl.value != null &&
+        profilePhotoUrl.value!.isNotEmpty) {
+      debugPrint("📸 ProfileStateService: Photo already in memory, skipping API");
+      hasInitialPhotoLoaded.value = true;
       return;
     }
 
@@ -189,14 +255,12 @@ class ProfileStateService {
           debugPrint(
               "📸 ProfileStateService: additional_details keys = ${additional.keys.toList()}");
 
-          // Check profile_photo_url FIRST
           final addPhotoUrl = additional['profile_photo_url']?.toString();
           if (addPhotoUrl != null && addPhotoUrl.trim().isNotEmpty) {
             photoUrl = addPhotoUrl;
             debugPrint("📸 Found in additional_details.profile_photo_url");
           }
 
-          // Check profile_picture_url as fallback
           if (photoUrl == null || photoUrl.trim().isEmpty) {
             final addPictureUrl =
                 additional['profile_picture_url']?.toString();
@@ -206,7 +270,6 @@ class ProfileStateService {
             }
           }
 
-          // Get public_id
           publicId = additional['profile_photo_public_id']?.toString() ??
               additional['public_id']?.toString();
         }
@@ -230,7 +293,17 @@ class ProfileStateService {
       debugPrint("📸 ProfileStateService: FINAL photo URL = $photoUrl");
       debugPrint("=" * 70);
 
-      updatePhotoUrl(photoUrl, publicId: publicId);
+      // ✅ Only update if valid URL found — otherwise keep existing
+      if (photoUrl != null && photoUrl.trim().isNotEmpty) {
+        updatePhotoUrl(photoUrl, publicId: publicId);
+      } else if (profilePhotoUrl.value == null) {
+        // Only clear if we have nothing
+        debugPrint("📸 No photo in backend and no cache → clearing");
+        updatePhotoUrl(null);
+      } else {
+        debugPrint("📸 No photo in backend but cache has one → keeping cache");
+        hasInitialPhotoLoaded.value = true;
+      }
     } catch (e) {
       debugPrint("❌ ProfileStateService: Failed to load photo: $e");
       // ✅ CRITICAL: Don't clear existing photo on error
@@ -242,7 +315,7 @@ class ProfileStateService {
   }
 
   // ============================================================
-  // ✅ SET PHOTO FROM EXTERNAL SOURCE
+  // ✅ SET PHOTO FROM EXTERNAL SOURCE (Login / Upload)
   // ============================================================
   void setPhoto({required String url, String? publicId}) {
     debugPrint("📸 ProfileStateService: setPhoto called → $url");
@@ -257,6 +330,8 @@ class ProfileStateService {
     profilePhotoUrl.value = null;
     profilePhotoPublicId.value = null;
     hasInitialPhotoLoaded.value = true;
+    // ✅ Also clear cache
+    _saveToCache(null, null);
     bumpVersion();
     debugPrint("📸 ProfileStateService: Photo cleared");
   }
@@ -271,7 +346,7 @@ class ProfileStateService {
   }
 
   // ============================================================
-  // ✅ RESET
+  // ✅ RESET (on logout)
   // ============================================================
   void reset() {
     profilePhotoUrl.value = null;
@@ -280,6 +355,8 @@ class ProfileStateService {
     isLoadingPhoto.value = false;
     profileDataVersion.value = 0;
     _isFetching = false;
+    // ✅ Also clear cache on logout
+    _saveToCache(null, null);
     debugPrint("📸 ProfileStateService: Reset complete");
   }
 

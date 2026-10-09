@@ -1,7 +1,6 @@
 // lib/features/resume/presentation/widgets/profile_photo_upload_dialog.dart
-// ✅ Static .show() helper returns uploaded URL (or null)
-// ✅ Broadcasts change via UserProfileProvider → no page reload
-// ✅ FIXED: onSendProgress moved OUT of Options (Dio 5.x requirement)
+// ✅ Complete file with FIXED upload method
+// ✅ Handles all response shapes
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -10,6 +9,7 @@ import 'package:dio/dio.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/core/widgets/platform_file_picker.dart';
+import 'package:rojgarnext/core/services/profile_state_service.dart';
 import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
 
 class ProfilePhotoUploadDialog extends StatefulWidget {
@@ -17,7 +17,6 @@ class ProfilePhotoUploadDialog extends StatefulWidget {
 
   const ProfilePhotoUploadDialog({super.key, this.currentPhotoUrl});
 
-  /// ✅ Convenience method — shows dialog and returns uploaded URL (or null)
   static Future<String?> show(
     BuildContext context, {
     String? currentPhotoUrl,
@@ -83,13 +82,10 @@ class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
         'file': MultipartFile.fromBytes(_fileBytes!, filename: _fileName!),
       });
 
-      // ✅ FIXED: onSendProgress is a parameter of `.post()`, NOT of `Options()`
       final response = await DioClient.dio.post(
         '/user/upload-profile-photo',
         data: formData,
-        options: Options(
-          contentType: 'multipart/form-data',
-        ),
+        options: Options(contentType: 'multipart/form-data'),
         onSendProgress: (sent, total) {
           if (total > 0 && mounted) {
             setState(() => _progress = sent / total);
@@ -97,20 +93,51 @@ class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
         },
       );
 
-      final data = response.data;
-      final url = (data['url'] ??
-              data['data']?['url'] ??
-              '')
-          .toString()
-          .trim();
-      final publicId =
-          (data['public_id'] ?? data['data']?['public_id'])?.toString();
+      debugPrint("=" * 70);
+      debugPrint("📸 UPLOAD RESPONSE: ${response.data}");
+      debugPrint("=" * 70);
 
-      if (url.isEmpty) {
+      final data = response.data;
+
+      String? url;
+      String? publicId;
+
+      if (data is Map) {
+        url = data['url']?.toString();
+        publicId = data['public_id']?.toString();
+
+        if ((url == null || url.isEmpty) && data['data'] is Map) {
+          final nested = data['data'] as Map;
+          url = nested['url']?.toString();
+          publicId ??= nested['public_id']?.toString();
+        }
+
+        if (url == null || url.isEmpty) {
+          url = data['profile_photo_url']?.toString();
+        }
+
+        if ((url == null || url.isEmpty) && data['additional_details'] is Map) {
+          final additional = data['additional_details'] as Map;
+          url = additional['profile_photo_url']?.toString();
+          publicId ??= additional['profile_photo_public_id']?.toString();
+        }
+
+        if (url == null || url.isEmpty) {
+          url = data['photo_url']?.toString();
+        }
+      }
+
+      url = url?.trim();
+
+      if (url == null || url.isEmpty) {
         throw Exception("Server returned no photo URL");
       }
 
-      // ✅ Broadcast — every listening widget updates instantly
+      debugPrint("✅ Extracted URL: $url");
+      debugPrint("✅ Extracted publicId: $publicId");
+
+      ProfileStateService().setPhoto(url: url, publicId: publicId);
+
       if (mounted) {
         Provider.of<UserProfileProvider>(context, listen: false)
             .setProfilePhoto(url: url, publicId: publicId);
@@ -121,6 +148,7 @@ class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
         Navigator.pop(context, url);
       }
     } catch (e) {
+      debugPrint("❌ Upload error: $e");
       if (mounted) {
         showMessage(
           context,
@@ -180,8 +208,6 @@ class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
                 ],
               ),
               const SizedBox(height: 20),
-
-              // Preview / picker
               GestureDetector(
                 onTap: _isUploading ? null : _pickImage,
                 child: Container(
@@ -226,7 +252,6 @@ class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
                         ),
                 ),
               ),
-
               if (_fileName != null) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -236,7 +261,6 @@ class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
-
               if (_isUploading) ...[
                 const SizedBox(height: 16),
                 LinearProgressIndicator(
@@ -250,9 +274,7 @@ class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
-
               const SizedBox(height: 20),
-
               Row(
                 children: [
                   Expanded(

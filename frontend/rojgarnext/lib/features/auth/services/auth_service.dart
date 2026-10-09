@@ -1,8 +1,6 @@
 // lib/features/auth/services/auth_service.dart
-// ✅ COMPLETE PRODUCTION-READY VERSION
-// ✅ Login throws ApiException with FULL lock info
-// ✅ Token ONLY saved on success
-// ✅ Profile photo loaded after successful login — into GLOBAL service
+// ✅ Login ke baad photo ab CACHE me save hoti hai
+// ✅ Next app open pe INSTANT load hoga
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -30,15 +28,13 @@ class AuthService {
   }
 
   // ============================================================
-  // ✅ LOAD PROFILE PHOTO AFTER LOGIN — FIXED
-  // Loads into GLOBAL ProfileStateService (source of truth)
-  // UserProfileProvider auto-syncs via listener
+  // ✅ LOAD PROFILE PHOTO AFTER LOGIN — NOW SAVES TO CACHE
   // ============================================================
   static Future<void> loadProfilePhotoAfterLogin() async {
     try {
       _log("📸 AuthService: Loading profile photo after login...");
 
-      // ✅ STEP 1: Force refresh ProfileStateService (GLOBAL SOURCE)
+      // ✅ Force refresh ProfileStateService (which SAVES to cache)
       await ProfileStateService().loadPhotoFromBackend(forceRefresh: true);
 
       final photoUrl = ProfileStateService().profilePhotoUrl.value;
@@ -46,11 +42,7 @@ class AuthService {
 
       _log("📸 AuthService: ProfileStateService photo = $photoUrl");
       _log("📸 AuthService: ProfileStateService publicId = $publicId");
-
-      // ✅ STEP 2: UserProfileProvider automatically syncs via its
-      //    listener on ProfileStateService. No manual call needed here.
-
-      _log("📸 AuthService: Profile photo load complete → $photoUrl");
+      _log("📸 AuthService: Photo saved to CACHE for instant load next time");
     } catch (e) {
       _log("⚠️ AuthService: Failed to load profile photo: $e");
       // Don't fail login if photo load fails
@@ -58,7 +50,7 @@ class AuthService {
   }
 
   // ============================================================
-  // REGISTER
+  // REGISTER (unchanged)
   // ============================================================
   static Future<dynamic> register(
     Map<String, dynamic> data, {
@@ -90,7 +82,7 @@ class AuthService {
   }
 
   // ============================================================
-  // LOGIN
+  // LOGIN (unchanged — already calls loadProfilePhotoAfterLogin)
   // ============================================================
   static Future<Map<String, dynamic>> login(
     Map<String, dynamic> data, {
@@ -152,7 +144,7 @@ class AuthService {
 
       debugPrint("✅ Login successful: ${result["role"]}");
 
-      // ✅ Load profile photo AFTER login (into global service)
+      // ✅ Load profile photo AFTER login (SAVES to cache)
       await loadProfilePhotoAfterLogin();
 
       return result;
@@ -174,7 +166,7 @@ class AuthService {
   }
 
   // ============================================================
-  // UPDATE LOCATION
+  // UPDATE LOCATION (unchanged)
   // ============================================================
   static Future<Map<String, dynamic>> updateLocation({
     required double latitude,
@@ -200,7 +192,7 @@ class AuthService {
   }
 
   // ============================================================
-  // GET MY LOCATION
+  // GET MY LOCATION (unchanged)
   // ============================================================
   static Future<Map<String, dynamic>> getMyLocation() async {
     try {
@@ -212,7 +204,7 @@ class AuthService {
   }
 
   // ============================================================
-  // MPIN LOGIN
+  // MPIN LOGIN (unchanged — already calls loadProfilePhotoAfterLogin)
   // ============================================================
   static Future<Map<String, dynamic>> loginPin(
       Map<String, dynamic> data) async {
@@ -247,7 +239,7 @@ class AuthService {
       await SecureStorage.setMobile(result["mobile"]?.toString() ?? "");
       await SecureStorage.saveIsLoggedIn(true);
 
-      // ✅ Load profile photo AFTER MPIN login
+      // ✅ Load profile photo AFTER MPIN login (SAVES to cache)
       await loadProfilePhotoAfterLogin();
 
       return result;
@@ -257,7 +249,7 @@ class AuthService {
   }
 
   // ============================================================
-  // MPIN SETUP
+  // MPIN SETUP (unchanged)
   // ============================================================
   static Future<dynamic> setupMpin(
       Map<String, dynamic> data) async {
@@ -296,7 +288,7 @@ class AuthService {
   }
 
   // ============================================================
-  // ENABLE BIOMETRIC
+  // ENABLE BIOMETRIC (unchanged)
   // ============================================================
   static Future<dynamic> enableBiometric(
       Map<String, dynamic> data) async {
@@ -340,7 +332,7 @@ class AuthService {
   }
 
   // ============================================================
-  // BIOMETRIC LOGIN
+  // BIOMETRIC LOGIN (unchanged — already calls loadProfilePhotoAfterLogin)
   // ============================================================
   static Future<Map<String, dynamic>> biometricLogin(
       Map<String, dynamic> data) async {
@@ -397,7 +389,7 @@ class AuthService {
       await SecureStorage.setMobile(result["mobile"]?.toString() ?? "");
       await SecureStorage.saveIsLoggedIn(true);
 
-      // ✅ Load profile photo AFTER biometric login
+      // ✅ Load profile photo AFTER biometric login (SAVES to cache)
       await loadProfilePhotoAfterLogin();
 
       return result;
@@ -407,7 +399,7 @@ class AuthService {
   }
 
   // ============================================================
-  // FORGOT PASSWORD
+  // FORGOT PASSWORD (unchanged)
   // ============================================================
   static Future<Map<String, dynamic>> forgotPassword(
       String email) async {
@@ -427,7 +419,7 @@ class AuthService {
   }
 
   // ============================================================
-  // RESEND RESET EMAIL OTP
+  // RESEND RESET EMAIL OTP (unchanged)
   // ============================================================
   static Future<dynamic> resendResetEmailOtp(String email) async {
     try {
@@ -440,7 +432,7 @@ class AuthService {
   }
 
   // ============================================================
-  // RESEND RESET MOBILE OTP
+  // RESEND RESET MOBILE OTP (unchanged)
   // ============================================================
   static Future<dynamic> resendResetMobileOtp(String mobile) async {
     try {
@@ -453,7 +445,7 @@ class AuthService {
   }
 
   // ============================================================
-  // VERIFY RESET EMAIL
+  // VERIFY RESET EMAIL (unchanged)
   // ============================================================
   static Future<dynamic> verifyResetEmail(
       Map<String, dynamic> data) async {
@@ -467,7 +459,7 @@ class AuthService {
   }
 
   // ============================================================
-  // VERIFY RESET MOBILE
+  // VERIFY RESET MOBILE (unchanged)
   // ============================================================
   static Future<dynamic> verifyResetMobile(
       Map<String, dynamic> data) async {
@@ -481,7 +473,7 @@ class AuthService {
   }
 
   // ============================================================
-  // RESET PASSWORD
+  // RESET PASSWORD (unchanged)
   // ============================================================
   static Future<dynamic> resetPassword(
       Map<String, dynamic> data) async {
@@ -495,7 +487,7 @@ class AuthService {
   }
 
   // ============================================================
-  // VERIFY EMAIL
+  // VERIFY EMAIL (unchanged)
   // ============================================================
   static Future<dynamic> verifyEmail(
       Map<String, dynamic> data) async {
@@ -509,7 +501,7 @@ class AuthService {
   }
 
   // ============================================================
-  // VERIFY MOBILE
+  // VERIFY MOBILE (unchanged)
   // ============================================================
   static Future<dynamic> verifyMobile(
       Map<String, dynamic> data) async {
@@ -523,7 +515,7 @@ class AuthService {
   }
 
   // ============================================================
-  // RESEND EMAIL OTP
+  // RESEND EMAIL OTP (unchanged)
   // ============================================================
   static Future<dynamic> resendEmailOtp(String email) async {
     try {
@@ -536,7 +528,7 @@ class AuthService {
   }
 
   // ============================================================
-  // RESEND MOBILE OTP
+  // RESEND MOBILE OTP (unchanged)
   // ============================================================
   static Future<dynamic> resendMobileOtp(String mobile) async {
     try {

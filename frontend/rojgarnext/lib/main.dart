@@ -1,4 +1,5 @@
 // lib/main.dart - OPTIMIZED FOR FASTER LOAD
+// ✅ Profile photo loaded from CACHE instantly on app start
 // ✅ UserProfileProvider registered globally
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'core/routes/app_routes.dart';
 import 'core/network/dio_client.dart';
 import 'core/utils/platform_utils.dart';
+import 'core/services/profile_state_service.dart';
 import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/user/providers/user_profile_provider.dart';
 
@@ -35,6 +37,14 @@ void main() async {
 
   initDioClient();
 
+  // ✅ CRITICAL: Load profile photo from cache BEFORE app renders
+  // This makes the photo appear INSTANTLY on splash/dashboard
+  await ProfileStateService().loadFromCache();
+  if (kDebugMode) {
+    debugPrint(
+        "⚡ main.dart: Cached photo → ${ProfileStateService().profilePhotoUrl.value}");
+  }
+
   if (PlatformUtils.isMobile) {
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -43,7 +53,9 @@ void main() async {
   }
 
   if (PlatformUtils.isDesktop) {
-    if (kDebugMode) debugPrint('🖥️ Running on Desktop: ${PlatformUtils.platformName}');
+    if (kDebugMode) {
+      debugPrint('🖥️ Running on Desktop: ${PlatformUtils.platformName}');
+    }
   }
   if (PlatformUtils.isWeb) {
     if (kDebugMode) debugPrint('🌐 Running on Web');
@@ -67,7 +79,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthController()),
-        // ✅ NEW: global profile provider — holds photo URL for all screens
+        // ✅ Global profile provider — holds photo URL for all screens
         ChangeNotifierProvider(
           create: (_) => UserProfileProvider()..loadProfile(),
         ),
@@ -149,5 +161,6 @@ class _NoGlowScrollBehavior extends ScrollBehavior {
     BuildContext context,
     Widget child,
     ScrollableDetails details,
-  ) => child;
+  ) =>
+      child;
 }

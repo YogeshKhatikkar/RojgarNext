@@ -1,29 +1,51 @@
 // lib/features/user/presentation/widgets/user_sidebar.dart
-// ✅ FINAL OPTIMIZED VERSION
-// ✅ Photo is read from UserProfileProvider (single source of truth).
-// ✅ No redundant API call for photo — loads instantly from global state.
-// ✅ Camera icon overlay for quick photo update.
-// ✅ Fallback to initials if photo is missing or fails to load.
+// ============================================================
+// USER SIDEBAR — Matches UserDashboard parameters exactly
+// ============================================================
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kReleaseMode;
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:rojgarnext/core/routes/app_routes.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
 import 'package:rojgarnext/features/user/presentation/utils/menu_types.dart';
-import 'package:rojgarnext/features/user/providers/user_profile_provider.dart';
-import 'package:rojgarnext/features/resume/presentation/widgets/profile_photo_upload_dialog.dart';
 
 class UserSidebar extends StatefulWidget {
-  final MenuType selectedMenu;
-  final Function(MenuType) onMenuSelected;
+  final UserMenuType selectedMenu;
+  final JobSubMenu selectedJobSubMenu;
+  final ApplicationSubMenu selectedAppSubMenu;
+  final ServiceSubMenu selectedServiceSubMenu;
+  final ResumeSubMenu selectedResumeSubMenu;
+  final AISubMenu selectedAISubMenu;
+  final ProfileSubMenu selectedProfileSubMenu;
+  final SettingsSubMenu selectedSettingsSubMenu;
+
+  final Function(UserMenuType) onMenuSelected;
+  final Function(JobSubMenu) onJobSubMenuSelected;
+  final Function(ApplicationSubMenu) onApplicationSubMenuSelected;
+  final Function(ServiceSubMenu) onServiceSubMenuSelected;
+  final Function(ResumeSubMenu) onResumeSubMenuSelected;
+  final Function(AISubMenu) onAISubMenuSelected;
+  final Function(ProfileSubMenu) onProfileSubMenuSelected;
+  final Function(SettingsSubMenu) onSettingsSubMenuSelected;
 
   const UserSidebar({
     super.key,
     required this.selectedMenu,
+    required this.selectedJobSubMenu,
+    required this.selectedAppSubMenu,
+    required this.selectedServiceSubMenu,
+    required this.selectedResumeSubMenu,
+    required this.selectedAISubMenu,
+    required this.selectedProfileSubMenu,
+    required this.selectedSettingsSubMenu,
     required this.onMenuSelected,
+    required this.onJobSubMenuSelected,
+    required this.onApplicationSubMenuSelected,
+    required this.onServiceSubMenuSelected,
+    required this.onResumeSubMenuSelected,
+    required this.onAISubMenuSelected,
+    required this.onProfileSubMenuSelected,
+    required this.onSettingsSubMenuSelected,
   });
 
   @override
@@ -31,385 +53,609 @@ class UserSidebar extends StatefulWidget {
 }
 
 class _UserSidebarState extends State<UserSidebar> {
-  String _userName = "User";
-  String _userEmail = "";
-  bool _isLoading = true;
+  static const Color _primary = Color(0xFF6C63FF);
+  static const Color _pink = Color(0xFFFF6588);
+
+  bool _jobsExpanded = false;
+  bool _appsExpanded = false;
+  bool _servicesExpanded = false;
+  bool _resumeExpanded = false;
+  bool _aiExpanded = false;
+  bool _profileExpanded = false;
+  bool _settingsExpanded = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _syncExpansion();
   }
 
-  Future<void> _loadUserData() async {
-    if (!mounted) return;
-    setState(() => _isLoading = true);
-
-    try {
-      final email = await SecureStorage.getEmail();
-      if (email != null && email.isNotEmpty) {
-        _userEmail = email;
-        _userName = email.split('@').first;
-      }
-
-      final name = await SecureStorage.getName();
-      if (name != null && name.isNotEmpty) {
-        _userName = name;
-      }
-
-      // ✅ Provider is now the SINGLE source of truth — no need to fetch photo here.
-      // The provider already has the photo from main.dart → loadProfile().
-    } catch (e) {
-      debugPrint("Error loading user data: $e");
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+  @override
+  void didUpdateWidget(covariant UserSidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedMenu != oldWidget.selectedMenu) {
+      _syncExpansion();
     }
   }
 
-  String _getInitials() {
-    if (_userName.isEmpty) return 'U';
-    final parts = _userName.trim().split(RegExp(r'\s+'));
-    if (parts.length >= 2 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    }
-    return _userName[0].toUpperCase();
-  }
-
-  Widget _initialsAvatar() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blue.shade700, Colors.purple.shade700],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: Text(
-          _getInitials(),
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // ✅ PROFILE PHOTO — reads from provider
-  // ============================================================
-  Widget _buildProfilePhoto() {
-    return Consumer<UserProfileProvider>(
-      builder: (context, provider, _) {
-        final url = provider.profilePhotoUrl;
-
-        if (url == null || url.trim().isEmpty) {
-          if (_isLoading) {
-            return Container(
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.grey,
-              ),
-              child: const Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            );
-          }
-          return _initialsAvatar();
-        }
-
-        return ClipOval(
-          child: CachedNetworkImage(
-            key: ValueKey('sidebar_photo_${provider.version}_$url'),
-            imageUrl: url,
-            fit: BoxFit.cover,
-            width: 80,
-            height: 80,
-            fadeInDuration: const Duration(milliseconds: 200),
-            placeholder: (context, u) => _initialsAvatar(),
-            errorWidget: (context, u, error) {
-              debugPrint('❌ Sidebar photo load failed: $error');
-              return _initialsAvatar();
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _openProfilePhotoUpload() async {
-    if (!mounted) return;
-
-    final currentUrl =
-        Provider.of<UserProfileProvider>(context, listen: false)
-            .profilePhotoUrl;
-
-    final uploadedUrl = await ProfilePhotoUploadDialog.show(
-      context,
-      currentPhotoUrl: currentUrl,
-    );
-
-    if (uploadedUrl != null && uploadedUrl.isNotEmpty && mounted) {
-      debugPrint("✅ Sidebar: profile photo updated → $uploadedUrl");
-      // Provider already notified listeners — no setState needed
-    }
-  }
-
-  Widget _buildProfileSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          GestureDetector(
-            onTap: _openProfilePhotoUpload,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.blueAccent, width: 3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blueAccent.withAlpha(51),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: _buildProfilePhoto(),
-                ),
-                Positioned(
-                  right: -2,
-                  bottom: -2,
-                  child: Material(
-                    color: Colors.white,
-                    shape: const CircleBorder(),
-                    elevation: 4,
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: _openProfilePhotoUpload,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.blueAccent.shade400,
-                              Colors.purpleAccent.shade200,
-                            ],
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          size: 15,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _userName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _userEmail,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            "Tap photo to update",
-            style: TextStyle(
-              color: Colors.white.withAlpha(120),
-              fontSize: 9,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            height: 1,
-            margin: const EdgeInsets.symmetric(horizontal: 10),
-            color: Colors.white.withAlpha(26),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuItem(String title, IconData icon, MenuType type) {
-    final isSelected = widget.selectedMenu == type;
-    return Material(
-      color: Colors.transparent,
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: isSelected ? Colors.blueAccent : Colors.white70,
-          size: 22,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? Colors.blueAccent : Colors.white,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-        selected: isSelected,
-        selectedTileColor: Colors.blueAccent.withAlpha(51),
-        onTap: () => widget.onMenuSelected(type),
-        tileColor: Colors.transparent,
-      ),
-    );
-  }
-
-  Widget _buildExpansionItem(
-      String title, IconData icon, List<Widget> children) {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        dividerColor: Colors.transparent,
-        listTileTheme: const ListTileThemeData(tileColor: Colors.transparent),
-      ),
-      child: ExpansionTile(
-        leading: Icon(icon, color: Colors.white70, size: 22),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        collapsedIconColor: Colors.white70,
-        iconColor: Colors.blueAccent,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-        childrenPadding: const EdgeInsets.only(left: 16),
-        backgroundColor: Colors.transparent,
-        collapsedBackgroundColor: Colors.transparent,
-        children: children,
-      ),
-    );
-  }
-
-  Widget _buildLogoutButton() {
-    return Material(
-      color: Colors.transparent,
-      child: ListTile(
-        leading: const Icon(Icons.logout, color: Colors.redAccent),
-        title: const Text(
-          "Logout",
-          style: TextStyle(color: Colors.white),
-        ),
-        onTap: () async {
-          if (mounted) {
-            Provider.of<UserProfileProvider>(context, listen: false).clear();
-          }
-          await SecureStorage.logout();
-          if (context.mounted) {
-            context.go(AppRoutes.home);
-          }
-        },
-        tileColor: Colors.transparent,
-      ),
-    );
+  void _syncExpansion() {
+    _jobsExpanded = widget.selectedMenu == UserMenuType.jobs;
+    _appsExpanded = widget.selectedMenu == UserMenuType.applications;
+    _servicesExpanded = widget.selectedMenu == UserMenuType.services;
+    _resumeExpanded = widget.selectedMenu == UserMenuType.resume;
+    _aiExpanded = widget.selectedMenu == UserMenuType.ai;
+    _profileExpanded = widget.selectedMenu == UserMenuType.profile;
+    _settingsExpanded = widget.selectedMenu == UserMenuType.settings;
   }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Watch provider → any photo change rebuilds sidebar
-    context.watch<UserProfileProvider>();
-
     return Container(
       width: 280,
-      color: const Color(0xFF1E293B),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
       child: Material(
         color: Colors.transparent,
         child: Column(
           children: [
             const SizedBox(height: 30),
-            _buildProfileSection(),
-            const SizedBox(height: 16),
+            // ---- Header ----
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [_primary, _pink]),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: _primary.withOpacity(0.4),
+                    blurRadius: 20,
+                    spreadRadius: 4,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.person,
+                size: 42,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              "User Panel",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // ---- Menu Items ----
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
                 physics: const BouncingScrollPhysics(),
                 children: [
                   _buildMenuItem(
-                      "Dashboard", Icons.dashboard, MenuType.dashboard),
-                  const SizedBox(height: 4),
-                  _buildExpansionItem("Personal Info", Icons.person, [
-                    _buildMenuItem(
-                        "Basic Details", Icons.info, MenuType.personal),
-                    _buildMenuItem(
-                        "Education", Icons.school, MenuType.education),
-                    _buildMenuItem(
-                        "Experience", Icons.work, MenuType.experience),
-                    _buildMenuItem(
-                        "Documents", Icons.folder, MenuType.documents),
-                  ]),
-                  _buildExpansionItem("Career / Job", Icons.work, [
-                    _buildMenuItem("Browse Jobs", Icons.search, MenuType.jobs),
-                    _buildMenuItem("My Applications", Icons.assignment,
-                        MenuType.myApplications),
-                    _buildMenuItem("Saved Jobs", Icons.bookmark,
-                        MenuType.savedJobs),
-                  ]),
-                  _buildExpansionItem("Resume", Icons.description, [
-                    _buildMenuItem("My Resume", Icons.picture_as_pdf,
-                        MenuType.resume),
-                    _buildMenuItem("Build Resume", Icons.edit_document,
-                        MenuType.buildResume),
-                  ]),
-                  _buildExpansionItem("Services", Icons.workspace_premium, [
-                    _buildMenuItem("Apply Service",
-                        Icons.add_circle_outline, MenuType.applyService),
-                    _buildMenuItem("Applications",
-                        Icons.assignment_turned_in, MenuType.serviceApplications),
-                  ]),
-                  _buildExpansionItem("Settings", Icons.settings, [
-                    _buildMenuItem("Change Password", Icons.lock,
-                        MenuType.changePassword),
-                    _buildMenuItem("MPIN Setup", Icons.pin, MenuType.mpin),
-                    _buildMenuItem("Biometric Login", Icons.fingerprint,
-                        MenuType.biometric),
-                  ]),
-                  _buildMenuItem("Support", Icons.help, MenuType.support),
-                  if (!kReleaseMode)
-                    _buildMenuItem("GPS Test", Icons.gps_fixed,
-                        MenuType.locationTest),
+                    "Dashboard",
+                    Icons.dashboard_rounded,
+                    UserMenuType.dashboard,
+                  ),
+
+                  // Jobs
+                  _buildExpandable(
+                    title: "Jobs",
+                    icon: Icons.work_rounded,
+                    isSelected: widget.selectedMenu == UserMenuType.jobs,
+                    isExpanded: _jobsExpanded,
+                    onToggle: () =>
+                        setState(() => _jobsExpanded = !_jobsExpanded),
+                    children: [
+                      _buildSubItem(
+                        "Browse Jobs",
+                        Icons.search_rounded,
+                        widget.selectedJobSubMenu == JobSubMenu.browseJobs,
+                        () => widget
+                            .onJobSubMenuSelected(JobSubMenu.browseJobs),
+                      ),
+                      _buildSubItem(
+                        "Saved Jobs",
+                        Icons.bookmark_rounded,
+                        widget.selectedJobSubMenu == JobSubMenu.savedJobs,
+                        () => widget
+                            .onJobSubMenuSelected(JobSubMenu.savedJobs),
+                      ),
+                    ],
+                  ),
+
+                  // Applications
+                  _buildExpandable(
+                    title: "Applications",
+                    icon: Icons.assignment_rounded,
+                    isSelected:
+                        widget.selectedMenu == UserMenuType.applications,
+                    isExpanded: _appsExpanded,
+                    onToggle: () =>
+                        setState(() => _appsExpanded = !_appsExpanded),
+                    children: [
+                      _buildSubItem(
+                        "Job Applications",
+                        Icons.work_rounded,
+                        widget.selectedAppSubMenu ==
+                            ApplicationSubMenu.jobApplications,
+                        () => widget.onApplicationSubMenuSelected(
+                            ApplicationSubMenu.jobApplications),
+                      ),
+                    ],
+                  ),
+
+                  // Services
+                  _buildExpandable(
+                    title: "Services",
+                    icon: Icons.workspace_premium_rounded,
+                    isSelected: widget.selectedMenu == UserMenuType.services,
+                    isExpanded: _servicesExpanded,
+                    onToggle: () => setState(
+                        () => _servicesExpanded = !_servicesExpanded),
+                    children: [
+                      _buildSubItem(
+                        "Browse Services",
+                        Icons.grid_view_rounded,
+                        widget.selectedServiceSubMenu ==
+                            ServiceSubMenu.browseServices,
+                        () => widget.onServiceSubMenuSelected(
+                            ServiceSubMenu.browseServices),
+                      ),
+                      _buildSubItem(
+                        "My Applications",
+                        Icons.list_alt_rounded,
+                        widget.selectedServiceSubMenu ==
+                            ServiceSubMenu.myApplications,
+                        () => widget.onServiceSubMenuSelected(
+                            ServiceSubMenu.myApplications),
+                      ),
+                    ],
+                  ),
+
+                  // Resume
+                  _buildExpandable(
+                    title: "Resume",
+                    icon: Icons.description_rounded,
+                    isSelected: widget.selectedMenu == UserMenuType.resume,
+                    isExpanded: _resumeExpanded,
+                    onToggle: () =>
+                        setState(() => _resumeExpanded = !_resumeExpanded),
+                    children: [
+                      _buildSubItem(
+                        "Build Resume",
+                        Icons.build_rounded,
+                        widget.selectedResumeSubMenu ==
+                            ResumeSubMenu.buildResume,
+                        () => widget.onResumeSubMenuSelected(
+                            ResumeSubMenu.buildResume),
+                      ),
+                      _buildSubItem(
+                        "View Resume",
+                        Icons.visibility_rounded,
+                        widget.selectedResumeSubMenu ==
+                            ResumeSubMenu.viewResume,
+                        () => widget.onResumeSubMenuSelected(
+                            ResumeSubMenu.viewResume),
+                      ),
+                      _buildSubItem(
+                        "ATS Score",
+                        Icons.score_rounded,
+                        widget.selectedResumeSubMenu ==
+                            ResumeSubMenu.atsScore,
+                        () => widget.onResumeSubMenuSelected(
+                            ResumeSubMenu.atsScore),
+                      ),
+                      _buildSubItem(
+                        "AI Generator",
+                        Icons.auto_awesome_rounded,
+                        widget.selectedResumeSubMenu ==
+                            ResumeSubMenu.aiGenerator,
+                        () => widget.onResumeSubMenuSelected(
+                            ResumeSubMenu.aiGenerator),
+                      ),
+                    ],
+                  ),
+
+                  // AI
+                  _buildExpandable(
+                    title: "AI Insights",
+                    icon: Icons.auto_awesome_rounded,
+                    isSelected: widget.selectedMenu == UserMenuType.ai,
+                    isExpanded: _aiExpanded,
+                    onToggle: () =>
+                        setState(() => _aiExpanded = !_aiExpanded),
+                    children: [
+                      _buildSubItem(
+                        "Dashboard",
+                        Icons.dashboard_rounded,
+                        widget.selectedAISubMenu == AISubMenu.dashboard,
+                        () =>
+                            widget.onAISubMenuSelected(AISubMenu.dashboard),
+                      ),
+                      _buildSubItem(
+                        "Career Roadmap",
+                        Icons.map_rounded,
+                        widget.selectedAISubMenu == AISubMenu.careerRoadmap,
+                        () => widget.onAISubMenuSelected(
+                            AISubMenu.careerRoadmap),
+                      ),
+                    ],
+                  ),
+
+                  // Profile
+                  _buildExpandable(
+                    title: "Profile",
+                    icon: Icons.person_rounded,
+                    isSelected: widget.selectedMenu == UserMenuType.profile,
+                    isExpanded: _profileExpanded,
+                    onToggle: () =>
+                        setState(() => _profileExpanded = !_profileExpanded),
+                    children: [
+                      _buildSubItem(
+                        "Basic Details",
+                        Icons.info_rounded,
+                        widget.selectedProfileSubMenu ==
+                            ProfileSubMenu.basicDetails,
+                        () => widget.onProfileSubMenuSelected(
+                            ProfileSubMenu.basicDetails),
+                      ),
+                      _buildSubItem(
+                        "Education",
+                        Icons.school_rounded,
+                        widget.selectedProfileSubMenu ==
+                            ProfileSubMenu.education,
+                        () => widget.onProfileSubMenuSelected(
+                            ProfileSubMenu.education),
+                      ),
+                      _buildSubItem(
+                        "Experience",
+                        Icons.work_history_rounded,
+                        widget.selectedProfileSubMenu ==
+                            ProfileSubMenu.experience,
+                        () => widget.onProfileSubMenuSelected(
+                            ProfileSubMenu.experience),
+                      ),
+                      _buildSubItem(
+                        "Advanced Details",
+                        Icons.tune_rounded,
+                        widget.selectedProfileSubMenu ==
+                            ProfileSubMenu.advancedDetails,
+                        () => widget.onProfileSubMenuSelected(
+                            ProfileSubMenu.advancedDetails),
+                      ),
+                      _buildSubItem(
+                        "Documents",
+                        Icons.folder_rounded,
+                        widget.selectedProfileSubMenu ==
+                            ProfileSubMenu.documents,
+                        () => widget.onProfileSubMenuSelected(
+                            ProfileSubMenu.documents),
+                      ),
+                    ],
+                  ),
+
+                  // Support (leaf)
+                  _buildMenuItem(
+                    "Support",
+                    Icons.support_agent_rounded,
+                    UserMenuType.support,
+                  ),
+
+                  // Settings
+                  _buildExpandable(
+                    title: "Settings",
+                    icon: Icons.settings_rounded,
+                    isSelected: widget.selectedMenu == UserMenuType.settings,
+                    isExpanded: _settingsExpanded,
+                    onToggle: () => setState(
+                        () => _settingsExpanded = !_settingsExpanded),
+                    children: [
+                      _buildSubItem(
+                        "Change Password",
+                        Icons.lock_rounded,
+                        widget.selectedSettingsSubMenu ==
+                            SettingsSubMenu.changePassword,
+                        () => widget.onSettingsSubMenuSelected(
+                            SettingsSubMenu.changePassword),
+                      ),
+                      _buildSubItem(
+                        "Setup MPIN",
+                        Icons.pin_rounded,
+                        widget.selectedSettingsSubMenu ==
+                            SettingsSubMenu.setupMpin,
+                        () => widget.onSettingsSubMenuSelected(
+                            SettingsSubMenu.setupMpin),
+                      ),
+                      _buildSubItem(
+                        "Fingerprint",
+                        Icons.fingerprint_rounded,
+                        widget.selectedSettingsSubMenu ==
+                            SettingsSubMenu.fingerprint,
+                        () => widget.onSettingsSubMenuSelected(
+                            SettingsSubMenu.fingerprint),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-            const Divider(color: Colors.grey, height: 1),
-            _buildLogoutButton(),
+
+            const Divider(color: Colors.white12, height: 1),
+
+            // Logout
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () async {
+                  await SecureStorage.logout();
+                  if (context.mounted) {
+                    context.go(AppRoutes.home);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.logout,
+                          color: Colors.redAccent,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      const Text(
+                        "Logout",
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 20),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // SIMPLE MENU ITEM (leaf)
+  // ------------------------------------------------------------
+  Widget _buildMenuItem(String title, IconData icon, UserMenuType menu) {
+    final isSelected = widget.selectedMenu == menu;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => widget.onMenuSelected(menu),
+          splashColor: Colors.white.withOpacity(0.08),
+          highlightColor: Colors.white.withOpacity(0.04),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: isSelected
+                  ? const LinearGradient(colors: [_primary, _pink])
+                  : null,
+              color: isSelected ? null : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: _primary.withOpacity(0.3),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected ? Colors.white : Colors.white70,
+                  size: 22,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.white70,
+                      fontSize: 15,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // EXPANDABLE MENU
+  // ------------------------------------------------------------
+  Widget _buildExpandable({
+    required String title,
+    required IconData icon,
+    required bool isSelected,
+    required bool isExpanded,
+    required VoidCallback onToggle,
+    required List<Widget> children,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected
+              ? _primary.withOpacity(0.08)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onToggle,
+                splashColor: Colors.white.withOpacity(0.08),
+                highlightColor: Colors.white.withOpacity(0.04),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        icon,
+                        color: isSelected ? _primary : Colors.white70,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            color: isSelected ? _primary : Colors.white70,
+                            fontSize: 15,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.5 : 0.0,
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeInOut,
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: isSelected ? _primary : Colors.white70,
+                          size: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            AnimatedCrossFade(
+              firstChild: const SizedBox(width: double.infinity),
+              secondChild: Padding(
+                padding: const EdgeInsets.only(left: 16, bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: children,
+                ),
+              ),
+              crossFadeState: isExpanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 200),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // SUB MENU ITEM
+  // ------------------------------------------------------------
+  Widget _buildSubItem(
+    String title,
+    IconData icon,
+    bool isActive,
+    VoidCallback onTap,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: Colors.white.withOpacity(0.08),
+        highlightColor: Colors.white.withOpacity(0.04),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color:
+                isActive ? _primary.withOpacity(0.15) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: isActive
+                ? Border.all(
+                    color: _primary.withOpacity(0.3),
+                    width: 1,
+                  )
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: isActive ? _primary : Colors.white54,
+                size: 18,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: isActive ? _primary : Colors.white54,
+                    fontSize: 13,
+                    fontWeight:
+                        isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
